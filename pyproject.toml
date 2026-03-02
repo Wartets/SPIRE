@@ -1,0 +1,31 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "spire-hep"
+version = "0.1.0"
+description = "High-energy physics scattering engine — from Lagrangians to cross-sections"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+keywords = ["physics", "hep", "scattering", "feynman", "cross-section"]
+dependencies = ["numpy>=1.20"]
+
+[project.optional-dependencies]
+dev = ["pytest", "matplotlib"]
+
+[tool.maturin]
+features = ["python", "extension-module"]
+manifest-path = "crates/spire-bindings/Cargo.toml"
+module-name = "spire_hep"
+python-source = false
