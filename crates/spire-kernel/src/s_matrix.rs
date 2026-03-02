@@ -432,6 +432,107 @@ pub fn classify_interaction(
     Ok(compatible)
 }
 
+// ---------------------------------------------------------------------------
+// Cross-Section Calculation
+// ---------------------------------------------------------------------------
+
+/// Result of a cross-section calculation for a specific reaction.
+///
+/// Bundles the Monte Carlo integration result with metadata about the
+/// process and the calculation parameters.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CrossSectionResult {
+    /// The total cross-section in natural units (GeV⁻²).
+    pub cross_section: f64,
+    /// Statistical uncertainty on the cross-section (GeV⁻²).
+    pub uncertainty: f64,
+    /// The cross-section converted to picobarns.
+    pub cross_section_pb: f64,
+    /// The uncertainty converted to picobarns.
+    pub uncertainty_pb: f64,
+    /// Number of phase-space events evaluated.
+    pub events_evaluated: usize,
+    /// Relative error $\delta\sigma / \sigma$.
+    pub relative_error: f64,
+    /// Centre-of-mass energy used (GeV).
+    pub cms_energy: f64,
+    /// The squared matrix element model used (description).
+    pub amplitude_model: String,
+}
+
+/// Calculate the total cross-section for a $2 \to N$ reaction using Monte
+/// Carlo integration over Lorentz-invariant phase space.
+///
+/// This function combines:
+/// 1. The RAMBO phase-space generator for $N$-body momenta.
+/// 2. A user-supplied squared amplitude function $|\mathcal{M}|^2$.
+/// 3. The uniform Monte Carlo integrator.
+///
+/// The formula is:
+/// $$\sigma = \frac{1}{2s} \int |\mathcal{M}|^2 \, d\Phi_N$$
+///
+/// # Arguments
+///
+/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` — Rest masses of the $N$ final-state particles in GeV.
+/// * `amplitude_sq_fn` — A closure returning $|\mathcal{M}|^2$ for a given
+///   set of final-state momenta (as a `PhaseSpacePoint`).
+/// * `num_events` — Number of Monte Carlo samples.
+///
+/// # Returns
+///
+/// A [`CrossSectionResult`] containing the cross-section in both natural
+/// units and picobarns, with statistical uncertainties.
+pub fn calculate_cross_section<F>(
+    cms_energy: f64,
+    final_masses: &[f64],
+    amplitude_sq_fn: F,
+    num_events: usize,
+) -> SpireResult<CrossSectionResult>
+where
+    F: Fn(&crate::kinematics::PhaseSpacePoint) -> f64,
+{
+    use crate::integration::{compute_cross_section, UniformIntegrator};
+    use crate::kinematics::RamboGenerator;
+
+    let integrator = UniformIntegrator::new();
+    let mut generator = RamboGenerator::new();
+
+    let result = compute_cross_section(
+        amplitude_sq_fn,
+        &integrator,
+        &mut generator,
+        cms_energy,
+        final_masses,
+        num_events,
+    )?;
+
+    let pb_result = result.to_picobarns();
+
+    Ok(CrossSectionResult {
+        cross_section: result.value,
+        uncertainty: result.error,
+        cross_section_pb: pb_result.value,
+        uncertainty_pb: pb_result.error,
+        events_evaluated: result.events_evaluated,
+        relative_error: result.relative_error,
+        cms_energy,
+        amplitude_model: "Constant |M|² = 1 (phase-space only)".into(),
+    })
+}
+
+/// Calculate a phase-space-only cross-section (constant $|\mathcal{M}|^2 = 1$).
+///
+/// This is useful for testing and for computing the raw phase-space volume
+/// without any dynamical amplitude information.
+pub fn calculate_phase_space_cross_section(
+    cms_energy: f64,
+    final_masses: &[f64],
+    num_events: usize,
+) -> SpireResult<CrossSectionResult> {
+    calculate_cross_section(cms_energy, final_masses, |_| 1.0, num_events)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -923,5 +1024,117 @@ mod tests {
         let json = serde_json::to_string(&mb).unwrap();
         let mb2: MediatingBoson = serde_json::from_str(&json).unwrap();
         assert_eq!(mb, mb2);
+    }
+
+    // -----------------------------------------------------------------------
+    // Cross-section calculation tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn cross_section_result_serde() {
+        let result = CrossSectionResult {
+            cross_section: 1.5e-6,
+            uncertainty: 2.0e-8,
+            cross_section_pb: 1.5e-6 * 0.3894e9,
+            uncertainty_pb: 2.0e-8 * 0.3894e9,
+            events_evaluated: 10000,
+            relative_error: 2.0e-8 / 1.5e-6,
+            cms_energy: 91.2,
+            amplitude_model: "Constant |M|^2 = 1".into(),
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let restored: CrossSectionResult = serde_json::from_str(&json).unwrap();
+        assert!((restored.cross_section - result.cross_section).abs() < 1e-20);
+        assert_eq!(restored.events_evaluated, 10000);
+        assert!((restored.cms_energy - 91.2).abs() < 1e-10);
+        assert_eq!(restored.amplitude_model, "Constant |M|^2 = 1");
+    }
+
+    #[test]
+    fn phase_space_cross_section_massless_two_body() {
+        // Phase-space cross-section for 2 → 2 massless at √s = 100 GeV.
+        // σ = (1/2s) × Φ₂ where Φ₂ = 1/(8π) for massless 2-body.
+        // So σ = 1/(16π s) ≈ 1/(16π × 10000) ≈ 1.99e-6 GeV⁻².
+        let result =
+            calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 50_000).unwrap();
+
+        let s = 100.0_f64.powi(2);
+        let analytic = 1.0 / (16.0 * std::f64::consts::PI * s);
+
+        // Accept 5% relative tolerance for Monte Carlo.
+        let rel_err = ((result.cross_section - analytic) / analytic).abs();
+        assert!(
+            rel_err < 0.05,
+            "Phase-space cross-section off by {:.1}%: got {:.6e}, expected {:.6e}",
+            rel_err * 100.0,
+            result.cross_section,
+            analytic
+        );
+    }
+
+    #[test]
+    fn cross_section_with_constant_amplitude() {
+        // |M|² = 42 everywhere — result should be 42× the phase-space-only value.
+        let ps_result =
+            calculate_phase_space_cross_section(50.0, &[0.0, 0.0], 20_000).unwrap();
+
+        let amp_result =
+            calculate_cross_section(50.0, &[0.0, 0.0], |_| 42.0, 20_000).unwrap();
+
+        let ratio = amp_result.cross_section / ps_result.cross_section;
+        assert!(
+            (ratio - 42.0).abs() < 2.0,
+            "Expected ratio ~42, got {:.2}",
+            ratio
+        );
+    }
+
+    #[test]
+    fn cross_section_result_fields_populated() {
+        // Use 3-body to get non-trivial variance (2-body massless has constant
+        // RAMBO weight, giving zero uncertainty for a constant integrand).
+        let result =
+            calculate_phase_space_cross_section(200.0, &[0.0, 0.0, 0.0], 5_000).unwrap();
+
+        assert_eq!(result.events_evaluated, 5_000);
+        assert!((result.cms_energy - 200.0).abs() < 1e-10);
+        assert!(result.cross_section > 0.0);
+        assert!(result.uncertainty >= 0.0);
+        assert!(result.cross_section_pb > 0.0);
+        assert!(result.uncertainty_pb >= 0.0);
+        assert!(!result.amplitude_model.is_empty());
+    }
+
+    #[test]
+    fn cross_section_picobarns_conversion() {
+        let result =
+            calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 10_000).unwrap();
+
+        let conv = 0.3894e9_f64;
+        let expected_pb = result.cross_section * conv;
+        let rel = ((result.cross_section_pb - expected_pb) / expected_pb).abs();
+        assert!(
+            rel < 1e-6,
+            "Picobarn conversion mismatch: got {:.6e}, expected {:.6e}",
+            result.cross_section_pb,
+            expected_pb
+        );
+    }
+
+    #[test]
+    fn cross_section_massive_two_body() {
+        // 2 → 2 with m = 1 GeV each, √s = 10 GeV — well above threshold.
+        let result =
+            calculate_phase_space_cross_section(10.0, &[1.0, 1.0], 20_000).unwrap();
+
+        assert!(result.cross_section > 0.0);
+        assert!(result.events_evaluated == 20_000);
+    }
+
+    #[test]
+    fn cross_section_insufficient_energy() {
+        // √s = 1 GeV but final masses total 10 GeV — should error.
+        let result = calculate_phase_space_cross_section(1.0, &[5.0, 5.0], 1000);
+        assert!(result.is_err());
     }
 }

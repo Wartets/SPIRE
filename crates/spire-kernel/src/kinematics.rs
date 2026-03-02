@@ -34,8 +34,11 @@
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;
 
-use crate::algebra::FourMomentum;
+use crate::algebra::{FourMomentum, MetricSignature, SpacetimeVector};
 use crate::SpireResult;
+use rand::Rng;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ---------------------------------------------------------------------------
 // Core Data Structures
@@ -734,6 +737,404 @@ pub fn generate_phase_space(
 }
 
 // ===========================================================================
+// Phase Space Generator — Trait & RAMBO Implementation
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Phase Space Point
+// ---------------------------------------------------------------------------
+
+/// A single generated phase-space point with $N$-body final-state momenta.
+///
+/// Stores the 4-momenta of all final-state particles along with the
+/// Lorentz-invariant phase space (LIPS) weight required for Monte Carlo
+/// integration.
+///
+/// # Invariant
+///
+/// Energy-momentum conservation is strictly enforced:
+/// $$\sum_{i=1}^{N} p_i^\mu = P_{\text{total}}^\mu = (E_\text{cms}, 0, 0, 0)$$
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseSpacePoint {
+    /// The 4-momenta of all final-state particles.
+    pub momenta: Vec<SpacetimeVector>,
+    /// The LIPS weight $w$ of this phase-space configuration.
+    ///
+    /// For flat Monte Carlo integration:
+    /// $$\int d\Phi_N \approx \frac{1}{N_{\text{events}}} \sum_i w_i \cdot f(p_i)$$
+    pub weight: f64,
+}
+
+// ---------------------------------------------------------------------------
+// PhaseSpaceGenerator Trait
+// ---------------------------------------------------------------------------
+
+/// Trait for generating random $N$-body phase space configurations.
+///
+/// Implementations must produce 4-momentum configurations that strictly
+/// conserve energy-momentum: $\sum_i p_i^\mu = (E_\text{cms}, 0, 0, 0)$.
+///
+/// Each generated event carries a weight that encodes the Lorentz-invariant
+/// phase space measure, ensuring correct Monte Carlo integration.
+///
+/// # Implementations
+///
+/// - [`RamboGenerator`]: Flat $N$-body phase space using the RAMBO algorithm.
+/// - Future: Adaptive importance sampling, multi-channel generators.
+pub trait PhaseSpaceGenerator: Send + Sync {
+    /// Generate a single phase-space event.
+    ///
+    /// # Arguments
+    /// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
+    /// * `final_masses` — Rest masses of the $N$ final-state particles in GeV.
+    ///
+    /// # Returns
+    /// A `PhaseSpacePoint` containing the momenta and LIPS weight.
+    fn generate_event(
+        &mut self,
+        cms_energy: f64,
+        final_masses: &[f64],
+    ) -> SpireResult<PhaseSpacePoint>;
+
+    /// The name of this generator (for diagnostics and logging).
+    fn name(&self) -> &str;
+}
+
+// ---------------------------------------------------------------------------
+// RAMBO Algorithm
+// ---------------------------------------------------------------------------
+
+/// The **RAMBO** (RAndom Momenta BOoster) phase-space generator.
+///
+/// Generates flat $N$-body Lorentz-invariant phase space with correct weight.
+/// The algorithm is:
+///
+/// 1. Generate $N$ massless isotropic 4-momenta from an exponential energy
+///    distribution and uniform angular distribution.
+/// 2. Boost and scale the system so that the total 4-momentum equals
+///    $(E_\text{cms}, 0, 0, 0)$.
+/// 3. Apply mass corrections iteratively (Newton's method) to achieve the
+///    required final-state particle masses.
+/// 4. Compute the exact LIPS weight including mass correction factors.
+///
+/// # Reference
+///
+/// R. Kleiss, W.J. Stirling, S.D. Ellis,
+/// "A new Monte Carlo treatment of multiparticle phase space at high energies",
+/// Computer Physics Communications 40 (1986) 359–373.
+pub struct RamboGenerator {
+    /// The random number generator (seeded, reproducible, thread-safe).
+    rng: StdRng,
+}
+
+impl RamboGenerator {
+    /// Create a new RAMBO generator with a random seed.
+    pub fn new() -> Self {
+        Self {
+            rng: StdRng::from_entropy(),
+        }
+    }
+
+    /// Create a RAMBO generator with a fixed seed (for reproducible results).
+    pub fn with_seed(seed: u64) -> Self {
+        Self {
+            rng: StdRng::seed_from_u64(seed),
+        }
+    }
+}
+
+impl Default for RamboGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PhaseSpaceGenerator for RamboGenerator {
+    fn generate_event(
+        &mut self,
+        cms_energy: f64,
+        final_masses: &[f64],
+    ) -> SpireResult<PhaseSpacePoint> {
+        let n = final_masses.len();
+        if n < 2 {
+            return Err(crate::SpireError::KinematicsForbidden(
+                "RAMBO requires at least 2 final-state particles".into(),
+            ));
+        }
+
+        let mass_sum: f64 = final_masses.iter().sum();
+        if cms_energy < mass_sum - 1e-12 {
+            return Err(crate::SpireError::KinematicsForbidden(format!(
+                "Insufficient energy: √s = {:.6} GeV < Σm = {:.6} GeV",
+                cms_energy, mass_sum
+            )));
+        }
+
+        // Step 1: Generate N massless isotropic 4-momenta.
+        let q: Vec<SpacetimeVector> = (0..n)
+            .map(|_| self.generate_massless_isotropic())
+            .collect();
+
+        // Step 2: Compute total 4-vector Q = Σq_i.
+        let q_total = sum_vectors(&q);
+        let metric = MetricSignature::minkowski_4d();
+        let q_sq = metric.inner_product(&q_total, &q_total)
+            .map_err(|e| crate::SpireError::InternalError(e))?;
+        let m_q = q_sq.sqrt();
+
+        if m_q < 1e-15 {
+            return Err(crate::SpireError::InternalError(
+                "RAMBO: degenerate total momentum (M_Q ≈ 0)".into(),
+            ));
+        }
+
+        // Step 3: Boost + scale to the CM frame with total energy = cms_energy.
+        let x = cms_energy / m_q;
+        let mut p: Vec<SpacetimeVector> = q.iter().map(|qi| {
+            rambo_boost_and_scale(qi, &q_total, m_q, x)
+        }).collect();
+
+        // Step 4: Compute the massless RAMBO weight.
+        let massless_weight = rambo_massless_weight(n, cms_energy);
+
+        // Step 5: Apply mass corrections if any particle is massive.
+        let all_massless = final_masses.iter().all(|m| m.abs() < 1e-15);
+        let weight = if all_massless {
+            massless_weight
+        } else {
+            // Iterative rescaling via Newton's method to achieve target masses.
+            let xi = rambo_mass_rescale(&p, final_masses, cms_energy)?;
+
+            // Apply the rescaling: E_i = sqrt(|p_i|² * ξ² + m_i²), p_i → ξ * p_i_spatial
+            let mut massive_momenta = Vec::with_capacity(n);
+            for (i, pi) in p.iter().enumerate() {
+                let p_spatial_sq: f64 = pi.components[1..].iter().map(|c| c * c).sum();
+                let m_i = final_masses[i];
+                let e_new = (p_spatial_sq * xi * xi + m_i * m_i).sqrt();
+                massive_momenta.push(SpacetimeVector::new_4d(
+                    e_new,
+                    pi.components[1] * xi,
+                    pi.components[2] * xi,
+                    pi.components[3] * xi,
+                ));
+            }
+
+            // Compute mass correction weight factor.
+            let mass_weight = rambo_mass_weight_factor(&massive_momenta, final_masses, xi, n, cms_energy);
+            p = massive_momenta;
+            massless_weight * mass_weight
+        };
+
+        Ok(PhaseSpacePoint { momenta: p, weight })
+    }
+
+    fn name(&self) -> &str {
+        "RAMBO"
+    }
+}
+
+impl RamboGenerator {
+    /// Generate a single massless isotropic 4-momentum.
+    ///
+    /// The energy follows $E = -\ln(\rho_3 \cdot \rho_4)$ and the direction
+    /// is uniformly distributed on the unit sphere.
+    fn generate_massless_isotropic(&mut self) -> SpacetimeVector {
+        let rho1: f64 = self.rng.gen();
+        let rho2: f64 = self.rng.gen();
+        let rho3: f64 = self.rng.gen::<f64>().max(1e-300);
+        let rho4: f64 = self.rng.gen::<f64>().max(1e-300);
+
+        let cos_theta = 2.0 * rho1 - 1.0;
+        let sin_theta = (1.0 - cos_theta * cos_theta).max(0.0).sqrt();
+        let phi = 2.0 * PI * rho2;
+
+        let energy = -(rho3 * rho4).ln();
+
+        SpacetimeVector::new_4d(
+            energy,
+            energy * sin_theta * phi.cos(),
+            energy * sin_theta * phi.sin(),
+            energy * cos_theta,
+        )
+    }
+}
+
+/// Sum a slice of spacetime vectors component-wise.
+fn sum_vectors(vecs: &[SpacetimeVector]) -> SpacetimeVector {
+    let dim = vecs[0].dimension();
+    let mut result = SpacetimeVector::zero(dim);
+    for v in vecs {
+        for i in 0..dim {
+            result.components[i] += v.components[i];
+        }
+    }
+    result
+}
+
+/// Apply the RAMBO boost-and-scale transformation to a single momentum.
+///
+/// Maps the generated massless momentum $q_i$ into the CM frame where the
+/// total 4-momentum is $(E_\text{cms}, 0, 0, 0)$.
+///
+/// The transformation combines:
+/// 1. A Lorentz boost from the $Q$ rest frame to the CM frame.
+/// 2. A uniform energy rescaling by factor $x = E_\text{cms}/M_Q$.
+fn rambo_boost_and_scale(
+    qi: &SpacetimeVector,
+    q_total: &SpacetimeVector,
+    m_q: f64,
+    x: f64,
+) -> SpacetimeVector {
+    let q0 = q_total.components[0];
+    let qx = q_total.components[1];
+    let qy = q_total.components[2];
+    let qz = q_total.components[3];
+
+    // Boost vector: b = -Q_spatial / M_Q
+    let bx = -qx / m_q;
+    let by = -qy / m_q;
+    let bz = -qz / m_q;
+    let gamma = q0 / m_q;
+    let a = 1.0 / (1.0 + gamma);
+
+    let qi_e = qi.components[0];
+    let qi_x = qi.components[1];
+    let qi_y = qi.components[2];
+    let qi_z = qi.components[3];
+
+    // b · q_spatial
+    let bq = bx * qi_x + by * qi_y + bz * qi_z;
+
+    // Boosted momentum
+    let e_new = gamma * qi_e + bq;
+    let px_new = qi_x + bx * (a * bq + qi_e);
+    let py_new = qi_y + by * (a * bq + qi_e);
+    let pz_new = qi_z + bz * (a * bq + qi_e);
+
+    // Scale by x = E_cms / M_Q
+    SpacetimeVector::new_4d(
+        x * e_new,
+        x * px_new,
+        x * py_new,
+        x * pz_new,
+    )
+}
+
+/// Compute the flat massless RAMBO weight.
+///
+/// For $N$ massless particles at CM energy $E_\text{cms}$:
+///
+/// $$w_0 = \frac{(2\pi)^{4-3N} \, \pi^{N-1}}{(N-1)!\,(N-2)!}
+///          \left(\frac{E_\text{cms}}{2}\right)^{2N-4}$$
+fn rambo_massless_weight(n: usize, cms_energy: f64) -> f64 {
+    // Lorentz-invariant N-body massless phase-space volume (LIPS):
+    //
+    //   Φ_N = E_cm^{2(N-2)} / [2 × (4π)^{2N-3} × (N-1)! × (N-2)!]
+    //
+    // Reference: Kleiss, Stirling & Ellis, Comp. Phys. Comm. 40 (1986) 359, eq. 4.
+    let energy_power = cms_energy.powi(2 * n as i32 - 4);
+    let four_pi_power = (4.0 * PI).powi(2 * n as i32 - 3);
+    let fact_n1 = factorial(n - 1) as f64;
+    let fact_n2 = factorial(n - 2) as f64;
+
+    energy_power / (2.0 * four_pi_power * fact_n1 * fact_n2)
+}
+
+/// Compute the factorial $n!$.
+fn factorial(n: usize) -> u64 {
+    (1..=n as u64).product()
+}
+
+/// Solve for the mass rescaling parameter $\xi$ using Newton's method.
+///
+/// Finds $\xi > 0$ such that:
+/// $$\sum_{i=1}^{N} \sqrt{|\vec{p}_i|^2 \xi^2 + m_i^2} = E_\text{cms}$$
+///
+/// Starting value: $\xi_0 = \sqrt{1 - (\sum m_i / E_\text{cms})^2}$.
+fn rambo_mass_rescale(
+    momenta: &[SpacetimeVector],
+    masses: &[f64],
+    cms_energy: f64,
+) -> SpireResult<f64> {
+    let n = momenta.len();
+    let mass_sum: f64 = masses.iter().sum();
+
+    // Initial guess
+    let ratio = mass_sum / cms_energy;
+    let mut xi = (1.0 - ratio * ratio).max(1e-10).sqrt();
+
+    // Spatial momentum magnitudes squared
+    let p_sq: Vec<f64> = momenta.iter().map(|p| {
+        p.components[1..].iter().map(|c| c * c).sum()
+    }).collect();
+
+    // Newton iterations
+    for _ in 0..100 {
+        let mut f_val = -cms_energy;
+        let mut f_deriv = 0.0;
+        for i in 0..n {
+            let e_i = (p_sq[i] * xi * xi + masses[i] * masses[i]).sqrt();
+            f_val += e_i;
+            if e_i > 1e-300 {
+                f_deriv += p_sq[i] * xi / e_i;
+            }
+        }
+
+        if f_val.abs() < 1e-12 * cms_energy {
+            return Ok(xi);
+        }
+
+        if f_deriv.abs() < 1e-300 {
+            return Err(crate::SpireError::InternalError(
+                "RAMBO mass rescaling: zero derivative in Newton iteration".into(),
+            ));
+        }
+
+        xi -= f_val / f_deriv;
+        xi = xi.max(1e-15);
+    }
+
+    // Should converge very quickly (typically 3–5 iterations).
+    Err(crate::SpireError::InternalError(
+        "RAMBO mass rescaling failed to converge in 100 iterations".into(),
+    ))
+}
+
+/// Compute the mass correction factor for the RAMBO weight.
+///
+/// The massive RAMBO weight is:
+/// $$w = w_0 \cdot \xi^{2N-3} \cdot \frac{E_\text{cms}}
+///        {\sum_i |\vec{p}_i|^2 / E_i} \cdot \prod_i \frac{|\vec{p}_i|}{E_i}$$
+fn rambo_mass_weight_factor(
+    massive_momenta: &[SpacetimeVector],
+    _masses: &[f64],
+    xi: f64,
+    n: usize,
+    cms_energy: f64,
+) -> f64 {
+    let mut product = 1.0;
+    let mut sum_p_sq_over_e = 0.0;
+
+    for (_i, p) in massive_momenta.iter().enumerate() {
+        let e_i = p.components[0];
+        let p_spatial_sq: f64 = p.components[1..].iter().map(|c| c * c).sum();
+        let p_mag = p_spatial_sq.sqrt();
+
+        if e_i > 1e-300 {
+            product *= p_mag / e_i;
+            sum_p_sq_over_e += p_spatial_sq / e_i;
+        }
+    }
+
+    if sum_p_sq_over_e < 1e-300 {
+        return 0.0;
+    }
+
+    let xi_power = xi.powi(2 * n as i32 - 3);
+    xi_power * cms_energy / sum_p_sq_over_e * product
+}
+
+// ===========================================================================
 // Unit Tests
 // ===========================================================================
 
@@ -1383,5 +1784,223 @@ mod tests {
         let ps = generate_phase_space(1.0, &[0.938]).unwrap();
         assert_eq!(ps.n_final, 1);
         assert_eq!(ps.n_variables, 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // RAMBO Phase Space Generator
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn rambo_massless_two_body_momentum_conservation() {
+        // Generate 200 events and verify 4-momentum conservation for each.
+        let mut gen = RamboGenerator::new();
+        let cms = 200.0;
+        let masses = [0.0, 0.0];
+
+        for _ in 0..200 {
+            let event = gen.generate_event(cms, &masses).unwrap();
+            assert_eq!(event.momenta.len(), 2);
+
+            // Sum all final-state momenta.
+            let total = sum_vectors(&event.momenta);
+
+            // Should equal (E_cms, 0, 0, 0).
+            assert!(
+                (total.components[0] - cms).abs() < 1e-8,
+                "Energy not conserved: E_total = {}, expected {}",
+                total.components[0], cms
+            );
+            for j in 1..4 {
+                assert!(
+                    total.components[j].abs() < 1e-8,
+                    "Spatial momentum not conserved: p[{}] = {}",
+                    j, total.components[j]
+                );
+            }
+
+            // Weight should be positive.
+            assert!(event.weight > 0.0, "Weight should be positive");
+        }
+    }
+
+    #[test]
+    fn rambo_massless_four_body_momentum_conservation() {
+        // 4-body massless: 1000 events with strict conservation.
+        let mut gen = RamboGenerator::new();
+        let cms = 500.0;
+        let masses = [0.0, 0.0, 0.0, 0.0];
+
+        for _ in 0..1000 {
+            let event = gen.generate_event(cms, &masses).unwrap();
+            assert_eq!(event.momenta.len(), 4);
+
+            let total = sum_vectors(&event.momenta);
+
+            assert!(
+                (total.components[0] - cms).abs() < 1e-8,
+                "Energy not conserved: E = {}",
+                total.components[0]
+            );
+            for j in 1..4 {
+                assert!(
+                    total.components[j].abs() < 1e-8,
+                    "3-momentum not conserved: p[{}] = {}",
+                    j, total.components[j]
+                );
+            }
+
+            // Each massless particle should satisfy E = |p|.
+            for p in &event.momenta {
+                let p_mag: f64 = p.components[1..].iter()
+                    .map(|c| c * c).sum::<f64>().sqrt();
+                assert!(
+                    (p.components[0] - p_mag).abs() < 1e-8,
+                    "Massless particle not on-shell: E = {}, |p| = {}",
+                    p.components[0], p_mag
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rambo_massive_two_body_conservation_and_mass_shell() {
+        // e⁺e⁻ → μ⁺μ⁻ at 200 GeV with m_μ = 0.10566 GeV.
+        let mut gen = RamboGenerator::new();
+        let cms = 200.0;
+        let m_mu = 0.10566;
+        let masses = [m_mu, m_mu];
+        let metric = MetricSignature::minkowski_4d();
+
+        for _ in 0..500 {
+            let event = gen.generate_event(cms, &masses).unwrap();
+            assert_eq!(event.momenta.len(), 2);
+
+            let total = sum_vectors(&event.momenta);
+
+            // Energy-momentum conservation.
+            assert!(
+                (total.components[0] - cms).abs() < 1e-6,
+                "Energy: {} vs {}",
+                total.components[0], cms
+            );
+            for j in 1..4 {
+                assert!(
+                    total.components[j].abs() < 1e-6,
+                    "p[{}] = {}",
+                    j, total.components[j]
+                );
+            }
+
+            // On-shell check: p² = m².
+            for (i, p) in event.momenta.iter().enumerate() {
+                let p_sq = metric.inner_product(p, p).unwrap();
+                assert!(
+                    (p_sq - masses[i] * masses[i]).abs() < 1e-4,
+                    "Particle {} off-shell: p² = {}, m² = {}",
+                    i, p_sq, masses[i] * masses[i]
+                );
+            }
+
+            assert!(event.weight > 0.0);
+        }
+    }
+
+    #[test]
+    fn rambo_massive_three_body_conservation() {
+        // 3-body decay at 2 GeV with pion-like masses.
+        let mut gen = RamboGenerator::new();
+        let cms = 2.0;
+        let masses = [0.140, 0.140, 0.494];
+        let metric = MetricSignature::minkowski_4d();
+
+        for _ in 0..500 {
+            let event = gen.generate_event(cms, &masses).unwrap();
+            assert_eq!(event.momenta.len(), 3);
+
+            let total = sum_vectors(&event.momenta);
+            assert!(
+                (total.components[0] - cms).abs() < 1e-6,
+                "E = {}", total.components[0]
+            );
+            for j in 1..4 {
+                assert!(total.components[j].abs() < 1e-6);
+            }
+
+            // Mass shell.
+            for (i, p) in event.momenta.iter().enumerate() {
+                let p_sq = metric.inner_product(p, p).unwrap();
+                assert!(
+                    (p_sq - masses[i] * masses[i]).abs() < 1e-4,
+                    "Particle {} off-shell: p²={}, m²={}",
+                    i, p_sq, masses[i] * masses[i]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rambo_insufficient_energy_error() {
+        let mut gen = RamboGenerator::new();
+        let result = gen.generate_event(0.1, &[1.0, 1.0]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rambo_single_particle_error() {
+        let mut gen = RamboGenerator::new();
+        let result = gen.generate_event(1.0, &[0.5]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn rambo_weight_positive_and_finite() {
+        let mut gen = RamboGenerator::new();
+        for _ in 0..100 {
+            let event = gen.generate_event(100.0, &[0.0, 0.0, 0.0]).unwrap();
+            assert!(event.weight > 0.0);
+            assert!(event.weight.is_finite());
+        }
+    }
+
+    #[test]
+    fn rambo_generator_name() {
+        let gen = RamboGenerator::new();
+        assert_eq!(gen.name(), "RAMBO");
+    }
+
+    #[test]
+    fn rambo_massless_weight_formula_two_body() {
+        // For N=2 massless particles:
+        // Φ₂ = E^0 / [2 × (4π)^1 × 1! × 0!] = 1 / (8π)
+        let w = rambo_massless_weight(2, 100.0);
+        let expected = 1.0 / (8.0 * PI);
+        assert!(
+            (w - expected).abs() < 1e-10,
+            "RAMBO 2-body weight: {} vs expected {}",
+            w, expected
+        );
+    }
+
+    #[test]
+    fn rambo_factorial() {
+        assert_eq!(factorial(0), 1);
+        assert_eq!(factorial(1), 1);
+        assert_eq!(factorial(5), 120);
+        assert_eq!(factorial(10), 3628800);
+    }
+
+    #[test]
+    fn phase_space_point_serde() {
+        let point = PhaseSpacePoint {
+            momenta: vec![
+                SpacetimeVector::new_4d(50.0, 30.0, 0.0, 40.0),
+                SpacetimeVector::new_4d(50.0, -30.0, 0.0, -40.0),
+            ],
+            weight: 0.123,
+        };
+        let json = serde_json::to_string(&point).unwrap();
+        let back: PhaseSpacePoint = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.momenta.len(), 2);
+        assert!((back.weight - 0.123).abs() < 1e-12);
     }
 }

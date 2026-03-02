@@ -616,6 +616,30 @@ export interface UfoExportResult {
 }
 
 // ---------------------------------------------------------------------------
+// Cross-Section Calculation
+// ---------------------------------------------------------------------------
+
+/** Result of a Monte Carlo cross-section calculation. */
+export interface CrossSectionResult {
+  /** Total cross-section in natural units (GeV^-2). */
+  cross_section: number;
+  /** Statistical uncertainty on the cross-section (GeV^-2). */
+  uncertainty: number;
+  /** Cross-section converted to picobarns. */
+  cross_section_pb: number;
+  /** Uncertainty converted to picobarns. */
+  uncertainty_pb: number;
+  /** Number of phase-space events evaluated. */
+  events_evaluated: number;
+  /** Relative error (uncertainty / cross_section). */
+  relative_error: number;
+  /** Centre-of-mass energy used (GeV). */
+  cms_energy: number;
+  /** Description of the squared matrix element model used. */
+  amplitude_model: string;
+}
+
+// ---------------------------------------------------------------------------
 // Theoretical Model
 // ---------------------------------------------------------------------------
 

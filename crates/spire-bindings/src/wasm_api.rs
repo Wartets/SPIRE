@@ -27,7 +27,7 @@ use spire_kernel::graph::{self, FeynmanGraph, LoopOrder};
 use spire_kernel::kinematics::{self, MandelstamBoundaries, PhaseSpace, ThresholdResult};
 use spire_kernel::lagrangian::TheoreticalModel;
 use spire_kernel::ontology;
-use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
+use spire_kernel::s_matrix::{self, CrossSectionResult, Reaction, ReconstructedFinalState};
 
 // ---------------------------------------------------------------------------
 // KinematicsReport (mirrors the Tauri-side struct)
@@ -346,4 +346,38 @@ pub fn wasm_derive_amplitude_steps(
         .map_err(|e| to_js_err(e.to_string()))?;
 
     serde_wasm_bindgen::to_value(&steps).map_err(|e| to_js_err(e.to_string()))
+}
+
+// ---------------------------------------------------------------------------
+// Phase 18 — Cross-Section Calculation
+// ---------------------------------------------------------------------------
+
+/// Calculate a phase-space cross-section via Monte Carlo integration.
+///
+/// Uses the RAMBO algorithm to generate $N$-body final-state momenta and
+/// integrates a constant $|\mathcal{M}|^2 = 1$ matrix element over
+/// Lorentz-invariant phase space.  The result includes the cross-section
+/// in both natural units (GeV$^{-2}$) and picobarns.
+///
+/// # Arguments
+/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` — JS array of final-state particle masses in GeV.
+/// * `num_events`   — Number of Monte Carlo samples.
+///
+/// # Returns
+/// A JS object matching the `CrossSectionResult` interface.
+#[wasm_bindgen(js_name = "calculateCrossSection")]
+pub fn wasm_calculate_cross_section(
+    cms_energy: f64,
+    final_masses: JsValue,
+    num_events: usize,
+) -> Result<JsValue, JsValue> {
+    let masses: Vec<f64> =
+        serde_wasm_bindgen::from_value(final_masses).map_err(|e| to_js_err(e.to_string()))?;
+
+    let result: CrossSectionResult =
+        s_matrix::calculate_phase_space_cross_section(cms_energy, &masses, num_events)
+            .map_err(|e| to_js_err(e.to_string()))?;
+
+    serde_wasm_bindgen::to_value(&result).map_err(|e| to_js_err(e.to_string()))
 }

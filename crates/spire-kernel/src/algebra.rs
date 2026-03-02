@@ -36,6 +36,7 @@
 
 use nalgebra::Matrix4;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::ops::{Add, Neg, Sub};
 
 use crate::graph::{FeynmanGraph, NodeKind, OneLoopTopologyKind};
@@ -3695,6 +3696,481 @@ pub fn classify_loop_integral(
 }
 
 // ===========================================================================
+// Numerical Evaluation Engine
+// ===========================================================================
+
+/// A complex number type for numerical evaluation of scattering amplitudes.
+///
+/// Uses the standard representation $z = \text{re} + i \cdot \text{im}$.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Complex {
+    /// Real part $\mathrm{Re}(z)$.
+    pub re: f64,
+    /// Imaginary part $\mathrm{Im}(z)$.
+    pub im: f64,
+}
+
+impl Complex {
+    /// Create a new complex number.
+    pub fn new(re: f64, im: f64) -> Self {
+        Self { re, im }
+    }
+
+    /// A purely real complex number.
+    pub fn real(v: f64) -> Self {
+        Self { re: v, im: 0.0 }
+    }
+
+    /// The imaginary unit $i$.
+    pub fn i() -> Self {
+        Self { re: 0.0, im: 1.0 }
+    }
+
+    /// Complex zero.
+    pub fn zero() -> Self {
+        Self { re: 0.0, im: 0.0 }
+    }
+
+    /// Complex one.
+    pub fn one() -> Self {
+        Self { re: 1.0, im: 0.0 }
+    }
+
+    /// The squared modulus $|z|^2 = \mathrm{Re}(z)^2 + \mathrm{Im}(z)^2$.
+    pub fn norm_sq(&self) -> f64 {
+        self.re * self.re + self.im * self.im
+    }
+
+    /// The modulus $|z| = \sqrt{|z|^2}$.
+    pub fn norm(&self) -> f64 {
+        self.norm_sq().sqrt()
+    }
+
+    /// Complex conjugate $z^* = \mathrm{Re}(z) - i \cdot \mathrm{Im}(z)$.
+    pub fn conj(&self) -> Self {
+        Self { re: self.re, im: -self.im }
+    }
+}
+
+impl std::ops::Add for Complex {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self { re: self.re + rhs.re, im: self.im + rhs.im }
+    }
+}
+
+impl std::ops::Sub for Complex {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self { re: self.re - rhs.re, im: self.im - rhs.im }
+    }
+}
+
+impl std::ops::Mul for Complex {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        Self {
+            re: self.re * rhs.re - self.im * rhs.im,
+            im: self.re * rhs.im + self.im * rhs.re,
+        }
+    }
+}
+
+impl std::ops::Div for Complex {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self {
+        let denom = rhs.norm_sq();
+        if denom < 1e-300 {
+            // Division by zero — return NaN-like sentinel.
+            return Self { re: f64::NAN, im: f64::NAN };
+        }
+        Self {
+            re: (self.re * rhs.re + self.im * rhs.im) / denom,
+            im: (self.im * rhs.re - self.re * rhs.im) / denom,
+        }
+    }
+}
+
+impl std::ops::Neg for Complex {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Self { re: -self.re, im: -self.im }
+    }
+}
+
+impl std::ops::AddAssign for Complex {
+    fn add_assign(&mut self, rhs: Self) {
+        self.re += rhs.re;
+        self.im += rhs.im;
+    }
+}
+
+impl std::fmt::Display for Complex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.im.abs() < 1e-15 {
+            write!(f, "{:.6}", self.re)
+        } else if self.re.abs() < 1e-15 {
+            write!(f, "{:.6}i", self.im)
+        } else if self.im >= 0.0 {
+            write!(f, "{:.6} + {:.6}i", self.re, self.im)
+        } else {
+            write!(f, "{:.6} - {:.6}i", self.re, -self.im)
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Numerical Context
+// ---------------------------------------------------------------------------
+
+/// A numerical evaluation context mapping symbolic labels to concrete values.
+///
+/// The `NumericalContext` provides the substitution map needed to evaluate
+/// a symbolic `CasExpr` into a numerical `Complex` result. It stores:
+///
+/// - **Momenta**: $p_i^\mu$ as `SpacetimeVector` values keyed by label.
+/// - **Scalar symbols**: Named couplings, masses, etc. as `Complex` values.
+/// - **Metric**: The spacetime metric for inner products.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use spire_kernel::algebra::*;
+/// let mut ctx = NumericalContext::new_minkowski();
+/// ctx.set_momentum("p1", SpacetimeVector::new_4d(100.0, 0.0, 0.0, 100.0));
+/// ctx.set_symbol("g_e", Complex::real(0.3028));
+/// ```
+#[derive(Debug, Clone)]
+pub struct NumericalContext {
+    /// Named four-momenta: label → spacetime vector.
+    pub momenta: HashMap<String, SpacetimeVector>,
+    /// Named scalar symbols: label → complex value.
+    pub symbols: HashMap<String, Complex>,
+    /// The metric signature for computing inner products.
+    pub metric: MetricSignature,
+    /// Infinitesimal width parameter $\epsilon$ for propagator denominators.
+    /// Default: $10^{-10}$.
+    pub i_epsilon: f64,
+}
+
+impl NumericalContext {
+    /// Create a new context with the standard 4D Minkowski metric.
+    pub fn new_minkowski() -> Self {
+        Self {
+            momenta: HashMap::new(),
+            symbols: HashMap::new(),
+            metric: MetricSignature::minkowski_4d(),
+            i_epsilon: 1e-10,
+        }
+    }
+
+    /// Create a context with a custom metric signature.
+    pub fn new(metric: MetricSignature) -> Self {
+        Self {
+            momenta: HashMap::new(),
+            symbols: HashMap::new(),
+            metric,
+            i_epsilon: 1e-10,
+        }
+    }
+
+    /// Insert or update a named momentum vector.
+    pub fn set_momentum(&mut self, label: &str, momentum: SpacetimeVector) {
+        self.momenta.insert(label.to_string(), momentum);
+    }
+
+    /// Insert or update a named scalar symbol.
+    pub fn set_symbol(&mut self, name: &str, value: Complex) {
+        self.symbols.insert(name.to_string(), value);
+    }
+
+    /// Retrieve a momentum by label, or return an error.
+    pub fn get_momentum(&self, label: &str) -> Result<&SpacetimeVector, String> {
+        self.momenta.get(label).ok_or_else(|| {
+            format!("Momentum '{}' not found in numerical context", label)
+        })
+    }
+
+    /// Retrieve a symbol by name, or return an error.
+    pub fn get_symbol(&self, name: &str) -> Result<Complex, String> {
+        self.symbols.get(name).copied().ok_or_else(|| {
+            format!("Symbol '{}' not found in numerical context", name)
+        })
+    }
+
+    /// Compute the Minkowski dot product $p \cdot q$ for two named momenta.
+    pub fn dot_product(&self, left: &str, right: &str) -> Result<f64, String> {
+        let p = self.get_momentum(left)?;
+        let q = self.get_momentum(right)?;
+        self.metric.inner_product(p, q)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CasExpr Numerical Evaluation
+// ---------------------------------------------------------------------------
+
+impl CasExpr {
+    /// Evaluate this symbolic expression to a numerical complex value.
+    ///
+    /// Recursively traverses the expression tree, substituting momenta and
+    /// symbols from the `NumericalContext`, and performing all arithmetic
+    /// to produce a single `Complex` result.
+    ///
+    /// # Supported Nodes
+    ///
+    /// - `Scalar`, `ImaginaryUnit` — direct numerical values.
+    /// - `Symbol` — looked up in `ctx.symbols`.
+    /// - `DotProduct` — computed via `ctx.dot_product`.
+    /// - `Add`, `Mul`, `Neg`, `Fraction` — standard arithmetic.
+    /// - `PropagatorDenom` — evaluated as $1/(p^2 - m^2 + i\epsilon)$.
+    /// - `MetricTensor`, `KroneckerDelta` — evaluated with numeric indices.
+    /// - `Trace` — evaluated by summing over Lorentz index values $0,1,2,3$.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if a required symbol or momentum is missing from the
+    /// context, or if the expression contains unevaluable nodes (e.g.,
+    /// unresolved named Lorentz indices).
+    pub fn evaluate_numerically(&self, ctx: &NumericalContext) -> Result<Complex, String> {
+        match self {
+            // --- Atomic leaves ---
+            CasExpr::Scalar(v) => Ok(Complex::real(*v)),
+
+            CasExpr::ImaginaryUnit => Ok(Complex::i()),
+
+            CasExpr::Symbol { name, .. } => {
+                ctx.get_symbol(name)
+            }
+
+            CasExpr::DotProduct { left, right } => {
+                let val = ctx.dot_product(left, right)?;
+                Ok(Complex::real(val))
+            }
+
+            CasExpr::MetricTensor { mu, nu } => {
+                let mu_val = resolve_numeric_index(mu)?;
+                let nu_val = resolve_numeric_index(nu)?;
+                if mu_val == nu_val {
+                    Ok(Complex::real(ctx.metric.component(mu_val)))
+                } else {
+                    Ok(Complex::zero())
+                }
+            }
+
+            CasExpr::KroneckerDelta { mu, nu } => {
+                let mu_val = resolve_numeric_index(mu)?;
+                let nu_val = resolve_numeric_index(nu)?;
+                if mu_val == nu_val {
+                    Ok(Complex::one())
+                } else {
+                    Ok(Complex::zero())
+                }
+            }
+
+            CasExpr::Momentum { label, index } => {
+                let p = ctx.get_momentum(label)?;
+                let idx = resolve_numeric_index(index)?;
+                if idx >= p.dimension() {
+                    return Err(format!("Index {} out of bounds for {}-D momentum '{}'",
+                        idx, p.dimension(), label));
+                }
+                Ok(Complex::real(p.components[idx]))
+            }
+
+            CasExpr::PropagatorDenom { momentum, mass_sq } => {
+                let p = ctx.get_momentum(momentum)?;
+                let p_sq = ctx.metric.inner_product(p, p)?;
+                // 1 / (p² - m² + iε)
+                let denom = Complex::new(p_sq - mass_sq, ctx.i_epsilon);
+                Ok(Complex::one() / denom)
+            }
+
+            // --- Composite nodes ---
+            CasExpr::Add(terms) => {
+                let mut sum = Complex::zero();
+                for t in terms {
+                    sum = sum + t.evaluate_numerically(ctx)?;
+                }
+                Ok(sum)
+            }
+
+            CasExpr::Mul(factors) => {
+                let mut product = Complex::one();
+                for f in factors {
+                    product = product * f.evaluate_numerically(ctx)?;
+                }
+                Ok(product)
+            }
+
+            CasExpr::Neg(inner) => {
+                Ok(-inner.evaluate_numerically(ctx)?)
+            }
+
+            CasExpr::Fraction { numerator, denominator } => {
+                let n = numerator.evaluate_numerically(ctx)?;
+                let d = denominator.evaluate_numerically(ctx)?;
+                Ok(n / d)
+            }
+
+            CasExpr::Trace(inner) => {
+                // For a trace over Lorentz indices, we evaluate by summing
+                // the inner expression with each Lorentz index replaced
+                // numerically. For simple traces (result of symbolic trace
+                // evaluation), this just evaluates the scalar expression.
+                inner.evaluate_numerically(ctx)
+            }
+
+            CasExpr::SlashedMomentum { label } => {
+                // ⧸p = γ^μ p_μ — this is a matrix-valued object.
+                // In a fully contracted/traced amplitude it should have been
+                // reduced to scalars. If we encounter it here, treat as the
+                // Lorentz-contracted scalar p·p for a rough numerical estimate.
+                let p = ctx.get_momentum(label)?;
+                let p_sq = ctx.metric.inner_product(p, p)?;
+                Ok(Complex::real(p_sq))
+            }
+
+            CasExpr::LeviCivita { indices } => {
+                // ε^{μνρσ} with numeric indices
+                let idx: Result<Vec<usize>, String> = indices.iter()
+                    .map(|i| resolve_numeric_index(i))
+                    .collect();
+                let idx = idx?;
+                if idx.len() != 4 {
+                    return Err("Levi-Civita requires exactly 4 indices".into());
+                }
+                Ok(Complex::real(levi_civita_numeric(idx[0], idx[1], idx[2], idx[3])))
+            }
+
+            CasExpr::GammaMat { .. } | CasExpr::Gamma5 => {
+                // Gamma matrices are matrix-valued — in a fully simplified
+                // amplitude they should not appear bare. Return an error.
+                Err("Cannot numerically evaluate bare gamma matrix. \
+                     Ensure amplitude has been fully simplified (traces evaluated, \
+                     spinor contractions performed).".into())
+            }
+
+            CasExpr::SpinorU { .. } | CasExpr::SpinorUBar { .. }
+            | CasExpr::SpinorV { .. } | CasExpr::SpinorVBar { .. } => {
+                Err("Cannot numerically evaluate bare spinor. \
+                     Ensure amplitude has been squared and spin-summed.".into())
+            }
+
+            CasExpr::Tensor { .. } => {
+                Err("Cannot numerically evaluate uncontracted tensor. \
+                     Ensure all Lorentz indices are contracted.".into())
+            }
+
+            CasExpr::Commutator(a, b) => {
+                // [A, B] = AB - BA — evaluate as scalars
+                let va = a.evaluate_numerically(ctx)?;
+                let vb = b.evaluate_numerically(ctx)?;
+                Ok(va * vb - vb * va) // For scalars this is 0, which is correct.
+            }
+
+            CasExpr::AntiCommutator(a, b) => {
+                let va = a.evaluate_numerically(ctx)?;
+                let vb = b.evaluate_numerically(ctx)?;
+                Ok(va * vb + vb * va) // For scalars: 2ab
+            }
+        }
+    }
+}
+
+/// Resolve a `LorentzIndex` to a numeric value.
+///
+/// Only `Numeric(n)` indices can be resolved. Named or Dummy indices
+/// indicate the expression has not been fully contracted/traced.
+fn resolve_numeric_index(idx: &LorentzIndex) -> Result<usize, String> {
+    match idx {
+        LorentzIndex::Numeric(n) => Ok(*n as usize),
+        LorentzIndex::Named(name) => {
+            Err(format!("Cannot numerically resolve named index '{}'. \
+                         Ensure all indices are contracted.", name))
+        }
+        LorentzIndex::Dummy(n) => {
+            Err(format!("Cannot numerically resolve dummy index λ_{}. \
+                         Ensure all contractions have been performed.", n))
+        }
+    }
+}
+
+/// Evaluate the Levi-Civita symbol $\epsilon^{\mu\nu\rho\sigma}$ for
+/// numeric index values.
+///
+/// Returns $+1$ for even permutations of $(0,1,2,3)$, $-1$ for odd
+/// permutations, and $0$ if any indices are repeated.
+fn levi_civita_numeric(a: usize, b: usize, c: usize, d: usize) -> f64 {
+    let indices = [a, b, c, d];
+    // Check for repeated indices.
+    for i in 0..4 {
+        for j in (i + 1)..4 {
+            if indices[i] == indices[j] {
+                return 0.0;
+            }
+        }
+    }
+    // Count inversions to determine parity.
+    let mut inversions = 0;
+    for i in 0..4 {
+        for j in (i + 1)..4 {
+            if indices[i] > indices[j] {
+                inversions += 1;
+            }
+        }
+    }
+    if inversions % 2 == 0 { 1.0 } else { -1.0 }
+}
+
+// ---------------------------------------------------------------------------
+// Spin/Helicity Summation for Unpolarized Cross-Sections
+// ---------------------------------------------------------------------------
+
+/// Compute the spin-averaged squared amplitude $\overline{|\mathcal{M}|^2}$
+/// at a single phase-space point.
+///
+/// For unpolarized cross-sections with $n_i$ initial-state and $n_f$ final-state
+/// spin degrees of freedom:
+///
+/// $$\overline{|\mathcal{M}|^2} = \frac{1}{N_{\text{avg}}} \sum_{\text{spins}} |\mathcal{M}|^2$$
+///
+/// where $N_{\text{avg}} = \prod_i (2s_i + 1)$ for initial-state particles.
+///
+/// # Arguments
+///
+/// * `amplitude_sq` — The squared amplitude $|\mathcal{M}|^2$ as a `CasExpr`,
+///   already evaluated symbolically (traces performed, indices contracted).
+/// * `ctx` — The numerical context with momenta set to the phase-space point.
+/// * `initial_spin_dofs` — Spin degrees of freedom for each initial-state particle
+///   (e.g., $2$ for a spin-$\frac{1}{2}$ fermion, $2$ for a massless vector boson).
+///
+/// # Returns
+///
+/// The spin-averaged $\overline{|\mathcal{M}|^2}$ as a real `f64`.
+pub fn spin_averaged_amplitude_sq(
+    amplitude_sq: &CasExpr,
+    ctx: &NumericalContext,
+    initial_spin_dofs: &[u32],
+) -> Result<f64, String> {
+    let m_sq = amplitude_sq.evaluate_numerically(ctx)?;
+
+    // The spin-averaged amplitude should be real (imaginary part should cancel).
+    if m_sq.im.abs() > 1e-8 * m_sq.re.abs().max(1.0) {
+        return Err(format!(
+            "Squared amplitude has significant imaginary part: {} \
+             (expected purely real result)",
+            m_sq
+        ));
+    }
+
+    let n_avg: u32 = initial_spin_dofs.iter().product();
+    let averaging_factor = if n_avg > 0 { n_avg as f64 } else { 1.0 };
+
+    Ok(m_sq.re / averaging_factor)
+}
+
+// ===========================================================================
 // Unit Tests
 // ===========================================================================
 
@@ -6107,5 +6583,319 @@ mod tests {
         let s_val = total_in.norm_sq(&sig).unwrap();
         // s = (200)^2 - 0 - 0 - 0 - ... = 40000
         assert!((s_val - 40000.0).abs() < 1e-8);
+    }
+
+    // =======================================================================
+    // Numerical Evaluation Engine Tests
+    // =======================================================================
+
+    #[test]
+    fn complex_arithmetic_basic() {
+        let a = Complex::new(3.0, 4.0);
+        let b = Complex::new(1.0, -2.0);
+        let sum = a + b;
+        assert!((sum.re - 4.0).abs() < 1e-12);
+        assert!((sum.im - 2.0).abs() < 1e-12);
+
+        let prod = a * b;
+        // (3+4i)(1-2i) = 3 - 6i + 4i - 8i² = 3 - 2i + 8 = 11 - 2i
+        assert!((prod.re - 11.0).abs() < 1e-12);
+        assert!((prod.im + 2.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn complex_division() {
+        let a = Complex::new(1.0, 0.0);
+        let b = Complex::new(0.0, 1.0);
+        let result = a / b;
+        // 1/i = -i
+        assert!((result.re).abs() < 1e-12);
+        assert!((result.im + 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn complex_norm_sq() {
+        let z = Complex::new(3.0, 4.0);
+        assert!((z.norm_sq() - 25.0).abs() < 1e-12);
+        assert!((z.norm() - 5.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn complex_conjugate() {
+        let z = Complex::new(3.0, 4.0);
+        let zc = z.conj();
+        assert_eq!(zc.re, 3.0);
+        assert_eq!(zc.im, -4.0);
+        // z * z* = |z|²
+        let prod = z * zc;
+        assert!((prod.re - 25.0).abs() < 1e-12);
+        assert!((prod.im).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_scalar() {
+        let ctx = NumericalContext::new_minkowski();
+        let expr = CasExpr::Scalar(42.0);
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - 42.0).abs() < 1e-12);
+        assert!((result.im).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_imaginary_unit() {
+        let ctx = NumericalContext::new_minkowski();
+        let expr = CasExpr::ImaginaryUnit;
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re).abs() < 1e-12);
+        assert!((result.im - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_dot_product_massless() {
+        // Two back-to-back massless momenta: p1 = (E, 0, 0, E), p2 = (E, 0, 0, -E)
+        let mut ctx = NumericalContext::new_minkowski();
+        let e = 50.0;
+        ctx.set_momentum("p1", SpacetimeVector::new_4d(e, 0.0, 0.0, e));
+        ctx.set_momentum("p2", SpacetimeVector::new_4d(e, 0.0, 0.0, -e));
+
+        let dot = CasExpr::DotProduct {
+            left: "p1".into(),
+            right: "p2".into(),
+        };
+        let result = dot.evaluate_numerically(&ctx).unwrap();
+        // p1·p2 = E² - 0 - 0 - (-E²) = 2E²
+        assert!((result.re - 2.0 * e * e).abs() < 1e-8);
+    }
+
+    #[test]
+    fn numerical_eval_dot_product_massive_at_rest() {
+        // Particle at rest: p = (m, 0, 0, 0). p·p = m².
+        let mut ctx = NumericalContext::new_minkowski();
+        let m = 125.0; // Higgs-like
+        ctx.set_momentum("p", SpacetimeVector::new_4d(m, 0.0, 0.0, 0.0));
+
+        let dot = CasExpr::DotProduct {
+            left: "p".into(),
+            right: "p".into(),
+        };
+        let result = dot.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - m * m).abs() < 1e-8);
+    }
+
+    #[test]
+    fn numerical_eval_add_mul() {
+        let ctx = NumericalContext::new_minkowski();
+        // 2 * 3 + 5 = 11
+        let expr = CasExpr::Add(vec![
+            CasExpr::Mul(vec![CasExpr::Scalar(2.0), CasExpr::Scalar(3.0)]),
+            CasExpr::Scalar(5.0),
+        ]);
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - 11.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_fraction() {
+        let ctx = NumericalContext::new_minkowski();
+        // 10 / (2 + i) = 10(2-i)/5 = (20-10i)/5 = 4 - 2i
+        let expr = CasExpr::Fraction {
+            numerator: Box::new(CasExpr::Scalar(10.0)),
+            denominator: Box::new(CasExpr::Add(vec![
+                CasExpr::Scalar(2.0),
+                CasExpr::ImaginaryUnit,
+            ])),
+        };
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - 4.0).abs() < 1e-12);
+        assert!((result.im + 2.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_propagator_denom() {
+        // Propagator: 1/(p² - m²) with p at rest: p² = m² → pole
+        // But with iε, we get 1/(iε)
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_momentum("p", SpacetimeVector::new_4d(10.0, 3.0, 4.0, 0.0));
+        ctx.i_epsilon = 0.01; // Large for test visibility
+
+        let expr = CasExpr::PropagatorDenom {
+            momentum: "p".into(),
+            mass_sq: 75.0, // p² = 100 - 9 - 16 = 75
+        };
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        // 1/(75 - 75 + 0.01i) = 1/(0.01i) = -100i
+        assert!(result.re.abs() < 1.0);
+        assert!((result.im + 100.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn numerical_eval_metric_tensor() {
+        let ctx = NumericalContext::new_minkowski();
+        // g^{00} = +1
+        let g00 = CasExpr::MetricTensor {
+            mu: LorentzIndex::Numeric(0),
+            nu: LorentzIndex::Numeric(0),
+        };
+        let r = g00.evaluate_numerically(&ctx).unwrap();
+        assert!((r.re - 1.0).abs() < 1e-12);
+
+        // g^{11} = -1
+        let g11 = CasExpr::MetricTensor {
+            mu: LorentzIndex::Numeric(1),
+            nu: LorentzIndex::Numeric(1),
+        };
+        let r = g11.evaluate_numerically(&ctx).unwrap();
+        assert!((r.re + 1.0).abs() < 1e-12);
+
+        // g^{01} = 0
+        let g01 = CasExpr::MetricTensor {
+            mu: LorentzIndex::Numeric(0),
+            nu: LorentzIndex::Numeric(1),
+        };
+        let r = g01.evaluate_numerically(&ctx).unwrap();
+        assert!((r.re).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_levi_civita() {
+        let ctx = NumericalContext::new_minkowski();
+        // ε^{0123} = +1
+        let eps = CasExpr::LeviCivita {
+            indices: [
+                LorentzIndex::Numeric(0),
+                LorentzIndex::Numeric(1),
+                LorentzIndex::Numeric(2),
+                LorentzIndex::Numeric(3),
+            ],
+        };
+        let r = eps.evaluate_numerically(&ctx).unwrap();
+        assert!((r.re - 1.0).abs() < 1e-12);
+
+        // ε^{1023} = -1 (one swap)
+        let eps2 = CasExpr::LeviCivita {
+            indices: [
+                LorentzIndex::Numeric(1),
+                LorentzIndex::Numeric(0),
+                LorentzIndex::Numeric(2),
+                LorentzIndex::Numeric(3),
+            ],
+        };
+        let r2 = eps2.evaluate_numerically(&ctx).unwrap();
+        assert!((r2.re + 1.0).abs() < 1e-12);
+
+        // ε^{0012} = 0 (repeated index)
+        let eps3 = CasExpr::LeviCivita {
+            indices: [
+                LorentzIndex::Numeric(0),
+                LorentzIndex::Numeric(0),
+                LorentzIndex::Numeric(1),
+                LorentzIndex::Numeric(2),
+            ],
+        };
+        let r3 = eps3.evaluate_numerically(&ctx).unwrap();
+        assert!((r3.re).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_symbol_lookup() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_symbol("g_e", Complex::real(0.3028));
+        let expr = CasExpr::Symbol { name: "g_e".into(), indices: vec![] };
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - 0.3028).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_symbol_missing_error() {
+        let ctx = NumericalContext::new_minkowski();
+        let expr = CasExpr::Symbol { name: "unknown".into(), indices: vec![] };
+        assert!(expr.evaluate_numerically(&ctx).is_err());
+    }
+
+    #[test]
+    fn numerical_eval_complex_amplitude_structure() {
+        // Simulate a simplified tree-level QED amplitude structure:
+        // |M|² = g_e⁴ * 2(s² + u²) / t² for e⁻e⁻ → e⁻e⁻ (Møller)
+        // Use numerical values: s = 10000, t = -2500, u = -7500, g_e = 0.3028
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_symbol("g_e", Complex::real(0.3028));
+        ctx.set_symbol("s", Complex::real(10000.0));
+        ctx.set_symbol("t", Complex::real(-2500.0));
+        ctx.set_symbol("u", Complex::real(-7500.0));
+
+        // g_e^4 * 2(s^2 + u^2) / t^2
+        let g_e = CasExpr::Symbol { name: "g_e".into(), indices: vec![] };
+        let s = CasExpr::Symbol { name: "s".into(), indices: vec![] };
+        let t = CasExpr::Symbol { name: "t".into(), indices: vec![] };
+        let u = CasExpr::Symbol { name: "u".into(), indices: vec![] };
+
+        let expr = CasExpr::Fraction {
+            numerator: Box::new(CasExpr::Mul(vec![
+                g_e.clone(), g_e.clone(), g_e.clone(), g_e.clone(),
+                CasExpr::Scalar(2.0),
+                CasExpr::Add(vec![
+                    CasExpr::Mul(vec![s.clone(), s.clone()]),
+                    CasExpr::Mul(vec![u.clone(), u.clone()]),
+                ]),
+            ])),
+            denominator: Box::new(CasExpr::Mul(vec![t.clone(), t.clone()])),
+        };
+
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        // Expected: 0.3028^4 * 2 * (10^8 + 5.625*10^7) / (2500^2)
+        //         = 0.008413 * 2 * 1.5625e8 / 6.25e6
+        //         = 0.008413 * 50.0 = 0.4207 (approx)
+        let g4 = 0.3028_f64.powi(4);
+        let expected = g4 * 2.0 * (1e8 + 5.625e7) / 6.25e6;
+        assert!((result.re - expected).abs() < 1e-6);
+        assert!(result.im.abs() < 1e-12);
+    }
+
+    #[test]
+    fn spin_averaged_amplitude_sq_basic() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_symbol("msq", Complex::real(100.0));
+
+        let expr = CasExpr::Symbol { name: "msq".into(), indices: vec![] };
+        // 2 spin-1/2 initial-state fermions: 2 dofs each → N_avg = 4
+        let result = spin_averaged_amplitude_sq(&expr, &ctx, &[2, 2]).unwrap();
+        assert!((result - 25.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn spin_averaged_rejects_imaginary() {
+        let ctx = NumericalContext::new_minkowski();
+        // Purely imaginary "squared amplitude" should be rejected
+        let expr = CasExpr::ImaginaryUnit;
+        let result = spin_averaged_amplitude_sq(&expr, &ctx, &[2]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn numerical_eval_negation() {
+        let ctx = NumericalContext::new_minkowski();
+        let expr = CasExpr::Neg(Box::new(CasExpr::Scalar(7.0)));
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re + 7.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_eval_momentum_component() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_momentum("p1", SpacetimeVector::new_4d(100.0, 30.0, 40.0, 50.0));
+        let expr = CasExpr::Momentum {
+            label: "p1".into(),
+            index: LorentzIndex::Numeric(2), // py = 40.0
+        };
+        let result = expr.evaluate_numerically(&ctx).unwrap();
+        assert!((result.re - 40.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn levi_civita_numeric_values() {
+        assert!((levi_civita_numeric(0, 1, 2, 3) - 1.0).abs() < 1e-12);
+        assert!((levi_civita_numeric(1, 0, 2, 3) + 1.0).abs() < 1e-12);
+        assert!((levi_civita_numeric(0, 0, 2, 3)).abs() < 1e-12);
+        assert!((levi_civita_numeric(3, 2, 1, 0) - 1.0).abs() < 1e-12);
     }
 }

@@ -18,14 +18,19 @@
 //! - [`graph`] — Feynman diagram generation, manipulation, and validation as directed
 //!   graphs. Topological enumeration, channel identification, symmetry factor calculation.
 //! - [`algebra`] — Symbolic mathematics engine for 4-momenta, gamma matrices, spinors,
-//!   polarization vectors. Trace evaluation and index contraction.
+//!   polarization vectors. Trace evaluation and index contraction. Numerical evaluation
+//!   of CAS expressions via `NumericalContext`.
 //! - [`kinematics`] — Phase space calculations, Mandelstam variables, threshold energies,
-//!   Lorentz boosts, and Dalitz plot boundary generation.
+//!   Lorentz boosts, Dalitz plot boundary generation, and N-body phase space generation
+//!   via the RAMBO algorithm.
+//! - [`integration`] — Monte Carlo integration engine for computing cross-sections and
+//!   differential distributions from squared matrix elements over phase space.
 
 pub mod algebra;
 pub mod data_loader;
 pub mod graph;
 pub mod groups;
+pub mod integration;
 pub mod kinematics;
 pub mod lagrangian;
 pub mod ontology;
