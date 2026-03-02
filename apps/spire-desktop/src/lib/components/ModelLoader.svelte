@@ -15,6 +15,11 @@
     DEFAULT_PARTICLES_TOML,
     DEFAULT_VERTICES_TOML,
   } from "$lib/data/defaults";
+  import {
+    particlesTomlInput,
+    verticesTomlInput,
+    modelNameInput,
+  } from "$lib/stores/workspaceInputsStore";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   // ---------------------------------------------------------------------------
@@ -24,9 +29,6 @@
   const LS_KEY_VERTICES = "spire:custom_vertices_toml";
   const LS_KEY_MODEL_NAME = "spire:custom_model_name";
 
-  let particlesToml: string = DEFAULT_PARTICLES_TOML;
-  let verticesToml: string = DEFAULT_VERTICES_TOML;
-  let modelName: string = "Standard Model";
   let loading: boolean = false;
   let errorMsg: string = "";
   let fieldCount: number = 0;
@@ -67,32 +69,32 @@
     const storedVertices = localStorage.getItem(LS_KEY_VERTICES);
     const storedName = localStorage.getItem(LS_KEY_MODEL_NAME);
     if (storedParticles) {
-      particlesToml = storedParticles;
-      verticesToml = storedVertices || "";
-      modelName = storedName || "Custom Model";
+      $particlesTomlInput = storedParticles;
+      $verticesTomlInput = storedVertices || "";
+      $modelNameInput = storedName || "Custom Model";
       appendLog("Restored custom model from LocalStorage");
     } else {
-      particlesToml = CUSTOM_TEMPLATE_PARTICLES;
-      verticesToml = CUSTOM_TEMPLATE_VERTICES;
-      modelName = "Custom Model";
+      $particlesTomlInput = CUSTOM_TEMPLATE_PARTICLES;
+      $verticesTomlInput = CUSTOM_TEMPLATE_VERTICES;
+      $modelNameInput = "Custom Model";
     }
   }
 
   /** Exit custom mode — restore SM defaults. */
   function deactivateCustomMode(): void {
     isCustom = false;
-    particlesToml = DEFAULT_PARTICLES_TOML;
-    verticesToml = DEFAULT_VERTICES_TOML;
-    modelName = "Standard Model";
+    $particlesTomlInput = DEFAULT_PARTICLES_TOML;
+    $verticesTomlInput = DEFAULT_VERTICES_TOML;
+    $modelNameInput = "Standard Model";
   }
 
   // ---------------------------------------------------------------------------
   // LocalStorage persistence
   // ---------------------------------------------------------------------------
   function saveToLocalStorage(): void {
-    localStorage.setItem(LS_KEY_PARTICLES, particlesToml);
-    localStorage.setItem(LS_KEY_VERTICES, verticesToml);
-    localStorage.setItem(LS_KEY_MODEL_NAME, modelName);
+    localStorage.setItem(LS_KEY_PARTICLES, $particlesTomlInput);
+    localStorage.setItem(LS_KEY_VERTICES, $verticesTomlInput);
+    localStorage.setItem(LS_KEY_MODEL_NAME, $modelNameInput);
     savedIndicator = "Saved";
     appendLog("Custom model saved to LocalStorage");
     setTimeout(() => { savedIndicator = ""; }, 2000);
@@ -102,9 +104,9 @@
     localStorage.removeItem(LS_KEY_PARTICLES);
     localStorage.removeItem(LS_KEY_VERTICES);
     localStorage.removeItem(LS_KEY_MODEL_NAME);
-    particlesToml = CUSTOM_TEMPLATE_PARTICLES;
-    verticesToml = CUSTOM_TEMPLATE_VERTICES;
-    modelName = "Custom Model";
+    $particlesTomlInput = CUSTOM_TEMPLATE_PARTICLES;
+    $verticesTomlInput = CUSTOM_TEMPLATE_VERTICES;
+    $modelNameInput = "Custom Model";
     appendLog("Custom model data cleared from LocalStorage");
   }
 
@@ -115,7 +117,7 @@
     loading = true;
     errorMsg = "";
     try {
-      const model = await loadModel(particlesToml, verticesToml, modelName);
+      const model = await loadModel($particlesTomlInput, $verticesTomlInput, $modelNameInput);
       theoreticalModel.set(model);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
@@ -232,7 +234,7 @@
   <!-- Model name -->
   <label class="field-label">
     Model Name
-    <input type="text" bind:value={modelName} placeholder="Standard Model" />
+    <input type="text" bind:value={$modelNameInput} placeholder="Standard Model" />
   </label>
 
   <!-- Custom mode: LocalStorage controls -->
@@ -256,11 +258,11 @@
   {#if showEditors || isCustom}
     <label class="field-label">
       Particles TOML
-      <textarea bind:value={particlesToml} rows={isCustom ? 12 : 8} spellcheck="false"></textarea>
+      <textarea bind:value={$particlesTomlInput} rows={isCustom ? 12 : 8} spellcheck="false"></textarea>
     </label>
     <label class="field-label">
       Vertices TOML
-      <textarea bind:value={verticesToml} rows={isCustom ? 12 : 8} spellcheck="false"></textarea>
+      <textarea bind:value={$verticesTomlInput} rows={isCustom ? 12 : 8} spellcheck="false"></textarea>
     </label>
   {/if}
 

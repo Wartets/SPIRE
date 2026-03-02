@@ -31,12 +31,12 @@
     DEFAULT_FINAL_IDS,
     DEFAULT_CMS_ENERGY,
   } from "$lib/data/defaults";
-
-  // --- Input state ---
-  let initialIds: string[] = [...DEFAULT_INITIAL_IDS];
-  let finalIds: string[] = [...DEFAULT_FINAL_IDS];
-  let cmsEnergy: number = DEFAULT_CMS_ENERGY;
-  let maxLoopOrder: number = 0;
+  import {
+    initialIdsInput,
+    finalIdsInput,
+    cmsEnergyInput,
+    maxLoopOrderInput,
+  } from "$lib/stores/workspaceInputsStore";
 
   // --- UI state ---
   let busy: boolean = false;
@@ -47,16 +47,16 @@
   let newFinalId: string = SM_PARTICLE_IDS[0];
 
   function addInitial(): void {
-    initialIds = [...initialIds, newInitialId];
+    $initialIdsInput = [...$initialIdsInput, newInitialId];
   }
   function removeInitial(idx: number): void {
-    initialIds = initialIds.filter((_, i) => i !== idx);
+    $initialIdsInput = $initialIdsInput.filter((_, i) => i !== idx);
   }
   function addFinal(): void {
-    finalIds = [...finalIds, newFinalId];
+    $finalIdsInput = [...$finalIdsInput, newFinalId];
   }
   function removeFinal(idx: number): void {
-    finalIds = finalIds.filter((_, i) => i !== idx);
+    $finalIdsInput = $finalIdsInput.filter((_, i) => i !== idx);
   }
 
   /** Label for a particle ID. */
@@ -72,14 +72,14 @@
     errorMsg = "";
     try {
       const reaction = await constructReaction(
-        initialIds,
-        finalIds,
-        cmsEnergy,
+        $initialIdsInput,
+        $finalIdsInput,
+        $cmsEnergyInput,
         $theoreticalModel,
       );
       activeReaction.set(reaction);
       appendLog(
-        `Reaction constructed: ${initialIds.join(" ")} → ${finalIds.join(" ")} @ √s = ${cmsEnergy} GeV` +
+        `Reaction constructed: ${$initialIdsInput.join(" ")} → ${$finalIdsInput.join(" ")} @ √s = ${$cmsEnergyInput} GeV` +
           (reaction.is_valid ? " [valid]" : ` [violated: ${reaction.violation_diagnostics.join("; ")}]`),
       );
     } catch (e: unknown) {
@@ -96,8 +96,8 @@
     errorMsg = "";
     try {
       const states = await reconstructReaction(
-        initialIds,
-        cmsEnergy,
+        $initialIdsInput,
+        $cmsEnergyInput,
         $theoreticalModel,
       );
       reconstructedStates.set(states);
@@ -118,7 +118,7 @@
       const topoSet = await generateDiagrams(
         $activeReaction,
         $theoreticalModel,
-        maxLoopOrder,
+        $maxLoopOrderInput,
       );
       generatedDiagrams.set(topoSet);
       appendLog(`Generated ${topoSet.diagrams.length} Feynman diagram(s)`);
@@ -161,7 +161,7 @@
       const masses = $activeReaction.final_state.states.map(
         (s) => s.particle.field.mass,
       );
-      const report = await computeKinematics(masses, cmsEnergy);
+      const report = await computeKinematics(masses, $cmsEnergyInput);
       kinematics.set(report);
       appendLog(
         `Kinematics: threshold = ${report.threshold.threshold_energy.toFixed(4)} GeV, ` +
@@ -196,7 +196,7 @@
     <fieldset class="state-group">
       <legend>Initial State</legend>
       <div class="particle-tags">
-        {#each initialIds as id, idx}
+        {#each $initialIdsInput as id, idx}
           <span class="tag">
             {label(id)}
             <button class="tag-remove" on:click={() => removeInitial(idx)}>&times;</button>
@@ -217,7 +217,7 @@
     <fieldset class="state-group">
       <legend>Final State</legend>
       <div class="particle-tags">
-        {#each finalIds as id, idx}
+        {#each $finalIdsInput as id, idx}
           <span class="tag">
             {label(id)}
             <button class="tag-remove" on:click={() => removeFinal(idx)}>&times;</button>
@@ -238,11 +238,11 @@
     <div class="params-row">
       <label class="field-label">
         Centre-of-Mass Energy (GeV)
-        <input type="number" bind:value={cmsEnergy} min="0" step="0.1" />
+        <input type="number" bind:value={$cmsEnergyInput} min="0" step="0.1" />
       </label>
       <label class="field-label">
         Max Loop Order
-        <input type="number" bind:value={maxLoopOrder} min="0" max="3" step="1" />
+        <input type="number" bind:value={$maxLoopOrderInput} min="0" max="3" step="1" />
       </label>
     </div>
 

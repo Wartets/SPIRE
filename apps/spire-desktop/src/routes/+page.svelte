@@ -7,6 +7,7 @@
   Toolbox bar lets the user spawn new widgets.
 -->
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import {
     widgets,
     addWidget,
@@ -15,14 +16,46 @@
     GRID_COLUMNS,
   } from "$lib/stores/notebookStore";
   import type { WidgetType } from "$lib/stores/notebookStore";
+  import { workspaceInputsSnapshot } from "$lib/stores/workspaceInputsStore";
+  import { activeFramework } from "$lib/stores/physicsStore";
+  import {
+    autoSave,
+    debounce,
+    hasAutoSave,
+  } from "$lib/services/workspaceManager";
   import WidgetCell from "$lib/components/workbench/WidgetCell.svelte";
+  import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
 
   let toolboxOpen = false;
+  let workspaceControls: WorkspaceControls;
 
   function spawnWidget(type: WidgetType): void {
     addWidget(type);
     toolboxOpen = false;
   }
+
+  // --- Debounced auto-save (2 s) ---
+  const debouncedAutoSave = debounce(autoSave, 2000);
+
+  let unsubWidgets: (() => void) | null = null;
+  let unsubInputs: (() => void) | null = null;
+  let unsubFramework: (() => void) | null = null;
+
+  onMount(() => {
+    // Check for auto-save on mount
+    workspaceControls?.checkAutoSave();
+
+    // Subscribe to all state sources for auto-save
+    unsubWidgets = widgets.subscribe(() => debouncedAutoSave());
+    unsubInputs = workspaceInputsSnapshot.subscribe(() => debouncedAutoSave());
+    unsubFramework = activeFramework.subscribe(() => debouncedAutoSave());
+  });
+
+  onDestroy(() => {
+    unsubWidgets?.();
+    unsubInputs?.();
+    unsubFramework?.();
+  });
 </script>
 
 <div class="workbench">
@@ -49,10 +82,12 @@
 
     <div class="toolbox-spacer"></div>
 
+    <WorkspaceControls bind:this={workspaceControls} />
+
     <span class="widget-count">{$widgets.length} widget{$widgets.length !== 1 ? "s" : ""}</span>
 
     <button class="toolbox-reset" on:click={resetLayout} title="Reset to default layout">
-      Reset
+      Reset Layout
     </button>
   </div>
 
