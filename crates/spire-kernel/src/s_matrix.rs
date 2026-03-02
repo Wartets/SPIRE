@@ -460,6 +460,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::WeakCC],
         }
@@ -483,6 +484,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::WeakCC],
         }
@@ -506,6 +508,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::WeakCC],
         }
@@ -529,6 +532,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::WeakCC],
         }
@@ -552,6 +556,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Odd,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -575,6 +580,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::WeakCC, InteractionType::WeakNC],
         }
@@ -598,6 +604,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Triplet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::Strong],
         }
@@ -621,6 +628,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Triplet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic, InteractionType::Strong],
         }
@@ -644,6 +652,7 @@ mod tests {
             terms: vec![],
             vertex_factors: vec![],
             propagators: vec![],
+            gauge_symmetry: None,
         }
     }
 

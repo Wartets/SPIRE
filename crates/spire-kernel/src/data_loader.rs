@@ -155,8 +155,9 @@ pub fn raw_particle_to_field(raw: &RawParticle) -> SpireResult<Field> {
         spin: Spin(raw.spin),
         parity,
         charge_conjugation: charge_conj,
-        color,
+        color: color.clone(),
         weak_multiplet: weak_mult,
+        representations: legacy_sm_to_representations(color, weak_mult, raw.hypercharge),
     };
 
     Ok(Field {
@@ -305,6 +306,7 @@ pub fn build_model(
         terms,
         vertex_factors,
         propagators,
+        gauge_symmetry: None,
     })
 }
 
@@ -407,6 +409,120 @@ fn parse_term_kind(s: &str) -> SpireResult<LagrangianTermKind> {
             other
         ))),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Legacy SM → Generalized Representation Adapter (Phase 14)
+// ---------------------------------------------------------------------------
+
+/// Build a `Vec<LieGroupRepresentation>` from legacy Standard-Model quantum
+/// numbers (colour, weak multiplet, hypercharge).
+///
+/// This adapter ensures that particles loaded from old-format TOML files
+/// automatically gain the generalized representation entries needed by the
+/// Phase-14 gauge-conservation engine.
+///
+/// # Mapping rules
+///
+/// | SM field          | Gauge group      | Representation            |
+/// |-------------------|------------------|---------------------------|
+/// | `color`           | $SU(3)_C$        | **3** / **3̄** / **8** / **1** |
+/// | `weak_multiplet`  | $SU(2)_L$        | **2** / **1**             |
+/// | `hypercharge`     | $U(1)_Y$         | charge = hypercharge / 6  |
+fn legacy_sm_to_representations(
+    color: ColorRepresentation,
+    weak_multiplet: WeakMultiplet,
+    hypercharge_raw: i8,
+) -> Vec<crate::groups::LieGroupRepresentation> {
+    use crate::groups::{LieGroup, LieGroupRepresentation};
+
+    let mut reps = Vec::new();
+
+    // SU(3)_C representation.
+    let su3 = LieGroup::SU { n: 3, label: "C".into() };
+    match color {
+        ColorRepresentation::Triplet => reps.push(LieGroupRepresentation {
+            group: su3,
+            dimension: 3,
+            charge: None,
+            is_conjugate: false,
+            dynkin_labels: vec![1, 0],
+            label: "3".into(),
+        }),
+        ColorRepresentation::AntiTriplet => reps.push(LieGroupRepresentation {
+            group: su3,
+            dimension: 3,
+            charge: None,
+            is_conjugate: true,
+            dynkin_labels: vec![0, 1],
+            label: "3̄".into(),
+        }),
+        ColorRepresentation::Octet => reps.push(LieGroupRepresentation {
+            group: su3,
+            dimension: 8,
+            charge: None,
+            is_conjugate: false,
+            dynkin_labels: vec![1, 1],
+            label: "8".into(),
+        }),
+        ColorRepresentation::Singlet => reps.push(LieGroupRepresentation {
+            group: su3,
+            dimension: 1,
+            charge: None,
+            is_conjugate: false,
+            dynkin_labels: vec![0, 0],
+            label: "1".into(),
+        }),
+    }
+
+    // SU(2)_L representation.
+    let su2 = LieGroup::SU { n: 2, label: "L".into() };
+    match weak_multiplet {
+        WeakMultiplet::DoubletUp | WeakMultiplet::DoubletDown => {
+            reps.push(LieGroupRepresentation {
+                group: su2,
+                dimension: 2,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1],
+                label: "2".into(),
+            });
+        }
+        WeakMultiplet::Singlet => {
+            reps.push(LieGroupRepresentation {
+                group: su2,
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0],
+                label: "1".into(),
+            });
+        }
+        WeakMultiplet::Triplet(_) => {
+            reps.push(LieGroupRepresentation {
+                group: su2,
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![2],
+                label: "3".into(),
+            });
+        }
+    }
+
+    // U(1)_Y charge.
+    let u1y = LieGroup::U1 { label: "Y".into() };
+    let hypercharge_val = hypercharge_raw as f64 / 6.0;
+    reps.push(LieGroupRepresentation {
+        group: u1y,
+        dimension: 1,
+        charge: Some(hypercharge_val),
+        is_conjugate: false,
+        dynkin_labels: vec![],
+        label: format!("{:.4}", hypercharge_val),
+    });
+
+    reps
 }
 
 #[cfg(test)]

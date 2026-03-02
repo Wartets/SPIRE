@@ -144,6 +144,13 @@ pub struct TheoreticalModel {
     pub vertex_factors: Vec<VertexFactor>,
     /// Derived propagators (computed from kinetic + mass terms).
     pub propagators: Vec<Propagator>,
+    /// The gauge symmetry of this model (Phase 14).
+    ///
+    /// `None` for legacy models that have not specified an explicit gauge group;
+    /// `Some(gs)` for models with a fully-specified gauge symmetry
+    /// (e.g., $SU(3)_C \times SU(2)_L \times U(1)_Y$ for the Standard Model).
+    #[serde(default)]
+    pub gauge_symmetry: Option<crate::groups::GaugeSymmetry>,
 }
 
 // ---------------------------------------------------------------------------
@@ -578,6 +585,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -601,6 +609,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Odd,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -624,6 +633,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::WeakNC],
         }
@@ -647,6 +657,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Even,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Yukawa],
         }
@@ -675,6 +686,7 @@ mod tests {
             terms,
             vertex_factors,
             propagators,
+            gauge_symmetry: None,
         }
     }
 
@@ -904,6 +916,7 @@ mod tests {
             terms,
             vertex_factors: vec![], // empty — should be derived
             propagators,
+            gauge_symmetry: None,
         };
         let rules = derive_vertex_rules(&model).unwrap();
         assert_eq!(rules.len(), 2, "Both Interaction and ContactInteraction should produce vertex rules");

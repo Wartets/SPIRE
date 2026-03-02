@@ -894,6 +894,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -917,6 +918,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -940,6 +942,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -963,6 +966,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -986,6 +990,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Odd,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -1009,6 +1014,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Even,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Yukawa],
         }
@@ -1616,6 +1622,7 @@ mod tests {
             terms,
             vertex_factors,
             propagators,
+            gauge_symmetry: None,
         };
 
         let initial_states = vec![

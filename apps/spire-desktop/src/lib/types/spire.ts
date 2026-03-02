@@ -89,6 +89,8 @@ export interface QuantumNumbers {
   charge_conjugation: ChargeConjugation;
   color: ColorRepresentation;
   weak_multiplet: WeakMultiplet;
+  /** Generalized gauge-group representations (Phase 14). */
+  representations?: LieGroupRepresentation[];
 }
 
 /** A quantum field definition. */
@@ -122,13 +124,53 @@ export interface QuantumState {
 // Symmetry Groups & Conservation Laws
 // ---------------------------------------------------------------------------
 
-/** Gauge group classification. */
+/** Gauge group classification (legacy SM-specific). */
 export type GaugeGroup = "U1Y" | "SU2L" | "SU3C";
 
-/** Representation of a particle under a gauge group. */
+/** Representation of a particle under a gauge group (legacy SM-specific). */
 export interface GaugeRepresentation {
   group: GaugeGroup;
   dimension: number;
+  label: string;
+}
+
+// ---------------------------------------------------------------------------
+// Generalized Lie Algebra Types (Phase 14)
+// ---------------------------------------------------------------------------
+
+/**
+ * A Lie group that can appear as a gauge symmetry factor.
+ *
+ * Supports U(1), SU(N), and SO(N) families.
+ */
+export type LieGroup =
+  | { U1: { label: string } }
+  | { SU: { n: number; label: string } }
+  | { SO: { n: number; label: string } };
+
+/**
+ * A representation of a particle under a specific LieGroup.
+ *
+ * Encodes dimension, U(1) charge (if applicable), conjugation flag,
+ * and Dynkin labels for non-Abelian groups.
+ */
+export interface LieGroupRepresentation {
+  group: LieGroup;
+  dimension: number;
+  charge: number | null;
+  is_conjugate: boolean;
+  dynkin_labels: number[];
+  label: string;
+}
+
+/**
+ * A complete gauge symmetry specification for a theoretical model.
+ *
+ * Describes the full product group (e.g., SU(3)_C × SU(2)_L × U(1)_Y)
+ * as an ordered list of simple factors.
+ */
+export interface GaugeSymmetry {
+  groups: LieGroup[];
   label: string;
 }
 
@@ -401,6 +443,8 @@ export interface TheoreticalModel {
   terms: LagrangianTerm[];
   vertex_factors: VertexFactor[];
   propagators: Propagator[];
+  /** The gauge symmetry of this model (Phase 14). */
+  gauge_symmetry?: GaugeSymmetry | null;
 }
 
 // ---------------------------------------------------------------------------

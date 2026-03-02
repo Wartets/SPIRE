@@ -171,6 +171,17 @@ pub struct QuantumNumbers {
     pub charge_conjugation: ChargeConjugation,
     pub color: ColorRepresentation,
     pub weak_multiplet: WeakMultiplet,
+    /// Generalized gauge-group representations (Phase 14).
+    ///
+    /// Each entry specifies this particle's representation under one factor of
+    /// the full gauge symmetry group.  For Standard-Model particles loaded from
+    /// legacy TOML, this is auto-populated by the data-loader adapter; for BSM
+    /// or GUT models it can be set directly.
+    ///
+    /// Defaults to an empty vector for backward compatibility with existing
+    /// TOML data files.
+    #[serde(default)]
+    pub representations: Vec<crate::groups::LieGroupRepresentation>,
 }
 
 /// A *Field* in the formal ontology — the fundamental quantum field from which
@@ -278,6 +289,41 @@ pub fn initialize_state(
     })
 }
 
+// ---------------------------------------------------------------------------
+// Generalized representation conjugation (Phase 14)
+// ---------------------------------------------------------------------------
+
+/// Conjugate a list of [`crate::groups::LieGroupRepresentation`]s.
+///
+/// - For $U(1)$: negates the charge.
+/// - For $SU(N)$: flips the `is_conjugate` flag and reverses Dynkin labels.
+/// - For $SO(N)$: tensor representations are real so they are unchanged;
+///   spinorial conjugation would require more structure, so we flip
+///   `is_conjugate` as a general-purpose fallback.
+pub fn conjugate_representations(
+    reps: &[crate::groups::LieGroupRepresentation],
+) -> Vec<crate::groups::LieGroupRepresentation> {
+    reps.iter()
+        .map(|r| {
+            let mut conj = r.clone();
+            match &r.group {
+                crate::groups::LieGroup::U1 { .. } => {
+                    conj.charge = r.charge.map(|c| -c);
+                }
+                crate::groups::LieGroup::SU { .. } => {
+                    conj.is_conjugate = !r.is_conjugate;
+                    // Conjugate Dynkin labels: reverse the list.
+                    conj.dynkin_labels = r.dynkin_labels.iter().rev().copied().collect();
+                }
+                crate::groups::LieGroup::SO { .. } => {
+                    conj.is_conjugate = !r.is_conjugate;
+                }
+            }
+            conj
+        })
+        .collect()
+}
+
 /// Construct the charge-conjugated (antiparticle) state of a given `QuantumState`.
 ///
 /// Inverts all additive quantum numbers (electric charge, baryon number,
@@ -310,6 +356,8 @@ pub fn conjugate_state(state: &QuantumState) -> SpireResult<QuantumState> {
             other => other,
         },
         weak_multiplet: qn.weak_multiplet,
+        // Conjugate generalized representations.
+        representations: conjugate_representations(&qn.representations),
     };
 
     let conjugated_field = Field {
@@ -380,6 +428,7 @@ pub fn conjugate_field(field: &Field) -> Field {
             other => other,
         },
         weak_multiplet: qn.weak_multiplet,
+        representations: conjugate_representations(&qn.representations),
     };
     Field {
         id: format!("anti_{}", field.id),
@@ -451,6 +500,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Undefined,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletDown,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -475,6 +525,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Odd,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::Singlet,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Electromagnetic],
         }
@@ -499,6 +550,7 @@ mod tests {
                 charge_conjugation: ChargeConjugation::Even,
                 color: ColorRepresentation::Singlet,
                 weak_multiplet: WeakMultiplet::DoubletUp,
+                representations: vec![],
             },
             interactions: vec![InteractionType::Yukawa],
         }
