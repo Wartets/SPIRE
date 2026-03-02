@@ -1,0 +1,23 @@
+{
+  "name": "spire-desktop",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "check": "svelte-check --thin && tsc"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.0",
+    "chart.js": "^4.5.1",
+    "mermaid": "^11.12.3",
+    "svelte": "^4.0.0"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "next",
+    "@sveltejs/kit": "next",
+    "@tauri-apps/cli": "^1.5.0",
+    "svelte-check": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

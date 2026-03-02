@@ -1,0 +1,11 @@
+{
+  "name": "spire-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "desktop:dev": "npm run dev --workspace=spire-desktop",
+    "desktop:build": "npm run build --workspace=spire-desktop"
+  }
+}

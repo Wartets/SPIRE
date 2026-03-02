@@ -1,0 +1,47 @@
+site_name: "SPIRE — Structured Particle Interaction & Reaction Engine"
+site_description: >
+  Documentation for the SPIRE computational physics engine.
+  A rigorous, scientifically complete environment for the study of
+  fundamental interactions via Feynman diagram generation and
+  symbolic amplitude computation.
+site_author: SPIRE Project
+
+docs_dir: source
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+    accent: cyan
+  font:
+    text: Inter
+    code: Fira Code
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Theory:
+    - Formalism: theory/formalism.md
+  - User Guide:
+    - Quick Start: guide/quickstart.md
+  - API Reference:
+    - Overview: api/reference.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js

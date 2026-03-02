@@ -1,0 +1,180 @@
+# SPIRE Standard Model Vertex Definitions
+#
+# Each [[vertex]] defines an interaction vertex from the SM Lagrangian.
+# The kernel uses these to validate diagram topologies and assign Feynman rules.
+
+# ============================================================================
+# QED VERTICES — Electromagnetic coupling (U(1)_EM)
+# ============================================================================
+
+[[vertex]]
+id                = "qed_eea"
+description       = "QED vertex: electron-photon coupling"
+field_ids         = ["e-", "photon", "e-"]
+coupling_symbol   = "e"
+coupling_value    = 0.30282212
+lorentz_structure = "gamma_mu"
+interaction_type  = "Electromagnetic"
+term_kind         = "Interaction"
+expression        = "-i e \\gamma^{\\mu}"
+n_legs            = 3
+
+[[vertex]]
+id                = "qed_mma"
+description       = "QED vertex: muon-photon coupling"
+field_ids         = ["mu-", "photon", "mu-"]
+coupling_symbol   = "e"
+coupling_value    = 0.30282212
+lorentz_structure = "gamma_mu"
+interaction_type  = "Electromagnetic"
+term_kind         = "Interaction"
+expression        = "-i e \\gamma^{\\mu}"
+n_legs            = 3
+
+[[vertex]]
+id                = "qed_tta"
+description       = "QED vertex: tau-photon coupling"
+field_ids         = ["tau-", "photon", "tau-"]
+coupling_symbol   = "e"
+coupling_value    = 0.30282212
+lorentz_structure = "gamma_mu"
+interaction_type  = "Electromagnetic"
+term_kind         = "Interaction"
+expression        = "-i e \\gamma^{\\mu}"
+n_legs            = 3
+
+[[vertex]]
+id                = "qed_uua"
+description       = "QED vertex: up quark-photon coupling"
+field_ids         = ["u", "photon", "u"]
+coupling_symbol   = "e_u"
+coupling_value    = 0.20188141
+lorentz_structure = "gamma_mu"
+interaction_type  = "Electromagnetic"
+term_kind         = "Interaction"
+expression        = "-i (2/3) e \\gamma^{\\mu}"
+n_legs            = 3
+
+[[vertex]]
+id                = "qed_dda"
+description       = "QED vertex: down quark-photon coupling"
+field_ids         = ["d", "photon", "d"]
+coupling_symbol   = "e_d"
+coupling_value    = 0.10094071
+lorentz_structure = "gamma_mu"
+interaction_type  = "Electromagnetic"
+term_kind         = "Interaction"
+expression        = "-i (-1/3) e \\gamma^{\\mu}"
+n_legs            = 3
+
+# ============================================================================
+# WEAK CHARGED-CURRENT VERTICES (W± exchange)
+# ============================================================================
+
+[[vertex]]
+id                = "cc_enw"
+description       = "Weak CC vertex: electron-neutrino-W coupling"
+field_ids         = ["e-", "nu_e", "W-"]
+coupling_symbol   = "g_w"
+coupling_value    = 0.6417
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakCC"
+term_kind         = "Interaction"
+expression        = "-i (g_w / \\sqrt{2}) \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+[[vertex]]
+id                = "cc_mnw"
+description       = "Weak CC vertex: muon-neutrino-W coupling"
+field_ids         = ["mu-", "nu_mu", "W-"]
+coupling_symbol   = "g_w"
+coupling_value    = 0.6417
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakCC"
+term_kind         = "Interaction"
+expression        = "-i (g_w / \\sqrt{2}) \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+[[vertex]]
+id                = "cc_udw"
+description       = "Weak CC vertex: up-down quark-W coupling"
+field_ids         = ["u", "d", "W+"]
+coupling_symbol   = "g_w"
+coupling_value    = 0.6417
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakCC"
+term_kind         = "Interaction"
+expression        = "-i (g_w / \\sqrt{2}) V_{ud} \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+# ============================================================================
+# WEAK NEUTRAL-CURRENT VERTICES (Z exchange)
+# ============================================================================
+
+[[vertex]]
+id                = "nc_eez"
+description       = "Weak NC vertex: electron-Z coupling"
+field_ids         = ["e-", "e-", "Z0"]
+coupling_symbol   = "g_z"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z) \\gamma^{\\mu} (g_V^e - g_A^e \\gamma^5)"
+n_legs            = 3
+
+[[vertex]]
+id                = "nc_nnz"
+description       = "Weak NC vertex: neutrino-Z coupling"
+field_ids         = ["nu_e", "nu_e", "Z0"]
+coupling_symbol   = "g_z"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z / 2) \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+# ============================================================================
+# QCD VERTICES — Strong coupling (SU(3)_C)
+# ============================================================================
+
+[[vertex]]
+id                = "qcd_uug"
+description       = "QCD vertex: up quark-gluon coupling"
+field_ids         = ["u", "u", "g"]
+coupling_symbol   = "g_s"
+coupling_value    = 1.218
+lorentz_structure = "gamma_mu"
+interaction_type  = "Strong"
+term_kind         = "Interaction"
+expression        = "-i g_s T^a \\gamma^{\\mu}"
+n_legs            = 3
+
+[[vertex]]
+id                = "qcd_ddg"
+description       = "QCD vertex: down quark-gluon coupling"
+field_ids         = ["d", "d", "g"]
+coupling_symbol   = "g_s"
+coupling_value    = 1.218
+lorentz_structure = "gamma_mu"
+interaction_type  = "Strong"
+term_kind         = "Interaction"
+expression        = "-i g_s T^a \\gamma^{\\mu}"
+n_legs            = 3
+
+# ============================================================================
+# YUKAWA VERTICES — Higgs-fermion coupling
+# ============================================================================
+
+[[vertex]]
+id                = "yuk_eeh"
+description       = "Yukawa vertex: electron-Higgs coupling"
+field_ids         = ["e-", "e-", "H"]
+coupling_symbol   = "y_e"
+coupling_value    = 0.00000294
+lorentz_structure = "scalar"
+interaction_type  = "Yukawa"
+term_kind         = "Interaction"
+expression        = "-i y_e / \\sqrt{2}"
+n_legs            = 3
