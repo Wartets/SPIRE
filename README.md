@@ -1,10 +1,5 @@
 # SPIRE: Structured Particle Interaction and Reaction Engine
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/Wartets/spire/rust.yml?branch=main&style=for-the-badge&logo=github)
-![Crates.io](https://img.shields.io/crates/v/spire-kernel?style=for-the-badge&logo=rust)
-![License](https://img.shields.io/github/license/Wartets/spire?style=for-the-badge)
-[![Documentation](https://img.shields.io/badge/docs-mkdocs-blue?style=for-the-badge&logo=markdown)](https://github.com/Wartets/spire/tree/main/docs)
-
 ## Table of Contents
 1.  [Abstract](#abstract)
 2.  [Key Features](#key-features)
