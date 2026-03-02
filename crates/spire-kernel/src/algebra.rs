@@ -3851,6 +3851,12 @@ pub struct NumericalContext {
     /// Infinitesimal width parameter $\epsilon$ for propagator denominators.
     /// Default: $10^{-10}$.
     pub i_epsilon: f64,
+    /// Optional form factor for scaling vertex couplings by momentum transfer.
+    ///
+    /// When `Some(ff)`, calling [`apply_form_factor`](Self::apply_form_factor)
+    /// multiplies a coupling by $F(Q^2)$. When `None`, all vertices are
+    /// treated as point-like interactions.
+    pub form_factor: Option<crate::lagrangian::FormFactor>,
 }
 
 impl NumericalContext {
@@ -3861,6 +3867,7 @@ impl NumericalContext {
             symbols: HashMap::new(),
             metric: MetricSignature::minkowski_4d(),
             i_epsilon: 1e-10,
+            form_factor: None,
         }
     }
 
@@ -3871,6 +3878,7 @@ impl NumericalContext {
             symbols: HashMap::new(),
             metric,
             i_epsilon: 1e-10,
+            form_factor: None,
         }
     }
 
@@ -3903,6 +3911,30 @@ impl NumericalContext {
         let p = self.get_momentum(left)?;
         let q = self.get_momentum(right)?;
         self.metric.inner_product(p, q)
+    }
+
+    /// Set an optional form factor for vertex coupling suppression.
+    pub fn set_form_factor(&mut self, ff: crate::lagrangian::FormFactor) {
+        self.form_factor = Some(ff);
+    }
+
+    /// Clear the form factor (revert to point-like couplings).
+    pub fn clear_form_factor(&mut self) {
+        self.form_factor = None;
+    }
+
+    /// Apply the form factor to a coupling value at the given $Q^2$.
+    ///
+    /// If no form factor is set, returns the coupling unchanged.
+    /// Otherwise returns `coupling * F(Q^2)`.
+    pub fn apply_form_factor(&self, coupling: Complex, q2: f64) -> Complex {
+        match &self.form_factor {
+            None => coupling,
+            Some(ff) => {
+                let suppression = ff.evaluate(q2);
+                Complex::new(coupling.re * suppression, coupling.im * suppression)
+            }
+        }
     }
 }
 
@@ -6897,5 +6929,72 @@ mod tests {
         assert!((levi_civita_numeric(1, 0, 2, 3) + 1.0).abs() < 1e-12);
         assert!((levi_civita_numeric(0, 0, 2, 3)).abs() < 1e-12);
         assert!((levi_civita_numeric(3, 2, 1, 0) - 1.0).abs() < 1e-12);
+    }
+
+    // -----------------------------------------------------------------------
+    // Form factor integration with NumericalContext
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn numerical_context_form_factor_default_none() {
+        let ctx = NumericalContext::new_minkowski();
+        assert!(ctx.form_factor.is_none());
+    }
+
+    #[test]
+    fn numerical_context_apply_form_factor_point_like() {
+        let ctx = NumericalContext::new_minkowski();
+        // No form factor → coupling unchanged.
+        let coupling = Complex::new(0.3028, 0.0);
+        let result = ctx.apply_form_factor(coupling, 100.0);
+        assert!((result.re - 0.3028).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_context_apply_form_factor_dipole() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_form_factor(crate::lagrangian::FormFactor::Dipole { lambda_sq: 0.71 });
+
+        let coupling = Complex::real(1.0);
+        // At Q² = 0: F = 1 → coupling unchanged
+        let r0 = ctx.apply_form_factor(coupling, 0.0);
+        assert!((r0.re - 1.0).abs() < 1e-12);
+
+        // At Q² = Λ² = 0.71: F = (1+1)^{-2} = 0.25
+        let r1 = ctx.apply_form_factor(coupling, 0.71);
+        assert!((r1.re - 0.25).abs() < 1e-10);
+
+        // Coupling decreases with Q²
+        let r2 = ctx.apply_form_factor(coupling, 5.0);
+        assert!(r2.re < r1.re);
+        assert!(r2.re > 0.0);
+    }
+
+    #[test]
+    fn numerical_context_apply_form_factor_complex_coupling() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_form_factor(crate::lagrangian::FormFactor::Exponential { lambda_sq: 1.0 });
+
+        let coupling = Complex::new(0.5, 0.3);
+        let q2 = 2.0;
+        let result = ctx.apply_form_factor(coupling, q2);
+
+        let expected_ff = (-2.0_f64).exp();
+        assert!((result.re - 0.5 * expected_ff).abs() < 1e-12);
+        assert!((result.im - 0.3 * expected_ff).abs() < 1e-12);
+    }
+
+    #[test]
+    fn numerical_context_clear_form_factor() {
+        let mut ctx = NumericalContext::new_minkowski();
+        ctx.set_form_factor(crate::lagrangian::FormFactor::Dipole { lambda_sq: 1.0 });
+        assert!(ctx.form_factor.is_some());
+
+        ctx.clear_form_factor();
+        assert!(ctx.form_factor.is_none());
+
+        // After clearing, coupling should pass through unchanged.
+        let result = ctx.apply_form_factor(Complex::real(1.0), 100.0);
+        assert!((result.re - 1.0).abs() < 1e-15);
     }
 }

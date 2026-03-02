@@ -326,6 +326,236 @@ where
 }
 
 // ===========================================================================
+// Hadronic (PDF-Convoluted) Cross-Section Integration
+// ===========================================================================
+
+/// Configuration for a hadronic cross-section calculation.
+///
+/// This bundles the two initial-state hadrons, their associated PDFs,
+/// and the beam energy. The convolution integral is:
+///
+/// $$\sigma_{H_1 H_2} = \sum_{a,b} \int_0^1 dx_1 \int_0^1 dx_2 \;
+///   f_a^{H_1}(x_1, Q^2) \, f_b^{H_2}(x_2, Q^2) \;
+///   \hat{\sigma}_{ab}(\hat{s})$$
+///
+/// where $\hat{s} = x_1 x_2 S$ and $S$ is the hadronic centre-of-mass
+/// energy squared.
+pub struct HadronicIntegratorConfig<'a> {
+    /// PDF provider for beam 1.
+    pub pdf1: &'a dyn crate::pdf::PdfProvider,
+    /// PDF provider for beam 2.
+    pub pdf2: &'a dyn crate::pdf::PdfProvider,
+    /// Hadron species for beam 1.
+    pub beam1: crate::pdf::Hadron,
+    /// Hadron species for beam 2.
+    pub beam2: crate::pdf::Hadron,
+    /// Hadronic centre-of-mass energy squared $S$ in GeV².
+    pub s_hadronic: f64,
+    /// Factorisation scale $Q^2$ in GeV². If `None`, uses $\hat{s}$.
+    pub q2_fixed: Option<f64>,
+}
+
+/// Perform the hadronic cross-section convolution via Monte Carlo sampling.
+///
+/// For each MC event the algorithm:
+/// 1. Samples $x_1, x_2$ uniformly in $[\sqrt{\tau_0}, 1]$.
+/// 2. Computes $\hat{s} = x_1 x_2 S$.
+/// 3. Checks the kinematic threshold: $\hat{s} \geq (\sum m_f)^2$.
+/// 4. Evaluates the PDF luminosity $\mathcal{L}_{ab} = f_a(x_1, Q^2) \cdot f_b(x_2, Q^2)$.
+/// 5. Generates a partonic phase-space event at $\sqrt{\hat{s}}$ via
+///    the supplied generator, and evaluates $|\mathcal{M}|^2 \cdot w_\text{PS}$.
+/// 6. Accumulates with the Jacobian $(1 - \sqrt{\tau_0})^2$.
+///
+/// # Arguments
+///
+/// * `config` — Hadronic beam/PDF configuration.
+/// * `final_masses` — Rest masses of the final-state partons in GeV.
+/// * `amplitude_sq_fn` — Closure returning $|\mathcal{M}|^2$ for a given
+///   phase-space point *and* the partonic invariant $\hat{s}$.
+///   Signature: `(ps_point, s_hat) -> f64`.
+/// * `parton_channels` — List of `(pdg_a, pdg_b)` pairs to sum over.
+///   If empty, the Cartesian product of `beam1.parton_content()` and
+///   `beam2.parton_content()` is used.
+/// * `generator` — Phase-space generator (e.g., RAMBO).
+/// * `num_events` — Number of MC samples *per channel*.
+///
+/// # Returns
+///
+/// A [`HadronicCrossSectionResult`](crate::pdf::HadronicCrossSectionResult)
+/// containing the convolution result in both natural units and picobarns.
+pub fn compute_hadronic_cross_section<F>(
+    config: &HadronicIntegratorConfig<'_>,
+    final_masses: &[f64],
+    amplitude_sq_fn: F,
+    parton_channels: &[(i32, i32)],
+    generator: &mut dyn crate::kinematics::PhaseSpaceGenerator,
+    num_events: usize,
+) -> SpireResult<crate::pdf::HadronicCrossSectionResult>
+where
+    F: Fn(&PhaseSpacePoint, f64) -> f64,
+{
+    use rand::Rng;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    let s_had = config.s_hadronic;
+    if s_had <= 0.0 {
+        return Err(crate::SpireError::KinematicsForbidden(
+            "Hadronic centre-of-mass energy squared must be positive".into(),
+        ));
+    }
+
+    let mass_threshold: f64 = final_masses.iter().sum();
+    let tau_0 = (mass_threshold * mass_threshold) / s_had;
+    if tau_0 >= 1.0 {
+        return Err(crate::SpireError::KinematicsForbidden(format!(
+            "Beam energy √S = {:.4} GeV below threshold {:.4} GeV",
+            s_had.sqrt(),
+            mass_threshold,
+        )));
+    }
+
+    // Determine parton channels.
+    let channels: Vec<(i32, i32)> = if parton_channels.is_empty() {
+        let p1 = config.beam1.parton_content();
+        let p2 = config.beam2.parton_content();
+        let mut ch = Vec::with_capacity(p1.len() * p2.len());
+        for &a in p1 {
+            for &b in p2 {
+                ch.push((a, b));
+            }
+        }
+        ch
+    } else {
+        parton_channels.to_vec()
+    };
+
+    if channels.is_empty() {
+        return Ok(crate::pdf::HadronicCrossSectionResult {
+            cross_section: 0.0,
+            uncertainty: 0.0,
+            cross_section_pb: 0.0,
+            uncertainty_pb: 0.0,
+            events_evaluated: 0,
+            relative_error: f64::INFINITY,
+            beam_energy_sq: s_had,
+            pdf_name: config.pdf1.name().to_string(),
+            beam_description: format!(
+                "{} {} → X",
+                config.beam1.label(),
+                config.beam2.label()
+            ),
+        });
+    }
+
+    let x_min = tau_0.sqrt();
+    let jacobian = (1.0 - x_min) * (1.0 - x_min);
+
+    let mut rng = StdRng::from_entropy();
+
+    let mut total_sum = 0.0;
+    let mut total_sum2 = 0.0;
+    let mut total_events = 0usize;
+
+    let gev2_to_pb = 0.3894e9;
+
+    for &(pdg_a, pdg_b) in &channels {
+        for _ in 0..num_events {
+            // Sample x1, x2 uniformly in [x_min, 1].
+            let x1 = x_min + (1.0 - x_min) * rng.gen::<f64>();
+            let x2 = x_min + (1.0 - x_min) * rng.gen::<f64>();
+
+            let s_hat = x1 * x2 * s_had;
+            let sqrt_s_hat = s_hat.sqrt();
+
+            // Kinematic threshold check.
+            if sqrt_s_hat < mass_threshold {
+                total_events += 1;
+                continue;
+            }
+
+            // Factorisation scale: fixed or dynamic (= ŝ).
+            let q2 = config.q2_fixed.unwrap_or(s_hat);
+
+            // PDF luminosity.
+            let f1 = config.pdf1.evaluate(pdg_a, x1, q2);
+            let f2 = config.pdf2.evaluate(pdg_b, x2, q2);
+            let lumi = f1 * f2;
+
+            if lumi <= 0.0 {
+                total_events += 1;
+                continue;
+            }
+
+            // Generate partonic phase-space event.
+            let ps_event = generator.generate_event(sqrt_s_hat, final_masses)?;
+
+            // Partonic |M|² × PS weight.
+            let msq = amplitude_sq_fn(&ps_event, s_hat);
+            if !msq.is_finite() || !ps_event.weight.is_finite() {
+                total_events += 1;
+                continue;
+            }
+
+            // Full integrand:
+            // σ_had = Σ_{a,b} ∫dx₁ dx₂ f_a(x₁) f_b(x₂) × (1/2ŝ) |M|² × w_PS
+            // MC estimate: Jacobian × <lumi × (1/2ŝ) × |M|² × w_PS>
+            let flux_partonic = 2.0 * s_hat;
+            let contribution = jacobian * lumi * msq * ps_event.weight / flux_partonic;
+
+            total_sum += contribution;
+            total_sum2 += contribution * contribution;
+            total_events += 1;
+        }
+    }
+
+    let n_total = total_events as f64;
+    if n_total < 1.0 {
+        return Ok(crate::pdf::HadronicCrossSectionResult {
+            cross_section: 0.0,
+            uncertainty: 0.0,
+            cross_section_pb: 0.0,
+            uncertainty_pb: 0.0,
+            events_evaluated: 0,
+            relative_error: f64::INFINITY,
+            beam_energy_sq: s_had,
+            pdf_name: config.pdf1.name().to_string(),
+            beam_description: format!(
+                "{} {} → X",
+                config.beam1.label(),
+                config.beam2.label()
+            ),
+        });
+    }
+
+    let mean = total_sum / n_total;
+    let variance = (total_sum2 / n_total - mean * mean).max(0.0);
+    let std_error = (variance / n_total).sqrt();
+
+    let relative_error = if mean.abs() > 1e-300 {
+        std_error / mean.abs()
+    } else {
+        f64::INFINITY
+    };
+
+    Ok(crate::pdf::HadronicCrossSectionResult {
+        cross_section: mean,
+        uncertainty: std_error,
+        cross_section_pb: mean * gev2_to_pb,
+        uncertainty_pb: std_error * gev2_to_pb,
+        events_evaluated: total_events,
+        relative_error,
+        beam_energy_sq: s_had,
+        pdf_name: config.pdf1.name().to_string(),
+        beam_description: format!(
+            "{} {} → X",
+            config.beam1.label(),
+            config.beam2.label()
+        ),
+    })
+}
+
+// ===========================================================================
 // Unit Tests
 // ===========================================================================
 
@@ -527,5 +757,179 @@ mod tests {
         let integrator = UniformIntegrator::new();
         let result = run_integration(&integrator);
         assert!(result.value > 0.0);
+    }
+
+    // -----------------------------------------------------------------------
+    // Hadronic (PDF-convoluted) cross-section tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hadronic_cross_section_flat_pdf_positive() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let config = HadronicIntegratorConfig {
+            pdf1: &pdf,
+            pdf2: &pdf,
+            beam1: Hadron::Proton,
+            beam2: Hadron::Proton,
+            s_hadronic: 100.0 * 100.0, // 100 GeV
+            q2_fixed: Some(100.0),
+        };
+
+        let mut gen = RamboGenerator::new();
+        // Constant |M|² = 1, only one channel for simplicity.
+        let result = compute_hadronic_cross_section(
+            &config,
+            &[0.0, 0.0],
+            |_ps, _s_hat| 1.0,
+            &[(2, -2)], // u ubar channel only
+            &mut gen,
+            5000,
+        )
+        .unwrap();
+
+        assert!(result.cross_section > 0.0, "Hadronic xsec should be positive");
+        assert!(result.uncertainty > 0.0, "Should have non-zero error");
+        assert!(result.cross_section_pb > 0.0, "pb conversion should be positive");
+        assert_eq!(result.beam_energy_sq, 10000.0);
+        assert!(result.beam_description.contains("p"));
+    }
+
+    #[test]
+    fn hadronic_cross_section_below_threshold() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let config = HadronicIntegratorConfig {
+            pdf1: &pdf,
+            pdf2: &pdf,
+            beam1: Hadron::Proton,
+            beam2: Hadron::AntiProton,
+            s_hadronic: 1.0, // √S = 1 GeV, below 2*80 GeV threshold
+            q2_fixed: None,
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = compute_hadronic_cross_section(
+            &config,
+            &[80.0, 80.0], // Two 80 GeV particles
+            |_ps, _s_hat| 1.0,
+            &[(2, -2)],
+            &mut gen,
+            100,
+        );
+
+        assert!(result.is_err(), "Should fail when below threshold");
+    }
+
+    #[test]
+    fn hadronic_cross_section_empty_channels() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let config = HadronicIntegratorConfig {
+            pdf1: &pdf,
+            pdf2: &pdf,
+            beam1: Hadron::Proton,
+            beam2: Hadron::Proton,
+            s_hadronic: 10000.0,
+            q2_fixed: Some(100.0),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = compute_hadronic_cross_section(
+            &config,
+            &[0.0, 0.0],
+            |_ps, _s_hat| 1.0,
+            &[], // No explicit channels → uses full Cartesian product
+            &mut gen,
+            100,
+        )
+        .unwrap();
+
+        // With all channels from proton⊗proton and flat PDF, result should be positive.
+        assert!(result.cross_section > 0.0);
+        assert!(result.events_evaluated > 0);
+    }
+
+    #[test]
+    fn hadronic_cross_section_toy_proton_pdf() {
+        use crate::pdf::{ToyProtonPdf, Hadron};
+
+        let pdf = ToyProtonPdf::new();
+        let config = HadronicIntegratorConfig {
+            pdf1: &pdf,
+            pdf2: &pdf,
+            beam1: Hadron::Proton,
+            beam2: Hadron::Proton,
+            s_hadronic: 13000.0_f64.powi(2), // 13 TeV
+            q2_fixed: Some(1e4),             // Q² = 10⁴ GeV²
+        };
+
+        let mut gen = RamboGenerator::new();
+        // Only u-ubar channel, constant |M|² = 1.
+        let result = compute_hadronic_cross_section(
+            &config,
+            &[0.0, 0.0],
+            |_ps, _s_hat| 1.0,
+            &[(2, -2)],
+            &mut gen,
+            5000,
+        )
+        .unwrap();
+
+        assert!(result.cross_section > 0.0);
+        assert!(result.pdf_name.contains("Toy"));
+    }
+
+    #[test]
+    fn hadronic_cross_section_serde_roundtrip() {
+        use crate::pdf::HadronicCrossSectionResult;
+
+        let result = HadronicCrossSectionResult {
+            cross_section: 1.23e-8,
+            uncertainty: 4.56e-10,
+            cross_section_pb: 4.79e1,
+            uncertainty_pb: 1.78e0,
+            events_evaluated: 50000,
+            relative_error: 0.037,
+            beam_energy_sq: 1.69e8,
+            pdf_name: "TestPDF".into(),
+            beam_description: "p p → X".into(),
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        let back: HadronicCrossSectionResult = serde_json::from_str(&json).unwrap();
+        assert!((back.cross_section - 1.23e-8).abs() < 1e-20);
+        assert_eq!(back.events_evaluated, 50000);
+        assert_eq!(back.pdf_name, "TestPDF");
+    }
+
+    #[test]
+    fn hadronic_cross_section_negative_s() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let config = HadronicIntegratorConfig {
+            pdf1: &pdf,
+            pdf2: &pdf,
+            beam1: Hadron::Proton,
+            beam2: Hadron::Proton,
+            s_hadronic: -100.0,
+            q2_fixed: None,
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = compute_hadronic_cross_section(
+            &config,
+            &[0.0, 0.0],
+            |_ps, _s_hat| 1.0,
+            &[(2, -2)],
+            &mut gen,
+            100,
+        );
+
+        assert!(result.is_err());
     }
 }

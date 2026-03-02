@@ -612,6 +612,105 @@ fn ufo_antiname(id: &str) -> String {
     format!("anti_{}", id)
 }
 
+// ===========================================================================
+// Form Factors
+// ===========================================================================
+
+/// An effective form factor that scales vertex couplings as a function of
+/// the squared momentum transfer $Q^2$ flowing through the vertex.
+///
+/// Form factors parametrise the finite size of composite particles and
+/// non-perturbative corrections to point-particle interactions.
+///
+/// # Examples
+///
+/// - Electromagnetic form factor of the proton: `Dipole { lambda_sq: 0.71 }` (GeV²).
+/// - Exponential suppression at high-$Q^2$ vertices: `Exponential { lambda_sq: 1.0 }`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum FormFactor {
+    /// No form factor — the interaction is treated as point-like.
+    ///
+    /// $F(Q^2) = 1$.
+    PointLike,
+
+    /// Monopole form factor.
+    ///
+    /// $$F(Q^2) = \frac{1}{1 + Q^2 / \Lambda^2}$$
+    Monopole {
+        /// Scale parameter $\Lambda^2$ in GeV².
+        lambda_sq: f64,
+    },
+
+    /// Dipole form factor (standard electromagnetic nucleon form factor).
+    ///
+    /// $$F(Q^2) = \left(1 + \frac{Q^2}{\Lambda^2}\right)^{-2}$$
+    Dipole {
+        /// Scale parameter $\Lambda^2$ in GeV².
+        lambda_sq: f64,
+    },
+
+    /// Exponential form factor.
+    ///
+    /// $$F(Q^2) = \exp\left(-\frac{Q^2}{\Lambda^2}\right)$$
+    Exponential {
+        /// Scale parameter $\Lambda^2$ in GeV².
+        lambda_sq: f64,
+    },
+}
+
+impl FormFactor {
+    /// Evaluate the form factor at a given squared momentum transfer $Q^2$.
+    ///
+    /// # Arguments
+    ///
+    /// * `q2` — The squared momentum transfer in GeV². Should be non-negative
+    ///   for space-like momentum transfer.
+    ///
+    /// # Returns
+    ///
+    /// The dimensionless suppression factor $F(Q^2) \in [0, 1]$.
+    pub fn evaluate(&self, q2: f64) -> f64 {
+        match self {
+            FormFactor::PointLike => 1.0,
+            FormFactor::Monopole { lambda_sq } => {
+                if *lambda_sq <= 0.0 {
+                    return 1.0;
+                }
+                1.0 / (1.0 + q2 / lambda_sq)
+            }
+            FormFactor::Dipole { lambda_sq } => {
+                if *lambda_sq <= 0.0 {
+                    return 1.0;
+                }
+                let ratio = 1.0 + q2 / lambda_sq;
+                1.0 / (ratio * ratio)
+            }
+            FormFactor::Exponential { lambda_sq } => {
+                if *lambda_sq <= 0.0 {
+                    return 1.0;
+                }
+                (-q2 / lambda_sq).exp()
+            }
+        }
+    }
+
+    /// Return the scale parameter $\Lambda^2$ in GeV², or `None` for point-like.
+    pub fn scale_sq(&self) -> Option<f64> {
+        match self {
+            FormFactor::PointLike => None,
+            FormFactor::Monopole { lambda_sq }
+            | FormFactor::Dipole { lambda_sq }
+            | FormFactor::Exponential { lambda_sq } => Some(*lambda_sq),
+        }
+    }
+}
+
+impl Default for FormFactor {
+    fn default() -> Self {
+        FormFactor::PointLike
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1102,5 +1201,98 @@ mod tests {
         assert_eq!(ufo_variable_name("e-"), "em");
         assert_eq!(ufo_variable_name("W+"), "Wp");
         assert_eq!(ufo_variable_name("Z0"), "Z0");
+    }
+
+    // -----------------------------------------------------------------------
+    // Form factor tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn form_factor_point_like() {
+        let ff = FormFactor::PointLike;
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-15);
+        assert!((ff.evaluate(100.0) - 1.0).abs() < 1e-15);
+        assert!((ff.evaluate(1e6) - 1.0).abs() < 1e-15);
+        assert!(ff.scale_sq().is_none());
+    }
+
+    #[test]
+    fn form_factor_monopole() {
+        let ff = FormFactor::Monopole { lambda_sq: 1.0 };
+        // F(0) = 1
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-15);
+        // F(Λ²) = 1/2
+        assert!((ff.evaluate(1.0) - 0.5).abs() < 1e-15);
+        // F(3Λ²) = 1/4
+        assert!((ff.evaluate(3.0) - 0.25).abs() < 1e-15);
+        assert!((ff.scale_sq().unwrap() - 1.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn form_factor_dipole() {
+        let lambda_sq = 0.71; // proton electromagnetic scale
+        let ff = FormFactor::Dipole { lambda_sq };
+        // F(0) = 1
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-15);
+        // F(Λ²) = (1 + 1)^{-2} = 1/4
+        assert!((ff.evaluate(lambda_sq) - 0.25).abs() < 1e-10);
+        // Monotone decreasing
+        let f1 = ff.evaluate(0.5);
+        let f2 = ff.evaluate(1.0);
+        let f3 = ff.evaluate(5.0);
+        assert!(f1 > f2);
+        assert!(f2 > f3);
+        assert!(f3 > 0.0);
+    }
+
+    #[test]
+    fn form_factor_exponential() {
+        let ff = FormFactor::Exponential { lambda_sq: 2.0 };
+        // F(0) = 1
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-15);
+        // F(Λ²) = e^{-1} ≈ 0.3679
+        assert!((ff.evaluate(2.0) - (-1.0_f64).exp()).abs() < 1e-10);
+        // Decreases monotonically
+        assert!(ff.evaluate(1.0) > ff.evaluate(10.0));
+    }
+
+    #[test]
+    fn form_factor_dipole_vs_monopole_suppression() {
+        // Dipole should suppress more strongly than monopole at same scale.
+        let mono = FormFactor::Monopole { lambda_sq: 1.0 };
+        let di = FormFactor::Dipole { lambda_sq: 1.0 };
+        let q2 = 5.0;
+        assert!(di.evaluate(q2) < mono.evaluate(q2));
+    }
+
+    #[test]
+    fn form_factor_default_is_point_like() {
+        let ff = FormFactor::default();
+        assert_eq!(ff, FormFactor::PointLike);
+    }
+
+    #[test]
+    fn form_factor_serde_roundtrip() {
+        let factors = vec![
+            FormFactor::PointLike,
+            FormFactor::Monopole { lambda_sq: 0.71 },
+            FormFactor::Dipole { lambda_sq: 1.5 },
+            FormFactor::Exponential { lambda_sq: 2.0 },
+        ];
+        for ff in &factors {
+            let json = serde_json::to_string(ff).unwrap();
+            let ff2: FormFactor = serde_json::from_str(&json).unwrap();
+            assert_eq!(ff, &ff2);
+        }
+    }
+
+    #[test]
+    fn form_factor_zero_scale_returns_one() {
+        // Invalid Λ² ≤ 0 should degenerate to point-like.
+        let ff = FormFactor::Dipole { lambda_sq: 0.0 };
+        assert!((ff.evaluate(10.0) - 1.0).abs() < 1e-15);
+
+        let ff2 = FormFactor::Exponential { lambda_sq: -1.0 };
+        assert!((ff2.evaluate(10.0) - 1.0).abs() < 1e-15);
     }
 }

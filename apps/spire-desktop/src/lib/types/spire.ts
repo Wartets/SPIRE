@@ -89,7 +89,7 @@ export interface QuantumNumbers {
   charge_conjugation: ChargeConjugation;
   color: ColorRepresentation;
   weak_multiplet: WeakMultiplet;
-  /** Generalized gauge-group representations (Phase 14). */
+  /** Generalized gauge-group representations */
   representations?: LieGroupRepresentation[];
 }
 
@@ -135,7 +135,7 @@ export interface GaugeRepresentation {
 }
 
 // ---------------------------------------------------------------------------
-// Generalized Lie Algebra Types (Phase 14)
+// Generalized Lie Algebra Types
 // ---------------------------------------------------------------------------
 
 /**
@@ -310,16 +310,16 @@ export interface FeynmanDiagram {
   loop_order: LoopOrder;
   symmetry_factor: number;
   is_connected: boolean;
-  /** Whether this diagram is 1-particle irreducible (Phase 15). */
+  /** Whether this diagram is 1-particle irreducible */
   is_one_particle_irreducible?: boolean | null;
-  /** Loop topology classification for 1-loop diagrams (Phase 15). */
+  /** Loop topology classification for 1-loop diagrams */
   loop_topology_kind?: OneLoopTopologyKind | null;
-  /** Momentum routing assignment for loop diagrams (Phase 15). */
+  /** Momentum routing assignment for loop diagrams */
   momentum_routing?: LoopMomentumRouting | null;
 }
 
 // ---------------------------------------------------------------------------
-// Phase 15 — Loop Calculus & Dimensional Regularization Types
+// Loop Calculus & Dimensional Regularization Types
 // ---------------------------------------------------------------------------
 
 /** Classification of 1-loop integral topologies. */
@@ -430,7 +430,7 @@ export type PolarizationState =
   | "Longitudinal";
 
 // ---------------------------------------------------------------------------
-// Phase 16 — Computer Algebra System (CAS) Types
+// Computer Algebra System (CAS) Types
 // ---------------------------------------------------------------------------
 
 /** A symbolic Lorentz index (named, numeric, or dummy). */
@@ -482,7 +482,7 @@ export type CasExpr =
   | { PropagatorDenom: { momentum: string; mass_sq: number } };
 
 /**
- * A single step in a structured amplitude derivation (Phase 16).
+ * A single step in a structured amplitude derivation
  *
  * The `derive_amplitude_steps` function returns an ordered array of these,
  * each representing one mathematical operation applied to the amplitude.
@@ -498,7 +498,7 @@ export interface DerivationStep {
   latex: string;
 }
 
-/** Propagator form classification (extended in Phase 16 for higher spins). */
+/** Propagator form classification */
 export type PropagatorForm =
   | "Scalar"
   | "DiracFermion"
@@ -517,7 +517,7 @@ export interface AmplitudeResult {
 }
 
 /**
- * A symbolic loop integral term in the Passarino-Veltman basis (Phase 15).
+ * A symbolic loop integral term in the Passarino-Veltman basis
  *
  * This represents an unevaluated scalar loop integral that can be
  * exported to external libraries (LoopTools, Package-X) for evaluation.
@@ -638,6 +638,49 @@ export interface CrossSectionResult {
   /** Description of the squared matrix element model used. */
   amplitude_model: string;
 }
+
+// ---------------------------------------------------------------------------
+// Hadronic Cross-Section Calculation
+// ---------------------------------------------------------------------------
+
+/** Result of a hadronic (PDF-convoluted) cross-section calculation. */
+export interface HadronicCrossSectionResult {
+  /** Total hadronic cross-section in natural units (GeV^-2). */
+  cross_section: number;
+  /** Statistical uncertainty in natural units (GeV^-2). */
+  uncertainty: number;
+  /** Cross-section in picobarns. */
+  cross_section_pb: number;
+  /** Uncertainty in picobarns. */
+  uncertainty_pb: number;
+  /** Number of events evaluated. */
+  events_evaluated: number;
+  /** Relative error (uncertainty / cross_section). */
+  relative_error: number;
+  /** Squared beam energy S = (p1 + p2)^2 in GeV^2. */
+  beam_energy_sq: number;
+  /** Name of the PDF set used. */
+  pdf_name: string;
+  /** Description of the initial-state hadrons. */
+  beam_description: string;
+}
+
+/** Hadron species for initial-state beams. */
+export type Hadron = "Proton" | "AntiProton" | "PionPlus" | "PionMinus";
+
+/**
+ * Form factor parametrisation for off-shell vertex suppression.
+ *
+ * - `PointLike`: No suppression (F = 1).
+ * - `Monopole`: F(Q²) = (1 + Q²/Λ²)^{-1}
+ * - `Dipole`: F(Q²) = (1 + Q²/Λ²)^{-2}
+ * - `Exponential`: F(Q²) = exp(-Q²/Λ²)
+ */
+export type FormFactor =
+  | "PointLike"
+  | { Monopole: { lambda_sq: number } }
+  | { Dipole: { lambda_sq: number } }
+  | { Exponential: { lambda_sq: number } };
 
 // ---------------------------------------------------------------------------
 // Theoretical Model

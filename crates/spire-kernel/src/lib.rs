@@ -25,6 +25,8 @@
 //!   via the RAMBO algorithm.
 //! - [`integration`] — Monte Carlo integration engine for computing cross-sections and
 //!   differential distributions from squared matrix elements over phase space.
+//! - [`pdf`] — Parton Distribution Function framework. Generic `PdfProvider` trait
+//!   with analytical toy implementations for proton parton densities.
 
 pub mod algebra;
 pub mod data_loader;
@@ -34,6 +36,7 @@ pub mod integration;
 pub mod kinematics;
 pub mod lagrangian;
 pub mod ontology;
+pub mod pdf;
 pub mod s_matrix;
 
 use serde::{Deserialize, Serialize};

@@ -381,3 +381,43 @@ pub fn wasm_calculate_cross_section(
 
     serde_wasm_bindgen::to_value(&result).map_err(|e| to_js_err(e.to_string()))
 }
+
+// ---------------------------------------------------------------------------
+// Hadronic Cross-Section Calculation
+// ---------------------------------------------------------------------------
+
+/// Calculate a hadronic (PDF-convoluted) cross-section for proton–proton
+/// collisions using the built-in toy proton PDF.
+///
+/// Performs the convolution:
+///
+/// $$\sigma_{pp} = \sum_{a,b} \int dx_1\,dx_2\;
+///   f_a(x_1, Q^2)\,f_b(x_2, Q^2)\;\hat{\sigma}_{ab}(\hat{s})$$
+///
+/// with constant $|\mathcal{M}|^2 = 1$ (phase-space only).
+///
+/// # Arguments
+/// * `beam_energy_sq` — Hadronic $S$ in GeV² (e.g., $13000^2$ for 13 TeV LHC).
+/// * `final_masses` — JS array of final-state particle masses in GeV.
+/// * `num_events` — Number of Monte Carlo samples per parton channel.
+///
+/// # Returns
+/// A JS object matching the `HadronicCrossSectionResult` interface.
+#[wasm_bindgen(js_name = "calculateHadronicCrossSection")]
+pub fn wasm_calculate_hadronic_cross_section(
+    beam_energy_sq: f64,
+    final_masses: JsValue,
+    num_events: usize,
+) -> Result<JsValue, JsValue> {
+    let masses: Vec<f64> =
+        serde_wasm_bindgen::from_value(final_masses).map_err(|e| to_js_err(e.to_string()))?;
+
+    let result = s_matrix::calculate_hadronic_phase_space_cross_section(
+        beam_energy_sq,
+        &masses,
+        num_events,
+    )
+    .map_err(|e| to_js_err(e.to_string()))?;
+
+    serde_wasm_bindgen::to_value(&result).map_err(|e| to_js_err(e.to_string()))
+}

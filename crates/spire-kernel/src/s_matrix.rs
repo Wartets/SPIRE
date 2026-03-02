@@ -533,6 +533,97 @@ pub fn calculate_phase_space_cross_section(
     calculate_cross_section(cms_energy, final_masses, |_| 1.0, num_events)
 }
 
+// ---------------------------------------------------------------------------
+// Hadronic Cross-Section API
+// ---------------------------------------------------------------------------
+
+/// Calculate a hadronic cross-section by convoluting a partonic cross-section
+/// with parton distribution functions.
+///
+/// This is the primary user-facing entry point for hadron-collider predictions.
+/// It wraps [`compute_hadronic_cross_section`](crate::integration::compute_hadronic_cross_section)
+/// with sensible defaults (RAMBO phase-space generator, all active parton channels).
+///
+/// The formula:
+///
+/// $$\sigma_{H_1 H_2} = \sum_{a,b} \int_0^1 dx_1 \, dx_2 \;
+///   f_a^{H_1}(x_1, Q^2) \, f_b^{H_2}(x_2, Q^2) \;
+///   \hat{\sigma}_{ab}(\hat{s})$$
+///
+/// # Arguments
+///
+/// * `pdf1` / `pdf2` — PDF providers for beams 1 and 2.
+/// * `beam1` / `beam2` — Hadron species (determines active parton channels).
+/// * `beam_energy_sq` — Hadronic $S = (p_1 + p_2)^2$ in GeV².
+/// * `final_masses` — Final-state particle masses in GeV.
+/// * `amplitude_sq_fn` — Closure $|\mathcal{M}|^2(\text{PS}, \hat{s}) \to \mathbb{R}$.
+/// * `num_events` — Number of MC samples per parton channel.
+/// * `q2_fixed` — Optional fixed factorisation scale. If `None`, uses $\hat{s}$.
+///
+/// # Returns
+///
+/// A [`HadronicCrossSectionResult`](crate::pdf::HadronicCrossSectionResult).
+pub fn calculate_hadronic_cross_section<F>(
+    pdf1: &dyn crate::pdf::PdfProvider,
+    pdf2: &dyn crate::pdf::PdfProvider,
+    beam1: crate::pdf::Hadron,
+    beam2: crate::pdf::Hadron,
+    beam_energy_sq: f64,
+    final_masses: &[f64],
+    amplitude_sq_fn: F,
+    num_events: usize,
+    q2_fixed: Option<f64>,
+) -> SpireResult<crate::pdf::HadronicCrossSectionResult>
+where
+    F: Fn(&crate::kinematics::PhaseSpacePoint, f64) -> f64,
+{
+    use crate::integration::{compute_hadronic_cross_section, HadronicIntegratorConfig};
+    use crate::kinematics::RamboGenerator;
+
+    let config = HadronicIntegratorConfig {
+        pdf1,
+        pdf2,
+        beam1,
+        beam2,
+        s_hadronic: beam_energy_sq,
+        q2_fixed,
+    };
+
+    let mut generator = RamboGenerator::new();
+
+    compute_hadronic_cross_section(
+        &config,
+        final_masses,
+        amplitude_sq_fn,
+        &[], // All channels from beam × beam
+        &mut generator,
+        num_events,
+    )
+}
+
+/// Calculate a hadronic phase-space-only cross-section (constant $|\mathcal{M}|^2 = 1$).
+///
+/// Convenience wrapper using the [`ToyProtonPdf`](crate::pdf::ToyProtonPdf)
+/// for proton–proton collisions.
+pub fn calculate_hadronic_phase_space_cross_section(
+    beam_energy_sq: f64,
+    final_masses: &[f64],
+    num_events: usize,
+) -> SpireResult<crate::pdf::HadronicCrossSectionResult> {
+    let pdf = crate::pdf::ToyProtonPdf::new();
+    calculate_hadronic_cross_section(
+        &pdf,
+        &pdf,
+        crate::pdf::Hadron::Proton,
+        crate::pdf::Hadron::Proton,
+        beam_energy_sq,
+        final_masses,
+        |_ps, _s_hat| 1.0,
+        num_events,
+        None,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1135,6 +1226,65 @@ mod tests {
     fn cross_section_insufficient_energy() {
         // √s = 1 GeV but final masses total 10 GeV — should error.
         let result = calculate_phase_space_cross_section(1.0, &[5.0, 5.0], 1000);
+        assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Hadronic cross-section API tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hadronic_cross_section_api_positive() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let result = calculate_hadronic_cross_section(
+            &pdf,
+            &pdf,
+            Hadron::Proton,
+            Hadron::Proton,
+            10000.0, // S = 10⁴ GeV²
+            &[0.0, 0.0],
+            |_ps, _s_hat| 1.0,
+            500,
+            Some(100.0),
+        )
+        .unwrap();
+
+        assert!(result.cross_section > 0.0);
+        assert!(result.cross_section_pb > 0.0);
+        assert!(result.events_evaluated > 0);
+    }
+
+    #[test]
+    fn hadronic_phase_space_cross_section_convenience() {
+        // Proton–proton at 13 TeV with massless 2-body final state.
+        let s = 13000.0_f64.powi(2);
+        let result =
+            calculate_hadronic_phase_space_cross_section(s, &[0.0, 0.0], 2000).unwrap();
+
+        assert!(result.cross_section > 0.0);
+        assert!(result.beam_energy_sq == s);
+        assert!(result.pdf_name.contains("Toy"));
+    }
+
+    #[test]
+    fn hadronic_cross_section_api_below_threshold() {
+        use crate::pdf::{FlatPdf, Hadron};
+
+        let pdf = FlatPdf::new(1.0);
+        let result = calculate_hadronic_cross_section(
+            &pdf,
+            &pdf,
+            Hadron::Proton,
+            Hadron::AntiProton,
+            1.0, // √S = 1 GeV, below 2×80 = 160 GeV threshold
+            &[80.0, 80.0],
+            |_ps, _s_hat| 1.0,
+            100,
+            None,
+        );
+
         assert!(result.is_err());
     }
 }
