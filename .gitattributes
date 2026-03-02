@@ -1,0 +1,37 @@
+* text=auto eol=lf
+
+*.rs text diff=rust
+*.toml text
+*.md text
+*.json text
+*.js text
+*.ts text
+*.svelte text
+*.html text
+*.css text
+*.py text
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.wasm binary
+*.so binary
+*.pyd binary
+*.a binary
+*.lib binary
+*.dll binary
+*.exe binary
+*.AppImage binary
+*.dmg binary
+*.msi binary
+*.deb binary
+*.rpm binary
+*.snap binary
+
+Cargo.lock text
+package-lock.json text
+pnpm-lock.yaml text
+yarn.lock text
