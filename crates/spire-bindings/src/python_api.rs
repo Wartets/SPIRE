@@ -151,7 +151,7 @@ impl PySpacetimeVector {
     /// The contravariant components $v^\mu$ as a Python list.
     #[getter]
     fn components(&self) -> Vec<f64> {
-        self.inner.components.clone()
+        self.inner.components().to_vec()
     }
 
     /// Number of spacetime dimensions.
@@ -189,7 +189,7 @@ impl PySpacetimeVector {
     }
 
     fn __repr__(&self) -> String {
-        format!("SpacetimeVector({:?})", self.inner.components)
+        format!("SpacetimeVector({:?})", self.inner.components())
     }
 
     fn __add__(&self, other: &PySpacetimeVector) -> PyResult<Self> {
@@ -745,7 +745,7 @@ fn generate_phase_space_events<'py>(
 
             for (j, momentum) in event.momenta.iter().enumerate() {
                 let base = i * n_particles * 4 + j * 4;
-                let comps = &momentum.components;
+                let comps = momentum.components();
                 // Copy (E, px, py, pz) — at most 4 components.
                 let n_copy = comps.len().min(4);
                 momenta_slice[base..base + n_copy].copy_from_slice(&comps[..n_copy]);
@@ -1144,9 +1144,9 @@ mod tests {
         let v2 = algebra::SpacetimeVector::new_4d(5.0, 0.0, 1.0, 0.0);
 
         let sum = v1.clone() + v2.clone();
-        assert!((sum.components[0] - 15.0).abs() < 1e-12);
-        assert!((sum.components[1] - 1.0).abs() < 1e-12);
-        assert!((sum.components[2] - 1.0).abs() < 1e-12);
+        assert!((sum[0] - 15.0).abs() < 1e-12);
+        assert!((sum[1] - 1.0).abs() < 1e-12);
+        assert!((sum[2] - 1.0).abs() < 1e-12);
     }
 
     #[test]

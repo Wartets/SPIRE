@@ -40,6 +40,7 @@
 //! where $f_i = |\mathcal{M}(p_i)|^2 \cdot w_i$.
 
 use serde::{Deserialize, Serialize};
+use rayon::prelude::*;
 
 use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
 use crate::SpireResult;
@@ -259,6 +260,93 @@ impl MonteCarloIntegrator for UniformIntegrator {
 
     fn name(&self) -> &str {
         "Uniform Monte Carlo"
+    }
+}
+
+impl UniformIntegrator {
+    /// Parallel variant of [`MonteCarloIntegrator::integrate`].
+    ///
+    /// Events are generated sequentially (the generator is not `Send`),
+    /// then the integrand is evaluated in parallel using rayon's work-stealing
+    /// thread pool. For expensive matrix elements this can provide near-linear
+    /// speedup on multi-core machines.
+    ///
+    /// The integrand `F` must be `Send + Sync` to allow parallel evaluation.
+    pub fn integrate_parallel<F>(
+        &self,
+        integrand: F,
+        generator: &mut dyn PhaseSpaceGenerator,
+        cms_energy: f64,
+        final_masses: &[f64],
+        num_events: usize,
+    ) -> SpireResult<IntegrationResult>
+    where
+        F: Fn(&PhaseSpacePoint) -> f64 + Send + Sync,
+    {
+        if num_events == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: 0,
+                efficiency: 0.0,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        // Phase 1: sequential event generation.
+        let mut events = Vec::with_capacity(num_events);
+        for _ in 0..num_events {
+            events.push(generator.generate_event(cms_energy, final_masses)?);
+        }
+
+        // Phase 2: parallel integrand evaluation & reduction.
+        let (sum_fw, sum_fw2, n_success) = events
+            .par_iter()
+            .map(|event| {
+                let f_val = integrand(event);
+                if !f_val.is_finite() || !event.weight.is_finite() {
+                    (0.0, 0.0, 0_usize)
+                } else {
+                    let fw = f_val * event.weight;
+                    (fw, fw * fw, 1_usize)
+                }
+            })
+            .reduce(
+                || (0.0, 0.0, 0_usize),
+                |(a_fw, a_fw2, a_n), (b_fw, b_fw2, b_n)| {
+                    (a_fw + b_fw, a_fw2 + b_fw2, a_n + b_n)
+                },
+            );
+
+        if n_success == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: num_events,
+                efficiency: 0.0,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        let n_f = n_success as f64;
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+
+        let efficiency = n_success as f64 / num_events as f64;
+        let relative_error = if mean.abs() > 1e-300 {
+            std_error / mean.abs()
+        } else {
+            f64::INFINITY
+        };
+
+        Ok(IntegrationResult {
+            value: mean,
+            error: std_error,
+            events_evaluated: n_success,
+            efficiency,
+            relative_error,
+        })
     }
 }
 

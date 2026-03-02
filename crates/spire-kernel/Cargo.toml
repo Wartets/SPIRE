@@ -10,6 +10,12 @@ toml = "0.8"
 petgraph = "0.6"
 nalgebra = "0.32"
 rand = "0.8"
+rayon = "1.10"
 
 [dev-dependencies]
 proptest = "1.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "kinematics_bench"
+harness = false

@@ -65,6 +65,7 @@ pub enum MetricSign {
 
 impl MetricSign {
     /// The numerical value $\pm 1$.
+    #[inline]
     pub fn value(&self) -> f64 {
         match self {
             MetricSign::Plus => 1.0,
@@ -125,6 +126,7 @@ impl MetricSignature {
     }
 
     /// The number of dimensions.
+    #[inline]
     pub fn dimension(&self) -> usize {
         self.signs.len()
     }
@@ -149,6 +151,7 @@ impl MetricSignature {
     }
 
     /// The diagonal component $g_{\mu\mu}$ for index $\mu$.
+    #[inline]
     pub fn component(&self, index: usize) -> f64 {
         self.signs[index].value()
     }
@@ -158,6 +161,9 @@ impl MetricSignature {
     ///
     /// Returns an error if the vectors have mismatched dimensions or do not
     /// match this signature's dimension.
+    ///
+    /// The 4D Minkowski case is manually unrolled for optimal auto-vectorization.
+    #[inline]
     pub fn inner_product(&self, v: &SpacetimeVector, w: &SpacetimeVector) -> Result<f64, String> {
         let dim = self.dimension();
         if v.dimension() != dim || w.dimension() != dim {
@@ -166,8 +172,22 @@ impl MetricSignature {
                 dim, v.dimension(), w.dimension()
             ));
         }
+
+        // Fast-path: 4D Minkowski (+,-,-,-) — the overwhelmingly common case.
+        if dim == 4 && self.signs.len() == 4 {
+            let vs = v.components();
+            let ws = w.components();
+            let result = self.signs[0].value() * vs[0] * ws[0]
+                       + self.signs[1].value() * vs[1] * ws[1]
+                       + self.signs[2].value() * vs[2] * ws[2]
+                       + self.signs[3].value() * vs[3] * ws[3];
+            return Ok(result);
+        }
+
+        let vs = v.components();
+        let ws = w.components();
         let result = (0..dim)
-            .map(|i| self.signs[i].value() * v.components[i] * w.components[i])
+            .map(|i| self.signs[i].value() * vs[i] * ws[i])
             .sum();
         Ok(result)
     }
@@ -278,6 +298,87 @@ impl SpacetimeMetricTrait for FlatMetric {
 // N-Dimensional Spacetime Vector
 // ---------------------------------------------------------------------------
 
+/// Internal storage for [`SpacetimeVector`]: stack-allocated for D ≤ 4,
+/// heap-allocated for higher dimensions.
+///
+/// The 4D case — overwhelmingly dominant in particle physics — lives entirely
+/// on the stack with 32-byte alignment for SIMD-friendly access.  Higher
+/// dimensions fall back to a heap `Vec<f64>` transparently.
+#[derive(Debug, Clone)]
+enum VectorStorage {
+    /// Stack-resident storage for D ≤ 4.  `len` tracks the actual dimension.
+    Inline {
+        #[allow(dead_code)]
+        data: [f64; 4],
+        len: u8,
+    },
+    /// Heap storage for D > 4.
+    Heap(Vec<f64>),
+}
+
+impl PartialEq for VectorStorage {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl VectorStorage {
+    /// Create storage from a `Vec<f64>`, choosing Inline when possible.
+    #[inline]
+    fn from_vec(v: Vec<f64>) -> Self {
+        if v.len() <= 4 {
+            let mut data = [0.0_f64; 4];
+            data[..v.len()].copy_from_slice(&v);
+            VectorStorage::Inline { data, len: v.len() as u8 }
+        } else {
+            VectorStorage::Heap(v)
+        }
+    }
+
+    /// Create an Inline storage directly from four components.
+    #[inline]
+    fn inline_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
+        VectorStorage::Inline { data: [v0, v1, v2, v3], len: 4 }
+    }
+
+    /// Create a zero-filled storage of the given dimension.
+    #[inline]
+    fn zeros(dim: usize) -> Self {
+        if dim <= 4 {
+            VectorStorage::Inline { data: [0.0; 4], len: dim as u8 }
+        } else {
+            VectorStorage::Heap(vec![0.0; dim])
+        }
+    }
+
+    /// Number of components.
+    #[inline]
+    fn len(&self) -> usize {
+        match self {
+            VectorStorage::Inline { len, .. } => *len as usize,
+            VectorStorage::Heap(v) => v.len(),
+        }
+    }
+
+    /// Immutable slice over all components.
+    #[inline]
+    fn as_slice(&self) -> &[f64] {
+        match self {
+            VectorStorage::Inline { data, len } => &data[..*len as usize],
+            VectorStorage::Heap(v) => v.as_slice(),
+        }
+    }
+
+    /// Mutable slice over all components.
+    #[inline]
+    fn as_mut_slice(&mut self) -> &mut [f64] {
+        match self {
+            VectorStorage::Inline { data, len } => &mut data[..*len as usize],
+            VectorStorage::Heap(v) => v.as_mut_slice(),
+        }
+    }
+}
+
 /// A contravariant vector $v^\mu$ in $D$-dimensional spacetime.
 ///
 /// Generalizes `FourMomentum` to arbitrary dimensions while maintaining full
@@ -286,46 +387,104 @@ impl SpacetimeMetricTrait for FlatMetric {
 ///
 /// # Design
 ///
-/// - Backed by a `Vec<f64>` to support compile-time unknown dimensions
-///   (e.g., $D = 10$ for String Theory, $D = 26$ for bosonic strings).
-/// - All metric-dependent operations accept a [`MetricSignature`] parameter,
-///   decoupling the vector algebra from any hardcoded signature.
-/// - The `From<FourMomentum>` conversion ensures seamless interop with
-///   existing 4D code paths.
+/// Uses **Small Vector Optimization**: the ubiquitous 4D case is stored
+/// entirely on the stack (zero heap allocations), while higher dimensions
+/// ($D > 4$, e.g. $D = 10$ for String Theory) fall back to heap storage.
+///
+/// All metric-dependent operations accept a [`MetricSignature`] parameter,
+/// decoupling the vector algebra from any hardcoded signature.
+/// The `From<FourMomentum>` conversion ensures seamless interop with
+/// existing 4D code paths.
 ///
 /// # Conventions
 ///
 /// Index 0 is the temporal component ($v^0$). Indices $1, \ldots, D-1$ are
 /// spatial.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpacetimeVector {
-    /// The contravariant components $v^\mu$ for $\mu = 0, 1, \ldots, D-1$.
-    pub components: Vec<f64>,
+    /// Internal storage — stack for D ≤ 4, heap for D > 4.
+    storage: VectorStorage,
+}
+
+// --- Custom Serialize / Deserialize for backward-compatible JSON ---
+
+impl Serialize for SpacetimeVector {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Serialize as { "components": [v0, v1, ...] } for backward compat.
+        use serde::ser::SerializeStruct;
+        let mut s = serializer.serialize_struct("SpacetimeVector", 1)?;
+        s.serialize_field("components", self.components())?;
+        s.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for SpacetimeVector {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        struct Helper {
+            components: Vec<f64>,
+        }
+        let h = Helper::deserialize(deserializer)?;
+        Ok(SpacetimeVector::new(h.components))
+    }
+}
+
+impl SpacetimeVector {
+    /// Access the components as an immutable slice.
+    #[inline]
+    pub fn components(&self) -> &[f64] {
+        self.storage.as_slice()
+    }
+
+    /// Access the components as a mutable slice.
+    #[inline]
+    pub fn components_mut(&mut self) -> &mut [f64] {
+        self.storage.as_mut_slice()
+    }
+}
+
+impl std::ops::Index<usize> for SpacetimeVector {
+    type Output = f64;
+    #[inline]
+    fn index(&self, index: usize) -> &f64 {
+        &self.storage.as_slice()[index]
+    }
+}
+
+impl std::ops::IndexMut<usize> for SpacetimeVector {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut f64 {
+        &mut self.storage.as_mut_slice()[index]
+    }
 }
 
 impl SpacetimeVector {
     /// Create a new spacetime vector from an explicit component list.
     ///
     /// The dimension is inferred from the length of the list.
+    #[inline]
     pub fn new(components: Vec<f64>) -> Self {
         assert!(!components.is_empty(), "SpacetimeVector must have at least 1 component");
-        Self { components }
+        Self { storage: VectorStorage::from_vec(components) }
     }
 
     /// Create a 4-vector $(v^0, v^1, v^2, v^3)$ — the most common case in
-    /// particle physics.
+    /// particle physics.  Stack-allocated with zero heap allocation.
+    #[inline]
     pub fn new_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
-        Self { components: vec![v0, v1, v2, v3] }
+        Self { storage: VectorStorage::inline_4d(v0, v1, v2, v3) }
     }
 
     /// Create the zero vector in $D$ dimensions.
+    #[inline]
     pub fn zero(dim: usize) -> Self {
-        Self { components: vec![0.0; dim] }
+        Self { storage: VectorStorage::zeros(dim) }
     }
 
     /// The number of spacetime dimensions.
+    #[inline]
     pub fn dimension(&self) -> usize {
-        self.components.len()
+        self.storage.len()
     }
 
     /// Compute the inner product $g_{\mu\nu} v^\mu w^\nu$ with respect to a
@@ -333,11 +492,13 @@ impl SpacetimeVector {
     ///
     /// # Errors
     /// Returns an error if dimensions are mismatched.
+    #[inline]
     pub fn dot(&self, other: &SpacetimeVector, metric: &MetricSignature) -> Result<f64, String> {
         metric.inner_product(self, other)
     }
 
     /// Compute the invariant norm squared $v^\mu v_\mu = g_{\mu\nu} v^\mu v^\nu$.
+    #[inline]
     pub fn norm_sq(&self, metric: &MetricSignature) -> Result<f64, String> {
         metric.inner_product(self, self)
     }
@@ -346,6 +507,7 @@ impl SpacetimeVector {
     /// $p^2 = g_{\mu\nu} p^\mu p^\nu$.
     ///
     /// In the $(+,-,-,-)$ convention this gives $E^2 - |\vec{p}|^2 = m^2$.
+    #[inline]
     pub fn invariant_mass_sq(&self, metric: &MetricSignature) -> Result<f64, String> {
         self.norm_sq(metric)
     }
@@ -354,17 +516,28 @@ impl SpacetimeVector {
     ///
     /// Uses the Euclidean norm of the spatial components (ignoring metric signs),
     /// matching the standard definition $|\vec{p}|$.
+    #[inline]
     pub fn spatial_magnitude(&self) -> f64 {
-        if self.components.len() <= 1 {
+        let s = self.components();
+        if s.len() <= 1 {
             return 0.0;
         }
-        self.components[1..].iter().map(|x| x * x).sum::<f64>().sqrt()
+        s[1..].iter().map(|x| x * x).sum::<f64>().sqrt()
     }
 
     /// Scale all components by a scalar factor.
+    #[inline]
     pub fn scale(&self, factor: f64) -> Self {
-        Self {
-            components: self.components.iter().map(|x| x * factor).collect(),
+        let s = self.components();
+        let dim = s.len();
+        if dim <= 4 {
+            let mut data = [0.0_f64; 4];
+            for i in 0..dim {
+                data[i] = s[i] * factor;
+            }
+            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+        } else {
+            Self { storage: VectorStorage::Heap(s.iter().map(|x| x * factor).collect()) }
         }
     }
 
@@ -372,32 +545,42 @@ impl SpacetimeVector {
     ///
     /// # Panics
     /// Panics if this vector is not 4-dimensional.
+    #[inline]
     pub fn to_four_momentum(&self) -> FourMomentum {
         assert_eq!(self.dimension(), 4, "Cannot convert non-4D vector to FourMomentum");
+        let s = self.components();
         FourMomentum {
-            e: self.components[0],
-            px: self.components[1],
-            py: self.components[2],
-            pz: self.components[3],
+            e: s[0],
+            px: s[1],
+            py: s[2],
+            pz: s[3],
         }
     }
 }
 
 impl From<FourMomentum> for SpacetimeVector {
+    #[inline]
     fn from(p: FourMomentum) -> Self {
-        Self { components: vec![p.e, p.px, p.py, p.pz] }
+        Self { storage: VectorStorage::inline_4d(p.e, p.px, p.py, p.pz) }
     }
 }
 
 impl Add for SpacetimeVector {
     type Output = Self;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
-        assert_eq!(self.dimension(), rhs.dimension(),
+        let dim = self.dimension();
+        assert_eq!(dim, rhs.dimension(),
             "Cannot add SpacetimeVectors of different dimensions");
-        Self {
-            components: self.components.iter().zip(&rhs.components)
-                .map(|(a, b)| a + b).collect(),
+        let a = self.components();
+        let b = rhs.components();
+        if dim <= 4 {
+            let mut data = [0.0_f64; 4];
+            for i in 0..dim { data[i] = a[i] + b[i]; }
+            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+        } else {
+            Self { storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x + y).collect()) }
         }
     }
 }
@@ -405,12 +588,19 @@ impl Add for SpacetimeVector {
 impl Sub for SpacetimeVector {
     type Output = Self;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
-        assert_eq!(self.dimension(), rhs.dimension(),
+        let dim = self.dimension();
+        assert_eq!(dim, rhs.dimension(),
             "Cannot subtract SpacetimeVectors of different dimensions");
-        Self {
-            components: self.components.iter().zip(&rhs.components)
-                .map(|(a, b)| a - b).collect(),
+        let a = self.components();
+        let b = rhs.components();
+        if dim <= 4 {
+            let mut data = [0.0_f64; 4];
+            for i in 0..dim { data[i] = a[i] - b[i]; }
+            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+        } else {
+            Self { storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x - y).collect()) }
         }
     }
 }
@@ -418,16 +608,23 @@ impl Sub for SpacetimeVector {
 impl Neg for SpacetimeVector {
     type Output = Self;
 
+    #[inline]
     fn neg(self) -> Self::Output {
-        Self {
-            components: self.components.iter().map(|x| -x).collect(),
+        let s = self.components();
+        let dim = s.len();
+        if dim <= 4 {
+            let mut data = [0.0_f64; 4];
+            for i in 0..dim { data[i] = -s[i]; }
+            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+        } else {
+            Self { storage: VectorStorage::Heap(s.iter().map(|x| -x).collect()) }
         }
     }
 }
 
 impl std::fmt::Display for SpacetimeVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parts: Vec<String> = self.components.iter().map(|c| format!("{:.6}", c)).collect();
+        let parts: Vec<String> = self.components().iter().map(|c| format!("{:.6}", c)).collect();
         write!(f, "({})", parts.join(", "))
     }
 }
@@ -4007,7 +4204,7 @@ impl CasExpr {
                     return Err(format!("Index {} out of bounds for {}-D momentum '{}'",
                         idx, p.dimension(), label));
                 }
-                Ok(Complex::real(p.components[idx]))
+                Ok(Complex::real(p.components()[idx]))
             }
 
             CasExpr::PropagatorDenom { momentum, mass_sq } => {
@@ -6423,14 +6620,14 @@ mod tests {
     fn spacetime_vector_new_4d() {
         let v = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
         assert_eq!(v.dimension(), 4);
-        assert_eq!(v.components, vec![1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(v.components(), &[1.0, 2.0, 3.0, 4.0]);
     }
 
     #[test]
     fn spacetime_vector_zero() {
         let v = SpacetimeVector::zero(7);
         assert_eq!(v.dimension(), 7);
-        for c in &v.components {
+        for c in v.components() {
             assert_eq!(*c, 0.0);
         }
     }
@@ -6484,7 +6681,7 @@ mod tests {
     fn spacetime_vector_scale() {
         let v = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
         let scaled = v.scale(2.0);
-        assert_eq!(scaled.components, vec![2.0, 4.0, 6.0, 8.0]);
+        assert_eq!(scaled.components(), &[2.0, 4.0, 6.0, 8.0]);
     }
 
     #[test]
@@ -6492,7 +6689,7 @@ mod tests {
         let a = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
         let b = SpacetimeVector::new_4d(5.0, 6.0, 7.0, 8.0);
         let sum = a + b;
-        assert_eq!(sum.components, vec![6.0, 8.0, 10.0, 12.0]);
+        assert_eq!(sum.components(), &[6.0, 8.0, 10.0, 12.0]);
     }
 
     #[test]
@@ -6500,14 +6697,14 @@ mod tests {
         let a = SpacetimeVector::new_4d(5.0, 6.0, 7.0, 8.0);
         let b = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
         let diff = a - b;
-        assert_eq!(diff.components, vec![4.0, 4.0, 4.0, 4.0]);
+        assert_eq!(diff.components(), &[4.0, 4.0, 4.0, 4.0]);
     }
 
     #[test]
     fn spacetime_vector_neg() {
         let v = SpacetimeVector::new_4d(1.0, -2.0, 3.0, -4.0);
         let n = -v;
-        assert_eq!(n.components, vec![-1.0, 2.0, -3.0, 4.0]);
+        assert_eq!(n.components(), &[-1.0, 2.0, -3.0, 4.0]);
     }
 
     #[test]
@@ -6515,7 +6712,7 @@ mod tests {
         let p = FourMomentum { e: 10.0, px: 1.0, py: 2.0, pz: 3.0 };
         let sv: SpacetimeVector = p.into();
         assert_eq!(sv.dimension(), 4);
-        assert_eq!(sv.components, vec![10.0, 1.0, 2.0, 3.0]);
+        assert_eq!(sv.components(), &[10.0, 1.0, 2.0, 3.0]);
     }
 
     #[test]
@@ -6608,7 +6805,7 @@ mod tests {
         let total_in = p1.clone() + p2.clone();
         let total_out = p3.clone() + p4.clone();
         for i in 0..10 {
-            assert!((total_in.components[i] - total_out.components[i]).abs() < 1e-12);
+            assert!((total_in[i] - total_out[i]).abs() < 1e-12);
         }
 
         // Verify Mandelstam s in 10D: s = (p1 + p2)^2

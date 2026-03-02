@@ -908,14 +908,14 @@ impl PhaseSpaceGenerator for RamboGenerator {
             // Apply the rescaling: E_i = sqrt(|p_i|² * ξ² + m_i²), p_i → ξ * p_i_spatial
             let mut massive_momenta = Vec::with_capacity(n);
             for (i, pi) in p.iter().enumerate() {
-                let p_spatial_sq: f64 = pi.components[1..].iter().map(|c| c * c).sum();
+                let p_spatial_sq: f64 = pi.components()[1..].iter().map(|c| c * c).sum();
                 let m_i = final_masses[i];
                 let e_new = (p_spatial_sq * xi * xi + m_i * m_i).sqrt();
                 massive_momenta.push(SpacetimeVector::new_4d(
                     e_new,
-                    pi.components[1] * xi,
-                    pi.components[2] * xi,
-                    pi.components[3] * xi,
+                    pi[1] * xi,
+                    pi[2] * xi,
+                    pi[3] * xi,
                 ));
             }
 
@@ -965,7 +965,7 @@ fn sum_vectors(vecs: &[SpacetimeVector]) -> SpacetimeVector {
     let mut result = SpacetimeVector::zero(dim);
     for v in vecs {
         for i in 0..dim {
-            result.components[i] += v.components[i];
+            result[i] += v[i];
         }
     }
     result
@@ -985,10 +985,10 @@ fn rambo_boost_and_scale(
     m_q: f64,
     x: f64,
 ) -> SpacetimeVector {
-    let q0 = q_total.components[0];
-    let qx = q_total.components[1];
-    let qy = q_total.components[2];
-    let qz = q_total.components[3];
+    let q0 = q_total[0];
+    let qx = q_total[1];
+    let qy = q_total[2];
+    let qz = q_total[3];
 
     // Boost vector: b = -Q_spatial / M_Q
     let bx = -qx / m_q;
@@ -997,10 +997,10 @@ fn rambo_boost_and_scale(
     let gamma = q0 / m_q;
     let a = 1.0 / (1.0 + gamma);
 
-    let qi_e = qi.components[0];
-    let qi_x = qi.components[1];
-    let qi_y = qi.components[2];
-    let qi_z = qi.components[3];
+    let qi_e = qi[0];
+    let qi_x = qi[1];
+    let qi_y = qi[2];
+    let qi_z = qi[3];
 
     // b · q_spatial
     let bq = bx * qi_x + by * qi_y + bz * qi_z;
@@ -1065,7 +1065,7 @@ fn rambo_mass_rescale(
 
     // Spatial momentum magnitudes squared
     let p_sq: Vec<f64> = momenta.iter().map(|p| {
-        p.components[1..].iter().map(|c| c * c).sum()
+        p.components()[1..].iter().map(|c| c * c).sum()
     }).collect();
 
     // Newton iterations
@@ -1116,8 +1116,8 @@ fn rambo_mass_weight_factor(
     let mut sum_p_sq_over_e = 0.0;
 
     for (_i, p) in massive_momenta.iter().enumerate() {
-        let e_i = p.components[0];
-        let p_spatial_sq: f64 = p.components[1..].iter().map(|c| c * c).sum();
+        let e_i = p[0];
+        let p_spatial_sq: f64 = p.components()[1..].iter().map(|c| c * c).sum();
         let p_mag = p_spatial_sq.sqrt();
 
         if e_i > 1e-300 {
@@ -1806,15 +1806,15 @@ mod tests {
 
             // Should equal (E_cms, 0, 0, 0).
             assert!(
-                (total.components[0] - cms).abs() < 1e-8,
+                (total[0] - cms).abs() < 1e-8,
                 "Energy not conserved: E_total = {}, expected {}",
-                total.components[0], cms
+                total[0], cms
             );
             for j in 1..4 {
                 assert!(
-                    total.components[j].abs() < 1e-8,
+                    total[j].abs() < 1e-8,
                     "Spatial momentum not conserved: p[{}] = {}",
-                    j, total.components[j]
+                    j, total[j]
                 );
             }
 
@@ -1837,26 +1837,26 @@ mod tests {
             let total = sum_vectors(&event.momenta);
 
             assert!(
-                (total.components[0] - cms).abs() < 1e-8,
+                (total[0] - cms).abs() < 1e-8,
                 "Energy not conserved: E = {}",
-                total.components[0]
+                total[0]
             );
             for j in 1..4 {
                 assert!(
-                    total.components[j].abs() < 1e-8,
+                    total[j].abs() < 1e-8,
                     "3-momentum not conserved: p[{}] = {}",
-                    j, total.components[j]
+                    j, total[j]
                 );
             }
 
             // Each massless particle should satisfy E = |p|.
             for p in &event.momenta {
-                let p_mag: f64 = p.components[1..].iter()
+                let p_mag: f64 = p.components()[1..].iter()
                     .map(|c| c * c).sum::<f64>().sqrt();
                 assert!(
-                    (p.components[0] - p_mag).abs() < 1e-8,
+                    (p[0] - p_mag).abs() < 1e-8,
                     "Massless particle not on-shell: E = {}, |p| = {}",
-                    p.components[0], p_mag
+                    p[0], p_mag
                 );
             }
         }
@@ -1879,15 +1879,15 @@ mod tests {
 
             // Energy-momentum conservation.
             assert!(
-                (total.components[0] - cms).abs() < 1e-6,
+                (total[0] - cms).abs() < 1e-6,
                 "Energy: {} vs {}",
-                total.components[0], cms
+                total[0], cms
             );
             for j in 1..4 {
                 assert!(
-                    total.components[j].abs() < 1e-6,
+                    total[j].abs() < 1e-6,
                     "p[{}] = {}",
-                    j, total.components[j]
+                    j, total[j]
                 );
             }
 
@@ -1919,11 +1919,11 @@ mod tests {
 
             let total = sum_vectors(&event.momenta);
             assert!(
-                (total.components[0] - cms).abs() < 1e-6,
-                "E = {}", total.components[0]
+                (total[0] - cms).abs() < 1e-6,
+                "E = {}", total[0]
             );
             for j in 1..4 {
-                assert!(total.components[j].abs() < 1e-6);
+                assert!(total[j].abs() < 1e-6);
             }
 
             // Mass shell.

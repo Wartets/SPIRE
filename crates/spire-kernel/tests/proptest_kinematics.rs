@@ -114,21 +114,21 @@ proptest! {
         let mut total = SpacetimeVector::zero(4);
         for p in &event.momenta {
             for i in 0..4 {
-                total.components[i] += p.components[i];
+                total[i] += p[i];
             }
         }
 
         // Should equal (E_cms, 0, 0, 0).
-        let e_diff = (total.components[0] - cms_energy).abs();
-        let px_diff = total.components[1].abs();
-        let py_diff = total.components[2].abs();
-        let pz_diff = total.components[3].abs();
+        let e_diff = (total[0] - cms_energy).abs();
+        let px_diff = total[1].abs();
+        let py_diff = total[2].abs();
+        let pz_diff = total[3].abs();
 
         let tol = 1e-9;
         prop_assert!(
             e_diff < tol,
             "Energy not conserved: E_total = {:.12}, E_cms = {:.12}, diff = {:.2e}",
-            total.components[0], cms_energy, e_diff,
+            total[0], cms_energy, e_diff,
         );
         prop_assert!(px_diff < tol, "px not conserved: {:.2e}", px_diff);
         prop_assert!(py_diff < tol, "py not conserved: {:.2e}", py_diff);
@@ -159,18 +159,18 @@ proptest! {
         let mut total = SpacetimeVector::zero(4);
         for p in &event.momenta {
             for i in 0..4 {
-                total.components[i] += p.components[i];
+                total[i] += p[i];
             }
         }
 
         let tol = 1e-9;
-        let e_diff = (total.components[0] - cms_energy).abs();
+        let e_diff = (total[0] - cms_energy).abs();
         prop_assert!(e_diff < tol, "Energy diff = {:.2e}", e_diff);
         for i in 1..4 {
             prop_assert!(
-                total.components[i].abs() < tol,
+                total[i].abs() < tol,
                 "Spatial component {} = {:.2e}",
-                i, total.components[i],
+                i, total[i],
             );
         }
     }
@@ -246,6 +246,10 @@ proptest! {
         );
 
         let s = (p1 + p2).invariant_mass_sq();
+
+        // Skip if below threshold: sqrt(s) must exceed the sum of final masses.
+        prop_assume!(s.sqrt() > m3 + m4 + 1e-6);
+
         let p_star = cm_momentum(s, m3, m4);
 
         // Skip if below threshold (p* = 0).
