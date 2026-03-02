@@ -140,6 +140,14 @@ pub struct Propagator {
 ///
 /// Bundles all fields, Lagrangian terms, vertex factors, and propagators
 /// that define the theory (e.g., the Standard Model, or a BSM extension).
+///
+/// # Spacetime Configuration
+///
+/// The `spacetime` field defines the geometry (dimension, metric signature,
+/// regularization scheme). Defaults to standard 4D Minkowski.
+///
+/// The `constants` field holds the fundamental physical constants. Defaults
+/// to natural units ($c = \hbar = 1$).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TheoreticalModel {
     /// Name of the model (e.g., `"Standard Model"`, `"MSSM"`).
@@ -161,6 +169,17 @@ pub struct TheoreticalModel {
     /// (e.g., $SU(3)_C \times SU(2)_L \times U(1)_Y$ for the Standard Model).
     #[serde(default)]
     pub gauge_symmetry: Option<crate::groups::GaugeSymmetry>,
+    /// The spacetime geometry configuration for this model.
+    ///
+    /// Defines dimension, metric signature, and regularization scheme.
+    /// Defaults to standard 4D Minkowski ($+,-,-,-$).
+    #[serde(default)]
+    pub spacetime: crate::algebra::SpacetimeConfig,
+    /// The fundamental physical constants for this model.
+    ///
+    /// Defaults to natural units ($c = \hbar = 1$).
+    #[serde(default)]
+    pub constants: crate::ontology::PhysicalConstants,
 }
 
 // ---------------------------------------------------------------------------
@@ -720,6 +739,8 @@ mod tests {
             vertex_factors,
             propagators,
             gauge_symmetry: None,
+            spacetime: crate::algebra::SpacetimeConfig::default(),
+            constants: crate::ontology::PhysicalConstants::default(),
         }
     }
 
@@ -950,6 +971,8 @@ mod tests {
             vertex_factors: vec![], // empty — should be derived
             propagators,
             gauge_symmetry: None,
+            spacetime: crate::algebra::SpacetimeConfig::default(),
+            constants: crate::ontology::PhysicalConstants::default(),
         };
         let rules = derive_vertex_rules(&model).unwrap();
         assert_eq!(rules.len(), 2, "Both Interaction and ContactInteraction should produce vertex rules");

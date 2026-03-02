@@ -477,6 +477,77 @@ pub fn assign_helicity(state: &mut QuantumState, helicity: Helicity) -> SpireRes
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Physical Constants Configuration
+// ---------------------------------------------------------------------------
+
+/// Mutable fundamental constants of nature.
+///
+/// In standard natural units $\hbar = c = 1$, these are all unity.
+/// However, for non-standard unit systems, Planck-scale analyses, or
+/// educational demonstrations, the ability to configure these explicitly
+/// is essential.
+///
+/// The gravitational constant $G$ is included to support graviton
+/// propagators and BSM models with extra-dimensional gravity.
+///
+/// # Default
+///
+/// Natural units: $c = \hbar = 1$, $G = 6.674 \times 10^{-11}\,\text{m}^3\,\text{kg}^{-1}\,\text{s}^{-2}$
+/// (only relevant in explicit-unit calculations).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PhysicalConstants {
+    /// Speed of light $c$ (default: 1.0 in natural units).
+    pub speed_of_light: f64,
+    /// Reduced Planck constant $\hbar$ (default: 1.0 in natural units).
+    pub hbar: f64,
+    /// Newtonian gravitational constant $G$ (in GeV$^{-2}$, default: $6.709 \times 10^{-39}$).
+    pub gravitational_constant: f64,
+    /// Boltzmann constant $k_B$ (default: 1.0 in natural units).
+    pub boltzmann_constant: f64,
+}
+
+impl PhysicalConstants {
+    /// Standard natural units: $c = \hbar = k_B = 1$.
+    ///
+    /// $G$ is expressed in inverse GeV squared via
+    /// $G = 1/M_{\text{Pl}}^2$ where $M_{\text{Pl}} \approx 1.221 \times 10^{19}$ GeV.
+    pub fn natural_units() -> Self {
+        Self {
+            speed_of_light: 1.0,
+            hbar: 1.0,
+            // G in GeV^-2: 1/M_Pl^2 where M_Pl = 1.22089e19 GeV
+            gravitational_constant: 6.709e-39,
+            boltzmann_constant: 1.0,
+        }
+    }
+
+    /// SI units (for pedagogical or cross-checking purposes).
+    pub fn si_units() -> Self {
+        Self {
+            speed_of_light: 2.998e8,
+            hbar: 1.055e-34,
+            gravitational_constant: 6.674e-11,
+            boltzmann_constant: 1.381e-23,
+        }
+    }
+
+    /// The reduced Planck mass $M_{\text{Pl}} = 1/\sqrt{G}$ in GeV.
+    pub fn planck_mass(&self) -> f64 {
+        if self.gravitational_constant > 0.0 {
+            (1.0 / self.gravitational_constant).sqrt()
+        } else {
+            f64::INFINITY
+        }
+    }
+}
+
+impl Default for PhysicalConstants {
+    fn default() -> Self {
+        Self::natural_units()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -689,5 +760,59 @@ mod tests {
         let mut state = initialize_state(&higgs, mom, None).unwrap();
         let result = assign_helicity(&mut state, Helicity::Plus);
         assert!(result.is_err());
+    }
+
+    // ===================================================================
+    // Physical Constants Tests
+    // ===================================================================
+
+    #[test]
+    fn physical_constants_natural_units() {
+        let c = PhysicalConstants::natural_units();
+        assert_eq!(c.speed_of_light, 1.0);
+        assert_eq!(c.hbar, 1.0);
+        assert_eq!(c.boltzmann_constant, 1.0);
+        assert!(c.gravitational_constant > 0.0);
+        assert!(c.gravitational_constant < 1e-30);
+    }
+
+    #[test]
+    fn physical_constants_si_units() {
+        let c = PhysicalConstants::si_units();
+        assert!((c.speed_of_light - 2.998e8).abs() < 1e5);
+        assert!((c.hbar - 1.055e-34).abs() < 1e-37);
+        assert!((c.gravitational_constant - 6.674e-11).abs() < 1e-14);
+        assert!((c.boltzmann_constant - 1.381e-23).abs() < 1e-26);
+    }
+
+    #[test]
+    fn physical_constants_planck_mass() {
+        let c = PhysicalConstants::natural_units();
+        let m_pl = c.planck_mass();
+        // M_Pl ≈ 1.22e19 GeV
+        assert!(m_pl > 1e18);
+        assert!(m_pl < 1e20);
+    }
+
+    #[test]
+    fn physical_constants_planck_mass_zero_g() {
+        let c = PhysicalConstants {
+            gravitational_constant: 0.0,
+            ..PhysicalConstants::natural_units()
+        };
+        assert_eq!(c.planck_mass(), f64::INFINITY);
+    }
+
+    #[test]
+    fn physical_constants_default_is_natural() {
+        assert_eq!(PhysicalConstants::default(), PhysicalConstants::natural_units());
+    }
+
+    #[test]
+    fn physical_constants_serde_roundtrip() {
+        let c = PhysicalConstants::si_units();
+        let json = serde_json::to_string(&c).unwrap();
+        let back: PhysicalConstants = serde_json::from_str(&json).unwrap();
+        assert_eq!(c, back);
     }
 }

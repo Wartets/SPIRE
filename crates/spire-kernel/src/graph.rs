@@ -2246,6 +2246,8 @@ mod tests {
             vertex_factors,
             propagators,
             gauge_symmetry: None,
+            spacetime: crate::algebra::SpacetimeConfig::default(),
+            constants: crate::ontology::PhysicalConstants::default(),
         }
     }
 

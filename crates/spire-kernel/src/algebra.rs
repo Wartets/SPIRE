@@ -42,6 +42,456 @@ use crate::graph::{FeynmanGraph, NodeKind, OneLoopTopologyKind};
 use crate::lagrangian::PropagatorForm;
 use crate::SpireResult;
 
+// ===========================================================================
+// Generalized Spacetime Geometry Engine
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Metric Signature
+// ---------------------------------------------------------------------------
+
+/// Sign of a single metric tensor diagonal component.
+///
+/// Each dimension of a pseudo-Riemannian manifold carries either a `Plus`
+/// ($+1$) or `Minus` ($-1$) signature entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum MetricSign {
+    /// Positive signature: $g_{\mu\mu} = +1$.
+    Plus,
+    /// Negative signature: $g_{\mu\mu} = -1$.
+    Minus,
+}
+
+impl MetricSign {
+    /// The numerical value $\pm 1$.
+    pub fn value(&self) -> f64 {
+        match self {
+            MetricSign::Plus => 1.0,
+            MetricSign::Minus => -1.0,
+        }
+    }
+}
+
+/// A diagonal metric signature for an $N$-dimensional spacetime.
+///
+/// Stores the sequence of $+1$ and $-1$ diagonal entries of the flat metric
+/// tensor $\eta_{\mu\nu}$, enabling support for arbitrary dimension and
+/// signature without hardcoding 4D Minkowski.
+///
+/// # Examples
+///
+/// - 4D Minkowski (West Coast): $(+,-,-,-)$
+/// - 4D Euclidean: $(+,+,+,+)$
+/// - 10D String Theory: $(+,-,-,-,-,-,-,-,-,-)$
+/// - 3D Euclidean: $(+,+,+)$
+///
+/// # Extensibility
+///
+/// For non-flat backgrounds $g_{\mu\nu}(x)$, future phases can replace this
+/// with a trait-based approach where this struct serves as the flat-space
+/// specialization.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct MetricSignature {
+    /// The ordered diagonal entries. The length defines the spacetime dimension.
+    pub signs: Vec<MetricSign>,
+}
+
+impl MetricSignature {
+    /// Create a new metric signature from an explicit list of signs.
+    pub fn new(signs: Vec<MetricSign>) -> Self {
+        Self { signs }
+    }
+
+    /// The standard 4D Minkowski signature $(+,-,-,-)$ (West Coast convention).
+    pub fn minkowski_4d() -> Self {
+        Self {
+            signs: vec![MetricSign::Plus, MetricSign::Minus, MetricSign::Minus, MetricSign::Minus],
+        }
+    }
+
+    /// A $D$-dimensional Minkowski-like signature $(+,-,-,\ldots,-)$.
+    pub fn minkowski(dim: usize) -> Self {
+        assert!(dim >= 1, "Spacetime dimension must be at least 1");
+        let mut signs = vec![MetricSign::Minus; dim];
+        signs[0] = MetricSign::Plus;
+        Self { signs }
+    }
+
+    /// A $D$-dimensional Euclidean signature $(+,+,\ldots,+)$.
+    pub fn euclidean(dim: usize) -> Self {
+        assert!(dim >= 1, "Spacetime dimension must be at least 1");
+        Self { signs: vec![MetricSign::Plus; dim] }
+    }
+
+    /// The number of dimensions.
+    pub fn dimension(&self) -> usize {
+        self.signs.len()
+    }
+
+    /// The number of time-like ($+1$) dimensions.
+    pub fn time_dimensions(&self) -> usize {
+        self.signs.iter().filter(|s| **s == MetricSign::Plus).count()
+    }
+
+    /// The number of space-like ($-1$) dimensions.
+    pub fn space_dimensions(&self) -> usize {
+        self.signs.iter().filter(|s| **s == MetricSign::Minus).count()
+    }
+
+    /// Signature as a string, e.g. `"(+,-,-,-)"`.
+    pub fn display_signature(&self) -> String {
+        let inner: Vec<&str> = self.signs.iter().map(|s| match s {
+            MetricSign::Plus => "+",
+            MetricSign::Minus => "-",
+        }).collect();
+        format!("({})", inner.join(","))
+    }
+
+    /// The diagonal component $g_{\mu\mu}$ for index $\mu$.
+    pub fn component(&self, index: usize) -> f64 {
+        self.signs[index].value()
+    }
+
+    /// Compute the full metric contraction $g_{\mu\nu} v^\mu w^\nu$ for
+    /// two vectors in this metric.
+    ///
+    /// Returns an error if the vectors have mismatched dimensions or do not
+    /// match this signature's dimension.
+    pub fn inner_product(&self, v: &SpacetimeVector, w: &SpacetimeVector) -> Result<f64, String> {
+        let dim = self.dimension();
+        if v.dimension() != dim || w.dimension() != dim {
+            return Err(format!(
+                "Dimension mismatch: metric is {}D, vectors are {}D and {}D",
+                dim, v.dimension(), w.dimension()
+            ));
+        }
+        let result = (0..dim)
+            .map(|i| self.signs[i].value() * v.components[i] * w.components[i])
+            .sum();
+        Ok(result)
+    }
+
+    /// The trace of the metric: $g^{\mu}{}_{\mu} = D$ for a flat diagonal metric.
+    pub fn trace(&self) -> f64 {
+        self.dimension() as f64
+    }
+
+    /// LaTeX representation of the signature, e.g. `"(+,-,-,-)"`.
+    pub fn to_latex(&self) -> String {
+        self.display_signature()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spacetime Metric Trait
+// ---------------------------------------------------------------------------
+
+/// Trait for a generalized spacetime metric tensor $g_{\mu\nu}$.
+///
+/// This trait decouples the physics engine from any particular spacetime
+/// geometry. Implementations range from flat diagonal metrics to
+/// coordinate-dependent curved backgrounds.
+///
+/// # Implementors
+///
+/// - [`FlatMetric`]: diagonal constant metric (Minkowski, Euclidean, etc.)
+/// - Future: `SchwarzschildMetric`, `FRWMetric`, `AdSMetric`, ...
+pub trait SpacetimeMetricTrait {
+    /// The number of spacetime dimensions.
+    fn dimension(&self) -> usize;
+
+    /// The $(\mu, \nu)$ component of the metric tensor: $g_{\mu\nu}$.
+    fn component(&self, mu: usize, nu: usize) -> f64;
+
+    /// Inner product $g_{\mu\nu} v^\mu w^\nu$.
+    fn inner_product(&self, v: &SpacetimeVector, w: &SpacetimeVector) -> Result<f64, String>;
+
+    /// The trace $g^{\mu}{}_{\mu}$ of the metric.
+    fn trace(&self) -> f64;
+
+    /// Whether the metric is flat (constant components).
+    fn is_flat(&self) -> bool;
+
+    /// Whether the metric is diagonal.
+    fn is_diagonal(&self) -> bool;
+}
+
+/// A flat diagonal metric tensor — the workhorse for perturbative QFT.
+///
+/// Constant diagonal entries defined by a [`MetricSignature`]. Covers
+/// Minkowski, Euclidean, and higher-dimensional flat backgrounds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FlatMetric {
+    /// The metric signature defining the diagonal entries.
+    pub signature: MetricSignature,
+}
+
+impl FlatMetric {
+    /// Standard 4D Minkowski metric $\eta_{\mu\nu} = \mathrm{diag}(+1,-1,-1,-1)$.
+    pub fn minkowski_4d() -> Self {
+        Self { signature: MetricSignature::minkowski_4d() }
+    }
+
+    /// $D$-dimensional Minkowski metric $\eta_{\mu\nu} = \mathrm{diag}(+1,-1,\ldots,-1)$.
+    pub fn minkowski(dim: usize) -> Self {
+        Self { signature: MetricSignature::minkowski(dim) }
+    }
+
+    /// $D$-dimensional Euclidean metric $\delta_{\mu\nu} = \mathrm{diag}(+1,\ldots,+1)$.
+    pub fn euclidean(dim: usize) -> Self {
+        Self { signature: MetricSignature::euclidean(dim) }
+    }
+}
+
+impl SpacetimeMetricTrait for FlatMetric {
+    fn dimension(&self) -> usize {
+        self.signature.dimension()
+    }
+
+    fn component(&self, mu: usize, nu: usize) -> f64 {
+        if mu == nu {
+            self.signature.component(mu)
+        } else {
+            0.0
+        }
+    }
+
+    fn inner_product(&self, v: &SpacetimeVector, w: &SpacetimeVector) -> Result<f64, String> {
+        self.signature.inner_product(v, w)
+    }
+
+    fn trace(&self) -> f64 {
+        self.signature.trace()
+    }
+
+    fn is_flat(&self) -> bool {
+        true
+    }
+
+    fn is_diagonal(&self) -> bool {
+        true
+    }
+}
+
+// ---------------------------------------------------------------------------
+// N-Dimensional Spacetime Vector
+// ---------------------------------------------------------------------------
+
+/// A contravariant vector $v^\mu$ in $D$-dimensional spacetime.
+///
+/// Generalizes `FourMomentum` to arbitrary dimensions while maintaining full
+/// backward compatibility: a `SpacetimeVector` with $D=4$ behaves identically
+/// to the legacy `FourMomentum`.
+///
+/// # Design
+///
+/// - Backed by a `Vec<f64>` to support compile-time unknown dimensions
+///   (e.g., $D = 10$ for String Theory, $D = 26$ for bosonic strings).
+/// - All metric-dependent operations accept a [`MetricSignature`] parameter,
+///   decoupling the vector algebra from any hardcoded signature.
+/// - The `From<FourMomentum>` conversion ensures seamless interop with
+///   existing 4D code paths.
+///
+/// # Conventions
+///
+/// Index 0 is the temporal component ($v^0$). Indices $1, \ldots, D-1$ are
+/// spatial.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpacetimeVector {
+    /// The contravariant components $v^\mu$ for $\mu = 0, 1, \ldots, D-1$.
+    pub components: Vec<f64>,
+}
+
+impl SpacetimeVector {
+    /// Create a new spacetime vector from an explicit component list.
+    ///
+    /// The dimension is inferred from the length of the list.
+    pub fn new(components: Vec<f64>) -> Self {
+        assert!(!components.is_empty(), "SpacetimeVector must have at least 1 component");
+        Self { components }
+    }
+
+    /// Create a 4-vector $(v^0, v^1, v^2, v^3)$ — the most common case in
+    /// particle physics.
+    pub fn new_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
+        Self { components: vec![v0, v1, v2, v3] }
+    }
+
+    /// Create the zero vector in $D$ dimensions.
+    pub fn zero(dim: usize) -> Self {
+        Self { components: vec![0.0; dim] }
+    }
+
+    /// The number of spacetime dimensions.
+    pub fn dimension(&self) -> usize {
+        self.components.len()
+    }
+
+    /// Compute the inner product $g_{\mu\nu} v^\mu w^\nu$ with respect to a
+    /// given metric signature.
+    ///
+    /// # Errors
+    /// Returns an error if dimensions are mismatched.
+    pub fn dot(&self, other: &SpacetimeVector, metric: &MetricSignature) -> Result<f64, String> {
+        metric.inner_product(self, other)
+    }
+
+    /// Compute the invariant norm squared $v^\mu v_\mu = g_{\mu\nu} v^\mu v^\nu$.
+    pub fn norm_sq(&self, metric: &MetricSignature) -> Result<f64, String> {
+        metric.inner_product(self, self)
+    }
+
+    /// Compute the invariant mass squared (for 4-momentum interpretation):
+    /// $p^2 = g_{\mu\nu} p^\mu p^\nu$.
+    ///
+    /// In the $(+,-,-,-)$ convention this gives $E^2 - |\vec{p}|^2 = m^2$.
+    pub fn invariant_mass_sq(&self, metric: &MetricSignature) -> Result<f64, String> {
+        self.norm_sq(metric)
+    }
+
+    /// Compute the spatial magnitude $|\vec{v}| = \sqrt{\sum_{i=1}^{D-1} (v^i)^2}$.
+    ///
+    /// Uses the Euclidean norm of the spatial components (ignoring metric signs),
+    /// matching the standard definition $|\vec{p}|$.
+    pub fn spatial_magnitude(&self) -> f64 {
+        if self.components.len() <= 1 {
+            return 0.0;
+        }
+        self.components[1..].iter().map(|x| x * x).sum::<f64>().sqrt()
+    }
+
+    /// Scale all components by a scalar factor.
+    pub fn scale(&self, factor: f64) -> Self {
+        Self {
+            components: self.components.iter().map(|x| x * factor).collect(),
+        }
+    }
+
+    /// Convert to a legacy `FourMomentum`.
+    ///
+    /// # Panics
+    /// Panics if this vector is not 4-dimensional.
+    pub fn to_four_momentum(&self) -> FourMomentum {
+        assert_eq!(self.dimension(), 4, "Cannot convert non-4D vector to FourMomentum");
+        FourMomentum {
+            e: self.components[0],
+            px: self.components[1],
+            py: self.components[2],
+            pz: self.components[3],
+        }
+    }
+}
+
+impl From<FourMomentum> for SpacetimeVector {
+    fn from(p: FourMomentum) -> Self {
+        Self { components: vec![p.e, p.px, p.py, p.pz] }
+    }
+}
+
+impl Add for SpacetimeVector {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        assert_eq!(self.dimension(), rhs.dimension(),
+            "Cannot add SpacetimeVectors of different dimensions");
+        Self {
+            components: self.components.iter().zip(&rhs.components)
+                .map(|(a, b)| a + b).collect(),
+        }
+    }
+}
+
+impl Sub for SpacetimeVector {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        assert_eq!(self.dimension(), rhs.dimension(),
+            "Cannot subtract SpacetimeVectors of different dimensions");
+        Self {
+            components: self.components.iter().zip(&rhs.components)
+                .map(|(a, b)| a - b).collect(),
+        }
+    }
+}
+
+impl Neg for SpacetimeVector {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            components: self.components.iter().map(|x| -x).collect(),
+        }
+    }
+}
+
+impl std::fmt::Display for SpacetimeVector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let parts: Vec<String> = self.components.iter().map(|c| format!("{:.6}", c)).collect();
+        write!(f, "({})", parts.join(", "))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Spacetime Configuration
+// ---------------------------------------------------------------------------
+
+/// Complete description of the spacetime geometry for a calculation.
+///
+/// Bundles the dimension, metric signature, and regularization scheme into a
+/// single configuration object. Every physics computation queries this
+/// configuration rather than assuming 4D Minkowski.
+///
+/// # Default
+///
+/// The default configuration is standard 4D Minkowski with no dimensional
+/// regularization — the setting for tree-level Standard Model calculations.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SpacetimeConfig {
+    /// The flat metric defining inner products.
+    pub metric: FlatMetric,
+    /// The dimensional regularization scheme (if any).
+    pub regularization: SpacetimeDimension,
+}
+
+impl SpacetimeConfig {
+    /// Standard 4D Minkowski configuration with no regularization.
+    pub fn standard_4d() -> Self {
+        Self {
+            metric: FlatMetric::minkowski_4d(),
+            regularization: SpacetimeDimension::Fixed(4),
+        }
+    }
+
+    /// 4D Minkowski with dimensional regularization at 1-loop.
+    pub fn dim_reg_4d() -> Self {
+        Self {
+            metric: FlatMetric::minkowski_4d(),
+            regularization: SpacetimeDimension::DimReg { base: 4 },
+        }
+    }
+
+    /// Custom configuration with explicit metric and regularization.
+    pub fn custom(metric: FlatMetric, regularization: SpacetimeDimension) -> Self {
+        Self { metric, regularization }
+    }
+
+    /// The physical dimension of the spacetime.
+    pub fn dimension(&self) -> usize {
+        self.metric.dimension()
+    }
+
+    /// The metric signature.
+    pub fn signature(&self) -> &MetricSignature {
+        &self.metric.signature
+    }
+}
+
+impl Default for SpacetimeConfig {
+    fn default() -> Self {
+        Self::standard_4d()
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Spacetime Dimension — Dimensional Regularization
 // ---------------------------------------------------------------------------
@@ -4022,6 +4472,8 @@ mod tests {
             vertex_factors,
             propagators,
             gauge_symmetry: None,
+            spacetime: SpacetimeConfig::default(),
+            constants: crate::ontology::PhysicalConstants::default(),
         };
 
         let initial_states = vec![
@@ -5309,5 +5761,351 @@ mod tests {
         let expr = CasExpr::AntiCommutator(Box::new(a), Box::new(b));
         let result = expr.simplify(SpacetimeDimension::four());
         assert_eq!(result, CasExpr::Scalar(30.0));
+    }
+
+    // ===================================================================
+    // Generalized Spacetime Geometry Tests
+    // ===================================================================
+
+    // --- MetricSign ---
+
+    #[test]
+    fn metric_sign_values() {
+        assert_eq!(MetricSign::Plus.value(), 1.0);
+        assert_eq!(MetricSign::Minus.value(), -1.0);
+    }
+
+    #[test]
+    fn metric_sign_serde_roundtrip() {
+        let plus = MetricSign::Plus;
+        let json = serde_json::to_string(&plus).unwrap();
+        let back: MetricSign = serde_json::from_str(&json).unwrap();
+        assert_eq!(plus, back);
+    }
+
+    // --- MetricSignature ---
+
+    #[test]
+    fn metric_signature_minkowski_4d() {
+        let sig = MetricSignature::minkowski_4d();
+        assert_eq!(sig.dimension(), 4);
+        assert_eq!(sig.time_dimensions(), 1);
+        assert_eq!(sig.space_dimensions(), 3);
+        assert_eq!(sig.display_signature(), "(+,-,-,-)");
+        assert_eq!(sig.component(0), 1.0);
+        assert_eq!(sig.component(1), -1.0);
+    }
+
+    #[test]
+    fn metric_signature_minkowski_10d() {
+        let sig = MetricSignature::minkowski(10);
+        assert_eq!(sig.dimension(), 10);
+        assert_eq!(sig.time_dimensions(), 1);
+        assert_eq!(sig.space_dimensions(), 9);
+        assert_eq!(sig.component(0), 1.0);
+        for i in 1..10 {
+            assert_eq!(sig.component(i), -1.0);
+        }
+    }
+
+    #[test]
+    fn metric_signature_euclidean_3d() {
+        let sig = MetricSignature::euclidean(3);
+        assert_eq!(sig.dimension(), 3);
+        assert_eq!(sig.time_dimensions(), 3);
+        assert_eq!(sig.space_dimensions(), 0);
+        assert_eq!(sig.display_signature(), "(+,+,+)");
+    }
+
+    #[test]
+    fn metric_signature_custom() {
+        // (2,2) signature
+        let sig = MetricSignature::new(vec![
+            MetricSign::Plus,
+            MetricSign::Plus,
+            MetricSign::Minus,
+            MetricSign::Minus,
+        ]);
+        assert_eq!(sig.dimension(), 4);
+        assert_eq!(sig.time_dimensions(), 2);
+        assert_eq!(sig.space_dimensions(), 2);
+        assert_eq!(sig.display_signature(), "(+,+,-,-)");
+    }
+
+    #[test]
+    fn metric_signature_inner_product_minkowski() {
+        let sig = MetricSignature::minkowski_4d();
+        let v = SpacetimeVector::new_4d(5.0, 3.0, 0.0, 0.0);
+        let w = SpacetimeVector::new_4d(2.0, 1.0, 0.0, 0.0);
+        // g_μν v^μ w^ν = (+1)(5)(2) + (-1)(3)(1) = 10 - 3 = 7
+        let result = sig.inner_product(&v, &w).unwrap();
+        assert!((result - 7.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn metric_signature_inner_product_dimension_mismatch() {
+        let sig = MetricSignature::minkowski_4d();
+        let v = SpacetimeVector::new_4d(1.0, 0.0, 0.0, 0.0);
+        let w = SpacetimeVector::new(vec![1.0, 0.0, 0.0]);
+        assert!(sig.inner_product(&v, &w).is_err());
+    }
+
+    #[test]
+    fn metric_signature_trace() {
+        assert_eq!(MetricSignature::minkowski_4d().trace(), 4.0);
+        assert_eq!(MetricSignature::euclidean(6).trace(), 6.0);
+    }
+
+    #[test]
+    fn metric_signature_serde_roundtrip() {
+        let sig = MetricSignature::minkowski(10);
+        let json = serde_json::to_string(&sig).unwrap();
+        let back: MetricSignature = serde_json::from_str(&json).unwrap();
+        assert_eq!(sig, back);
+    }
+
+    #[test]
+    fn metric_signature_to_latex() {
+        assert_eq!(MetricSignature::minkowski_4d().to_latex(), "(+,-,-,-)");
+    }
+
+    // --- FlatMetric & SpacetimeMetricTrait ---
+
+    #[test]
+    fn flat_metric_minkowski_4d() {
+        let m = FlatMetric::minkowski_4d();
+        assert_eq!(m.dimension(), 4);
+        assert!(m.is_flat());
+        assert!(m.is_diagonal());
+        assert_eq!(m.component(0, 0), 1.0);
+        assert_eq!(m.component(1, 1), -1.0);
+        assert_eq!(m.component(0, 1), 0.0);
+        assert_eq!(m.trace(), 4.0);
+    }
+
+    #[test]
+    fn flat_metric_euclidean_5d() {
+        let m = FlatMetric::euclidean(5);
+        assert_eq!(m.dimension(), 5);
+        for i in 0..5 {
+            assert_eq!(m.component(i, i), 1.0);
+        }
+    }
+
+    #[test]
+    fn flat_metric_inner_product() {
+        let m = FlatMetric::minkowski_4d();
+        let p = SpacetimeVector::new_4d(10.0, 3.0, 4.0, 0.0);
+        // p^2 = 100 - 9 - 16 - 0 = 75
+        let result = m.inner_product(&p, &p).unwrap();
+        assert!((result - 75.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn flat_metric_serde_roundtrip() {
+        let m = FlatMetric::minkowski(6);
+        let json = serde_json::to_string(&m).unwrap();
+        let back: FlatMetric = serde_json::from_str(&json).unwrap();
+        assert_eq!(m, back);
+    }
+
+    // --- SpacetimeVector ---
+
+    #[test]
+    fn spacetime_vector_new_4d() {
+        let v = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
+        assert_eq!(v.dimension(), 4);
+        assert_eq!(v.components, vec![1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_zero() {
+        let v = SpacetimeVector::zero(7);
+        assert_eq!(v.dimension(), 7);
+        for c in &v.components {
+            assert_eq!(*c, 0.0);
+        }
+    }
+
+    #[test]
+    fn spacetime_vector_n_dimensional() {
+        let v = SpacetimeVector::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        assert_eq!(v.dimension(), 6);
+    }
+
+    #[test]
+    fn spacetime_vector_dot_minkowski() {
+        let sig = MetricSignature::minkowski_4d();
+        // Massive particle at rest: p = (m, 0, 0, 0) with m = 125 GeV
+        let p = SpacetimeVector::new_4d(125.0, 0.0, 0.0, 0.0);
+        let dot = p.dot(&p, &sig).unwrap();
+        assert!((dot - 125.0 * 125.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn spacetime_vector_dot_euclidean() {
+        let sig = MetricSignature::euclidean(3);
+        let v = SpacetimeVector::new(vec![1.0, 2.0, 3.0]);
+        let dot = v.dot(&v, &sig).unwrap();
+        assert!((dot - 14.0).abs() < 1e-12); // 1 + 4 + 9
+    }
+
+    #[test]
+    fn spacetime_vector_invariant_mass_sq() {
+        let sig = MetricSignature::minkowski_4d();
+        // Photon: E = |p|, so m^2 = E^2 - p^2 = 0
+        let photon = SpacetimeVector::new_4d(10.0, 10.0, 0.0, 0.0);
+        let m_sq = photon.invariant_mass_sq(&sig).unwrap();
+        assert!(m_sq.abs() < 1e-12);
+    }
+
+    #[test]
+    fn spacetime_vector_spatial_magnitude() {
+        let v = SpacetimeVector::new_4d(100.0, 3.0, 4.0, 0.0);
+        assert!((v.spatial_magnitude() - 5.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn spacetime_vector_spatial_magnitude_1d() {
+        // A 1D vector has only a temporal component — spatial magnitude = 0
+        let v = SpacetimeVector::new(vec![42.0]);
+        assert_eq!(v.spatial_magnitude(), 0.0);
+    }
+
+    #[test]
+    fn spacetime_vector_scale() {
+        let v = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
+        let scaled = v.scale(2.0);
+        assert_eq!(scaled.components, vec![2.0, 4.0, 6.0, 8.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_add() {
+        let a = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
+        let b = SpacetimeVector::new_4d(5.0, 6.0, 7.0, 8.0);
+        let sum = a + b;
+        assert_eq!(sum.components, vec![6.0, 8.0, 10.0, 12.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_sub() {
+        let a = SpacetimeVector::new_4d(5.0, 6.0, 7.0, 8.0);
+        let b = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
+        let diff = a - b;
+        assert_eq!(diff.components, vec![4.0, 4.0, 4.0, 4.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_neg() {
+        let v = SpacetimeVector::new_4d(1.0, -2.0, 3.0, -4.0);
+        let n = -v;
+        assert_eq!(n.components, vec![-1.0, 2.0, -3.0, 4.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_from_four_momentum() {
+        let p = FourMomentum { e: 10.0, px: 1.0, py: 2.0, pz: 3.0 };
+        let sv: SpacetimeVector = p.into();
+        assert_eq!(sv.dimension(), 4);
+        assert_eq!(sv.components, vec![10.0, 1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn spacetime_vector_to_four_momentum() {
+        let sv = SpacetimeVector::new_4d(10.0, 1.0, 2.0, 3.0);
+        let p = sv.to_four_momentum();
+        assert_eq!(p.e, 10.0);
+        assert_eq!(p.px, 1.0);
+        assert_eq!(p.py, 2.0);
+        assert_eq!(p.pz, 3.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot convert non-4D vector to FourMomentum")]
+    fn spacetime_vector_to_four_momentum_wrong_dim() {
+        let sv = SpacetimeVector::new(vec![1.0, 2.0, 3.0]);
+        let _ = sv.to_four_momentum();
+    }
+
+    #[test]
+    fn spacetime_vector_display() {
+        let v = SpacetimeVector::new_4d(1.0, 2.0, 3.0, 4.0);
+        let s = format!("{}", v);
+        assert!(s.contains("1.000000"));
+        assert!(s.contains("4.000000"));
+    }
+
+    #[test]
+    fn spacetime_vector_serde_roundtrip() {
+        let v = SpacetimeVector::new(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let json = serde_json::to_string(&v).unwrap();
+        let back: SpacetimeVector = serde_json::from_str(&json).unwrap();
+        assert_eq!(v, back);
+    }
+
+    // --- SpacetimeConfig ---
+
+    #[test]
+    fn spacetime_config_standard_4d() {
+        let cfg = SpacetimeConfig::standard_4d();
+        assert_eq!(cfg.dimension(), 4);
+        assert_eq!(cfg.signature().display_signature(), "(+,-,-,-)");
+        assert_eq!(cfg.regularization, SpacetimeDimension::Fixed(4));
+    }
+
+    #[test]
+    fn spacetime_config_dim_reg_4d() {
+        let cfg = SpacetimeConfig::dim_reg_4d();
+        assert_eq!(cfg.dimension(), 4);
+        assert_eq!(cfg.regularization, SpacetimeDimension::DimReg { base: 4 });
+    }
+
+    #[test]
+    fn spacetime_config_custom_10d() {
+        let cfg = SpacetimeConfig::custom(
+            FlatMetric::minkowski(10),
+            SpacetimeDimension::Fixed(10),
+        );
+        assert_eq!(cfg.dimension(), 10);
+        assert_eq!(cfg.signature().time_dimensions(), 1);
+        assert_eq!(cfg.signature().space_dimensions(), 9);
+    }
+
+    #[test]
+    fn spacetime_config_default_is_standard_4d() {
+        let cfg = SpacetimeConfig::default();
+        assert_eq!(cfg, SpacetimeConfig::standard_4d());
+    }
+
+    #[test]
+    fn spacetime_config_serde_roundtrip() {
+        let cfg = SpacetimeConfig::dim_reg_4d();
+        let json = serde_json::to_string(&cfg).unwrap();
+        let back: SpacetimeConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(cfg, back);
+    }
+
+    // --- 10D momentum conservation ---
+
+    #[test]
+    fn ten_dimensional_momentum_conservation() {
+        // 2 → 2 scattering in 10D: p1 + p2 = p3 + p4
+        let sig = MetricSignature::minkowski(10);
+        let p1 = SpacetimeVector::new(vec![100.0, 10.0, 20.0, 30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let p2 = SpacetimeVector::new(vec![100.0, -10.0, -20.0, -30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let p3 = SpacetimeVector::new(vec![120.0, 5.0, 15.0, 25.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+        let p4 = (p1.clone() + p2.clone()) - p3.clone();
+
+        // Verify conservation
+        let total_in = p1.clone() + p2.clone();
+        let total_out = p3.clone() + p4.clone();
+        for i in 0..10 {
+            assert!((total_in.components[i] - total_out.components[i]).abs() < 1e-12);
+        }
+
+        // Verify Mandelstam s in 10D: s = (p1 + p2)^2
+        let s_val = total_in.norm_sq(&sig).unwrap();
+        // s = (200)^2 - 0 - 0 - 0 - ... = 40000
+        assert!((s_val - 40000.0).abs() < 1e-8);
     }
 }

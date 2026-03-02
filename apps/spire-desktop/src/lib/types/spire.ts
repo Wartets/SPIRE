@@ -387,6 +387,42 @@ export interface FourMomentum {
   pz: number;
 }
 
+// ---------------------------------------------------------------------------
+// Generalized Spacetime Geometry Types
+// ---------------------------------------------------------------------------
+
+/** Sign of a single metric tensor diagonal component. */
+export type MetricSign = "Plus" | "Minus";
+
+/** Diagonal metric signature for an N-dimensional spacetime. */
+export interface MetricSignature {
+  signs: MetricSign[];
+}
+
+/** A flat diagonal metric tensor. */
+export interface FlatMetric {
+  signature: MetricSignature;
+}
+
+/** Complete spacetime geometry configuration. */
+export interface SpacetimeConfig {
+  metric: FlatMetric;
+  regularization: SpacetimeDimension;
+}
+
+/** N-dimensional spacetime vector. */
+export interface SpacetimeVector {
+  components: number[];
+}
+
+/** Fundamental physical constants. */
+export interface PhysicalConstants {
+  speed_of_light: number;
+  hbar: number;
+  gravitational_constant: number;
+  boltzmann_constant: number;
+}
+
 /** Polarization state of a vector boson. */
 export type PolarizationState =
   | "TransversePlus"
@@ -591,8 +627,12 @@ export interface TheoreticalModel {
   terms: LagrangianTerm[];
   vertex_factors: VertexFactor[];
   propagators: Propagator[];
-  /** The gauge symmetry of this model (Phase 14). */
+  /** The gauge symmetry of this model */
   gauge_symmetry?: GaugeSymmetry | null;
+  /** Spacetime geometry configuration */
+  spacetime?: SpacetimeConfig | null;
+  /** Fundamental physical constants */
+  constants?: PhysicalConstants | null;
 }
 
 // ---------------------------------------------------------------------------

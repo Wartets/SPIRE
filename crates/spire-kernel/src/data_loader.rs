@@ -307,7 +307,165 @@ pub fn build_model(
         vertex_factors,
         propagators,
         gauge_symmetry: None,
+        spacetime: crate::algebra::SpacetimeConfig::default(),
+        constants: crate::ontology::PhysicalConstants::default(),
     })
+}
+
+// ---------------------------------------------------------------------------
+// Spacetime Configuration Parsing
+// ---------------------------------------------------------------------------
+
+/// Raw TOML representation of the optional `[spacetime]` table.
+///
+/// # Example TOML
+///
+/// ```toml
+/// [spacetime]
+/// dimension = 4
+/// metric_signature = ["+", "-", "-", "-"]
+///
+/// [spacetime.constants]
+/// speed_of_light = 1.0
+/// hbar = 1.0
+/// gravitational_constant = 6.709e-39
+/// ```
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawSpacetimeConfig {
+    /// Number of spacetime dimensions (default: 4).
+    pub dimension: Option<usize>,
+    /// Metric signature as an array of "+" or "-" strings.
+    pub metric_signature: Option<Vec<String>>,
+    /// Optional physical constants override.
+    pub constants: Option<RawPhysicalConstants>,
+}
+
+/// Raw TOML representation for physical constants.
+#[derive(Debug, Clone, Deserialize)]
+pub struct RawPhysicalConstants {
+    /// Speed of light (default: 1.0).
+    pub speed_of_light: Option<f64>,
+    /// Reduced Planck constant (default: 1.0).
+    pub hbar: Option<f64>,
+    /// Gravitational constant in GeV^-2 (default: 6.709e-39).
+    pub gravitational_constant: Option<f64>,
+    /// Boltzmann constant (default: 1.0).
+    pub boltzmann_constant: Option<f64>,
+}
+
+/// Wrapper for TOML files that may contain a `[spacetime]` table.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ModelConfigFile {
+    /// Optional spacetime configuration.
+    pub spacetime: Option<RawSpacetimeConfig>,
+}
+
+/// Parse an optional `[spacetime]` TOML table into the kernel's spacetime
+/// configuration types.
+///
+/// If the input TOML does not contain a `[spacetime]` table, returns the
+/// standard 4D Minkowski defaults.
+///
+/// # Arguments
+/// * `toml_str` — Raw TOML string that may contain a `[spacetime]` table.
+pub fn parse_spacetime_config(
+    toml_str: &str,
+) -> SpireResult<(crate::algebra::SpacetimeConfig, crate::ontology::PhysicalConstants)> {
+    use crate::algebra::{FlatMetric, MetricSign, MetricSignature, SpacetimeConfig, SpacetimeDimension};
+    use crate::ontology::PhysicalConstants;
+
+    // Try parsing the TOML — if it fails or has no [spacetime], use defaults.
+    let config: ModelConfigFile = toml::from_str(toml_str).unwrap_or(ModelConfigFile {
+        spacetime: None,
+    });
+
+    let raw = match config.spacetime {
+        Some(r) => r,
+        None => {
+            return Ok((SpacetimeConfig::default(), PhysicalConstants::default()));
+        }
+    };
+
+    // Build metric signature
+    let signature = if let Some(ref sig_strs) = raw.metric_signature {
+        let signs: Vec<MetricSign> = sig_strs
+            .iter()
+            .map(|s| match s.as_str() {
+                "+" => Ok(MetricSign::Plus),
+                "-" => Ok(MetricSign::Minus),
+                other => Err(SpireError::ModelParseError(format!(
+                    "Invalid metric signature entry '{}'. Expected '+' or '-'.",
+                    other
+                ))),
+            })
+            .collect::<SpireResult<Vec<_>>>()?;
+
+        if let Some(dim) = raw.dimension {
+            if signs.len() != dim {
+                return Err(SpireError::ModelParseError(format!(
+                    "Metric signature has {} entries but dimension is specified as {}.",
+                    signs.len(),
+                    dim
+                )));
+            }
+        }
+
+        MetricSignature::new(signs)
+    } else if let Some(dim) = raw.dimension {
+        MetricSignature::minkowski(dim)
+    } else {
+        MetricSignature::minkowski_4d()
+    };
+
+    let dim_val = signature.dimension() as u32;
+    let spacetime_config = SpacetimeConfig::custom(
+        FlatMetric { signature },
+        SpacetimeDimension::Fixed(dim_val),
+    );
+
+    // Build physical constants
+    let defaults = PhysicalConstants::default();
+    let constants = if let Some(ref raw_c) = raw.constants {
+        PhysicalConstants {
+            speed_of_light: raw_c.speed_of_light.unwrap_or(defaults.speed_of_light),
+            hbar: raw_c.hbar.unwrap_or(defaults.hbar),
+            gravitational_constant: raw_c
+                .gravitational_constant
+                .unwrap_or(defaults.gravitational_constant),
+            boltzmann_constant: raw_c.boltzmann_constant.unwrap_or(defaults.boltzmann_constant),
+        }
+    } else {
+        defaults
+    };
+
+    Ok((spacetime_config, constants))
+}
+
+/// Build a theoretical model with optional spacetime configuration.
+///
+/// Extends [`build_model`] by parsing an optional `[spacetime]` table from
+/// a separate TOML string (or the same file).
+///
+/// # Arguments
+/// * `particles_toml` — Contents of the particles definition file.
+/// * `vertices_toml` — Contents of the vertices/interactions definition file.
+/// * `model_name` — Name to assign to the constructed model.
+/// * `config_toml` — Optional TOML string containing a `[spacetime]` table.
+pub fn build_model_with_config(
+    particles_toml: &str,
+    vertices_toml: &str,
+    model_name: &str,
+    config_toml: Option<&str>,
+) -> SpireResult<TheoreticalModel> {
+    let mut model = build_model(particles_toml, vertices_toml, model_name)?;
+
+    if let Some(config_str) = config_toml {
+        let (spacetime, constants) = parse_spacetime_config(config_str)?;
+        model.spacetime = spacetime;
+        model.constants = constants;
+    }
+
+    Ok(model)
 }
 
 // ---------------------------------------------------------------------------
@@ -814,5 +972,150 @@ operator_dimension = 6
         assert_eq!(model.terms[0].operator_dimension, Some(6));
         assert_eq!(model.vertex_factors.len(), 1);
         assert_eq!(model.vertex_factors[0].n_legs, 4);
+    }
+
+    // ===================================================================
+    // Spacetime Config TOML Parser Tests
+    // ===================================================================
+
+    #[test]
+    fn parse_spacetime_config_defaults() {
+        // No [spacetime] table → standard 4D Minkowski + natural units
+        let (st, c) = parse_spacetime_config("").unwrap();
+        assert_eq!(st.dimension(), 4);
+        assert_eq!(
+            st.metric.signature.display_signature(),
+            "(+,-,-,-)"
+        );
+        assert_eq!(c.speed_of_light, 1.0);
+        assert_eq!(c.hbar, 1.0);
+    }
+
+    #[test]
+    fn parse_spacetime_config_dimension_only() {
+        let toml = r#"
+[spacetime]
+dimension = 10
+"#;
+        let (st, _) = parse_spacetime_config(toml).unwrap();
+        assert_eq!(st.dimension(), 10);
+        assert_eq!(st.metric.signature.time_dimensions(), 1);
+        assert_eq!(st.metric.signature.space_dimensions(), 9);
+    }
+
+    #[test]
+    fn parse_spacetime_config_explicit_signature() {
+        let toml = r#"
+[spacetime]
+metric_signature = ["+", "+", "-", "-"]
+"#;
+        let (st, _) = parse_spacetime_config(toml).unwrap();
+        assert_eq!(st.dimension(), 4);
+        assert_eq!(
+            st.metric.signature.display_signature(),
+            "(+,+,-,-)"
+        );
+    }
+
+    #[test]
+    fn parse_spacetime_config_signature_dimension_mismatch() {
+        let toml = r#"
+[spacetime]
+dimension = 5
+metric_signature = ["+", "-", "-"]
+"#;
+        assert!(parse_spacetime_config(toml).is_err());
+    }
+
+    #[test]
+    fn parse_spacetime_config_invalid_sign() {
+        let toml = r#"
+[spacetime]
+metric_signature = ["+", "-", "x"]
+"#;
+        assert!(parse_spacetime_config(toml).is_err());
+    }
+
+    #[test]
+    fn parse_spacetime_config_with_constants() {
+        let toml = r#"
+[spacetime]
+dimension = 4
+
+[spacetime.constants]
+speed_of_light = 2.998e8
+hbar = 1.055e-34
+"#;
+        let (st, c) = parse_spacetime_config(toml).unwrap();
+        assert_eq!(st.dimension(), 4);
+        assert!((c.speed_of_light - 2.998e8).abs() < 1.0);
+        assert!((c.hbar - 1.055e-34).abs() < 1e-37);
+        // Unspecified constants → defaults
+        assert_eq!(c.boltzmann_constant, 1.0);
+    }
+
+    #[test]
+    fn build_model_with_config_no_spacetime() {
+        let particles = r#"
+[[particle]]
+id = "photon"
+name = "Photon"
+symbol = "gamma"
+spin = 2
+mass = 0.0
+width = 0.0
+electric_charge = 0
+weak_isospin = 0
+hypercharge = 0
+baryon_number = 0
+lepton_numbers = [0, 0, 0]
+parity = "Odd"
+charge_conjugation = "Odd"
+color = "Singlet"
+weak_multiplet = "Singlet"
+interactions = ["Electromagnetic"]
+is_self_conjugate = true
+"#;
+        let vertices = "vertex = []";
+        let model = build_model_with_config(particles, vertices, "Test", None).unwrap();
+        // Standard defaults
+        assert_eq!(model.spacetime.dimension(), 4);
+        assert_eq!(model.constants.speed_of_light, 1.0);
+    }
+
+    #[test]
+    fn build_model_with_config_custom_spacetime() {
+        let particles = r#"
+[[particle]]
+id = "photon"
+name = "Photon"
+symbol = "gamma"
+spin = 2
+mass = 0.0
+width = 0.0
+electric_charge = 0
+weak_isospin = 0
+hypercharge = 0
+baryon_number = 0
+lepton_numbers = [0, 0, 0]
+parity = "Odd"
+charge_conjugation = "Odd"
+color = "Singlet"
+weak_multiplet = "Singlet"
+interactions = ["Electromagnetic"]
+is_self_conjugate = true
+"#;
+        let vertices = "vertex = []";
+        let config = r#"
+[spacetime]
+dimension = 10
+
+[spacetime.constants]
+gravitational_constant = 1e-30
+"#;
+        let model = build_model_with_config(particles, vertices, "String", Some(config)).unwrap();
+        assert_eq!(model.spacetime.dimension(), 10);
+        assert!((model.constants.gravitational_constant - 1e-30).abs() < 1e-40);
+        assert_eq!(model.constants.speed_of_light, 1.0); // default preserved
     }
 }
