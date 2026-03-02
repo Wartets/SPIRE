@@ -250,8 +250,8 @@
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
-    color: #7ec8e3;
-    border-bottom: 1px solid #0f3460;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
   }
 
@@ -264,16 +264,16 @@
   .preset-btn {
     font-size: 0.68rem;
     padding: 0.2rem 0.45rem;
-    background: #162447;
-    color: #5dade2;
-    border: 1px solid #1a5276;
-    border-radius: 4px;
+    background: var(--bg-surface);
+    color: var(--hl-symbol);
+    border: 1px solid var(--border);
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .preset-btn:hover {
-    background: #1a5276;
-    color: #fff;
+    border-color: var(--border-focus);
+    color: var(--fg-accent);
   }
 
   /* Input Grid */
@@ -289,40 +289,39 @@
   }
   .input-label {
     font-size: 0.68rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
   .input-grid input {
     width: 100%;
     padding: 0.25rem 0.35rem;
-    background: #0d1b2a;
-    color: #e0e0e0;
-    border: 1px solid #1b2838;
-    border-radius: 3px;
-    font-family: "Fira Code", monospace;
+    background: var(--bg-inset);
+    color: var(--fg-primary);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
     font-size: 0.78rem;
     box-sizing: border-box;
   }
   .input-grid input:focus {
     outline: none;
-    border-color: #5dade2;
+    border-color: var(--border-focus);
   }
 
   /* Generate Button */
   .generate-btn {
     padding: 0.4rem 0.8rem;
-    background: #1a5276;
-    color: #e0e0e0;
-    border: 1px solid #2471a3;
-    border-radius: 4px;
+    background: var(--bg-surface);
+    color: var(--fg-primary);
+    border: 1px solid var(--border);
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 600;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .generate-btn:hover:not(:disabled) {
-    background: #2471a3;
+    border-color: var(--border-focus);
   }
   .generate-btn:disabled {
     opacity: 0.5;
@@ -331,12 +330,12 @@
 
   /* Error */
   .error {
-    color: #e74c3c;
+    color: var(--hl-error);
     font-size: 0.78rem;
     margin: 0;
     padding: 0.3rem 0.4rem;
-    background: rgba(231, 76, 60, 0.1);
-    border-radius: 3px;
+    background: var(--bg-inset);
+    border: 1px solid var(--hl-error);
   }
 
   /* Chart Info */
@@ -345,8 +344,7 @@
     flex-wrap: wrap;
     gap: 0.6rem;
     font-size: 0.68rem;
-    color: #7f8c8d;
-    font-family: "Fira Code", monospace;
+    color: var(--fg-secondary);
   }
 
   /* Chart Container */
@@ -354,9 +352,8 @@
     position: relative;
     width: 100%;
     height: 320px;
-    background: #0a0f1a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
   }
   .chart-container.hidden {
     display: none;

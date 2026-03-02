@@ -339,13 +339,13 @@
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
-    color: #7ec8e3;
-    border-bottom: 1px solid #0f3460;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
   }
   .hint {
     font-size: 0.8rem;
-    opacity: 0.5;
+    color: var(--fg-secondary);
     font-style: italic;
     margin: 0;
   }
@@ -361,35 +361,35 @@
     gap: 0.2rem;
   }
   .tab-btn {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 3px;
-    color: #c8d6e5;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.2rem 0.5rem;
     font-size: 0.75rem;
     cursor: pointer;
+    font-family: var(--font-mono);
   }
   .tab-btn.active {
-    background: #1a5276;
-    border-color: #2980b9;
-    color: #fff;
+    background: var(--bg-surface);
+    border-color: var(--fg-accent);
+    color: var(--fg-accent);
   }
   .view-toggle {
-    background: #0f3460;
-    border: 1px solid #1a5276;
-    border-radius: 3px;
-    color: #c8d6e5;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.2rem 0.6rem;
     font-size: 0.72rem;
     cursor: pointer;
     white-space: nowrap;
+    font-family: var(--font-mono);
   }
   .view-toggle:hover {
-    background: #1a5276;
+    border-color: var(--border-focus);
   }
   .summary-bar {
     font-size: 0.75rem;
-    color: #a0b4c8;
+    color: var(--fg-secondary);
     padding: 0.2rem 0;
   }
   .diagram-canvas {
@@ -401,14 +401,12 @@
     min-height: 120px;
   }
   .diagram-text {
-    background: #0a0f1a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.5rem;
-    font-family: "Fira Code", "Cascadia Code", monospace;
     font-size: 0.72rem;
     line-height: 1.5;
-    color: #c8d6e5;
+    color: var(--fg-primary);
     overflow-x: auto;
     margin: 0;
     white-space: pre;
@@ -416,9 +414,8 @@
 
   /* ── Mermaid container ── */
   .mermaid-container {
-    background: #0a0f1a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.75rem;
     flex: 1;
     overflow: auto;
@@ -427,35 +424,32 @@
     justify-content: center;
     min-height: 180px;
   }
-  /* Override Mermaid SVG defaults to fit dark theme */
   .mermaid-container :global(svg) {
     max-width: 100%;
     height: auto;
   }
   .mermaid-container :global(.edgeLabel) {
-    background-color: #0d1b2a !important;
-    color: #f39c12 !important;
-    font-family: "Fira Code", monospace !important;
+    background-color: var(--bg-inset) !important;
+    color: var(--hl-value) !important;
+    font-family: var(--font-mono) !important;
     font-size: 0.72rem !important;
     padding: 0.1rem 0.3rem !important;
-    border-radius: 3px !important;
   }
   .mermaid-container :global(.edgePaths path) {
-    stroke: #5dade2 !important;
+    stroke: var(--hl-symbol) !important;
     stroke-width: 1.5px !important;
   }
   .mermaid-container :global(.marker) {
-    fill: #5dade2 !important;
-    stroke: #5dade2 !important;
+    fill: var(--hl-symbol) !important;
+    stroke: var(--hl-symbol) !important;
   }
   .mermaid-container :global(text) {
-    fill: #e0e0e0 !important;
+    fill: var(--fg-primary) !important;
   }
 
   .edge-table {
     font-size: 0.72rem;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    border: 1px solid var(--border);
     overflow: hidden;
   }
   .edge-header,
@@ -467,25 +461,23 @@
     align-items: center;
   }
   .edge-header {
-    background: #0f3460;
-    color: #a0b4c8;
+    background: var(--bg-surface);
+    color: var(--fg-secondary);
     text-transform: uppercase;
     font-size: 0.65rem;
     letter-spacing: 0.05em;
   }
   .edge-row {
-    border-bottom: 1px solid #0d1b2a;
-    color: #e0e0e0;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg-primary);
   }
   .edge-row:last-child {
     border-bottom: none;
   }
   .particle-name {
-    font-family: "Fira Code", monospace;
-    color: #f39c12;
+    color: var(--hl-value);
   }
   .momentum {
-    font-family: "Fira Code", monospace;
-    color: #5dade2;
+    color: var(--hl-symbol);
   }
 </style>

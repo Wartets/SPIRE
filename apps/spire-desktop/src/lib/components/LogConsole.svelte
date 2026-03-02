@@ -66,7 +66,7 @@
   .log-header h3 {
     margin: 0;
     font-size: 0.85rem;
-    color: #7ec8e3;
+    color: var(--fg-accent);
   }
   .log-controls {
     display: flex;
@@ -75,48 +75,47 @@
   }
   .entry-count {
     font-size: 0.68rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
   }
   .clear-btn {
-    background: #1b2838;
-    border: 1px solid #2c3e50;
-    border-radius: 3px;
-    color: #a0b4c8;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
     padding: 0.15rem 0.4rem;
     font-size: 0.68rem;
     cursor: pointer;
+    font-family: var(--font-mono);
   }
   .clear-btn:hover {
-    background: #2c3e50;
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
   }
   .log-scroll {
     flex: 1;
     overflow-y: auto;
-    background: #0a0f1a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.3rem 0.4rem;
-    font-family: "Fira Code", "Cascadia Code", monospace;
+    font-family: var(--font-mono);
     font-size: 0.7rem;
     line-height: 1.6;
   }
   .hint {
     font-size: 0.75rem;
-    opacity: 0.4;
+    color: var(--fg-secondary);
     font-style: italic;
     margin: 0;
-    font-family: system-ui, sans-serif;
   }
   .log-entry {
-    color: #c8d6e5;
+    color: var(--fg-primary);
     padding: 0.05rem 0;
-    border-bottom: 1px solid #0d1117;
+    border-bottom: 1px solid var(--border);
     word-break: break-word;
   }
   .log-entry.error {
-    color: #e74c3c;
+    color: var(--hl-error);
   }
   .log-entry.success {
-    color: #2ecc71;
+    color: var(--hl-success);
   }
 </style>

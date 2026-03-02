@@ -1,141 +1,193 @@
 <!--
-  SPIRE Desktop — Main Workspace Page
+  SPIRE Desktop — Adaptive Workbench Page
 
-  Dashboard layout with:
-    • Left sidebar  — Model Loader + Reaction Workspace
-    • Centre main   — Feynman Diagram Visualizer
-    • Right sidebar  — Amplitude Panel + Kinematics View
-    • Bottom footer  — Log Console
+  Dynamic grid canvas driven by the notebook store.
+  Widgets are placed on a CSS Grid whose column / row
+  positions come from each WidgetInstance.  A compact
+  Toolbox bar lets the user spawn new widgets.
 -->
 <script lang="ts">
-  import ModelLoader from "$lib/components/ModelLoader.svelte";
-  import ReactionWorkspace from "$lib/components/ReactionWorkspace.svelte";
-  import DiagramVisualizer from "$lib/components/DiagramVisualizer.svelte";
-  import AmplitudePanel from "$lib/components/AmplitudePanel.svelte";
-  import KinematicsView from "$lib/components/KinematicsView.svelte";
-  import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
-  import LogConsole from "$lib/components/LogConsole.svelte";
+  import {
+    widgets,
+    addWidget,
+    resetLayout,
+    WIDGET_DEFINITIONS,
+    GRID_COLUMNS,
+  } from "$lib/stores/notebookStore";
+  import type { WidgetType } from "$lib/stores/notebookStore";
+  import WidgetCell from "$lib/components/workbench/WidgetCell.svelte";
+
+  let toolboxOpen = false;
+
+  function spawnWidget(type: WidgetType): void {
+    addWidget(type);
+    toolboxOpen = false;
+  }
 </script>
 
-<div class="workspace">
-  <!-- ─── Left Sidebar ─── -->
-  <aside class="sidebar left-sidebar">
-    <section class="panel">
-      <ModelLoader />
-    </section>
-    <section class="panel">
-      <ReactionWorkspace />
-    </section>
-  </aside>
+<div class="workbench">
+  <!-- ─── Toolbox Bar ─── -->
+  <div class="toolbox-bar">
+    <button
+      class="toolbox-toggle"
+      on:click={() => (toolboxOpen = !toolboxOpen)}
+      aria-expanded={toolboxOpen}
+    >
+      + Add Widget
+    </button>
 
-  <!-- ─── Centre Column ─── -->
-  <div class="centre-column">
-    <section class="panel diagram-area">
-      <DiagramVisualizer />
-    </section>
-    <section class="panel dalitz-area">
-      <DalitzPlotter />
-    </section>
+    {#if toolboxOpen}
+      <div class="toolbox-menu">
+        {#each WIDGET_DEFINITIONS as def}
+          <button class="toolbox-item" on:click={() => spawnWidget(def.type)}>
+            {def.label}
+            <span class="toolbox-size">{def.defaultColSpan}&times;{def.defaultRowSpan}</span>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    <div class="toolbox-spacer"></div>
+
+    <span class="widget-count">{$widgets.length} widget{$widgets.length !== 1 ? "s" : ""}</span>
+
+    <button class="toolbox-reset" on:click={resetLayout} title="Reset to default layout">
+      Reset
+    </button>
   </div>
 
-  <!-- ─── Right Sidebar ─── -->
-  <aside class="sidebar right-sidebar">
-    <section class="panel">
-      <AmplitudePanel />
-    </section>
-    <section class="panel">
-      <KinematicsView />
-    </section>
-  </aside>
-
-  <!-- ─── Bottom Console ─── -->
-  <footer class="console-bar">
-    <LogConsole />
-  </footer>
+  <!-- ─── Grid Canvas ─── -->
+  <div
+    class="grid-canvas"
+    style="grid-template-columns: repeat({GRID_COLUMNS}, 1fr);"
+  >
+    {#each $widgets as instance (instance.id)}
+      <div
+        class="grid-cell"
+        style="
+          grid-column: {instance.col} / span {instance.colSpan};
+          grid-row: {instance.row} / span {instance.rowSpan};
+        "
+      >
+        <WidgetCell {instance} />
+      </div>
+    {/each}
+  </div>
 </div>
 
 <style>
-  .workspace {
-    display: grid;
-    grid-template-columns: 280px 1fr 300px;
-    grid-template-rows: 1fr auto;
-    gap: 0.6rem;
+  .workbench {
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    min-height: 0;
+    gap: 0;
   }
 
-  /* Sidebars span the first row */
-  .left-sidebar {
-    grid-column: 1;
-    grid-row: 1;
+  /* ── Toolbox Bar ──────────────────────────────────────────── */
+  .toolbox-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.4rem;
+    background: var(--bg-inset);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
   }
-  .centre-column {
-    grid-column: 2;
-    grid-row: 1;
-    min-height: 0;
+  .toolbox-toggle {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-accent);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
-  .right-sidebar {
-    grid-column: 3;
-    grid-row: 1;
+  .toolbox-toggle:hover {
+    border-color: var(--border-focus);
   }
-
-  /* Console bar spans all columns at the bottom */
-  .console-bar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    height: 140px;
-    background: #16213e;
-    border-radius: 6px;
-    padding: 0.5rem 0.6rem;
-    color: #e0e0e0;
-  }
-
-  /* Sidebar layout */
-  .sidebar {
+  .toolbox-menu {
+    position: absolute;
+    top: 100%;
+    left: 0.4rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
-    overflow-y: auto;
+    z-index: 100;
+    min-width: 14rem;
   }
-
-  /* Centre column fills available space */
-  .centre-column {
+  .toolbox-item {
     display: flex;
-    flex-direction: column;
-    gap: 0.6rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0.6rem;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    text-align: left;
   }
-  .diagram-area {
+  .toolbox-item:last-child {
+    border-bottom: none;
+  }
+  .toolbox-item:hover {
+    background: var(--bg-surface);
+    color: var(--fg-accent);
+  }
+  .toolbox-size {
+    font-size: 0.62rem;
+    color: var(--fg-secondary);
+  }
+  .toolbox-spacer {
     flex: 1;
+  }
+  .widget-count {
+    font-size: 0.68rem;
+    color: var(--fg-secondary);
+  }
+  .toolbox-reset {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.68rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+  .toolbox-reset:hover {
+    color: var(--hl-error);
+    border-color: var(--hl-error);
+  }
+
+  /* ── Grid Canvas ──────────────────────────────────────────── */
+  .grid-canvas {
+    flex: 1;
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.35rem;
+    grid-auto-rows: minmax(160px, 1fr);
     min-height: 0;
     overflow: auto;
   }
-  .dalitz-area {
-    flex: 0 0 auto;
-    overflow: auto;
+  .grid-cell {
+    min-width: 0;
+    min-height: 0;
   }
 
-  /* Panel base style */
-  .panel {
-    background: #16213e;
-    border-radius: 6px;
-    padding: 0.6rem 0.7rem;
-    color: #e0e0e0;
-  }
-
-  /* Responsive: collapse to single column on narrow screens */
+  /* ── Responsive ───────────────────────────────────────────── */
   @media (max-width: 900px) {
-    .workspace {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto auto auto auto;
+    .grid-canvas {
+      grid-template-columns: 1fr !important;
     }
-    .left-sidebar,
-    .centre-column,
-    .right-sidebar {
-      grid-column: 1;
+    .grid-cell {
+      grid-column: 1 !important;
+      grid-row: auto !important;
     }
-    .left-sidebar  { grid-row: 1; }
-    .centre-column { grid-row: 2; }
-    .right-sidebar { grid-row: 3; }
-    .console-bar   { grid-column: 1; grid-row: 4; }
   }
 </style>

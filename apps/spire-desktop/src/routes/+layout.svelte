@@ -1,9 +1,10 @@
 <!--
   SPIRE Desktop — Root Layout
 
-  Global application shell providing the navigation bar, framework
-  selector, and model-status indicator. Child routes are rendered
-  via the <slot /> element.
+  Global application shell: navigation bar, framework selector,
+  model-status indicator.  Implements the "Typewriter" design
+  system — monospace typography, sharp corners, high-contrast
+  dark palette via CSS custom properties.
 -->
 <script lang="ts">
   import {
@@ -57,31 +58,55 @@
 </div>
 
 <style>
+  /* ── Typewriter Design Tokens ─────────────────────────────── */
+  :global(:root) {
+    --font-mono: "Fira Code", "Cascadia Code", "Courier New", monospace;
+    --bg-primary:   #121212;
+    --bg-surface:   #1a1a1a;
+    --bg-inset:     #0e0e0e;
+    --fg-primary:   #e8e8e8;
+    --fg-secondary: #888888;
+    --fg-accent:    #ffffff;
+    --border:       #333333;
+    --border-focus: #666666;
+    --hl-value:     #d4a017;
+    --hl-symbol:    #5eb8ff;
+    --hl-error:     #e74c3c;
+    --hl-success:   #2ecc71;
+  }
+
+  /* ── Global Reset ─────────────────────────────────────────── */
   :global(body) {
     margin: 0;
     padding: 0;
-    background: #0e1628;
-    color: #e0e0e0;
+    background: var(--bg-primary);
+    color: var(--fg-primary);
     overflow: hidden;
+    font-family: var(--font-mono);
   }
   :global(*) {
     box-sizing: border-box;
+    border-radius: 0 !important;
   }
+
+  /* ── App Shell ────────────────────────────────────────────── */
   .app-shell {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: var(--font-mono);
   }
+
+  /* ── Navbar ───────────────────────────────────────────────── */
   .navbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.4rem 0.8rem;
-    background: #1a1a2e;
-    color: #e0e0e0;
+    background: var(--bg-surface);
+    color: var(--fg-primary);
     flex-shrink: 0;
-    border-bottom: 1px solid #0f3460;
+    border-bottom: 1px solid var(--border);
   }
   .navbar-brand {
     display: flex;
@@ -92,12 +117,14 @@
     font-size: 1.3rem;
     font-weight: 700;
     letter-spacing: 0.12em;
-    color: #7ec8e3;
+    color: var(--fg-accent);
   }
   .tagline {
     font-size: 0.7rem;
-    opacity: 0.5;
+    color: var(--fg-secondary);
   }
+
+  /* ── Navbar Controls ──────────────────────────────────────── */
   .navbar-controls {
     display: flex;
     align-items: center;
@@ -105,7 +132,7 @@
   }
   .nav-label {
     font-size: 0.68rem;
-    color: #a0b4c8;
+    color: var(--fg-secondary);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     display: flex;
@@ -113,20 +140,19 @@
     gap: 0.35rem;
   }
   .nav-select {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 3px;
-    color: #e0e0e0;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.2rem 0.4rem;
     font-size: 0.78rem;
+    font-family: var(--font-mono);
   }
   .model-status {
     font-size: 0.75rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     padding: 0.2rem 0.5rem;
-    border: 1px solid #1b2838;
-    border-radius: 3px;
-    background: #0d1b2a;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -135,21 +161,22 @@
     display: inline-block;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 50%;
-    background: #7f8c8d;
+    background: var(--fg-secondary);
     flex-shrink: 0;
   }
   .status-dot.active {
-    background: #2ecc71;
+    background: var(--hl-success);
   }
   .model-status.loaded {
-    color: #2ecc71;
-    border-color: #1e8449;
+    color: var(--hl-success);
+    border-color: var(--hl-success);
   }
+
+  /* ── Main Content ─────────────────────────────────────────── */
   .main-content {
     flex: 1;
     overflow: hidden;
-    padding: 0.6rem;
+    padding: 0.5rem;
     min-height: 0;
   }
 </style>

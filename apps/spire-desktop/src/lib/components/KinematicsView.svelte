@@ -127,27 +127,26 @@
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
-    color: #7ec8e3;
-    border-bottom: 1px solid #0f3460;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
   }
   h4 {
     margin: 0 0 0.2rem;
     font-size: 0.78rem;
-    color: #a0b4c8;
+    color: var(--fg-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   .hint {
     font-size: 0.8rem;
-    opacity: 0.5;
+    color: var(--fg-secondary);
     font-style: italic;
     margin: 0;
   }
   .section {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.4rem 0.5rem;
   }
   .data-grid {
@@ -158,24 +157,23 @@
   }
   .data-label {
     font-size: 0.72rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     text-align: right;
     white-space: nowrap;
   }
   .data-value {
     font-size: 0.78rem;
-    color: #e0e0e0;
+    color: var(--fg-primary);
   }
   .data-value.mono {
-    font-family: "Fira Code", monospace;
     font-size: 0.75rem;
   }
   .data-value.allowed {
-    color: #2ecc71;
+    color: var(--hl-success);
     font-weight: 600;
   }
   .data-value.forbidden {
-    color: #e74c3c;
+    color: var(--hl-error);
     font-weight: 600;
   }
   .mandelstam-display {
@@ -187,29 +185,26 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: #162447;
-    border: 1px solid #1a5276;
-    border-radius: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
     padding: 0.4rem 0.6rem;
     min-width: 4.5rem;
   }
   .mvar.sum {
-    border-color: #0f3460;
-    background: #0a0f1a;
+    border-color: var(--border-focus);
+    background: var(--bg-inset);
   }
   .mvar-label {
     font-size: 0.82rem;
     font-weight: 700;
-    color: #5dade2;
-    font-family: "Fira Code", monospace;
+    color: var(--hl-symbol);
   }
   .mvar-value {
     font-size: 0.78rem;
-    color: #f39c12;
-    font-family: "Fira Code", monospace;
+    color: var(--hl-value);
   }
   .mvar-unit {
     font-size: 0.62rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
   }
 </style>

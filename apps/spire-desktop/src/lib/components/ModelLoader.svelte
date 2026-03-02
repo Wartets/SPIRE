@@ -341,8 +341,8 @@
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
-    color: #7ec8e3;
-    border-bottom: 1px solid #0f3460;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
   }
   .field-label {
@@ -350,74 +350,72 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.75rem;
-    color: #a0b4c8;
+    color: var(--fg-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
   select,
   input[type="text"] {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.35rem 0.5rem;
     font-size: 0.85rem;
-    font-family: inherit;
+    font-family: var(--font-mono);
   }
   textarea {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
-    color: #c8d6e5;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.4rem;
     font-size: 0.72rem;
-    font-family: "Fira Code", "Cascadia Code", monospace;
+    font-family: var(--font-mono);
     resize: vertical;
     line-height: 1.4;
   }
   .toggle-btn {
     background: none;
     border: none;
-    color: #5dade2;
+    color: var(--hl-symbol);
     font-size: 0.78rem;
     cursor: pointer;
     text-align: left;
     padding: 0.2rem 0;
+    font-family: var(--font-mono);
   }
   .toggle-btn:hover {
     text-decoration: underline;
   }
   .primary-btn {
-    background: #0f3460;
-    border: 1px solid #1a5276;
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: var(--bg-surface);
+    border: 1px solid var(--fg-accent);
+    color: var(--fg-accent);
     padding: 0.45rem 0.8rem;
     font-size: 0.85rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .primary-btn:hover:not(:disabled) {
-    background: #1a5276;
+    background: var(--bg-inset);
   }
   .primary-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
   .error-msg {
-    color: #e74c3c;
+    color: var(--hl-error);
     font-size: 0.78rem;
     margin: 0;
   }
   .status-badge {
     font-size: 0.78rem;
     padding: 0.3rem 0.5rem;
-    border-radius: 4px;
   }
   .status-badge.success {
-    background: #0a3d2e;
-    color: #2ecc71;
-    border: 1px solid #1e8449;
+    background: var(--bg-inset);
+    color: var(--hl-success);
+    border: 1px solid var(--hl-success);
   }
   .custom-controls {
     display: flex;
@@ -425,48 +423,47 @@
     align-items: center;
   }
   .save-btn {
-    background: #0a3d2e;
-    border: 1px solid #1e8449;
-    border-radius: 4px;
-    color: #2ecc71;
+    background: var(--bg-inset);
+    border: 1px solid var(--hl-success);
+    color: var(--hl-success);
     padding: 0.3rem 0.6rem;
     font-size: 0.75rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .save-btn:hover {
-    background: #145a3e;
+    background: var(--bg-surface);
   }
   .clear-btn {
-    background: #3d0a0a;
-    border: 1px solid #922b21;
-    border-radius: 4px;
-    color: #e74c3c;
+    background: var(--bg-inset);
+    border: 1px solid var(--hl-error);
+    color: var(--hl-error);
     padding: 0.3rem 0.6rem;
     font-size: 0.75rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .clear-btn:hover {
-    background: #5a1414;
+    background: var(--bg-surface);
   }
   .saved-indicator {
-    color: #2ecc71;
+    color: var(--hl-success);
     font-size: 0.75rem;
-    animation: fadeIn 0.2s ease-in;
   }
   .ufo-btn {
-    background: #2c1a4a;
-    border: 1px solid #6c3483;
-    border-radius: 4px;
-    color: #d2b4de;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.35rem 0.7rem;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .ufo-btn:hover:not(:disabled) {
-    background: #3d2266;
+    border-color: var(--border-focus);
   }
   .ufo-btn:disabled {
     opacity: 0.5;
@@ -478,16 +475,15 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.75);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
   }
   .ufo-modal {
-    background: #0d1b2a;
-    border: 1px solid #6c3483;
-    border-radius: 8px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
     width: min(90vw, 640px);
     max-height: 80vh;
     display: flex;
@@ -498,51 +494,51 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.6rem 0.8rem;
-    border-bottom: 1px solid #1b2838;
+    border-bottom: 1px solid var(--border);
   }
   .ufo-modal-header h4 {
     margin: 0;
     font-size: 0.9rem;
-    color: #d2b4de;
+    color: var(--fg-accent);
   }
   .close-btn {
     background: none;
     border: none;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     font-size: 1rem;
     cursor: pointer;
+    font-family: var(--font-mono);
   }
   .close-btn:hover {
-    color: #e74c3c;
+    color: var(--hl-error);
   }
   .ufo-content {
     flex: 1;
     overflow: auto;
     padding: 0.6rem 0.8rem;
     margin: 0;
-    font-family: "Fira Code", "Cascadia Code", monospace;
     font-size: 0.72rem;
-    color: #c8d6e5;
+    color: var(--fg-primary);
     line-height: 1.45;
     white-space: pre;
   }
   .ufo-modal-footer {
     padding: 0.5rem 0.8rem;
-    border-top: 1px solid #1b2838;
+    border-top: 1px solid var(--border);
     text-align: right;
   }
   .copy-ufo-btn {
-    background: #1a3a5c;
-    border: 1px solid #2980b9;
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.3rem 0.6rem;
     font-size: 0.75rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .copy-ufo-btn:hover {
-    background: #2471a3;
+    border-color: var(--border-focus);
   }
   @keyframes fadeIn {
     from { opacity: 0; }

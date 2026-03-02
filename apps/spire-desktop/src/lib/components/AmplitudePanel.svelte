@@ -164,28 +164,26 @@
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
-    color: #7ec8e3;
-    border-bottom: 1px solid #0f3460;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
   }
   .hint {
     font-size: 0.8rem;
-    opacity: 0.5;
+    color: var(--fg-secondary);
     font-style: italic;
     margin: 0;
   }
   .active-expression {
-    background: #0a0f1a;
-    border: 1px solid #1a5276;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.6rem;
     overflow-x: auto;
   }
   .active-expression pre {
     margin: 0;
-    font-family: "Fira Code", "Cascadia Code", monospace;
     font-size: 0.82rem;
-    color: #f39c12;
+    color: var(--hl-value);
     white-space: pre-wrap;
     word-break: break-all;
     line-height: 1.5;
@@ -197,17 +195,17 @@
     margin-top: 0.35rem;
   }
   .latex-btn {
-    background: #1a3a5c;
-    border: 1px solid #2980b9;
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 0.25rem 0.6rem;
     font-size: 0.72rem;
     cursor: pointer;
-    transition: background 0.15s;
+    font-family: var(--font-mono);
+    transition: border-color 0.15s;
   }
   .latex-btn:hover:not(:disabled) {
-    background: #2471a3;
+    border-color: var(--border-focus);
   }
   .latex-btn:disabled {
     opacity: 0.4;
@@ -215,8 +213,7 @@
   }
   .latex-status {
     font-size: 0.72rem;
-    color: #2ecc71;
-    animation: fadeIn 0.2s ease-in;
+    color: var(--hl-success);
   }
   .amplitude-list {
     display: flex;
@@ -226,25 +223,24 @@
     overflow-y: auto;
   }
   .amp-card {
-    background: #0d1b2a;
-    border: 1px solid #1b2838;
-    border-radius: 4px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
     padding: 0.4rem 0.5rem;
     text-align: left;
     cursor: pointer;
-    color: #e0e0e0;
+    color: var(--fg-primary);
     transition: border-color 0.15s;
     display: block;
     width: 100%;
-    font-family: inherit;
+    font-family: var(--font-mono);
     font-size: inherit;
   }
   .amp-card:hover {
-    border-color: #2980b9;
+    border-color: var(--border-focus);
   }
   .amp-card.active {
-    border-color: #f39c12;
-    background: #162447;
+    border-color: var(--hl-value);
+    background: var(--bg-surface);
   }
   .amp-header {
     display: flex;
@@ -253,51 +249,48 @@
     margin-bottom: 0.2rem;
   }
   .amp-id {
-    color: #5dade2;
+    color: var(--hl-symbol);
     font-weight: 600;
   }
   .amp-couplings {
-    color: #a0b4c8;
-    font-family: "Fira Code", monospace;
+    color: var(--fg-secondary);
     font-size: 0.7rem;
   }
   .amp-expr {
-    font-family: "Fira Code", "Cascadia Code", monospace;
     font-size: 0.75rem;
-    color: #c8d6e5;
+    color: var(--fg-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .amp-momenta {
     font-size: 0.65rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     margin-top: 0.15rem;
   }
   .summary {
     font-size: 0.72rem;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     text-align: right;
   }
 
   /* ---- CAS Derivation Steps ---- */
   .derivation-btn {
-    background: #1a3c2e;
-    border-color: #27ae60;
+    border-color: var(--hl-success);
+    color: var(--hl-success);
   }
   .derivation-btn:hover:not(:disabled) {
-    background: #1e8449;
+    background: var(--bg-inset);
   }
   .derivation-error {
     font-size: 0.75rem;
-    color: #e74c3c;
+    color: var(--hl-error);
     margin-top: 0.3rem;
   }
   .derivation-panel {
     margin-top: 0.4rem;
-    border: 1px solid #1a5276;
-    border-radius: 4px;
-    background: #0b1622;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
     max-height: 20rem;
     overflow-y: auto;
   }
@@ -306,24 +299,24 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid #1a5276;
-    background: #0f1e33;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-surface);
   }
   .derivation-title {
     font-size: 0.78rem;
-    color: #2ecc71;
+    color: var(--hl-success);
     font-weight: 600;
   }
   .derivation-close {
     background: none;
     border: none;
-    color: #7f8c8d;
+    color: var(--fg-secondary);
     cursor: pointer;
     font-size: 0.8rem;
     padding: 0 0.25rem;
   }
   .derivation-close:hover {
-    color: #e74c3c;
+    color: var(--hl-error);
   }
   .derivation-steps {
     display: flex;
@@ -334,7 +327,7 @@
     display: flex;
     gap: 0.5rem;
     padding: 0.45rem 0.5rem;
-    border-bottom: 1px solid #0f2740;
+    border-bottom: 1px solid var(--border);
   }
   .derivation-step:last-child {
     border-bottom: none;
@@ -346,9 +339,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    background: #1a5276;
-    color: #7ec8e3;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--hl-symbol);
     font-size: 0.68rem;
     font-weight: 700;
   }
@@ -358,26 +351,24 @@
   }
   .step-label {
     font-size: 0.76rem;
-    color: #f39c12;
+    color: var(--hl-value);
     font-weight: 600;
     margin-bottom: 0.1rem;
   }
   .step-desc {
     font-size: 0.68rem;
-    color: #95a5a6;
+    color: var(--fg-secondary);
     margin-bottom: 0.25rem;
   }
   .step-latex {
     margin: 0;
-    font-family: "Fira Code", "Cascadia Code", monospace;
     font-size: 0.72rem;
-    color: #c8d6e5;
+    color: var(--fg-primary);
     white-space: pre-wrap;
     word-break: break-all;
     line-height: 1.4;
-    background: #070d17;
+    background: var(--bg-primary);
     padding: 0.3rem 0.4rem;
-    border-radius: 3px;
-    border: 1px solid #0f2740;
+    border: 1px solid var(--border);
   }
 </style>
