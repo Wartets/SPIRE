@@ -27,7 +27,7 @@
 
 <div class="log-console">
   <div class="log-header">
-    <h3>📋 Console</h3>
+    <h3>Console</h3>
     <div class="log-controls">
       <span class="entry-count">{entries.length} entries</span>
       <button class="clear-btn" on:click={clearLogs}>Clear</button>

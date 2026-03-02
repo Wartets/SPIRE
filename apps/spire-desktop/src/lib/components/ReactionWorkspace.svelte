@@ -187,7 +187,7 @@
 </script>
 
 <div class="reaction-workspace">
-  <h3>⚡ Reaction Workspace</h3>
+  <h3>Reaction Workspace</h3>
 
   {#if !$isModelLoaded}
     <p class="hint">Load a model first to define reactions.</p>
@@ -249,7 +249,7 @@
     <!-- Action Buttons -->
     <div class="actions">
       <button class="action-btn" on:click={handleRunAll} disabled={busy}>
-        {busy ? "Running…" : "▶ Run Full Pipeline"}
+        {busy ? "Running…" : "Run Full Pipeline"}
       </button>
       <div class="step-actions">
         <button class="step-btn" on:click={handleConstructReaction} disabled={busy}>

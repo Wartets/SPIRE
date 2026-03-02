@@ -14,7 +14,7 @@
 </script>
 
 <div class="kinematics-view">
-  <h3>📐 Kinematics</h3>
+  <h3>Kinematics</h3>
 
   {#if !report && !mvars}
     <p class="hint">No kinematics computed yet. Run the pipeline or click "Kinematics" to analyse.</p>

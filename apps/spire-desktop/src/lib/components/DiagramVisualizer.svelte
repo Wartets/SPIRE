@@ -253,7 +253,7 @@
 </script>
 
 <div class="diagram-viz">
-  <h3>📊 Feynman Diagrams</h3>
+  <h3>Feynman Diagrams</h3>
 
   {#if diagrams.length === 0}
     <p class="hint">No diagrams generated yet. Run the pipeline to generate topologies.</p>
@@ -272,7 +272,7 @@
         {/each}
       </div>
       <button class="view-toggle" on:click={() => (showText = !showText)}>
-        {showText ? "◈ Graph View" : "≡ Text View"}
+        {showText ? "Graph View" : "Text View"}
       </button>
     </div>
 

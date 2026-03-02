@@ -12,13 +12,15 @@
     activeAmplitude,
     generatedDiagrams,
   } from "$lib/stores/physicsStore";
-  import { exportAmplitudeLatex } from "$lib/api";
-  import type { AmplitudeResult } from "$lib/types/spire";
+  import { exportAmplitudeLatex, deriveAmplitudeSteps } from "$lib/api";
+  import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
 
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
     activeAmplitude.set(amp.expression);
     selectedDiagramId = amp.diagram_id;
+    derivationSteps = [];
+    derivationOpen = false;
   }
 
   /** Copy the LaTeX representation of the selected amplitude to the clipboard. */
@@ -40,15 +42,38 @@
     }
   }
 
+  /** Fetch the step-by-step CAS derivation for the currently selected diagram. */
+  async function showDerivation(): Promise<void> {
+    if (!$generatedDiagrams || selectedDiagramId === null) return;
+    const diagram = $generatedDiagrams.diagrams.find(
+      (d) => d.id === selectedDiagramId
+    );
+    if (!diagram) return;
+    derivationLoading = true;
+    derivationError = "";
+    try {
+      derivationSteps = await deriveAmplitudeSteps(diagram);
+      derivationOpen = true;
+    } catch (e: unknown) {
+      derivationError = e instanceof Error ? e.message : String(e);
+    } finally {
+      derivationLoading = false;
+    }
+  }
+
   let selectedDiagramId: number | null = null;
   let latexStatus: string = "";
+  let derivationSteps: DerivationStep[] = [];
+  let derivationOpen: boolean = false;
+  let derivationLoading: boolean = false;
+  let derivationError: string = "";
 
   $: results = $amplitudeResults;
   $: selected = $activeAmplitude;
 </script>
 
 <div class="amplitude-panel">
-  <h3>𝓜 Amplitudes</h3>
+  <h3>Amplitudes</h3>
 
   {#if results.length === 0}
     <p class="hint">No amplitudes computed yet. Generate diagrams and derive amplitudes first.</p>
@@ -59,12 +84,44 @@
         <pre>{selected}</pre>
         <div class="latex-row">
           <button class="latex-btn" on:click={copyLatex} disabled={selectedDiagramId === null}>
-            📋 Copy LaTeX
+            Copy LaTeX
+          </button>
+          <button
+            class="latex-btn derivation-btn"
+            on:click={showDerivation}
+            disabled={selectedDiagramId === null || derivationLoading}
+          >
+            {derivationLoading ? "Deriving…" : "Show Derivation"}
           </button>
           {#if latexStatus}
             <span class="latex-status">{latexStatus}</span>
           {/if}
         </div>
+
+        <!-- CAS Derivation Steps -->
+        {#if derivationError}
+          <div class="derivation-error">{derivationError}</div>
+        {/if}
+        {#if derivationOpen && derivationSteps.length > 0}
+          <div class="derivation-panel">
+            <div class="derivation-header">
+              <span class="derivation-title">Step-by-Step Derivation</span>
+              <button class="derivation-close" on:click={() => { derivationOpen = false; }}>✕</button>
+            </div>
+            <div class="derivation-steps">
+              {#each derivationSteps as step, idx}
+                <div class="derivation-step">
+                  <div class="step-badge">{idx + 1}</div>
+                  <div class="step-content">
+                    <div class="step-label">{step.label}</div>
+                    <div class="step-desc">{step.description}</div>
+                    <pre class="step-latex">{step.latex}</pre>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -221,5 +278,106 @@
     font-size: 0.72rem;
     color: #7f8c8d;
     text-align: right;
+  }
+
+  /* ---- CAS Derivation Steps ---- */
+  .derivation-btn {
+    background: #1a3c2e;
+    border-color: #27ae60;
+  }
+  .derivation-btn:hover:not(:disabled) {
+    background: #1e8449;
+  }
+  .derivation-error {
+    font-size: 0.75rem;
+    color: #e74c3c;
+    margin-top: 0.3rem;
+  }
+  .derivation-panel {
+    margin-top: 0.4rem;
+    border: 1px solid #1a5276;
+    border-radius: 4px;
+    background: #0b1622;
+    max-height: 20rem;
+    overflow-y: auto;
+  }
+  .derivation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid #1a5276;
+    background: #0f1e33;
+  }
+  .derivation-title {
+    font-size: 0.78rem;
+    color: #2ecc71;
+    font-weight: 600;
+  }
+  .derivation-close {
+    background: none;
+    border: none;
+    color: #7f8c8d;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 0.25rem;
+  }
+  .derivation-close:hover {
+    color: #e74c3c;
+  }
+  .derivation-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .derivation-step {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid #0f2740;
+  }
+  .derivation-step:last-child {
+    border-bottom: none;
+  }
+  .step-badge {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #1a5276;
+    color: #7ec8e3;
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+  .step-content {
+    flex: 1;
+    min-width: 0;
+  }
+  .step-label {
+    font-size: 0.76rem;
+    color: #f39c12;
+    font-weight: 600;
+    margin-bottom: 0.1rem;
+  }
+  .step-desc {
+    font-size: 0.68rem;
+    color: #95a5a6;
+    margin-bottom: 0.25rem;
+  }
+  .step-latex {
+    margin: 0;
+    font-family: "Fira Code", "Cascadia Code", monospace;
+    font-size: 0.72rem;
+    color: #c8d6e5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.4;
+    background: #070d17;
+    padding: 0.3rem 0.4rem;
+    border-radius: 3px;
+    border: 1px solid #0f2740;
   }
 </style>

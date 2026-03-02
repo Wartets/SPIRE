@@ -29,6 +29,8 @@ import type {
   TheoreticalModel,
   FeynmanDiagram,
   UfoExportResult,
+  DerivationStep,
+  SpacetimeDimension,
 } from "./types/spire";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +224,29 @@ export async function exportAmplitudeLatex(
 ): Promise<string> {
   return invoke<string>("export_amplitude_latex", {
     diagram,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CAS Derivation Steps
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive a step-by-step symbolic amplitude for a Feynman diagram using the
+ * CAS engine. Each step shows one algebraic transformation (Feynman rules,
+ * metric contractions, Dirac equation, simplification, etc.).
+ *
+ * @param diagram - A `FeynmanDiagram` from a prior diagram generation.
+ * @param dim - Spacetime dimension specification (default: 4).
+ * @returns Ordered array of `DerivationStep` objects.
+ */
+export async function deriveAmplitudeSteps(
+  diagram: FeynmanDiagram,
+  dim?: SpacetimeDimension,
+): Promise<DerivationStep[]> {
+  return invoke<DerivationStep[]>("derive_amplitude_steps", {
+    diagram,
+    dim: dim ?? { Fixed: 4 },
   });
 }
 

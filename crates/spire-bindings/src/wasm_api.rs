@@ -315,3 +315,35 @@ pub fn wasm_export_model_ufo(model: JsValue) -> Result<JsValue, JsValue> {
     let files = the_model.to_ufo();
     serde_wasm_bindgen::to_value(&files).map_err(|e| to_js_err(e.to_string()))
 }
+
+// ---------------------------------------------------------------------------
+// Phase 16 — CAS Derivation Steps
+// ---------------------------------------------------------------------------
+
+/// Perform a step-by-step amplitude derivation using the CAS engine.
+///
+/// Returns an ordered array of `DerivationStep` objects, each representing
+/// one transformation from the initial Feynman rules through simplification
+/// to the final result.
+///
+/// # Arguments
+/// * `diagram` — A `FeynmanGraph` JS object.
+/// * `dim` — Spacetime dimension specification (e.g., `{ Fixed: 4 }` or `{ DimReg: { base: 4 } }`).
+///
+/// # Returns
+/// A JS array of `DerivationStep` objects.
+#[wasm_bindgen(js_name = "deriveAmplitudeSteps")]
+pub fn wasm_derive_amplitude_steps(
+    diagram: JsValue,
+    dim: JsValue,
+) -> Result<JsValue, JsValue> {
+    let the_diagram: FeynmanGraph =
+        serde_wasm_bindgen::from_value(diagram).map_err(|e| to_js_err(e.to_string()))?;
+    let spacetime_dim: algebra::SpacetimeDimension =
+        serde_wasm_bindgen::from_value(dim).map_err(|e| to_js_err(e.to_string()))?;
+
+    let steps = algebra::derive_amplitude_steps(&the_diagram, spacetime_dim)
+        .map_err(|e| to_js_err(e.to_string()))?;
+
+    serde_wasm_bindgen::to_value(&steps).map_err(|e| to_js_err(e.to_string()))
+}

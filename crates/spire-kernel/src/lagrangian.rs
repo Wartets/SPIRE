@@ -81,6 +81,16 @@ pub enum PropagatorForm {
     MasslessVector,
     /// Massive vector boson (unitary gauge): $\frac{-i(g_{\mu\nu} - p_\mu p_\nu / m^2)}{p^2 - m^2 + i\epsilon}$
     MassiveVector,
+    /// Rarita–Schwinger spin-3/2 propagator:
+    /// $$S^{\mu\nu}_{3/2}(p) = \frac{-i(\not{p} + m)}{p^2 - m^2}\left(g^{\mu\nu} - \frac{\gamma^\mu \gamma^\nu}{3} - \frac{2 p^\mu p^\nu}{3 m^2} + \frac{p^\mu \gamma^\nu - p^\nu \gamma^\mu}{3m}\right)$$
+    RaritaSchwinger,
+    /// Massless spin-2 (graviton) propagator in de Donder gauge:
+    /// $$D^{\mu\nu,\rho\sigma}(p) = \frac{i}{2 p^2}\left(g^{\mu\rho} g^{\nu\sigma} + g^{\mu\sigma} g^{\nu\rho} - g^{\mu\nu} g^{\rho\sigma}\right)$$
+    MasslessSpin2,
+    /// Massive spin-2 (Fierz–Pauli) propagator:
+    /// $$D^{\mu\nu,\rho\sigma}(p) = \frac{i}{p^2 - m^2}\left(\tilde{g}^{\mu\rho}\tilde{g}^{\nu\sigma} + \tilde{g}^{\mu\sigma}\tilde{g}^{\nu\rho} - \frac{2}{3}\tilde{g}^{\mu\nu}\tilde{g}^{\rho\sigma}\right)$$
+    /// where $\tilde{g}^{\mu\nu} = g^{\mu\nu} - p^\mu p^\nu / m^2$.
+    MassiveSpin2,
 }
 
 /// A **VertexFactor** is the Feynman rule derived from an interaction term in the
@@ -192,6 +202,29 @@ pub fn derive_propagator(field: &Field) -> SpireResult<Propagator> {
                     format!(
                         "-i(g_μν - p_μ p_ν / ({})²) / (p² - ({})² + iε)",
                         mass, mass
+                    ),
+                )
+            }
+        }
+        3 => (
+            PropagatorForm::RaritaSchwinger,
+            format!(
+                "-i(γ·p + {m})/(p² - ({m})²) × (g^μν - γ^μ γ^ν/3 - 2p^μ p^ν/(3({m})²) + (p^μ γ^ν - p^ν γ^μ)/(3{m}))",
+                m = mass
+            ),
+        ),
+        4 => {
+            if mass.abs() < 1e-10 {
+                (
+                    PropagatorForm::MasslessSpin2,
+                    "i/(2p²) × (g^μρ g^νσ + g^μσ g^νρ - g^μν g^ρσ)".to_string(),
+                )
+            } else {
+                (
+                    PropagatorForm::MassiveSpin2,
+                    format!(
+                        "i/(p² - ({m})²) × (g̃^μρ g̃^νσ + g̃^μσ g̃^νρ - (2/3)g̃^μν g̃^ρσ), g̃ = g - pp/({m})²",
+                        m = mass
                     ),
                 )
             }

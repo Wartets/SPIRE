@@ -393,6 +393,85 @@ export type PolarizationState =
   | "TransverseMinus"
   | "Longitudinal";
 
+// ---------------------------------------------------------------------------
+// Phase 16 — Computer Algebra System (CAS) Types
+// ---------------------------------------------------------------------------
+
+/** A symbolic Lorentz index (named, numeric, or dummy). */
+export type LorentzIndex =
+  | { Named: string }
+  | { Numeric: number }
+  | { Dummy: number };
+
+/** Classification of spacetime tensor symmetry/structure. */
+export type SpacetimeTensorKind =
+  | "Scalar"
+  | "Vector"
+  | "VectorSpinor"
+  | "SymmetricRank2"
+  | "AntiSymmetricRank2"
+  | { GeneralRank: number };
+
+/**
+ * The recursive CAS expression tree.
+ *
+ * Every mathematical object in an amplitude derivation is a CasExpr node.
+ * The frontend can render these into LaTeX via `to_cas_latex()` on the Rust side,
+ * or traverse the tree for interactive display.
+ */
+export type CasExpr =
+  | { Scalar: number }
+  | "ImaginaryUnit"
+  | { Symbol: { name: string; indices: LorentzIndex[] } }
+  | { MetricTensor: { mu: LorentzIndex; nu: LorentzIndex } }
+  | { LeviCivita: { indices: [LorentzIndex, LorentzIndex, LorentzIndex, LorentzIndex] } }
+  | { GammaMat: { index: LorentzIndex } }
+  | "Gamma5"
+  | { Momentum: { label: string; index: LorentzIndex } }
+  | { SlashedMomentum: { label: string } }
+  | { DotProduct: { left: string; right: string } }
+  | { SpinorU: { label: string; momentum: string } }
+  | { SpinorUBar: { label: string; momentum: string } }
+  | { SpinorV: { label: string; momentum: string } }
+  | { SpinorVBar: { label: string; momentum: string } }
+  | { Tensor: { label: string; kind: SpacetimeTensorKind; indices: LorentzIndex[]; momentum: string | null; is_conjugate: boolean } }
+  | { Add: CasExpr[] }
+  | { Mul: CasExpr[] }
+  | { Neg: CasExpr }
+  | { Fraction: { numerator: CasExpr; denominator: CasExpr } }
+  | { Trace: CasExpr }
+  | { Commutator: [CasExpr, CasExpr] }
+  | { AntiCommutator: [CasExpr, CasExpr] }
+  | { KroneckerDelta: { mu: LorentzIndex; nu: LorentzIndex } }
+  | { PropagatorDenom: { momentum: string; mass_sq: number } };
+
+/**
+ * A single step in a structured amplitude derivation (Phase 16).
+ *
+ * The `derive_amplitude_steps` function returns an ordered array of these,
+ * each representing one mathematical operation applied to the amplitude.
+ */
+export interface DerivationStep {
+  /** Short label for the step (e.g., "Feynman Rules", "Dirac Equation"). */
+  label: string;
+  /** Human-readable description of the transformation. */
+  description: string;
+  /** The CAS expression after this step has been applied. */
+  expression: CasExpr;
+  /** LaTeX rendering of the expression at this step. */
+  latex: string;
+}
+
+/** Propagator form classification (extended in Phase 16 for higher spins). */
+export type PropagatorForm =
+  | "Scalar"
+  | "DiracFermion"
+  | "MasslessVector"
+  | "MassiveVector"
+  | "RaritaSchwinger"
+  | "MasslessSpin2"
+  | "MassiveSpin2";
+
 /** A symbolic amplitude expression. */
 export interface AmplitudeResult {
   diagram_id: number;

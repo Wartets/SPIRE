@@ -214,7 +214,7 @@
 </script>
 
 <div class="model-loader">
-  <h3>⚛ Model Loader</h3>
+  <h3>Model Loader</h3>
 
   <!-- Framework Selector -->
   <label class="field-label">
@@ -225,7 +225,7 @@
       <option value="QCD">QCD</option>
       <option value="ElectroWeak">Electroweak</option>
       <option value="BSM">BSM Extension</option>
-      <option value="Custom">✎ Custom Model</option>
+      <option value="Custom">Custom Model</option>
     </select>
   </label>
 
@@ -238,8 +238,8 @@
   <!-- Custom mode: LocalStorage controls -->
   {#if isCustom}
     <div class="custom-controls">
-      <button class="save-btn" on:click={saveToLocalStorage}>💾 Save to Browser</button>
-      <button class="clear-btn" on:click={clearLocalStorage}>🗑 Clear Saved</button>
+      <button class="save-btn" on:click={saveToLocalStorage}>Save to Browser</button>
+      <button class="clear-btn" on:click={clearLocalStorage}>Clear Saved</button>
       {#if savedIndicator}
         <span class="saved-indicator">{savedIndicator}</span>
       {/if}
@@ -288,7 +288,7 @@
       {#if ufoExporting}
         Exporting…
       {:else}
-        📦 Export UFO
+        Export UFO
       {/if}
     </button>
   {/if}

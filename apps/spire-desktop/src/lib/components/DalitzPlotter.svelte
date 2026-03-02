@@ -183,7 +183,7 @@
 </script>
 
 <div class="dalitz-plotter">
-  <h3>📊 Dalitz Plot</h3>
+  <h3>Dalitz Plot</h3>
 
   <!-- Preset Buttons -->
   <div class="presets">
@@ -220,7 +220,7 @@
 
   <!-- Generate Button -->
   <button class="generate-btn" on:click={handleGenerate} disabled={loading}>
-    {loading ? "⏳ Generating…" : "▶ Generate Dalitz Plot"}
+    {loading ? "Generating…" : "Generate Dalitz Plot"}
   </button>
 
   {#if errorMsg}

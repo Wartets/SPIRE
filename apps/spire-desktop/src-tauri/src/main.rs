@@ -253,6 +253,30 @@ fn export_model_ufo(model: TheoreticalModel) -> Result<HashMap<String, String>, 
 }
 
 // ---------------------------------------------------------------------------
+// CAS Derivation Steps
+// ---------------------------------------------------------------------------
+
+/// Perform a step-by-step amplitude derivation using the CAS engine.
+///
+/// Returns an ordered array of `DerivationStep` objects, each showing one
+/// algebraic transformation from the initial Feynman rules to the final result.
+///
+/// # Arguments
+/// * `diagram` — A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
+/// * `dim` — Spacetime dimension (e.g., `{ "Fixed": 4 }`).
+///
+/// # Returns
+/// A JSON array of `DerivationStep` objects with `label`, `description`,
+/// `expression`, and `latex` fields.
+#[tauri::command]
+fn derive_amplitude_steps(
+    diagram: FeynmanGraph,
+    dim: algebra::SpacetimeDimension,
+) -> Result<Vec<algebra::DerivationStep>, String> {
+    algebra::derive_amplitude_steps(&diagram, dim).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -267,6 +291,7 @@ fn main() {
             compute_dalitz_data,
             export_amplitude_latex,
             export_model_ufo,
+            derive_amplitude_steps,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");
