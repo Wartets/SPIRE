@@ -80,7 +80,7 @@
       activeReaction.set(reaction);
       appendLog(
         `Reaction constructed: ${initialIds.join(" ")} → ${finalIds.join(" ")} @ √s = ${cmsEnergy} GeV` +
-          (reaction.is_valid ? " ✓" : ` ✗ [${reaction.violation_diagnostics.join("; ")}]`),
+          (reaction.is_valid ? " [valid]" : ` [violated: ${reaction.violation_diagnostics.join("; ")}]`),
       );
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
@@ -199,7 +199,7 @@
         {#each initialIds as id, idx}
           <span class="tag">
             {label(id)}
-            <button class="tag-remove" on:click={() => removeInitial(idx)}>×</button>
+            <button class="tag-remove" on:click={() => removeInitial(idx)}>&times;</button>
           </span>
         {/each}
       </div>
@@ -220,7 +220,7 @@
         {#each finalIds as id, idx}
           <span class="tag">
             {label(id)}
-            <button class="tag-remove" on:click={() => removeFinal(idx)}>×</button>
+            <button class="tag-remove" on:click={() => removeFinal(idx)}>&times;</button>
           </span>
         {/each}
       </div>
@@ -237,11 +237,11 @@
     <!-- Energy & Loop Order -->
     <div class="params-row">
       <label class="field-label">
-        √s (GeV)
+        Centre-of-Mass Energy (GeV)
         <input type="number" bind:value={cmsEnergy} min="0" step="0.1" />
       </label>
       <label class="field-label">
-        Max Loops
+        Max Loop Order
         <input type="number" bind:value={maxLoopOrder} min="0" max="3" step="1" />
       </label>
     </div>
@@ -272,16 +272,16 @@
 
     <!-- Error Display -->
     {#if errorMsg}
-      <p class="error-msg">✗ {errorMsg}</p>
+      <p class="error-msg">{errorMsg}</p>
     {/if}
 
     <!-- Reaction Status -->
     {#if $activeReaction}
       <div class="status-badge" class:valid={$activeReaction.is_valid} class:invalid={!$activeReaction.is_valid}>
         {#if $activeReaction.is_valid}
-          ✓ Reaction valid — order {$activeReaction.perturbative_order}, via {$activeReaction.interaction_types.join(", ")}
+          Valid — order {$activeReaction.perturbative_order}, via {$activeReaction.interaction_types.join(", ")}
         {:else}
-          ✗ Violations: {$activeReaction.violation_diagnostics.join("; ")}
+          Violation: {$activeReaction.violation_diagnostics.join("; ")}
         {/if}
       </div>
     {/if}

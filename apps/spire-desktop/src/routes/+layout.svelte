@@ -42,9 +42,9 @@
       <!-- Model Status Indicator -->
       <span class="model-status" class:loaded={$isModelLoaded}>
         {#if $isModelLoaded && $theoreticalModel}
-          ● {$theoreticalModel.name}
+          <span class="status-dot active"></span> {$theoreticalModel.name}
         {:else}
-          ○ No model
+          <span class="status-dot"></span> No model loaded
         {/if}
       </span>
     </div>
@@ -127,6 +127,20 @@
     border: 1px solid #1b2838;
     border-radius: 3px;
     background: #0d1b2a;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: #7f8c8d;
+    flex-shrink: 0;
+  }
+  .status-dot.active {
+    background: #2ecc71;
   }
   .model-status.loaded {
     color: #2ecc71;

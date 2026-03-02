@@ -93,7 +93,7 @@
     localStorage.setItem(LS_KEY_PARTICLES, particlesToml);
     localStorage.setItem(LS_KEY_VERTICES, verticesToml);
     localStorage.setItem(LS_KEY_MODEL_NAME, modelName);
-    savedIndicator = "✓ Saved";
+    savedIndicator = "Saved";
     appendLog("Custom model saved to LocalStorage");
     setTimeout(() => { savedIndicator = ""; }, 2000);
   }
@@ -249,7 +249,7 @@
   <!-- Toggle TOML editors (always visible in custom mode) -->
   {#if !isCustom}
     <button class="toggle-btn" on:click={() => (showEditors = !showEditors)}>
-      {showEditors ? "▾ Hide TOML" : "▸ Edit TOML Data"}
+      {showEditors ? "Hide TOML" : "Edit TOML Data"}
     </button>
   {/if}
 
@@ -275,12 +275,12 @@
 
   <!-- Status -->
   {#if errorMsg}
-    <p class="error-msg">✗ {errorMsg}</p>
+    <p class="error-msg">{errorMsg}</p>
   {/if}
 
   {#if $theoreticalModel}
     <div class="status-badge success">
-      ✓ {$theoreticalModel.name} — {fieldCount} fields, {vertexCount} vertices
+      {$theoreticalModel.name} — {fieldCount} fields, {vertexCount} vertices
     </div>
 
     <!-- UFO Export -->
@@ -317,7 +317,7 @@
             type="button"
             on:click={() => (showUfoModal = false)}
             aria-label="Close modal"
-          >✕</button>
+          >&times;</button>
         </div>
         <pre class="ufo-content">{ufoExportContent}</pre>
         <div class="ufo-modal-footer">

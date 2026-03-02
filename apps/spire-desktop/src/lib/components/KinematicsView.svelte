@@ -39,7 +39,7 @@
 
           <span class="data-label">Allowed</span>
           <span class="data-value" class:allowed={report.is_allowed} class:forbidden={!report.is_allowed}>
-            {report.is_allowed ? "✓ Yes" : "✗ No (below threshold)"}
+            {report.is_allowed ? "Yes" : "No (below threshold)"}
           </span>
         </div>
       </div>

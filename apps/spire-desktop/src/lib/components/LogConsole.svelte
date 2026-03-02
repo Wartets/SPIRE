@@ -42,7 +42,7 @@
         <div
           class="log-entry"
           class:error={entry.includes("ERROR")}
-          class:success={entry.includes("✓") || entry.includes("loaded") || entry.includes("Generated") || entry.includes("Derived")}
+          class:success={entry.includes("[valid]") || entry.includes("loaded") || entry.includes("Generated") || entry.includes("Derived")}
         >
           {entry}
         </div>

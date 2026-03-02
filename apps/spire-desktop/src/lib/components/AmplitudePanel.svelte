@@ -34,10 +34,10 @@
     try {
       const latex = await exportAmplitudeLatex(diagram);
       await navigator.clipboard.writeText(latex);
-      latexStatus = "✓ Copied!";
+      latexStatus = "Copied";
       setTimeout(() => { latexStatus = ""; }, 2000);
     } catch (e: unknown) {
-      latexStatus = "✗ Error";
+      latexStatus = "Error";
       setTimeout(() => { latexStatus = ""; }, 3000);
     }
   }
@@ -73,7 +73,7 @@
 </script>
 
 <div class="amplitude-panel">
-  <h3>Amplitudes</h3>
+  <h3>Invariant Amplitudes</h3>
 
   {#if results.length === 0}
     <p class="hint">No amplitudes computed yet. Generate diagrams and derive amplitudes first.</p>
@@ -106,7 +106,7 @@
           <div class="derivation-panel">
             <div class="derivation-header">
               <span class="derivation-title">Step-by-Step Derivation</span>
-              <button class="derivation-close" on:click={() => { derivationOpen = false; }}>✕</button>
+              <button class="derivation-close" on:click={() => { derivationOpen = false; }}>&times;</button>
             </div>
             <div class="derivation-steps">
               {#each derivationSteps as step, idx}

@@ -82,7 +82,7 @@
       return `${kind.ExternalOutgoing.field.symbol} → (out)`;
     }
     if ("Vertex" in kind) {
-      return `● vertex [${kind.Vertex.field_ids.join(", ")}]`;
+      return `vertex [${kind.Vertex.field_ids.join(", ")}]`;
     }
     return "?";
   }
@@ -233,7 +233,7 @@
       const pName = edge.particle.field.symbol;
       const mom = edge.momentum_label;
       const ext = edge.is_external ? " (ext)" : "";
-      lines.push(`  ${src} ──${pName}(${mom})──▸ ${tgt}${ext}`);
+      lines.push(`  ${src} --${pName}(${mom})--> ${tgt}${ext}`);
     }
     // Phase 15: show loop topology info if present
     if (diag.loop_topology_kind) {
