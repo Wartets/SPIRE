@@ -20,6 +20,7 @@
     FeynmanEdge,
     NodeKind,
     LoopOrder,
+    OneLoopTopologyKind,
   } from "$lib/types/spire";
 
   /** Currently selected diagram index. */
@@ -101,6 +102,16 @@
     if (lo === "TwoLoop") return "2-Loop";
     if (typeof lo === "object" && "NLoop" in lo) return `${lo.NLoop}-Loop`;
     return String(lo);
+  }
+
+  /** Format OneLoopTopologyKind into a human-readable label. */
+  function topologyLabel(kind: OneLoopTopologyKind): string {
+    if (kind === "Tadpole") return "Tadpole (A₀)";
+    if (kind === "Bubble") return "Bubble (B₀)";
+    if (kind === "Triangle") return "Triangle (C₀)";
+    if (kind === "Box") return "Box (D₀)";
+    if (typeof kind === "object" && "NPoint" in kind) return `${kind.NPoint}-Point`;
+    return String(kind);
   }
 
   // ── Mermaid graph generation ─────────────────────────────────────────
@@ -224,6 +235,17 @@
       const ext = edge.is_external ? " (ext)" : "";
       lines.push(`  ${src} ──${pName}(${mom})──▸ ${tgt}${ext}`);
     }
+    // Phase 15: show loop topology info if present
+    if (diag.loop_topology_kind) {
+      lines.push("");
+      lines.push(`Loop Topology: ${topologyLabel(diag.loop_topology_kind)}`);
+    }
+    if (diag.is_one_particle_irreducible) {
+      lines.push("1PI: yes");
+    }
+    if (diag.momentum_routing) {
+      lines.push(`Loop Momenta: ${diag.momentum_routing.loop_momenta.join(", ")}`);
+    }
     return lines.join("\n");
   }
 
@@ -263,6 +285,12 @@
       {#if selectedDiagram}
         | {loopLabel(selectedDiagram.loop_order)} | S = {selectedDiagram.symmetry_factor}
         | Ch: {selectedDiagram.channels.join(", ") || "—"}
+        {#if selectedDiagram.loop_topology_kind}
+          | Topology: {topologyLabel(selectedDiagram.loop_topology_kind)}
+        {/if}
+        {#if selectedDiagram.is_one_particle_irreducible}
+          | 1PI
+        {/if}
       {/if}
     </div>
 

@@ -310,7 +310,62 @@ export interface FeynmanDiagram {
   loop_order: LoopOrder;
   symmetry_factor: number;
   is_connected: boolean;
+  /** Whether this diagram is 1-particle irreducible (Phase 15). */
+  is_one_particle_irreducible?: boolean | null;
+  /** Loop topology classification for 1-loop diagrams (Phase 15). */
+  loop_topology_kind?: OneLoopTopologyKind | null;
+  /** Momentum routing assignment for loop diagrams (Phase 15). */
+  momentum_routing?: LoopMomentumRouting | null;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 15 — Loop Calculus & Dimensional Regularization Types
+// ---------------------------------------------------------------------------
+
+/** Classification of 1-loop integral topologies. */
+export type OneLoopTopologyKind =
+  | "Tadpole"
+  | "Bubble"
+  | "Triangle"
+  | "Box"
+  | { NPoint: number };
+
+/** A symbolic linear combination of loop and external momenta. */
+export interface MomentumExpression {
+  /** Coefficients for loop momenta, e.g., [["l", 1]]. */
+  loop_coefficients: [string, number][];
+  /** Coefficients for external momenta, e.g., [["p1", 1], ["p2", -1]]. */
+  external_coefficients: [string, number][];
+}
+
+/** Momentum routing for a loop diagram. */
+export interface LoopMomentumRouting {
+  /** Labels for the independent loop momenta (e.g., ["l"] for 1-loop). */
+  loop_momenta: string[];
+  /** Edge momentum assignments: [source_node, target_node, momentum_expression]. */
+  edge_momenta: [number, number, MomentumExpression][];
+}
+
+/**
+ * Spacetime dimension for loop calculations.
+ *
+ * - `{ Fixed: 4 }` for tree-level (d = 4 exactly).
+ * - `{ DimReg: { base: 4 } }` for dimensional regularization (d = 4 - 2ε).
+ */
+export type SpacetimeDimension =
+  | { Fixed: number }
+  | { DimReg: { base: number } };
+
+/**
+ * Classification of standard scalar 1-loop integrals
+ * in the Passarino-Veltman decomposition scheme.
+ */
+export type ScalarIntegralType =
+  | { A0: { mass_sq: number } }
+  | { B0: { p_sq: string; m1_sq: number; m2_sq: number } }
+  | { C0: { external_momenta_sq: string[]; masses_sq: number[] } }
+  | { D0: { external_momenta_sq: string[]; mandelstam_invariants: string[]; masses_sq: number[] } }
+  | { NPoint: { n: number; external_momenta: string[]; masses_sq: number[] } };
 
 /** Set of all diagrams generated for a reaction at a given order. */
 export interface TopologySet {
@@ -344,6 +399,20 @@ export interface AmplitudeResult {
   expression: string;
   couplings: string[];
   momenta_labels: string[];
+}
+
+/**
+ * A symbolic loop integral term in the Passarino-Veltman basis (Phase 15).
+ *
+ * This represents an unevaluated scalar loop integral that can be
+ * exported to external libraries (LoopTools, Package-X) for evaluation.
+ */
+export interface LoopIntegralTerm {
+  integral_type: ScalarIntegralType;
+  spacetime_dim: SpacetimeDimension;
+  loop_momentum_label: string;
+  external_momenta: string[];
+  description: string;
 }
 
 /** Result of a gamma-matrix trace evaluation. */

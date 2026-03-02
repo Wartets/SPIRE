@@ -38,9 +38,171 @@ use nalgebra::Matrix4;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Neg, Sub};
 
-use crate::graph::{FeynmanGraph, NodeKind};
+use crate::graph::{FeynmanGraph, NodeKind, OneLoopTopologyKind};
 use crate::lagrangian::PropagatorForm;
 use crate::SpireResult;
+
+// ---------------------------------------------------------------------------
+// Spacetime Dimension — Dimensional Regularization
+// ---------------------------------------------------------------------------
+
+/// The spacetime dimension used for loop calculations.
+///
+/// **Modularity note**: This enum is the single point where the regularization
+/// scheme's dimensional parameter is defined. All algebra functions accept this
+/// as a parameter.
+///
+/// - Tree-level calculations use `Fixed(4)`.
+/// - 1-loop dimensional regularization uses `DimReg { base: 4 }`, representing $d = 4 - 2\epsilon$.
+/// - Future schemes (e.g., 6D for $\mathcal{N}=4$ SYM) simply set `base = 6`.
+/// - Pauli-Villars or lattice regularization would add new enum variants without
+///   changing any existing code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SpacetimeDimension {
+    /// Fixed integer spacetime dimension (e.g., $d = 4$ for tree-level).
+    Fixed(u32),
+    /// Dimensional regularization: $d = \text{base} - 2\epsilon$.
+    /// The `base` is typically 4 for QCD/QED calculations.
+    DimReg {
+        /// The integer base dimension (typically 4).
+        base: u32,
+    },
+}
+
+impl SpacetimeDimension {
+    /// Create the standard 4-dimensional spacetime (tree-level).
+    pub fn four() -> Self {
+        SpacetimeDimension::Fixed(4)
+    }
+
+    /// Create the standard dimensional regularization $d = 4 - 2\epsilon$.
+    pub fn dim_reg_4() -> Self {
+        SpacetimeDimension::DimReg { base: 4 }
+    }
+
+    /// Return a symbolic string representation of the dimension.
+    ///
+    /// - `Fixed(4)` → `"4"`
+    /// - `DimReg { base: 4 }` → `"4 - 2ε"`
+    pub fn to_symbolic(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(d) => format!("{}", d),
+            SpacetimeDimension::DimReg { base } => format!("{} - 2ε", base),
+        }
+    }
+
+    /// Return the metric trace $g_\mu^\mu = d$.
+    pub fn metric_trace(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(d) => format!("{}", d),
+            SpacetimeDimension::DimReg { base } => format!("{} - 2ε", base),
+        }
+    }
+
+    /// Return the gamma contraction $\gamma^\mu \gamma_\mu = d \cdot I$.
+    pub fn gamma_contraction(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(d) => format!("{}·I", d),
+            SpacetimeDimension::DimReg { base } => format!("({} - 2ε)·I", base),
+        }
+    }
+
+    /// Return the single-gamma contraction $\gamma^\mu \gamma^\nu \gamma_\mu = (2-d)\gamma^\nu$.
+    pub fn single_gamma_contraction(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(d) => format!("{}·γ^ν", 2i32 - *d as i32),
+            SpacetimeDimension::DimReg { base } => {
+                format!("({} + 2ε)·γ^ν", 2i32 - *base as i32)
+            }
+        }
+    }
+
+    /// Return the double-gamma contraction
+    /// $\gamma^\mu \gamma^\nu \gamma^\rho \gamma_\mu = 4g^{\nu\rho} - (4-d)\gamma^\nu\gamma^\rho$.
+    pub fn double_gamma_contraction(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(4) => {
+                "4·g^{νρ}".into()
+            }
+            SpacetimeDimension::Fixed(d) => {
+                format!("4·g^{{νρ}} - {}·γ^ν γ^ρ", 4i32 - *d as i32)
+            }
+            SpacetimeDimension::DimReg { base } => {
+                let coeff = 4i32 - *base as i32;
+                if coeff == 0 {
+                    "4·g^{νρ} - (-2ε)·γ^ν γ^ρ".into()
+                } else {
+                    format!("4·g^{{νρ}} - ({} + 2ε)·γ^ν γ^ρ", coeff)
+                }
+            }
+        }
+    }
+
+    /// Render as a LaTeX string.
+    pub fn to_latex(&self) -> String {
+        match self {
+            SpacetimeDimension::Fixed(d) => format!("{}", d),
+            SpacetimeDimension::DimReg { base } => format!("{} - 2\\epsilon", base),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Scalar Loop Integral Classification (Passarino-Veltman Basis)
+// ---------------------------------------------------------------------------
+
+/// Classification of standard scalar 1-loop integrals in the Passarino-Veltman
+/// decomposition scheme.
+///
+/// Every tensor loop integral can be reduced to a linear combination of these
+/// scalar master integrals (plus rational coefficients). This enum is the
+/// mathematical label — the actual integral expressions are symbolic and
+/// never evaluated numerically within this module.
+///
+/// **Extensibility**: Higher-point functions ($E_0$, $F_0$, ...) for multi-loop
+/// or higher-multiplicity processes can be added as new variants.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ScalarIntegralType {
+    /// Tadpole integral (1-point): $A_0(m^2) = \int \frac{d^d l}{(2\pi)^d} \frac{1}{l^2 - m^2}$
+    A0 {
+        /// Mass squared of the propagator.
+        mass_sq: f64,
+    },
+    /// Self-energy integral (2-point): $B_0(p^2; m_1^2, m_2^2)$
+    B0 {
+        /// External momentum squared flowing through the self-energy.
+        p_sq: String,
+        /// Mass squared of propagator 1.
+        m1_sq: f64,
+        /// Mass squared of propagator 2.
+        m2_sq: f64,
+    },
+    /// Triangle integral (3-point): $C_0(p_1^2, p_2^2, (p_1+p_2)^2; m_1^2, m_2^2, m_3^2)$
+    C0 {
+        /// External momentum squared labels.
+        external_momenta_sq: Vec<String>,
+        /// Mass squared values for the 3 propagators.
+        masses_sq: Vec<f64>,
+    },
+    /// Box integral (4-point): $D_0(p_1^2, p_2^2, p_3^2, p_4^2, s, t; m_1^2, m_2^2, m_3^2, m_4^2)$
+    D0 {
+        /// External momentum squared labels.
+        external_momenta_sq: Vec<String>,
+        /// Mandelstam invariant labels (e.g., `["s", "t"]`).
+        mandelstam_invariants: Vec<String>,
+        /// Mass squared values for the 4 propagators.
+        masses_sq: Vec<f64>,
+    },
+    /// Generic $n$-point scalar integral (future extensibility).
+    NPoint {
+        /// Number of propagators.
+        n: u32,
+        /// External momentum labels.
+        external_momenta: Vec<String>,
+        /// Propagator masses.
+        masses_sq: Vec<f64>,
+    },
+}
 
 // ---------------------------------------------------------------------------
 // Core Mathematical Structures
@@ -224,6 +386,32 @@ pub enum SymbolicTerm {
         /// Human-readable expression string.
         expression: String,
     },
+
+    /// A symbolic loop integral in the Passarino-Veltman scalar basis.
+    ///
+    /// This represents the *unevaluated* integral:
+    /// $$\int \frac{d^d l}{(2\pi)^d} \frac{1}{\prod_i [(l+q_i)^2 - m_i^2 + i\epsilon]}$$
+    ///
+    /// **Design philosophy**: SPIRE never numerically evaluates these integrals.
+    /// This AST node is a *mathematical object* that carries all the information
+    /// needed for any downstream regularization or numerical library to evaluate it.
+    ///
+    /// Future phases can:
+    /// - Reduce tensor integrals to this scalar basis (Passarino-Veltman).
+    /// - Export to LoopTools, Package-X, or FIRE for numerical/analytical evaluation.
+    /// - Expand in $\epsilon$ to extract UV poles and finite parts.
+    LoopIntegral {
+        /// The scalar integral classification (A0, B0, C0, D0, NPoint).
+        integral_type: ScalarIntegralType,
+        /// The spacetime dimension of the integral.
+        spacetime_dim: SpacetimeDimension,
+        /// The loop momentum label (e.g., `"l"`, `"l1"`).
+        loop_momentum_label: String,
+        /// Labels of the external momenta flowing into the diagram.
+        external_momenta: Vec<String>,
+        /// Description string for display.
+        description: String,
+    },
 }
 
 /// The **invariant amplitude** $i\mathcal{M}$ for a single Feynman diagram,
@@ -316,6 +504,79 @@ impl SymbolicTerm {
                         )
                     }
                 }
+            }
+            SymbolicTerm::LoopIntegral {
+                integral_type,
+                spacetime_dim,
+                loop_momentum_label,
+                ..
+            } => {
+                let d = spacetime_dim.to_latex();
+                let l = latex_momentum(loop_momentum_label);
+                let measure = format!(
+                    "\\int \\frac{{d^{{{d}}} {l}}}{{(2\\pi)^{{{d}}}}}"
+                );
+                let denominator = match integral_type {
+                    ScalarIntegralType::A0 { mass_sq } => {
+                        format!("\\frac{{1}}{{{l}^2 - {:.4}}}", mass_sq)
+                    }
+                    ScalarIntegralType::B0 { p_sq, m1_sq, m2_sq } => {
+                        let p = latex_momentum(p_sq);
+                        format!(
+                            "\\frac{{1}}{{[{l}^2 - {:.4}][({l}+{p})^2 - {:.4}]}}",
+                            m1_sq, m2_sq
+                        )
+                    }
+                    ScalarIntegralType::C0 { external_momenta_sq, masses_sq } => {
+                        let props: Vec<String> = masses_sq
+                            .iter()
+                            .enumerate()
+                            .map(|(i, m)| {
+                                if i == 0 {
+                                    format!("[{l}^2 - {:.4}]", m)
+                                } else if i <= external_momenta_sq.len() {
+                                    let p = latex_momentum(&external_momenta_sq[i - 1]);
+                                    format!("[({l}+{p})^2 - {:.4}]", m)
+                                } else {
+                                    format!("[...^2 - {:.4}]", m)
+                                }
+                            })
+                            .collect();
+                        format!("\\frac{{1}}{{{}}}", props.join(""))
+                    }
+                    ScalarIntegralType::D0 { external_momenta_sq, masses_sq, .. } => {
+                        let props: Vec<String> = masses_sq
+                            .iter()
+                            .enumerate()
+                            .map(|(i, m)| {
+                                if i == 0 {
+                                    format!("[{l}^2 - {:.4}]", m)
+                                } else if i <= external_momenta_sq.len() {
+                                    let p = latex_momentum(&external_momenta_sq[i - 1]);
+                                    format!("[({l}+{p})^2 - {:.4}]", m)
+                                } else {
+                                    format!("[...^2 - {:.4}]", m)
+                                }
+                            })
+                            .collect();
+                        format!("\\frac{{1}}{{{}}}", props.join(""))
+                    }
+                    ScalarIntegralType::NPoint { masses_sq, .. } => {
+                        let props: Vec<String> = masses_sq
+                            .iter()
+                            .enumerate()
+                            .map(|(i, m)| {
+                                if i == 0 {
+                                    format!("[{l}^2 - {:.4}]", m)
+                                } else {
+                                    format!("[...^2 - {:.4}]", m)
+                                }
+                            })
+                            .collect();
+                        format!("\\frac{{1}}{{{}}}", props.join(""))
+                    }
+                };
+                format!("{measure}\\,{denominator}")
             }
         }
     }
@@ -766,24 +1027,97 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
 /// * `gamma_indices` — Ordered sequence of gamma matrix Lorentz indices.
 /// * `include_gamma5` — Whether $\gamma^5$ appears in the product.
 pub fn evaluate_trace(gamma_indices: &[u8], include_gamma5: bool) -> SpireResult<TraceResult> {
+    evaluate_trace_d(gamma_indices, include_gamma5, SpacetimeDimension::four())
+}
+
+/// Evaluate a Dirac trace in $d$ dimensions.
+///
+/// This is the core trace routine that all other trace functions delegate to.
+/// It uses the standard $d$-dimensional identities:
+///
+/// | Identity | Result |
+/// |----------|--------|
+/// | $\mathrm{Tr}[I] = f(d)$ | $f(d)$ where $f(4) = 4$ in general $f(d)$ can be defined |
+/// | $\mathrm{Tr}[\text{odd } \gamma]$ | 0 |
+/// | $\mathrm{Tr}[\gamma^\mu \gamma^\nu]$ | $f(d)\,g^{\mu\nu}$ |
+/// | $\gamma^\mu \gamma_\mu$ | $d \cdot I$ |
+/// | $\gamma^\mu \gamma^\nu \gamma_\mu$ | $(2 - d)\gamma^\nu$ |
+/// | $\gamma^\mu \gamma^\nu \gamma^\rho \gamma_\mu$ | $4g^{\nu\rho} - (4-d)\gamma^\nu\gamma^\rho$ |
+///
+/// # Arguments
+/// * `gamma_indices` — Ordered sequence of gamma matrix Lorentz indices.
+/// * `include_gamma5` — Whether $\gamma^5$ appears in the product.
+/// * `dim` — The spacetime dimension to use for the trace algebra.
+///
+/// # Current Implementation
+///
+/// Returns a symbolic `TraceResult`. For $d = 4$ (or `Fixed(4)`), the unit
+/// trace is `4`; for `DimReg`, symbolic $d$-dependent expressions are returned.
+pub fn evaluate_trace_d(
+    gamma_indices: &[u8],
+    include_gamma5: bool,
+    dim: SpacetimeDimension,
+) -> SpireResult<TraceResult> {
     let indices_str: Vec<String> = gamma_indices.iter().map(|i| format!("γ^{}", i)).collect();
     let gamma5_str = if include_gamma5 { " γ^5" } else { "" };
 
     let input = format!("Tr[{}{}]", indices_str.join(" "), gamma5_str);
+    let d_str = dim.to_symbolic();
 
-    // Placeholder: wrap the trace in symbolic form
     let result = if gamma_indices.is_empty() {
-        "4".into() // Tr[I] = 4
+        // Tr[I] = d  (for DimReg) or 4 (for Fixed(4))
+        // In practice the "trace of the unit matrix" in d dimensions is
+        // conventionally kept as f(d); the most common convention is f(d)=4
+        // for all d (i.e. the trace is over the 4-component spinor space,
+        // independent of d). We follow the 't Hooft-Veltman convention:
+        // Tr[I] = 4 always.
+        "4".into()
     } else if gamma_indices.len() % 2 != 0 && !include_gamma5 {
-        "0".into() // Tr of odd number of gamma matrices = 0
+        // Tr of odd number of gamma matrices = 0 in any dimension.
+        "0".into()
+    } else if gamma_indices.len() == 2 {
+        // Tr[γ^μ γ^ν] = 4 g^{μν}  (convention: Tr[I]=4 in all d)
+        let (a, b) = (gamma_indices[0], gamma_indices[1]);
+        format!("4·g^{{{},{}}}", a, b)
+    } else if gamma_indices.len() == 4 && !include_gamma5 {
+        // Tr[γ^μ γ^ν γ^ρ γ^σ] = 4(g^{μν}g^{ρσ} - g^{μρ}g^{νσ} + g^{μσ}g^{νρ})
+        let (a, b, c, dd) = (
+            gamma_indices[0],
+            gamma_indices[1],
+            gamma_indices[2],
+            gamma_indices[3],
+        );
+        format!(
+            "4·(g^{{{a},{b}}}g^{{{c},{dd}}} - g^{{{a},{c}}}g^{{{b},{dd}}} + g^{{{a},{dd}}}g^{{{b},{c}}})"
+        )
     } else {
-        format!("Tr[{}{}]", indices_str.join(" "), gamma5_str)
+        // General case: return symbolic Tr[...] annotated with dimension.
+        match dim {
+            SpacetimeDimension::Fixed(4) => {
+                format!("Tr[{}{}]", indices_str.join(" "), gamma5_str)
+            }
+            _ => {
+                format!("Tr_{{d={}}}[{}{}]", d_str, indices_str.join(" "), gamma5_str)
+            }
+        }
     };
+
+    let mut steps = vec![input.clone()];
+    // Record the d-dimensional identity used.
+    match dim {
+        SpacetimeDimension::DimReg { .. } => {
+            steps.push(format!("Applied d-dimensional algebra with d = {}", d_str));
+            steps.push(format!("g_μ^μ = {}", dim.metric_trace()));
+            steps.push(format!("γ^μ γ_μ = {}", dim.gamma_contraction()));
+        }
+        _ => {}
+    }
+    steps.push(result.clone());
 
     Ok(TraceResult {
         input: input.clone(),
         result,
-        steps: vec![input],
+        steps,
     })
 }
 
@@ -801,8 +1135,30 @@ pub fn evaluate_trace(gamma_indices: &[u8], include_gamma5: bool) -> SpireResult
 /// # Arguments
 /// * `expression` — The symbolic amplitude expression containing uncontracted indices.
 pub fn contract_indices(expression: &AmplitudeExpression) -> SpireResult<ContractionResult> {
+    contract_indices_d(expression, SpacetimeDimension::four())
+}
+
+/// Contract Lorentz indices in $d$ dimensions.
+///
+/// This is the d-dimensional generalization of [`contract_indices`]. When
+/// working in $d = 4 - 2\epsilon$ the metric contraction $g_\mu^\mu = d$
+/// introduces $\epsilon$-dependent terms that must be tracked for
+/// UV-divergent integrals.
+///
+/// # Arguments
+/// * `expression` — The symbolic amplitude expression.
+/// * `dim` — The spacetime dimension for the contraction algebra.
+pub fn contract_indices_d(
+    expression: &AmplitudeExpression,
+    dim: SpacetimeDimension,
+) -> SpireResult<ContractionResult> {
     let input = expression.expression.clone();
-    let result = format!("Contracted[{}]", input);
+    let d_str = dim.to_symbolic();
+
+    let result = match dim {
+        SpacetimeDimension::Fixed(4) => format!("Contracted[{}]", input),
+        _ => format!("Contracted_{{d={}}}[{}]", d_str, input),
+    };
 
     Ok(ContractionResult { input, result })
 }
@@ -853,6 +1209,142 @@ impl PropagatorFormLabel for crate::lagrangian::Propagator {
             PropagatorForm::MassiveVector => "MassiveVector",
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Loop Integral Construction from FeynmanGraph
+// ---------------------------------------------------------------------------
+
+/// Classify the loop integral(s) appearing in a 1-loop `FeynmanGraph` and
+/// return the corresponding `SymbolicTerm::LoopIntegral` AST node.
+///
+/// This function examines the graph's `loop_topology_kind` and
+/// `momentum_routing` to build the correct Passarino-Veltman scalar integral
+/// classification.
+///
+/// # Arguments
+/// * `graph` — A 1-loop FeynmanGraph with topology already classified.
+/// * `propagator_masses` — Masses of the internal loop propagators in order.
+/// * `dim` — The spacetime dimension for the integral.
+///
+/// # Returns
+/// A `SymbolicTerm::LoopIntegral` representing the scalar integral, or an
+/// error if the graph is not a recognized 1-loop topology.
+pub fn classify_loop_integral(
+    graph: &FeynmanGraph,
+    propagator_masses: &[f64],
+    dim: SpacetimeDimension,
+) -> SpireResult<SymbolicTerm> {
+    let topology = graph.loop_topology_kind.as_ref().ok_or_else(|| {
+        crate::SpireError::InternalError(
+            "Cannot classify loop integral: graph has no loop_topology_kind".into(),
+        )
+    })?;
+
+    let routing = graph.momentum_routing.as_ref();
+    let loop_label = routing
+        .and_then(|r| r.loop_momenta.first())
+        .map(|s| s.clone())
+        .unwrap_or_else(|| "l".into());
+
+    // Collect external momentum labels from the graph.
+    let external_momenta: Vec<String> = graph
+        .nodes
+        .iter()
+        .filter(|n| matches!(n.kind, NodeKind::ExternalIncoming(_) | NodeKind::ExternalOutgoing(_)))
+        .map(|n| format!("p_{}", n.id))
+        .collect();
+
+    let (integral_type, description) = match topology {
+        OneLoopTopologyKind::Tadpole => {
+            let m_sq = propagator_masses.first().copied().unwrap_or(0.0);
+            (
+                ScalarIntegralType::A0 { mass_sq: m_sq },
+                format!("A₀(m²={:.4})", m_sq),
+            )
+        }
+        OneLoopTopologyKind::Bubble => {
+            let m1_sq = propagator_masses.first().copied().unwrap_or(0.0);
+            let m2_sq = propagator_masses.get(1).copied().unwrap_or(0.0);
+            let p_sq = if external_momenta.len() >= 2 {
+                format!("({})²", external_momenta[0])
+            } else {
+                "p²".into()
+            };
+            (
+                ScalarIntegralType::B0 {
+                    p_sq: p_sq.clone(),
+                    m1_sq,
+                    m2_sq,
+                },
+                format!("B₀({}; m₁²={:.4}, m₂²={:.4})", p_sq, m1_sq, m2_sq),
+            )
+        }
+        OneLoopTopologyKind::Triangle => {
+            let masses: Vec<f64> = (0..3)
+                .map(|i| propagator_masses.get(i).copied().unwrap_or(0.0))
+                .collect();
+            let ext_sq: Vec<String> = external_momenta
+                .iter()
+                .take(3)
+                .map(|p| format!("{}²", p))
+                .collect();
+            (
+                ScalarIntegralType::C0 {
+                    external_momenta_sq: ext_sq.clone(),
+                    masses_sq: masses.clone(),
+                },
+                format!(
+                    "C₀({}; m²={:?})",
+                    ext_sq.join(", "),
+                    masses
+                ),
+            )
+        }
+        OneLoopTopologyKind::Box => {
+            let masses: Vec<f64> = (0..4)
+                .map(|i| propagator_masses.get(i).copied().unwrap_or(0.0))
+                .collect();
+            let ext_sq: Vec<String> = external_momenta
+                .iter()
+                .take(4)
+                .map(|p| format!("{}²", p))
+                .collect();
+            (
+                ScalarIntegralType::D0 {
+                    external_momenta_sq: ext_sq.clone(),
+                    mandelstam_invariants: vec!["s".into(), "t".into()],
+                    masses_sq: masses.clone(),
+                },
+                format!(
+                    "D₀({}; s,t; m²={:?})",
+                    ext_sq.join(", "),
+                    masses
+                ),
+            )
+        }
+        OneLoopTopologyKind::NPoint(n) => {
+            let masses: Vec<f64> = (0..*n as usize)
+                .map(|i| propagator_masses.get(i).copied().unwrap_or(0.0))
+                .collect();
+            (
+                ScalarIntegralType::NPoint {
+                    n: *n,
+                    external_momenta: external_momenta.clone(),
+                    masses_sq: masses,
+                },
+                format!("{}-point scalar integral", n),
+            )
+        }
+    };
+
+    Ok(SymbolicTerm::LoopIntegral {
+        integral_type,
+        spacetime_dim: dim,
+        loop_momentum_label: loop_label,
+        external_momenta,
+        description,
+    })
 }
 
 // ===========================================================================
@@ -1326,6 +1818,9 @@ mod tests {
             loop_order: LoopOrder::Tree,
             symmetry_factor: 1.0,
             is_connected: true,
+            is_one_particle_irreducible: None,
+            loop_topology_kind: None,
+            momentum_routing: None,
         }
     }
 
@@ -1489,6 +1984,9 @@ mod tests {
             loop_order: LoopOrder::Tree,
             symmetry_factor: 0.5,
             is_connected: true,
+            is_one_particle_irreducible: None,
+            loop_topology_kind: None,
+            momentum_routing: None,
         }
     }
 
@@ -1546,9 +2044,13 @@ mod tests {
 
     #[test]
     fn evaluate_trace_even_gamma_symbolic() {
-        // Tr[γ^0 γ^1] — even, returns symbolic form
+        // Tr[γ^0 γ^1] = 4·g^{0,1}  (standard 2-gamma trace identity)
         let result = evaluate_trace(&[0, 1], false).unwrap();
-        assert!(result.result.contains("Tr["), "even trace: {}", result.result);
+        assert!(
+            result.result.contains("4·g^{0,1}"),
+            "even trace: {}",
+            result.result
+        );
     }
 
     #[test]
@@ -1665,6 +2167,9 @@ mod tests {
             loop_order: LoopOrder::Tree,
             symmetry_factor: 1.0,
             is_connected: true,
+            is_one_particle_irreducible: None,
+            loop_topology_kind: None,
+            momentum_routing: None,
         };
 
         let amp = generate_amplitude(&diagram).unwrap();
@@ -1855,5 +2360,191 @@ mod tests {
         assert_eq!(latex_lorentz_index("rho"), "\\rho");
         assert_eq!(latex_lorentz_index("sigma"), "\\sigma");
         assert_eq!(latex_lorentz_index("mu_3"), "\\mu_{3}");
+    }
+
+    // ===================================================================
+    // Phase 15 — Dimensional Regularization & Loop Integral Tests
+    // ===================================================================
+
+    #[test]
+    fn spacetime_dimension_fixed_four() {
+        let d = SpacetimeDimension::four();
+        assert_eq!(d.to_symbolic(), "4");
+        assert_eq!(d.metric_trace(), "4");
+        assert_eq!(d.gamma_contraction(), "4·I");
+        assert_eq!(d.to_latex(), "4");
+    }
+
+    #[test]
+    fn spacetime_dimension_dim_reg() {
+        let d = SpacetimeDimension::dim_reg_4();
+        assert_eq!(d.to_symbolic(), "4 - 2ε");
+        assert_eq!(d.metric_trace(), "4 - 2ε");
+        assert_eq!(d.gamma_contraction(), "(4 - 2ε)·I");
+        assert_eq!(d.single_gamma_contraction(), "(-2 + 2ε)·γ^ν");
+        assert_eq!(d.to_latex(), "4 - 2\\epsilon");
+    }
+
+    #[test]
+    fn spacetime_dimension_double_gamma_contraction() {
+        let d4 = SpacetimeDimension::four();
+        assert_eq!(d4.double_gamma_contraction(), "4·g^{νρ}");
+
+        let dreg = SpacetimeDimension::dim_reg_4();
+        assert!(dreg.double_gamma_contraction().contains("4·g^{νρ}"));
+        assert!(dreg.double_gamma_contraction().contains("2ε"));
+    }
+
+    #[test]
+    fn spacetime_dimension_serde_roundtrip() {
+        let dims = vec![
+            SpacetimeDimension::Fixed(4),
+            SpacetimeDimension::DimReg { base: 4 },
+            SpacetimeDimension::Fixed(6),
+        ];
+        for d in &dims {
+            let json = serde_json::to_string(d).unwrap();
+            let back: SpacetimeDimension = serde_json::from_str(&json).unwrap();
+            assert_eq!(*d, back);
+        }
+    }
+
+    #[test]
+    fn evaluate_trace_d_identity_always_4() {
+        // Tr[I] = 4 in any dimension ('t Hooft-Veltman convention)
+        let r4 = evaluate_trace_d(&[], false, SpacetimeDimension::four()).unwrap();
+        assert_eq!(r4.result, "4");
+
+        let rd = evaluate_trace_d(&[], false, SpacetimeDimension::dim_reg_4()).unwrap();
+        assert_eq!(rd.result, "4");
+    }
+
+    #[test]
+    fn evaluate_trace_d_odd_vanishes() {
+        let r = evaluate_trace_d(&[0, 1, 2], false, SpacetimeDimension::dim_reg_4()).unwrap();
+        assert_eq!(r.result, "0");
+    }
+
+    #[test]
+    fn evaluate_trace_d_two_gamma() {
+        let r = evaluate_trace_d(&[0, 1], false, SpacetimeDimension::dim_reg_4()).unwrap();
+        assert!(r.result.contains("4·g^{0,1}"), "got: {}", r.result);
+    }
+
+    #[test]
+    fn evaluate_trace_d_four_gamma() {
+        let r = evaluate_trace_d(&[0, 1, 2, 3], false, SpacetimeDimension::four()).unwrap();
+        assert!(r.result.contains("g^{0,1}"), "got: {}", r.result);
+        assert!(r.result.contains("g^{2,3}"), "got: {}", r.result);
+    }
+
+    #[test]
+    fn evaluate_trace_d_steps_record_dim_info() {
+        let r = evaluate_trace_d(&[0, 1, 2, 3, 4, 5], false, SpacetimeDimension::dim_reg_4())
+            .unwrap();
+        assert!(r.steps.iter().any(|s| s.contains("d-dimensional")));
+        assert!(r.steps.iter().any(|s| s.contains("4 - 2ε")));
+    }
+
+    #[test]
+    fn contract_indices_d_four() {
+        let amp = AmplitudeExpression {
+            diagram_id: 0,
+            terms: vec![],
+            couplings: vec![],
+            momenta_labels: vec![],
+            expression: "test_expr".into(),
+        };
+        let r = contract_indices_d(&amp, SpacetimeDimension::four()).unwrap();
+        assert_eq!(r.result, "Contracted[test_expr]");
+    }
+
+    #[test]
+    fn contract_indices_d_dim_reg() {
+        let amp = AmplitudeExpression {
+            diagram_id: 0,
+            terms: vec![],
+            couplings: vec![],
+            momenta_labels: vec![],
+            expression: "test_expr".into(),
+        };
+        let r = contract_indices_d(&amp, SpacetimeDimension::dim_reg_4()).unwrap();
+        assert!(r.result.contains("d=4 - 2ε"), "got: {}", r.result);
+    }
+
+    #[test]
+    fn scalar_integral_a0_serde_roundtrip() {
+        let integral = ScalarIntegralType::A0 { mass_sq: 0.105658 };
+        let json = serde_json::to_string(&integral).unwrap();
+        let back: ScalarIntegralType = serde_json::from_str(&json).unwrap();
+        assert_eq!(integral, back);
+    }
+
+    #[test]
+    fn scalar_integral_b0_serde_roundtrip() {
+        let integral = ScalarIntegralType::B0 {
+            p_sq: "p²".into(),
+            m1_sq: 0.000511,
+            m2_sq: 0.000511,
+        };
+        let json = serde_json::to_string(&integral).unwrap();
+        let back: ScalarIntegralType = serde_json::from_str(&json).unwrap();
+        assert_eq!(integral, back);
+    }
+
+    #[test]
+    fn loop_integral_latex_a0() {
+        let term = SymbolicTerm::LoopIntegral {
+            integral_type: ScalarIntegralType::A0 { mass_sq: 0.25 },
+            spacetime_dim: SpacetimeDimension::dim_reg_4(),
+            loop_momentum_label: "l".into(),
+            external_momenta: vec!["p1".into()],
+            description: "A₀(m²=0.25)".into(),
+        };
+        let latex = term.to_latex();
+        assert!(latex.contains("\\int"), "got: {}", latex);
+        assert!(latex.contains("d^{4 - 2\\epsilon}"), "got: {}", latex);
+        assert!(latex.contains("(2\\pi)"), "got: {}", latex);
+        assert!(latex.contains("0.2500"), "got: {}", latex);
+    }
+
+    #[test]
+    fn loop_integral_latex_b0() {
+        let term = SymbolicTerm::LoopIntegral {
+            integral_type: ScalarIntegralType::B0 {
+                p_sq: "p1".into(),
+                m1_sq: 0.0,
+                m2_sq: 0.000511,
+            },
+            spacetime_dim: SpacetimeDimension::Fixed(4),
+            loop_momentum_label: "l".into(),
+            external_momenta: vec!["p1".into(), "p2".into()],
+            description: "B₀".into(),
+        };
+        let latex = term.to_latex();
+        assert!(latex.contains("\\int"), "got: {}", latex);
+        assert!(latex.contains("l"), "got: {}", latex);
+    }
+
+    #[test]
+    fn loop_integral_serde_roundtrip() {
+        let term = SymbolicTerm::LoopIntegral {
+            integral_type: ScalarIntegralType::C0 {
+                external_momenta_sq: vec!["p1²".into(), "p2²".into()],
+                masses_sq: vec![0.0, 0.0, 0.0],
+            },
+            spacetime_dim: SpacetimeDimension::dim_reg_4(),
+            loop_momentum_label: "l".into(),
+            external_momenta: vec!["p1".into(), "p2".into(), "p3".into()],
+            description: "C₀ triangle".into(),
+        };
+        let json = serde_json::to_string(&term).unwrap();
+        let back: SymbolicTerm = serde_json::from_str(&json).unwrap();
+        // Just check it round-trips without panic
+        if let SymbolicTerm::LoopIntegral { integral_type, .. } = &back {
+            matches!(integral_type, ScalarIntegralType::C0 { .. });
+        } else {
+            panic!("Expected LoopIntegral variant");
+        }
     }
 }
