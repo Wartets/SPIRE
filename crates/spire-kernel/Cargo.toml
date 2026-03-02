@@ -10,3 +10,6 @@ toml = "0.8"
 petgraph = "0.6"
 nalgebra = "0.32"
 rand = "0.8"
+
+[dev-dependencies]
+proptest = "1.0"
