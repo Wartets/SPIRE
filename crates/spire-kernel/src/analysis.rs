@@ -1,0 +1,1331 @@
+//! # Analysis — Integrated Histogramming & Observable Pipeline
+//!
+//! This module provides high-performance histogramming structures and an
+//! analysis pipeline that connects the Monte Carlo integration engine
+//! (Phase 18/24) with the Rhai scripting engine (Phase 25) for real-time
+//! statistical visualization of kinematic distributions.
+//!
+//! ## Architecture
+//!
+//! The analysis pipeline follows a three-stage design:
+//!
+//! 1. **Definition**: Users specify plots via [`PlotDefinition`], each
+//!    containing a Rhai observable script and histogram binning parameters.
+//! 2. **Accumulation**: During the Monte Carlo integration loop, each event
+//!    that passes kinematic cuts is evaluated against all observable scripts.
+//!    The resulting values are filled into [`Histogram1D`] accumulators.
+//! 3. **Serialization**: Completed histograms are converted to
+//!    [`HistogramData`] DTOs for transmission to the frontend.
+//!
+//! ## Concurrency Strategy
+//!
+//! For parallel integration, each thread maintains a **thread-local**
+//! histogram set. After the parallel loop completes, all thread-local
+//! histograms are merged via [`Histogram1D::merge`]. This avoids atomic
+//! operations in the hot loop and incurs only an $O(N_\text{bins})$ merge
+//! cost at the end of the run.
+//!
+//! ## Performance
+//!
+//! The [`Histogram1D::fill`] method is optimised for the hot loop:
+//! - Precomputed inverse bin width replaces division with multiplication.
+//! - No heap allocations per event.
+//! - No string operations in the filling path.
+//! - Branch-free bin index computation for in-range values.
+
+use serde::{Deserialize, Serialize};
+
+use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
+use crate::scripting::{Observable, RhaiObservable, SpireScriptEngine};
+use crate::{SpireError, SpireResult};
+
+// ===========================================================================
+// Histogram1D
+// ===========================================================================
+
+/// A one-dimensional histogram with fixed-width bins.
+///
+/// Designed for high-throughput filling in Monte Carlo integration loops.
+/// Supports weighted entries, under/overflow tracking, and bin-level
+/// variance estimation via sum-of-weights-squared accumulation.
+///
+/// # Bin Layout
+///
+/// For $N$ bins over the interval $[x_\min, x_\max)$:
+///
+/// $$\text{bin width} = \frac{x_\max - x_\min}{N}$$
+///
+/// Bin $i$ covers $[x_\min + i \cdot w, \, x_\min + (i+1) \cdot w)$
+/// for $i \in \{0, 1, \ldots, N-1\}$.
+///
+/// Values below $x_\min$ go to underflow; values $\geq x_\max$ go to overflow.
+#[derive(Debug, Clone)]
+pub struct Histogram1D {
+    /// Weighted counts per bin.
+    bins: Vec<f64>,
+    /// Sum of weights² per bin (for variance estimation).
+    bin_sq: Vec<f64>,
+    /// Lower edge of the histogram range.
+    min: f64,
+    /// Upper edge of the histogram range.
+    max: f64,
+    /// Number of bins.
+    n_bins: usize,
+    /// Precomputed bin width: $(x_\max - x_\min) / N$.
+    bin_width: f64,
+    /// Precomputed inverse bin width: $N / (x_\max - x_\min)$.
+    /// Replaces division with multiplication in the hot loop.
+    inv_bin_width: f64,
+    /// Accumulated weight below the lower edge.
+    underflow: f64,
+    /// Accumulated weight above the upper edge.
+    overflow: f64,
+    /// Total accumulated weight across all bins (including under/overflow).
+    total_weight: f64,
+    /// Total number of fill calls.
+    entries: u64,
+}
+
+impl Histogram1D {
+    /// Create a new histogram with the specified binning.
+    ///
+    /// # Arguments
+    ///
+    /// * `n_bins` — Number of equally-spaced bins.
+    /// * `min` — Lower edge of the first bin.
+    /// * `max` — Upper edge of the last bin.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n_bins == 0` or `min >= max`.
+    pub fn new(n_bins: usize, min: f64, max: f64) -> Self {
+        assert!(n_bins > 0, "Histogram must have at least one bin");
+        assert!(min < max, "Histogram min ({}) must be less than max ({})", min, max);
+
+        let bin_width = (max - min) / n_bins as f64;
+        let inv_bin_width = 1.0 / bin_width;
+
+        Self {
+            bins: vec![0.0; n_bins],
+            bin_sq: vec![0.0; n_bins],
+            min,
+            max,
+            n_bins,
+            bin_width,
+            inv_bin_width,
+            underflow: 0.0,
+            overflow: 0.0,
+            total_weight: 0.0,
+            entries: 0,
+        }
+    }
+
+    /// Fill the histogram with a single value and weight.
+    ///
+    /// This is the hot-loop method: no allocations, no string operations,
+    /// and the bin lookup uses precomputed `inv_bin_width` to avoid division.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` — The observable value to bin.
+    /// * `weight` — The event weight (typically the phase-space weight
+    ///   times the squared matrix element).
+    #[inline]
+    pub fn fill(&mut self, value: f64, weight: f64) {
+        self.entries += 1;
+        self.total_weight += weight;
+
+        if value < self.min {
+            self.underflow += weight;
+        } else if value >= self.max {
+            self.overflow += weight;
+        } else {
+            // Compute bin index via multiplication (no division in hot path).
+            let idx = ((value - self.min) * self.inv_bin_width) as usize;
+            // Guard against floating-point edge case where value ≈ max.
+            let idx = idx.min(self.n_bins - 1);
+            self.bins[idx] += weight;
+            self.bin_sq[idx] += weight * weight;
+        }
+    }
+
+    /// Merge another histogram into this one (parallel reduction step).
+    ///
+    /// Both histograms must have identical binning (same `n_bins`, `min`, `max`).
+    /// This is an $O(N_\text{bins})$ operation called once after the parallel
+    /// integration loop completes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the binning parameters do not match.
+    pub fn merge(&mut self, other: &Histogram1D) -> SpireResult<()> {
+        if self.n_bins != other.n_bins || (self.min - other.min).abs() > 1e-12
+            || (self.max - other.max).abs() > 1e-12
+        {
+            return Err(SpireError::InternalError(
+                "Cannot merge histograms with different binning".into(),
+            ));
+        }
+
+        for i in 0..self.n_bins {
+            self.bins[i] += other.bins[i];
+            self.bin_sq[i] += other.bin_sq[i];
+        }
+        self.underflow += other.underflow;
+        self.overflow += other.overflow;
+        self.total_weight += other.total_weight;
+        self.entries += other.entries;
+
+        Ok(())
+    }
+
+    /// Reset all bin contents to zero.
+    pub fn reset(&mut self) {
+        self.bins.iter_mut().for_each(|b| *b = 0.0);
+        self.bin_sq.iter_mut().for_each(|b| *b = 0.0);
+        self.underflow = 0.0;
+        self.overflow = 0.0;
+        self.total_weight = 0.0;
+        self.entries = 0;
+    }
+
+    /// Number of bins.
+    pub fn n_bins(&self) -> usize {
+        self.n_bins
+    }
+
+    /// Lower edge of the histogram range.
+    pub fn min(&self) -> f64 {
+        self.min
+    }
+
+    /// Upper edge of the histogram range.
+    pub fn max(&self) -> f64 {
+        self.max
+    }
+
+    /// Bin width.
+    pub fn bin_width(&self) -> f64 {
+        self.bin_width
+    }
+
+    /// Underflow count.
+    pub fn underflow(&self) -> f64 {
+        self.underflow
+    }
+
+    /// Overflow count.
+    pub fn overflow(&self) -> f64 {
+        self.overflow
+    }
+
+    /// Total accumulated weight.
+    pub fn total_weight(&self) -> f64 {
+        self.total_weight
+    }
+
+    /// Total number of fill operations.
+    pub fn entries(&self) -> u64 {
+        self.entries
+    }
+
+    /// Read-only access to the bin contents (weighted counts).
+    pub fn bin_contents(&self) -> &[f64] {
+        &self.bins
+    }
+
+    /// Read-only access to the sum-of-weights-squared per bin.
+    pub fn bin_sum_w2(&self) -> &[f64] {
+        &self.bin_sq
+    }
+
+    /// Compute the statistical error per bin: $\sqrt{\sum w_i^2}$.
+    pub fn bin_errors(&self) -> Vec<f64> {
+        self.bin_sq.iter().map(|s| s.sqrt()).collect()
+    }
+
+    /// Return the centre of each bin.
+    pub fn bin_centres(&self) -> Vec<f64> {
+        (0..self.n_bins)
+            .map(|i| self.min + (i as f64 + 0.5) * self.bin_width)
+            .collect()
+    }
+
+    /// Return the lower edge of each bin.
+    pub fn bin_edges(&self) -> Vec<f64> {
+        (0..=self.n_bins)
+            .map(|i| self.min + i as f64 * self.bin_width)
+            .collect()
+    }
+
+    /// Find the bin index with the maximum content.
+    pub fn max_bin(&self) -> usize {
+        self.bins
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
+            .unwrap_or(0)
+    }
+
+    /// Mean of the distribution: $\bar{x} = \sum_i x_i w_i / \sum_i w_i$.
+    pub fn mean(&self) -> f64 {
+        let in_range_weight = self.total_weight - self.underflow - self.overflow;
+        if in_range_weight.abs() < 1e-300 {
+            return 0.0;
+        }
+        let sum_xw: f64 = self
+            .bins
+            .iter()
+            .enumerate()
+            .map(|(i, &w)| {
+                let x = self.min + (i as f64 + 0.5) * self.bin_width;
+                x * w
+            })
+            .sum();
+        sum_xw / in_range_weight
+    }
+
+    /// Convert to a serializable DTO for frontend transmission.
+    pub fn to_data(&self, name: &str) -> HistogramData {
+        HistogramData {
+            name: name.to_string(),
+            bin_edges: self.bin_edges(),
+            bin_contents: self.bins.clone(),
+            bin_errors: self.bin_errors(),
+            underflow: self.underflow,
+            overflow: self.overflow,
+            entries: self.entries,
+            mean: self.mean(),
+        }
+    }
+}
+
+// ===========================================================================
+// Histogram2D
+// ===========================================================================
+
+/// A two-dimensional histogram with fixed-width bins on both axes.
+///
+/// Useful for correlation plots (e.g., $p_T$ vs $\eta$, invariant mass
+/// vs rapidity). The bin layout is row-major: bin `(ix, iy)` is stored
+/// at index `iy * nx + ix`.
+#[derive(Debug, Clone)]
+pub struct Histogram2D {
+    /// Weighted counts per bin (row-major: bins[iy * nx + ix]).
+    bins: Vec<f64>,
+    /// X-axis parameters.
+    x_min: f64,
+    x_max: f64,
+    nx: usize,
+    _x_bin_width: f64,
+    inv_x_bin_width: f64,
+    /// Y-axis parameters.
+    y_min: f64,
+    y_max: f64,
+    ny: usize,
+    _y_bin_width: f64,
+    inv_y_bin_width: f64,
+    /// Total accumulated weight.
+    total_weight: f64,
+    /// Total number of fill operations.
+    entries: u64,
+}
+
+impl Histogram2D {
+    /// Create a new 2D histogram.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either axis has zero bins or `min >= max`.
+    pub fn new(
+        nx: usize,
+        x_min: f64,
+        x_max: f64,
+        ny: usize,
+        y_min: f64,
+        y_max: f64,
+    ) -> Self {
+        assert!(nx > 0 && ny > 0, "2D histogram must have at least one bin per axis");
+        assert!(x_min < x_max, "X-axis min must be less than max");
+        assert!(y_min < y_max, "Y-axis min must be less than max");
+
+        let x_bin_width = (x_max - x_min) / nx as f64;
+        let y_bin_width = (y_max - y_min) / ny as f64;
+
+        Self {
+            bins: vec![0.0; nx * ny],
+            x_min,
+            x_max,
+            nx,
+            _x_bin_width: x_bin_width,
+            inv_x_bin_width: 1.0 / x_bin_width,
+            y_min,
+            y_max,
+            ny,
+            _y_bin_width: y_bin_width,
+            inv_y_bin_width: 1.0 / y_bin_width,
+            total_weight: 0.0,
+            entries: 0,
+        }
+    }
+
+    /// Fill the 2D histogram. Values outside either axis range are ignored.
+    #[inline]
+    pub fn fill(&mut self, x: f64, y: f64, weight: f64) {
+        self.entries += 1;
+        self.total_weight += weight;
+
+        if x < self.x_min || x >= self.x_max || y < self.y_min || y >= self.y_max {
+            return;
+        }
+
+        let ix = ((x - self.x_min) * self.inv_x_bin_width) as usize;
+        let iy = ((y - self.y_min) * self.inv_y_bin_width) as usize;
+        let ix = ix.min(self.nx - 1);
+        let iy = iy.min(self.ny - 1);
+
+        self.bins[iy * self.nx + ix] += weight;
+    }
+
+    /// Merge another 2D histogram (parallel reduction).
+    pub fn merge(&mut self, other: &Histogram2D) -> SpireResult<()> {
+        if self.nx != other.nx || self.ny != other.ny {
+            return Err(SpireError::InternalError(
+                "Cannot merge 2D histograms with different binning".into(),
+            ));
+        }
+        for i in 0..self.bins.len() {
+            self.bins[i] += other.bins[i];
+        }
+        self.total_weight += other.total_weight;
+        self.entries += other.entries;
+        Ok(())
+    }
+
+    /// Read-only access to the bin contents.
+    pub fn bin_contents(&self) -> &[f64] {
+        &self.bins
+    }
+
+    /// Number of bins on the X axis.
+    pub fn nx(&self) -> usize {
+        self.nx
+    }
+
+    /// Number of bins on the Y axis.
+    pub fn ny(&self) -> usize {
+        self.ny
+    }
+
+    /// Total entries.
+    pub fn entries(&self) -> u64 {
+        self.entries
+    }
+}
+
+// ===========================================================================
+// Serializable DTOs
+// ===========================================================================
+
+/// Serializable histogram data for frontend transmission.
+///
+/// Contains all information needed to render a histogram bar chart:
+/// bin edges (N+1 values), bin contents (N values), and statistical errors.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistogramData {
+    /// Human-readable name of this histogram.
+    pub name: String,
+    /// Bin edges (length = n_bins + 1).
+    pub bin_edges: Vec<f64>,
+    /// Bin contents (weighted counts, length = n_bins).
+    pub bin_contents: Vec<f64>,
+    /// Statistical errors per bin: $\sqrt{\sum w_i^2}$.
+    pub bin_errors: Vec<f64>,
+    /// Underflow count.
+    pub underflow: f64,
+    /// Overflow count.
+    pub overflow: f64,
+    /// Total number of entries.
+    pub entries: u64,
+    /// Distribution mean.
+    pub mean: f64,
+}
+
+// ===========================================================================
+// Analysis Configuration & Result
+// ===========================================================================
+
+/// Definition of a single plot to be filled during analysis.
+///
+/// Each plot specifies a Rhai observable script (which extracts a scalar
+/// from each event) and the histogram binning parameters.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlotDefinition {
+    /// Human-readable name (e.g., "Muon $p_T$").
+    pub name: String,
+    /// Rhai script returning a numeric observable value.
+    /// The variable `event` (a `PhaseSpacePoint`) is in scope.
+    pub observable_script: String,
+    /// Number of histogram bins.
+    pub n_bins: usize,
+    /// Lower edge of the histogram range.
+    pub min: f64,
+    /// Upper edge of the histogram range.
+    pub max: f64,
+}
+
+/// Complete analysis configuration sent from the frontend.
+///
+/// Bundles the process definition, Monte Carlo parameters, observable
+/// scripts, and optional kinematic cuts into a single request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalysisConfig {
+    /// Plot definitions (each with its observable script and binning).
+    pub plots: Vec<PlotDefinition>,
+    /// Optional kinematic cut scripts (events failing any cut are discarded).
+    pub cut_scripts: Vec<String>,
+    /// Number of Monte Carlo events to generate.
+    pub num_events: usize,
+    /// Centre-of-mass energy in GeV.
+    pub cms_energy: f64,
+    /// Final-state particle masses in GeV.
+    pub final_masses: Vec<f64>,
+}
+
+/// Complete analysis result returned to the frontend.
+///
+/// Contains the filled histograms and integration diagnostics.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalysisResult {
+    /// Filled histogram data for each requested plot.
+    pub histograms: Vec<HistogramData>,
+    /// Estimated total cross-section (GeV⁻²).
+    pub cross_section: f64,
+    /// Statistical uncertainty on the cross-section.
+    pub cross_section_error: f64,
+    /// Total events generated.
+    pub events_generated: usize,
+    /// Events passing all kinematic cuts.
+    pub events_passed: usize,
+}
+
+// ===========================================================================
+// Analysis Runner
+// ===========================================================================
+
+/// Execute a complete analysis pipeline.
+///
+/// This is the main orchestration function that:
+/// 1. Compiles all observable and cut scripts via the Rhai engine.
+/// 2. Initialises histograms for each plot definition.
+/// 3. Runs the Monte Carlo event loop, applying cuts and filling histograms.
+/// 4. Returns the filled histogram data alongside cross-section estimates.
+///
+/// # Arguments
+///
+/// * `config` — The complete analysis configuration.
+/// * `integrand` — The squared matrix element $|\mathcal{M}|^2$.
+/// * `generator` — Phase-space generator (e.g., RAMBO).
+///
+/// # Performance
+///
+/// All scripts are compiled once before the event loop begins.
+/// The hot loop evaluates only pre-compiled ASTs and performs
+/// zero-allocation histogram fills.
+pub fn run_analysis<F>(
+    config: &AnalysisConfig,
+    integrand: F,
+    generator: &mut dyn PhaseSpaceGenerator,
+) -> SpireResult<AnalysisResult>
+where
+    F: Fn(&PhaseSpacePoint) -> f64,
+{
+    let engine = SpireScriptEngine::new();
+
+    // --- Compile all observable scripts ---
+    let observables: Vec<RhaiObservable> = config
+        .plots
+        .iter()
+        .map(|plot| {
+            engine
+                .compile_observable(&plot.observable_script)
+                .map(|obs| obs.with_name(&plot.name))
+        })
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    // --- Compile all cut scripts ---
+    let cuts: Vec<crate::scripting::RhaiCut> = config
+        .cut_scripts
+        .iter()
+        .map(|script| engine.compile_cut(script))
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    // --- Initialise histograms ---
+    let mut histograms: Vec<Histogram1D> = config
+        .plots
+        .iter()
+        .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
+        .collect();
+
+    // --- Monte Carlo event loop ---
+    let mut sum_fw = 0.0_f64;
+    let mut sum_fw2 = 0.0_f64;
+    let mut n_generated = 0_usize;
+    let mut n_passed = 0_usize;
+
+    for _ in 0..config.num_events {
+        let event = generator.generate_event(config.cms_energy, &config.final_masses)?;
+        n_generated += 1;
+
+        // Apply kinematic cuts.
+        let passed = cuts
+            .iter()
+            .all(|cut| crate::scripting::KinematicCut::is_passed(cut, &event));
+        if !passed {
+            continue;
+        }
+        n_passed += 1;
+
+        // Evaluate the integrand (|M|²).
+        let f_val = integrand(&event);
+        if !f_val.is_finite() || !event.weight.is_finite() {
+            continue;
+        }
+
+        let fw = f_val * event.weight;
+        sum_fw += fw;
+        sum_fw2 += fw * fw;
+
+        // Fill each histogram with the corresponding observable value.
+        for (obs, hist) in observables.iter().zip(histograms.iter_mut()) {
+            let value = obs.evaluate(&event);
+            if value.is_finite() {
+                hist.fill(value, fw);
+            }
+        }
+    }
+
+    // --- Compute cross-section statistics ---
+    let s = config.cms_energy * config.cms_energy;
+    let flux_factor = 2.0 * s;
+    let n_f = config.num_events as f64;
+
+    let (cross_section, cross_section_error) = if n_f > 0.0 && flux_factor > 1e-300 {
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+        (mean / flux_factor, std_error / flux_factor)
+    } else {
+        (0.0, 0.0)
+    };
+
+    // --- Serialize histograms ---
+    let histogram_data: Vec<HistogramData> = config
+        .plots
+        .iter()
+        .zip(histograms.iter())
+        .map(|(plot, hist)| hist.to_data(&plot.name))
+        .collect();
+
+    Ok(AnalysisResult {
+        histograms: histogram_data,
+        cross_section,
+        cross_section_error,
+        events_generated: n_generated,
+        events_passed: n_passed,
+    })
+}
+
+/// Execute the analysis pipeline with parallel event evaluation.
+///
+/// Events are generated sequentially (the generator is not `Send`),
+/// then the cuts, observables, and histogram filling are evaluated in
+/// parallel using rayon. Thread-local histograms are merged at the end.
+pub fn run_analysis_parallel<F>(
+    config: &AnalysisConfig,
+    integrand: F,
+    generator: &mut dyn PhaseSpaceGenerator,
+) -> SpireResult<AnalysisResult>
+where
+    F: Fn(&PhaseSpacePoint) -> f64 + Send + Sync,
+{
+    use rayon::prelude::*;
+
+    let engine = SpireScriptEngine::new();
+
+    // --- Compile all scripts ---
+    let observables: Vec<RhaiObservable> = config
+        .plots
+        .iter()
+        .map(|plot| {
+            engine
+                .compile_observable(&plot.observable_script)
+                .map(|obs| obs.with_name(&plot.name))
+        })
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    let cuts: Vec<crate::scripting::RhaiCut> = config
+        .cut_scripts
+        .iter()
+        .map(|script| engine.compile_cut(script))
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    // --- Generate events sequentially ---
+    let mut events = Vec::with_capacity(config.num_events);
+    for _ in 0..config.num_events {
+        events.push(generator.generate_event(config.cms_energy, &config.final_masses)?);
+    }
+
+    let n_generated = events.len();
+
+    // --- Parallel evaluation with thread-local histograms ---
+    // Each rayon task returns (sum_fw, sum_fw2, n_passed, thread_local_histograms).
+    let initial_hists: Vec<Histogram1D> = config
+        .plots
+        .iter()
+        .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
+        .collect();
+
+    let (sum_fw, sum_fw2, n_passed, merged_hists) = events
+        .par_iter()
+        .fold(
+            || {
+                (
+                    0.0_f64,
+                    0.0_f64,
+                    0_usize,
+                    initial_hists.clone(),
+                )
+            },
+            |(mut s_fw, mut s_fw2, mut n_p, mut hists), event| {
+                // Apply cuts.
+                let passed = cuts
+                    .iter()
+                    .all(|cut| crate::scripting::KinematicCut::is_passed(cut, event));
+                if !passed {
+                    return (s_fw, s_fw2, n_p, hists);
+                }
+                n_p += 1;
+
+                let f_val = integrand(event);
+                if !f_val.is_finite() || !event.weight.is_finite() {
+                    return (s_fw, s_fw2, n_p, hists);
+                }
+
+                let fw = f_val * event.weight;
+                s_fw += fw;
+                s_fw2 += fw * fw;
+
+                // Fill thread-local histograms.
+                for (obs, hist) in observables.iter().zip(hists.iter_mut()) {
+                    let value = obs.evaluate(event);
+                    if value.is_finite() {
+                        hist.fill(value, fw);
+                    }
+                }
+
+                (s_fw, s_fw2, n_p, hists)
+            },
+        )
+        .reduce(
+            || (0.0_f64, 0.0_f64, 0_usize, initial_hists.clone()),
+            |(a_fw, a_fw2, a_n, mut a_hists), (b_fw, b_fw2, b_n, b_hists)| {
+                // Merge thread-local histograms.
+                for (a, b) in a_hists.iter_mut().zip(b_hists.iter()) {
+                    let _ = a.merge(b);
+                }
+                (a_fw + b_fw, a_fw2 + b_fw2, a_n + b_n, a_hists)
+            },
+        );
+
+    // --- Compute cross-section statistics ---
+    let s = config.cms_energy * config.cms_energy;
+    let flux_factor = 2.0 * s;
+    let n_f = config.num_events as f64;
+
+    let (cross_section, cross_section_error) = if n_f > 0.0 && flux_factor > 1e-300 {
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+        (mean / flux_factor, std_error / flux_factor)
+    } else {
+        (0.0, 0.0)
+    };
+
+    // --- Serialize histograms ---
+    let histogram_data: Vec<HistogramData> = config
+        .plots
+        .iter()
+        .zip(merged_hists.iter())
+        .map(|(plot, hist)| hist.to_data(&plot.name))
+        .collect();
+
+    Ok(AnalysisResult {
+        histograms: histogram_data,
+        cross_section,
+        cross_section_error,
+        events_generated: n_generated,
+        events_passed: n_passed,
+    })
+}
+
+// ===========================================================================
+// Unit Tests
+// ===========================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // -----------------------------------------------------------------------
+    // Histogram1D tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn histogram1d_new() {
+        let h = Histogram1D::new(10, 0.0, 100.0);
+        assert_eq!(h.n_bins(), 10);
+        assert_eq!(h.min(), 0.0);
+        assert_eq!(h.max(), 100.0);
+        assert!((h.bin_width() - 10.0).abs() < 1e-12);
+        assert_eq!(h.entries(), 0);
+        assert_eq!(h.total_weight(), 0.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "at least one bin")]
+    fn histogram1d_zero_bins_panics() {
+        let _h = Histogram1D::new(0, 0.0, 100.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "less than max")]
+    fn histogram1d_invalid_range_panics() {
+        let _h = Histogram1D::new(10, 100.0, 0.0);
+    }
+
+    #[test]
+    fn histogram1d_fill_in_range() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        // Fill value 15.0 → bin 1 (covers [10, 20))
+        h.fill(15.0, 1.0);
+        assert_eq!(h.entries(), 1);
+        assert!((h.total_weight() - 1.0).abs() < 1e-12);
+        assert!((h.bin_contents()[1] - 1.0).abs() < 1e-12);
+        assert!(h.underflow().abs() < 1e-12);
+        assert!(h.overflow().abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram1d_fill_underflow() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        h.fill(-5.0, 2.0);
+        assert!((h.underflow() - 2.0).abs() < 1e-12);
+        assert_eq!(h.entries(), 1);
+    }
+
+    #[test]
+    fn histogram1d_fill_overflow() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        h.fill(100.0, 3.0); // value == max → overflow
+        h.fill(150.0, 1.0);
+        assert!((h.overflow() - 4.0).abs() < 1e-12);
+        assert_eq!(h.entries(), 2);
+    }
+
+    #[test]
+    fn histogram1d_fill_weighted() {
+        let mut h = Histogram1D::new(5, 0.0, 50.0);
+        // Bin width = 10. Value 5.0 → bin 0.
+        h.fill(5.0, 3.5);
+        h.fill(5.0, 1.5);
+        assert!((h.bin_contents()[0] - 5.0).abs() < 1e-12);
+        assert!((h.total_weight() - 5.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram1d_bin_edges() {
+        let h = Histogram1D::new(4, 0.0, 40.0);
+        let edges = h.bin_edges();
+        assert_eq!(edges.len(), 5);
+        assert!((edges[0] - 0.0).abs() < 1e-12);
+        assert!((edges[1] - 10.0).abs() < 1e-12);
+        assert!((edges[4] - 40.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram1d_bin_centres() {
+        let h = Histogram1D::new(4, 0.0, 40.0);
+        let centres = h.bin_centres();
+        assert_eq!(centres.len(), 4);
+        assert!((centres[0] - 5.0).abs() < 1e-12);
+        assert!((centres[1] - 15.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram1d_merge() {
+        let mut h1 = Histogram1D::new(5, 0.0, 50.0);
+        let mut h2 = Histogram1D::new(5, 0.0, 50.0);
+
+        h1.fill(5.0, 1.0);
+        h1.fill(15.0, 2.0);
+        h2.fill(5.0, 3.0);
+        h2.fill(-1.0, 0.5);
+
+        h1.merge(&h2).unwrap();
+
+        assert!((h1.bin_contents()[0] - 4.0).abs() < 1e-12); // 1.0 + 3.0
+        assert!((h1.bin_contents()[1] - 2.0).abs() < 1e-12);
+        assert!((h1.underflow() - 0.5).abs() < 1e-12);
+        assert_eq!(h1.entries(), 4);
+    }
+
+    #[test]
+    fn histogram1d_merge_different_binning_fails() {
+        let mut h1 = Histogram1D::new(5, 0.0, 50.0);
+        let h2 = Histogram1D::new(10, 0.0, 50.0);
+        assert!(h1.merge(&h2).is_err());
+    }
+
+    #[test]
+    fn histogram1d_reset() {
+        let mut h = Histogram1D::new(5, 0.0, 50.0);
+        h.fill(5.0, 1.0);
+        h.fill(-1.0, 0.5);
+        h.reset();
+        assert_eq!(h.entries(), 0);
+        assert!(h.total_weight().abs() < 1e-12);
+        assert!(h.bin_contents().iter().all(|&b| b == 0.0));
+    }
+
+    #[test]
+    fn histogram1d_max_bin() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        h.fill(55.0, 10.0); // bin 5
+        h.fill(15.0, 3.0);  // bin 1
+        h.fill(55.0, 5.0);  // bin 5 again
+        assert_eq!(h.max_bin(), 5);
+    }
+
+    #[test]
+    fn histogram1d_mean() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        // Fill 100 entries centred around 50 (all weight 1.0).
+        for _ in 0..100 {
+            h.fill(50.0, 1.0);
+        }
+        assert!((h.mean() - 55.0).abs() < 1e-8); // bin centre at 55 since 50 → bin 5 → centre 55
+    }
+
+    #[test]
+    fn histogram1d_bin_errors() {
+        let mut h = Histogram1D::new(5, 0.0, 50.0);
+        h.fill(5.0, 2.0);
+        h.fill(5.0, 3.0);
+        let errors = h.bin_errors();
+        // bin_sq[0] = 4 + 9 = 13, error = sqrt(13)
+        assert!((errors[0] - 13.0_f64.sqrt()).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram1d_to_data() {
+        let mut h = Histogram1D::new(5, 0.0, 50.0);
+        h.fill(5.0, 1.0);
+        let data = h.to_data("Test Plot");
+        assert_eq!(data.name, "Test Plot");
+        assert_eq!(data.bin_edges.len(), 6);
+        assert_eq!(data.bin_contents.len(), 5);
+        assert_eq!(data.bin_errors.len(), 5);
+        assert_eq!(data.entries, 1);
+    }
+
+    #[test]
+    fn histogram1d_edge_case_value_at_boundary() {
+        let mut h = Histogram1D::new(10, 0.0, 100.0);
+        // Value exactly at a bin boundary.
+        h.fill(10.0, 1.0); // Should go to bin 1 (covers [10, 20))
+        assert!((h.bin_contents()[1] - 1.0).abs() < 1e-12);
+        // Value exactly at min.
+        h.fill(0.0, 1.0); // Should go to bin 0
+        assert!((h.bin_contents()[0] - 1.0).abs() < 1e-12);
+    }
+
+    // -----------------------------------------------------------------------
+    // Histogram2D tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn histogram2d_new() {
+        let h = Histogram2D::new(10, 0.0, 100.0, 5, -2.5, 2.5);
+        assert_eq!(h.nx(), 10);
+        assert_eq!(h.ny(), 5);
+        assert_eq!(h.bin_contents().len(), 50);
+        assert_eq!(h.entries(), 0);
+    }
+
+    #[test]
+    fn histogram2d_fill() {
+        let mut h = Histogram2D::new(10, 0.0, 100.0, 10, 0.0, 100.0);
+        h.fill(15.0, 15.0, 1.0); // ix=1, iy=1 → index = 11
+        assert!((h.bin_contents()[11] - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram2d_fill_out_of_range() {
+        let mut h = Histogram2D::new(10, 0.0, 100.0, 10, 0.0, 100.0);
+        h.fill(-5.0, 50.0, 1.0); // X out of range — ignored
+        h.fill(50.0, 150.0, 1.0); // Y out of range — ignored
+        assert!(h.bin_contents().iter().all(|&b| b == 0.0));
+        assert_eq!(h.entries(), 2);
+    }
+
+    #[test]
+    fn histogram2d_merge() {
+        let mut h1 = Histogram2D::new(5, 0.0, 50.0, 5, 0.0, 50.0);
+        let mut h2 = Histogram2D::new(5, 0.0, 50.0, 5, 0.0, 50.0);
+        h1.fill(5.0, 5.0, 2.0);
+        h2.fill(5.0, 5.0, 3.0);
+        h1.merge(&h2).unwrap();
+        assert!((h1.bin_contents()[0] - 5.0).abs() < 1e-12);
+    }
+
+    // -----------------------------------------------------------------------
+    // Analysis pipeline tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn plot_definition_serde() {
+        let plot = PlotDefinition {
+            name: "Muon pT".into(),
+            observable_script: "event.momenta[2].pt()".into(),
+            n_bins: 50,
+            min: 0.0,
+            max: 100.0,
+        };
+        let json = serde_json::to_string(&plot).unwrap();
+        let back: PlotDefinition = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Muon pT");
+        assert_eq!(back.n_bins, 50);
+    }
+
+    #[test]
+    fn analysis_config_serde() {
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 100.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 1000,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let back: AnalysisConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.num_events, 1000);
+        assert_eq!(back.plots.len(), 1);
+    }
+
+    #[test]
+    fn analysis_result_serde() {
+        let result = AnalysisResult {
+            histograms: vec![],
+            cross_section: 1.23e-6,
+            cross_section_error: 4.56e-8,
+            events_generated: 1000,
+            events_passed: 800,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: AnalysisResult = serde_json::from_str(&json).unwrap();
+        assert!((back.cross_section - 1.23e-6).abs() < 1e-15);
+    }
+
+    #[test]
+    fn run_analysis_basic() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "Leading pT".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 60.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 500,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        assert_eq!(result.events_generated, 500);
+        assert_eq!(result.events_passed, 500); // no cuts
+        assert_eq!(result.histograms.len(), 1);
+
+        let h = &result.histograms[0];
+        assert_eq!(h.name, "Leading pT");
+        assert_eq!(h.bin_contents.len(), 20);
+        assert!(h.entries > 0);
+    }
+
+    #[test]
+    fn run_analysis_with_cuts() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT after cut".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 60.0,
+            }],
+            cut_scripts: vec!["event.momenta[0].pt() > 40.0".into()],
+            num_events: 2000,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        // The cut should reject some events.
+        assert!(result.events_passed < result.events_generated);
+        assert!(result.events_passed > 0);
+    }
+
+    #[test]
+    fn run_analysis_multiple_plots() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![
+                PlotDefinition {
+                    name: "pT particle 0".into(),
+                    observable_script: "event.momenta[0].pt()".into(),
+                    n_bins: 10,
+                    min: 0.0,
+                    max: 60.0,
+                },
+                PlotDefinition {
+                    name: "Energy particle 0".into(),
+                    observable_script: "event.momenta[0].e()".into(),
+                    n_bins: 10,
+                    min: 0.0,
+                    max: 60.0,
+                },
+            ],
+            cut_scripts: vec![],
+            num_events: 300,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        assert_eq!(result.histograms.len(), 2);
+        assert_eq!(result.histograms[0].name, "pT particle 0");
+        assert_eq!(result.histograms[1].name, "Energy particle 0");
+    }
+
+    #[test]
+    fn run_analysis_parallel_matches_sequential() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 60.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 1000,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen1 = RamboGenerator::new();
+        let seq = run_analysis(&config, |_| 1.0, &mut gen1).unwrap();
+
+        let mut gen2 = RamboGenerator::new();
+        let par = run_analysis_parallel(&config, |_| 1.0, &mut gen2).unwrap();
+
+        // Both should process the same number of events.
+        assert_eq!(seq.events_generated, par.events_generated);
+        assert_eq!(seq.events_passed, par.events_passed);
+        // Cross-sections should be very close (same events, same seed).
+        assert!(
+            (seq.cross_section - par.cross_section).abs()
+                / seq.cross_section.abs().max(1e-300)
+                < 0.01,
+            "Sequential and parallel cross-sections should agree"
+        );
+    }
+
+    #[test]
+    fn run_analysis_cross_section_positive() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 60.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 5000,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        assert!(result.cross_section > 0.0, "Cross-section should be positive");
+        assert!(result.cross_section_error >= 0.0);
+    }
+
+    #[test]
+    fn run_analysis_invariant_mass_distribution() {
+        use crate::kinematics::RamboGenerator;
+
+        // For 2→2 massless at √s = 200 GeV, the invariant mass of the
+        // pair should always be exactly 200 GeV (total 4-momentum conservation).
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "Invariant Mass".into(),
+                observable_script: r#"
+                    let p1 = event.momenta[0];
+                    let p2 = event.momenta[1];
+                    let total = p1 + p2;
+                    total.m()
+                "#
+                .into(),
+                n_bins: 20,
+                min: 150.0,
+                max: 250.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 500,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        let h = &result.histograms[0];
+        // The invariant mass should peak around 200 GeV (bin containing 200).
+        // Bin 10 covers [200, 205) → the peak should be in bin 10.
+        let peak_bin = h
+            .bin_contents
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
+            .unwrap();
+        // The peak bin centre should be close to 200 GeV.
+        let bin_width = (250.0 - 150.0) / 20.0;
+        let peak_centre = 150.0 + (peak_bin as f64 + 0.5) * bin_width;
+        assert!(
+            (peak_centre - 200.0).abs() < bin_width,
+            "Invariant mass peak at {} should be near 200 GeV",
+            peak_centre
+        );
+    }
+
+    #[test]
+    fn run_analysis_pt_distribution_shape() {
+        use crate::kinematics::RamboGenerator;
+
+        // For 2-body massless at √s = 100 GeV, pT of each particle is
+        // (√s / 2) * sin(θ) = 50 * sin(θ). Since θ is isotropic in CM,
+        // the pT distribution should peak near pT ≈ 50 GeV (θ ≈ π/2).
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT distribution".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 25,
+                min: 0.0,
+                max: 55.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 10000,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        let h = &result.histograms[0];
+        // The peak should be in the last few bins (near pT = 50 GeV).
+        let peak_bin = h
+            .bin_contents
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
+            .unwrap();
+        // Peak bin should be in the upper half of the range.
+        assert!(
+            peak_bin >= 10,
+            "pT peak bin {} should be in the upper half (near 50 GeV)",
+            peak_bin
+        );
+    }
+
+    #[test]
+    fn run_analysis_invalid_script_returns_error() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "Bad script".into(),
+                observable_script: "let = ;; bad".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 100.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn histogram_data_serde_roundtrip() {
+        let data = HistogramData {
+            name: "Test".into(),
+            bin_edges: vec![0.0, 10.0, 20.0, 30.0],
+            bin_contents: vec![5.0, 10.0, 3.0],
+            bin_errors: vec![2.236, 3.162, 1.732],
+            underflow: 0.5,
+            overflow: 1.2,
+            entries: 100,
+            mean: 15.0,
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let back: HistogramData = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Test");
+        assert_eq!(back.bin_contents.len(), 3);
+        assert_eq!(back.entries, 100);
+    }
+}

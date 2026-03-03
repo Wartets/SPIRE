@@ -771,3 +771,69 @@ export interface CutScript {
   /** Whether the test event passed this cut. */
   testResult?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Analysis & Histogramming
+// ---------------------------------------------------------------------------
+
+/** Definition of a single plot to fill during analysis. */
+export interface PlotDefinition {
+  /** Human-readable name (e.g., "Muon pT"). */
+  name: string;
+  /** Rhai script returning a numeric observable value. */
+  observable_script: string;
+  /** Number of histogram bins. */
+  n_bins: number;
+  /** Lower edge of the histogram range. */
+  min: number;
+  /** Upper edge of the histogram range. */
+  max: number;
+}
+
+/** Complete analysis configuration sent to the backend. */
+export interface AnalysisConfig {
+  /** Plot definitions with observable scripts and binning. */
+  plots: PlotDefinition[];
+  /** Optional kinematic cut scripts. */
+  cut_scripts: string[];
+  /** Number of Monte Carlo events to generate. */
+  num_events: number;
+  /** Centre-of-mass energy in GeV. */
+  cms_energy: number;
+  /** Final-state particle masses in GeV. */
+  final_masses: number[];
+}
+
+/** Serialized histogram data from the backend. */
+export interface HistogramData {
+  /** Human-readable name. */
+  name: string;
+  /** Bin edges (length = n_bins + 1). */
+  bin_edges: number[];
+  /** Bin contents (weighted counts, length = n_bins). */
+  bin_contents: number[];
+  /** Statistical errors per bin. */
+  bin_errors: number[];
+  /** Underflow count. */
+  underflow: number;
+  /** Overflow count. */
+  overflow: number;
+  /** Total number of entries. */
+  entries: number;
+  /** Distribution mean. */
+  mean: number;
+}
+
+/** Complete analysis result from the backend. */
+export interface AnalysisResult {
+  /** Filled histogram data for each requested plot. */
+  histograms: HistogramData[];
+  /** Estimated total cross-section (GeV⁻²). */
+  cross_section: number;
+  /** Statistical uncertainty on the cross-section. */
+  cross_section_error: number;
+  /** Total events generated. */
+  events_generated: number;
+  /** Events passing all kinematic cuts. */
+  events_passed: number;
+}

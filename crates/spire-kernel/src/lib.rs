@@ -33,8 +33,13 @@
 //!   Les Houches Event (LHE) format v3.0 implementation.
 //! - [`interface`] — External solver communication. Generic `ExternalSolver` trait
 //!   with CLI subprocess wrapper for invoking tools like FIRE and Kira.
+//! - [`analysis`] — Integrated histogramming and analysis pipeline. High-performance
+//!   `Histogram1D` and `Histogram2D` structures with thread-local merge strategy
+//!   for parallel Monte Carlo, connected to the Rhai scripting engine for
+//!   runtime-defined observables.
 
 pub mod algebra;
+pub mod analysis;
 pub mod data_loader;
 pub mod graph;
 pub mod groups;

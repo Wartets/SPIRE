@@ -18,5 +18,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   amplitude:  "Amplitude Panel",
   kinematics: "Kinematics",
   dalitz:     "Dalitz Plot",
+  analysis:   "Analysis",
   log:        "Console",
 };

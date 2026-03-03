@@ -26,6 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
+use spire_kernel::analysis::{AnalysisConfig, AnalysisResult};
 use spire_kernel::data_loader;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::kinematics::{self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult};
@@ -277,6 +278,37 @@ fn derive_amplitude_steps(
 }
 
 // ---------------------------------------------------------------------------
+// Analysis Pipeline Command
+// ---------------------------------------------------------------------------
+
+/// Run a complete analysis pipeline: compile observable/cut scripts,
+/// generate Monte Carlo events, fill histograms, and return results.
+///
+/// This orchestrates the full analysis workflow in a single IPC call:
+/// 1. Compiles all Rhai observable and cut scripts.
+/// 2. Initialises histograms with the requested binning.
+/// 3. Runs the Monte Carlo event loop, applying cuts and filling histograms.
+/// 4. Returns serialized histogram data alongside cross-section estimates.
+///
+/// # Arguments
+/// * `config` — Analysis configuration with plot definitions, cuts, CMS energy, etc.
+///
+/// # Returns
+/// An `AnalysisResult` containing filled histogram data and integration diagnostics.
+#[tauri::command]
+fn run_analysis(config: AnalysisConfig) -> Result<AnalysisResult, String> {
+    use spire_kernel::kinematics::RamboGenerator;
+
+    let mut generator = RamboGenerator::new();
+
+    // Use constant |M|² = 1 for phase-space distributions.
+    // For realistic matrix elements, the frontend should provide the
+    // process definition and the kernel would compute |M|² from diagrams.
+    spire_kernel::analysis::run_analysis(&config, |_| 1.0, &mut generator)
+        .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Scripting IPC Commands
 // ---------------------------------------------------------------------------
 
@@ -364,6 +396,7 @@ fn main() {
             export_amplitude_latex,
             export_model_ufo,
             derive_amplitude_steps,
+            run_analysis,
             validate_script,
             test_observable_script,
             test_cut_script,

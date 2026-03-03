@@ -31,6 +31,8 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  AnalysisConfig,
+  AnalysisResult,
 } from "./types/spire";
 
 // ---------------------------------------------------------------------------
@@ -262,6 +264,24 @@ export async function exportModelUfo(
   return invoke<UfoExportResult>("export_model_ufo", {
     model,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Analysis Pipeline
+// ---------------------------------------------------------------------------
+
+/**
+ * Run a complete analysis pipeline: compile scripts, generate Monte Carlo
+ * events, fill histograms, and return results.
+ *
+ * @param config - Analysis configuration with plot definitions, cuts,
+ *   CMS energy, final masses, and number of events.
+ * @returns An `AnalysisResult` with filled histograms and cross-section.
+ */
+export async function runAnalysis(
+  config: AnalysisConfig,
+): Promise<AnalysisResult> {
+  return invoke<AnalysisResult>("run_analysis", { config });
 }
 
 // ---------------------------------------------------------------------------

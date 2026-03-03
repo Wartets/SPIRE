@@ -21,6 +21,7 @@
   import AmplitudePanel from "$lib/components/AmplitudePanel.svelte";
   import KinematicsView from "$lib/components/KinematicsView.svelte";
   import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
+  import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -45,6 +46,8 @@
     <KinematicsView />
   {:else if instance.type === "dalitz"}
     <DalitzPlotter />
+  {:else if instance.type === "analysis"}
+    <AnalysisWidget />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}
