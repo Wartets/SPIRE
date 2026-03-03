@@ -1,4 +1,4 @@
-//! # Analysis — Integrated Histogramming & Observable Pipeline
+﻿//! # Analysis : Integrated Histogramming & Observable Pipeline
 //!
 //! This module provides high-performance histogramming structures and an
 //! analysis pipeline that connects the Monte Carlo integration engine
@@ -66,7 +66,7 @@ use crate::{SpireError, SpireResult};
 pub struct Histogram1D {
     /// Weighted counts per bin.
     bins: Vec<f64>,
-    /// Sum of weights² per bin (for variance estimation).
+    /// Sum of weightsÂ² per bin (for variance estimation).
     bin_sq: Vec<f64>,
     /// Lower edge of the histogram range.
     min: f64,
@@ -94,9 +94,9 @@ impl Histogram1D {
     ///
     /// # Arguments
     ///
-    /// * `n_bins` — Number of equally-spaced bins.
-    /// * `min` — Lower edge of the first bin.
-    /// * `max` — Upper edge of the last bin.
+    /// * `n_bins` : Number of equally-spaced bins.
+    /// * `min` : Lower edge of the first bin.
+    /// * `max` : Upper edge of the last bin.
     ///
     /// # Panics
     ///
@@ -130,8 +130,8 @@ impl Histogram1D {
     ///
     /// # Arguments
     ///
-    /// * `value` — The observable value to bin.
-    /// * `weight` — The event weight (typically the phase-space weight
+    /// * `value` : The observable value to bin.
+    /// * `weight` : The event weight (typically the phase-space weight
     ///   times the squared matrix element).
     #[inline]
     pub fn fill(&mut self, value: f64, weight: f64) {
@@ -145,7 +145,7 @@ impl Histogram1D {
         } else {
             // Compute bin index via multiplication (no division in hot path).
             let idx = ((value - self.min) * self.inv_bin_width) as usize;
-            // Guard against floating-point edge case where value ≈ max.
+            // Guard against floating-point edge case where value â‰ˆ max.
             let idx = idx.min(self.n_bins - 1);
             self.bins[idx] += weight;
             self.bin_sq[idx] += weight * weight;
@@ -425,6 +425,36 @@ impl Histogram2D {
     pub fn entries(&self) -> u64 {
         self.entries
     }
+
+    /// X-axis bin edges (length = nx + 1).
+    pub fn x_bin_edges(&self) -> Vec<f64> {
+        let x_bw = (self.x_max - self.x_min) / self.nx as f64;
+        (0..=self.nx)
+            .map(|i| self.x_min + i as f64 * x_bw)
+            .collect()
+    }
+
+    /// Y-axis bin edges (length = ny + 1).
+    pub fn y_bin_edges(&self) -> Vec<f64> {
+        let y_bw = (self.y_max - self.y_min) / self.ny as f64;
+        (0..=self.ny)
+            .map(|i| self.y_min + i as f64 * y_bw)
+            .collect()
+    }
+
+    /// Convert to a serializable DTO for frontend transmission.
+    pub fn to_data_2d(&self, name: &str) -> Histogram2DData {
+        Histogram2DData {
+            name: name.to_string(),
+            x_bin_edges: self.x_bin_edges(),
+            y_bin_edges: self.y_bin_edges(),
+            bin_contents: self.bins.clone(),
+            nx: self.nx,
+            ny: self.ny,
+            entries: self.entries,
+            total_weight: self.total_weight,
+        }
+    }
 }
 
 // ===========================================================================
@@ -455,6 +485,240 @@ pub struct HistogramData {
     pub mean: f64,
 }
 
+/// Serializable 2D histogram data for frontend heatmap rendering.
+///
+/// Contains all information needed to render a 2D heatmap:
+/// bin edges on both axes and a flat row-major array of bin contents.
+///
+/// # Layout
+///
+/// The `bin_contents` array is stored in row-major order:
+/// `bin_contents[iy * nx + ix]` gives the content of the bin at
+/// x-index `ix`, y-index `iy`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Histogram2DData {
+    /// Human-readable name of this 2D histogram.
+    pub name: String,
+    /// X-axis bin edges (length = nx + 1).
+    pub x_bin_edges: Vec<f64>,
+    /// Y-axis bin edges (length = ny + 1).
+    pub y_bin_edges: Vec<f64>,
+    /// Bin contents in row-major order (length = nx * ny).
+    pub bin_contents: Vec<f64>,
+    /// Number of bins on the X axis.
+    pub nx: usize,
+    /// Number of bins on the Y axis.
+    pub ny: usize,
+    /// Total number of fill operations.
+    pub entries: u64,
+    /// Total accumulated weight.
+    pub total_weight: f64,
+}
+
+// ===========================================================================
+// Event Display DTO
+// ===========================================================================
+
+/// Serializable 3D vector for frontend rendering.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Vec3 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
+/// Serializable jet representation for 3D event display.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisplayJet {
+    /// Jet momentum direction.
+    pub direction: Vec3,
+    /// Jet energy (GeV) — used to scale the cone size.
+    pub energy: f64,
+    /// Jet transverse momentum (GeV).
+    pub pt: f64,
+    /// Pseudorapidity.
+    pub eta: f64,
+    /// Azimuthal angle.
+    pub phi: f64,
+    /// Number of constituents.
+    pub n_constituents: usize,
+}
+
+/// Serializable track for 3D event display (leptons, photons).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisplayTrack {
+    /// Momentum direction (unit-normalised for rendering).
+    pub direction: Vec3,
+    /// Track energy (GeV).
+    pub energy: f64,
+    /// Transverse momentum (GeV).
+    pub pt: f64,
+    /// Pseudorapidity.
+    pub eta: f64,
+    /// Particle type label.
+    pub particle_type: String,
+}
+
+/// Serializable missing transverse energy for 3D event display.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DisplayMET {
+    /// MET direction in the transverse plane.
+    pub direction: Vec3,
+    /// MET magnitude (GeV).
+    pub magnitude: f64,
+}
+
+/// Complete event display data for the 3D visualiser.
+///
+/// Contains all physics objects needed to render an interactive
+/// event display: jets as cones, lepton/photon tracks as lines,
+/// and missing transverse energy as a dashed arrow.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventDisplayData {
+    /// Reconstructed jets (rendered as cones).
+    pub jets: Vec<DisplayJet>,
+    /// Electron tracks (rendered as green lines).
+    pub electrons: Vec<DisplayTrack>,
+    /// Muon tracks (rendered as red lines).
+    pub muons: Vec<DisplayTrack>,
+    /// Photon tracks (rendered as yellow dashed lines).
+    pub photons: Vec<DisplayTrack>,
+    /// Missing transverse energy (rendered as a dashed arrow).
+    pub met: DisplayMET,
+    /// Centre-of-mass energy used for this event (GeV).
+    pub cms_energy: f64,
+}
+
+/// Generate a single display event by running RAMBO + detector simulation.
+///
+/// This produces a serializable `EventDisplayData` suitable for 3D rendering.
+///
+/// # Arguments
+///
+/// * `cms_energy` — Centre-of-mass energy (GeV).
+/// * `final_masses` — Final-state particle masses.
+/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds_str` — Optional particle kind labels per final-state leg.
+pub fn generate_display_event(
+    cms_energy: f64,
+    final_masses: &[f64],
+    detector_preset: &str,
+    particle_kinds_str: Option<&[String]>,
+) -> SpireResult<EventDisplayData> {
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
+    let detector = DetectorModel::from_preset(detector_preset).ok_or_else(|| {
+        SpireError::InternalError(format!(
+            "unknown detector preset '{detector_preset}'"
+        ))
+    })?;
+
+    let n_final = final_masses.len();
+    let particle_kinds: Vec<ParticleKind> = match particle_kinds_str {
+        Some(kinds) => {
+            if kinds.len() != n_final {
+                return Err(SpireError::InternalError(format!(
+                    "particle_kinds length ({}) must match final_masses ({n_final})",
+                    kinds.len()
+                )));
+            }
+            kinds.iter().map(|s| parse_particle_kind(s)).collect::<SpireResult<Vec<_>>>()?
+        }
+        None => vec![ParticleKind::Hadron; n_final],
+    };
+
+    // Generate one event.
+    use crate::kinematics::RamboGenerator;
+    let mut gen = RamboGenerator::new();
+    let event = gen.generate_event(cms_energy, final_masses)?;
+
+    // Use a random seed that changes each call for variety.
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(42);
+    let mut rng = StdRng::seed_from_u64(seed);
+
+    let reco = crate::reco::detector::reconstruct_event(
+        &event,
+        &particle_kinds,
+        &detector,
+        &mut rng,
+    );
+
+    // Convert to display format.
+    let jets: Vec<DisplayJet> = reco.jets.iter().map(|jet| {
+        let px = jet.momentum[1];
+        let py = jet.momentum[2];
+        let pz = jet.momentum[3];
+        let p_mag = (px * px + py * py + pz * pz).sqrt().max(1e-30);
+        DisplayJet {
+            direction: Vec3 {
+                x: px / p_mag,
+                y: py / p_mag,
+                z: pz / p_mag,
+            },
+            energy: jet.energy(),
+            pt: jet.pt(),
+            eta: jet.eta(),
+            phi: jet.phi(),
+            n_constituents: jet.n_constituents(),
+        }
+    }).collect();
+
+    let make_track = |v: &crate::algebra::SpacetimeVector, ptype: &str| -> DisplayTrack {
+        let px = v[1];
+        let py = v[2];
+        let pz = v[3];
+        let p_mag = (px * px + py * py + pz * pz).sqrt().max(1e-30);
+        let pt = (px * px + py * py).sqrt();
+        let eta = if p_mag > 1e-30 { (pz / p_mag).atanh() } else { 0.0 };
+        DisplayTrack {
+            direction: Vec3 {
+                x: px / p_mag,
+                y: py / p_mag,
+                z: pz / p_mag,
+            },
+            energy: v[0],
+            pt,
+            eta,
+            particle_type: ptype.to_string(),
+        }
+    };
+
+    let electrons: Vec<DisplayTrack> = reco.electrons.iter()
+        .map(|v| make_track(v, "electron"))
+        .collect();
+    let muons: Vec<DisplayTrack> = reco.muons.iter()
+        .map(|v| make_track(v, "muon"))
+        .collect();
+    let photons: Vec<DisplayTrack> = reco.photons.iter()
+        .map(|v| make_track(v, "photon"))
+        .collect();
+
+    let met_px = reco.met[1];
+    let met_py = reco.met[2];
+    let met_mag = (met_px * met_px + met_py * met_py).sqrt();
+    let met = DisplayMET {
+        direction: Vec3 {
+            x: if met_mag > 1e-30 { met_px / met_mag } else { 0.0 },
+            y: if met_mag > 1e-30 { met_py / met_mag } else { 0.0 },
+            z: 0.0,
+        },
+        magnitude: met_mag,
+    };
+
+    Ok(EventDisplayData {
+        jets,
+        electrons,
+        muons,
+        photons,
+        met,
+        cms_energy,
+    })
+}
+
 // ===========================================================================
 // Analysis Configuration & Result
 // ===========================================================================
@@ -476,6 +740,32 @@ pub struct PlotDefinition {
     pub min: f64,
     /// Upper edge of the histogram range.
     pub max: f64,
+}
+
+/// Definition of a 2D correlation plot to be filled during analysis.
+///
+/// Each 2D plot specifies two Rhai observable scripts (one per axis)
+/// and the binning parameters for both axes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlotDefinition2D {
+    /// Human-readable name (e.g., "pT vs Î·").
+    pub name: String,
+    /// Rhai script returning the X-axis observable value.
+    pub x_observable_script: String,
+    /// Rhai script returning the Y-axis observable value.
+    pub y_observable_script: String,
+    /// Number of histogram bins on the X axis.
+    pub nx: usize,
+    /// Lower edge of the X-axis range.
+    pub x_min: f64,
+    /// Upper edge of the X-axis range.
+    pub x_max: f64,
+    /// Number of histogram bins on the Y axis.
+    pub ny: usize,
+    /// Lower edge of the Y-axis range.
+    pub y_min: f64,
+    /// Upper edge of the Y-axis range.
+    pub y_max: f64,
 }
 
 /// Complete analysis configuration sent from the frontend.
@@ -517,6 +807,14 @@ pub struct AnalysisConfig {
     /// particles are assumed to be hadrons.
     #[serde(default)]
     pub particle_kinds: Option<Vec<String>>,
+
+    /// Optional 2D correlation plot definitions.
+    ///
+    /// Each entry specifies two observable scripts (X and Y axes) and
+    /// binning parameters for a 2D heatmap. These are filled alongside
+    /// the standard 1D histograms.
+    #[serde(default)]
+    pub plots_2d: Option<Vec<PlotDefinition2D>>,
 }
 
 /// Complete analysis result returned to the frontend.
@@ -526,7 +824,10 @@ pub struct AnalysisConfig {
 pub struct AnalysisResult {
     /// Filled histogram data for each requested plot.
     pub histograms: Vec<HistogramData>,
-    /// Estimated total cross-section (GeV⁻²).
+    /// Filled 2D histogram data for each requested 2D correlation plot.
+    #[serde(default)]
+    pub histograms_2d: Vec<Histogram2DData>,
+    /// Estimated total cross-section (GeVâ»Â²).
     pub cross_section: f64,
     /// Statistical uncertainty on the cross-section.
     pub cross_section_error: f64,
@@ -550,9 +851,9 @@ pub struct AnalysisResult {
 ///
 /// # Arguments
 ///
-/// * `config` — The complete analysis configuration.
-/// * `integrand` — The squared matrix element $|\mathcal{M}|^2$.
-/// * `generator` — Phase-space generator (e.g., RAMBO).
+/// * `config` : The complete analysis configuration.
+/// * `integrand` : The squared matrix element $|\mathcal{M}|^2$.
+/// * `generator` : Phase-space generator (e.g., RAMBO).
 ///
 /// # Performance
 ///
@@ -594,6 +895,22 @@ where
         .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
         .collect();
 
+    // --- Compile and initialise 2D plots ---
+    let plots_2d = config.plots_2d.as_deref().unwrap_or(&[]);
+    let observables_2d: Vec<(RhaiObservable, RhaiObservable)> = plots_2d
+        .iter()
+        .map(|p| {
+            let x = engine.compile_observable(&p.x_observable_script)?;
+            let y = engine.compile_observable(&p.y_observable_script)?;
+            Ok((x, y))
+        })
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    let mut histograms_2d: Vec<Histogram2D> = plots_2d
+        .iter()
+        .map(|p| Histogram2D::new(p.nx, p.x_min, p.x_max, p.ny, p.y_min, p.y_max))
+        .collect();
+
     // --- Monte Carlo event loop ---
     let mut sum_fw = 0.0_f64;
     let mut sum_fw2 = 0.0_f64;
@@ -613,7 +930,7 @@ where
         }
         n_passed += 1;
 
-        // Evaluate the integrand (|M|²).
+        // Evaluate the integrand (|M|Â²).
         let f_val = integrand(&event);
         if !f_val.is_finite() || !event.weight.is_finite() {
             continue;
@@ -623,11 +940,20 @@ where
         sum_fw += fw;
         sum_fw2 += fw * fw;
 
-        // Fill each histogram with the corresponding observable value.
+        // Fill each 1D histogram with the corresponding observable value.
         for (obs, hist) in observables.iter().zip(histograms.iter_mut()) {
             let value = obs.evaluate(&event);
             if value.is_finite() {
                 hist.fill(value, fw);
+            }
+        }
+
+        // Fill each 2D histogram with (x, y) observable values.
+        for ((x_obs, y_obs), hist) in observables_2d.iter().zip(histograms_2d.iter_mut()) {
+            let x_val = x_obs.evaluate(&event);
+            let y_val = y_obs.evaluate(&event);
+            if x_val.is_finite() && y_val.is_finite() {
+                hist.fill(x_val, y_val, fw);
             }
         }
     }
@@ -654,8 +980,15 @@ where
         .map(|(plot, hist)| hist.to_data(&plot.name))
         .collect();
 
+    let histogram_2d_data: Vec<Histogram2DData> = plots_2d
+        .iter()
+        .zip(histograms_2d.iter())
+        .map(|(plot, hist)| hist.to_data_2d(&plot.name))
+        .collect();
+
     Ok(AnalysisResult {
         histograms: histogram_data,
+        histograms_2d: histogram_2d_data,
         cross_section,
         cross_section_error,
         events_generated: n_generated,
@@ -789,6 +1122,7 @@ where
 
     Ok(AnalysisResult {
         histograms: histogram_data,
+        histograms_2d: vec![],
         cross_section,
         cross_section_error,
         events_generated: n_generated,
@@ -823,17 +1157,17 @@ fn parse_particle_kind(s: &str) -> SpireResult<ParticleKind> {
 /// to produce a [`ReconstructedEvent`] before observable evaluation.
 ///
 /// Observable scripts may access both:
-/// - `event` — the truth-level [`PhaseSpacePoint`]
-/// - `reco` — the reconstructed [`ReconstructedEvent`] (jets, leptons, MET)
+/// - `event` : the truth-level [`PhaseSpacePoint`]
+/// - `reco` : the reconstructed [`ReconstructedEvent`] (jets, leptons, MET)
 ///
 /// When no detector preset is specified, this function delegates to
 /// [`run_analysis`] for backward compatibility.
 ///
 /// # Arguments
 ///
-/// * `config` — Analysis configuration including optional detector settings.
-/// * `integrand` — The squared matrix element $|\mathcal{M}|^2$.
-/// * `generator` — Phase-space generator (e.g., RAMBO).
+/// * `config` : Analysis configuration including optional detector settings.
+/// * `integrand` : The squared matrix element $|\mathcal{M}|^2$.
+/// * `generator` : Phase-space generator (e.g., RAMBO).
 pub fn run_reco_analysis<F>(
     config: &AnalysisConfig,
     integrand: F,
@@ -885,7 +1219,7 @@ where
         })
         .collect::<SpireResult<Vec<_>>>()?;
 
-    // --- Compile all cut scripts (truth-level — applied before reconstruction) ---
+    // --- Compile all cut scripts (truth-level : applied before reconstruction) ---
     let cuts: Vec<crate::scripting::RhaiCut> = config
         .cut_scripts
         .iter()
@@ -897,6 +1231,22 @@ where
         .plots
         .iter()
         .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
+        .collect();
+
+    // --- Compile and initialise 2D plots (reco-aware) ---
+    let plots_2d = config.plots_2d.as_deref().unwrap_or(&[]);
+    let observables_2d: Vec<(RhaiRecoObservable, RhaiRecoObservable)> = plots_2d
+        .iter()
+        .map(|p| {
+            let x = engine.compile_reco_observable(&p.x_observable_script)?;
+            let y = engine.compile_reco_observable(&p.y_observable_script)?;
+            Ok((x, y))
+        })
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    let mut histograms_2d: Vec<Histogram2D> = plots_2d
+        .iter()
+        .map(|p| Histogram2D::new(p.nx, p.x_min, p.x_max, p.ny, p.y_min, p.y_max))
         .collect();
 
     // --- Seeded RNG for reproducible detector smearing ---
@@ -923,7 +1273,7 @@ where
         }
         n_passed += 1;
 
-        // Evaluate the integrand (|M|²).
+        // Evaluate the integrand (|M|Â²).
         let f_val = integrand(&event);
         if !f_val.is_finite() || !event.weight.is_finite() {
             continue;
@@ -941,11 +1291,20 @@ where
             &mut rng,
         );
 
-        // Fill each histogram with the corresponding reco observable value.
+        // Fill each 1D histogram with the corresponding reco observable value.
         for (obs, hist) in observables.iter().zip(histograms.iter_mut()) {
             let value = obs.evaluate(&reco, &event);
             if value.is_finite() {
                 hist.fill(value, fw);
+            }
+        }
+
+        // Fill each 2D histogram with (x, y) reco observable values.
+        for ((x_obs, y_obs), hist) in observables_2d.iter().zip(histograms_2d.iter_mut()) {
+            let x_val = x_obs.evaluate(&reco, &event);
+            let y_val = y_obs.evaluate(&reco, &event);
+            if x_val.is_finite() && y_val.is_finite() {
+                hist.fill(x_val, y_val, fw);
             }
         }
     }
@@ -972,8 +1331,15 @@ where
         .map(|(plot, hist)| hist.to_data(&plot.name))
         .collect();
 
+    let histogram_2d_data: Vec<Histogram2DData> = plots_2d
+        .iter()
+        .zip(histograms_2d.iter())
+        .map(|(plot, hist)| hist.to_data_2d(&plot.name))
+        .collect();
+
     Ok(AnalysisResult {
         histograms: histogram_data,
+        histograms_2d: histogram_2d_data,
         cross_section,
         cross_section_error,
         events_generated: n_generated,
@@ -1019,7 +1385,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_in_range() {
         let mut h = Histogram1D::new(10, 0.0, 100.0);
-        // Fill value 15.0 → bin 1 (covers [10, 20))
+        // Fill value 15.0 â†’ bin 1 (covers [10, 20))
         h.fill(15.0, 1.0);
         assert_eq!(h.entries(), 1);
         assert!((h.total_weight() - 1.0).abs() < 1e-12);
@@ -1039,7 +1405,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_overflow() {
         let mut h = Histogram1D::new(10, 0.0, 100.0);
-        h.fill(100.0, 3.0); // value == max → overflow
+        h.fill(100.0, 3.0); // value == max â†’ overflow
         h.fill(150.0, 1.0);
         assert!((h.overflow() - 4.0).abs() < 1e-12);
         assert_eq!(h.entries(), 2);
@@ -1048,7 +1414,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_weighted() {
         let mut h = Histogram1D::new(5, 0.0, 50.0);
-        // Bin width = 10. Value 5.0 → bin 0.
+        // Bin width = 10. Value 5.0 â†’ bin 0.
         h.fill(5.0, 3.5);
         h.fill(5.0, 1.5);
         assert!((h.bin_contents()[0] - 5.0).abs() < 1e-12);
@@ -1126,7 +1492,7 @@ mod tests {
         for _ in 0..100 {
             h.fill(50.0, 1.0);
         }
-        assert!((h.mean() - 55.0).abs() < 1e-8); // bin centre at 55 since 50 → bin 5 → centre 55
+        assert!((h.mean() - 55.0).abs() < 1e-8); // bin centre at 55 since 50 â†’ bin 5 â†’ centre 55
     }
 
     #[test]
@@ -1178,15 +1544,15 @@ mod tests {
     #[test]
     fn histogram2d_fill() {
         let mut h = Histogram2D::new(10, 0.0, 100.0, 10, 0.0, 100.0);
-        h.fill(15.0, 15.0, 1.0); // ix=1, iy=1 → index = 11
+        h.fill(15.0, 15.0, 1.0); // ix=1, iy=1 â†’ index = 11
         assert!((h.bin_contents()[11] - 1.0).abs() < 1e-12);
     }
 
     #[test]
     fn histogram2d_fill_out_of_range() {
         let mut h = Histogram2D::new(10, 0.0, 100.0, 10, 0.0, 100.0);
-        h.fill(-5.0, 50.0, 1.0); // X out of range — ignored
-        h.fill(50.0, 150.0, 1.0); // Y out of range — ignored
+        h.fill(-5.0, 50.0, 1.0); // X out of range : ignored
+        h.fill(50.0, 150.0, 1.0); // Y out of range : ignored
         assert!(h.bin_contents().iter().all(|&b| b == 0.0));
         assert_eq!(h.entries(), 2);
     }
@@ -1236,6 +1602,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
         let json = serde_json::to_string(&config).unwrap();
         let back: AnalysisConfig = serde_json::from_str(&json).unwrap();
@@ -1251,6 +1618,7 @@ mod tests {
             cross_section_error: 4.56e-8,
             events_generated: 1000,
             events_passed: 800,
+            histograms_2d: vec![],
         };
         let json = serde_json::to_string(&result).unwrap();
         let back: AnalysisResult = serde_json::from_str(&json).unwrap();
@@ -1275,6 +1643,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1308,6 +1677,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1345,6 +1715,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1373,6 +1744,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen1 = RamboGenerator::new();
@@ -1411,6 +1783,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1424,7 +1797,7 @@ mod tests {
     fn run_analysis_invariant_mass_distribution() {
         use crate::kinematics::RamboGenerator;
 
-        // For 2→2 massless at √s = 200 GeV, the invariant mass of the
+        // For 2â†’2 massless at âˆšs = 200 GeV, the invariant mass of the
         // pair should always be exactly 200 GeV (total 4-momentum conservation).
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
@@ -1446,6 +1819,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1453,7 +1827,7 @@ mod tests {
 
         let h = &result.histograms[0];
         // The invariant mass should peak around 200 GeV (bin containing 200).
-        // Bin 10 covers [200, 205) → the peak should be in bin 10.
+        // Bin 10 covers [200, 205) â†’ the peak should be in bin 10.
         let peak_bin = h
             .bin_contents
             .iter()
@@ -1475,9 +1849,9 @@ mod tests {
     fn run_analysis_pt_distribution_shape() {
         use crate::kinematics::RamboGenerator;
 
-        // For 2-body massless at √s = 100 GeV, pT of each particle is
-        // (√s / 2) * sin(θ) = 50 * sin(θ). Since θ is isotropic in CM,
-        // the pT distribution should peak near pT ≈ 50 GeV (θ ≈ π/2).
+        // For 2-body massless at âˆšs = 100 GeV, pT of each particle is
+        // (âˆšs / 2) * sin(Î¸) = 50 * sin(Î¸). Since Î¸ is isotropic in CM,
+        // the pT distribution should peak near pT â‰ˆ 50 GeV (Î¸ â‰ˆ Ï€/2).
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
                 name: "pT distribution".into(),
@@ -1492,6 +1866,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1532,6 +1907,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1581,6 +1957,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: None,
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1610,6 +1987,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("perfect".into()),
             particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1646,6 +2024,7 @@ mod tests {
             final_masses: vec![0.0, 0.0, 0.0, 0.0],
             detector_preset: Some("lhc_like".into()),
             particle_kinds: None, // default all-hadronic
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1657,7 +2036,7 @@ mod tests {
     #[test]
     fn run_reco_analysis_met_observable() {
         use crate::kinematics::RamboGenerator;
-        // One visible + one invisible particle → MET from invisible.
+        // One visible + one invisible particle â†’ MET from invisible.
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
                 name: "MET".into(),
@@ -1672,6 +2051,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("perfect".into()),
             particle_kinds: Some(vec!["electron".into(), "invisible".into()]),
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1692,6 +2072,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("nonexistent_detector".into()),
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1715,6 +2096,7 @@ mod tests {
                 "muon".into(),
                 "hadron".into(),
             ]),
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1743,6 +2125,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("perfect".into()),
             particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1767,6 +2150,7 @@ mod tests {
             final_masses: vec![0.0, 0.0, 0.0, 0.0],
             detector_preset: Some("ilc_like".into()),
             particle_kinds: None,
+            plots_2d: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1812,6 +2196,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("lhc_like".into()),
             particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+            plots_2d: None,
         };
 
         let json = serde_json::to_string(&config).unwrap();
@@ -1833,5 +2218,223 @@ mod tests {
         let config: AnalysisConfig = serde_json::from_str(json).unwrap();
         assert!(config.detector_preset.is_none());
         assert!(config.particle_kinds.is_none());
+        assert!(config.plots_2d.is_none());
+    }
+
+    // -----------------------------------------------------------------------
+    // Histogram2D DTO tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn histogram2d_to_data_2d() {
+        let mut h = Histogram2D::new(5, 0.0, 50.0, 4, -2.0, 2.0);
+        h.fill(10.0, 0.5, 1.0);
+        h.fill(10.0, 0.5, 2.0);
+        let data = h.to_data_2d("pT vs η");
+        assert_eq!(data.name, "pT vs η");
+        assert_eq!(data.nx, 5);
+        assert_eq!(data.ny, 4);
+        assert_eq!(data.x_bin_edges.len(), 6); // nx + 1
+        assert_eq!(data.y_bin_edges.len(), 5); // ny + 1
+        assert_eq!(data.bin_contents.len(), 20); // nx * ny
+        assert_eq!(data.entries, 2);
+        assert!((data.total_weight - 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram2d_x_bin_edges() {
+        let h = Histogram2D::new(4, 0.0, 40.0, 2, 0.0, 2.0);
+        let edges = h.x_bin_edges();
+        assert_eq!(edges.len(), 5);
+        assert!((edges[0] - 0.0).abs() < 1e-12);
+        assert!((edges[2] - 20.0).abs() < 1e-12);
+        assert!((edges[4] - 40.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram2d_y_bin_edges() {
+        let h = Histogram2D::new(2, 0.0, 2.0, 5, -5.0, 5.0);
+        let edges = h.y_bin_edges();
+        assert_eq!(edges.len(), 6);
+        assert!((edges[0] - (-5.0)).abs() < 1e-12);
+        assert!((edges[5] - 5.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn histogram2d_data_serde_roundtrip() {
+        let data = Histogram2DData {
+            name: "Test 2D".into(),
+            x_bin_edges: vec![0.0, 10.0, 20.0],
+            y_bin_edges: vec![-1.0, 0.0, 1.0],
+            bin_contents: vec![1.0, 2.0, 3.0, 4.0],
+            nx: 2,
+            ny: 2,
+            entries: 10,
+            total_weight: 10.0,
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        let back: Histogram2DData = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "Test 2D");
+        assert_eq!(back.nx, 2);
+        assert_eq!(back.ny, 2);
+        assert_eq!(back.bin_contents.len(), 4);
+        assert_eq!(back.entries, 10);
+    }
+
+    #[test]
+    fn plot_definition_2d_serde() {
+        let plot = PlotDefinition2D {
+            name: "pT vs η".into(),
+            x_observable_script: "event.momenta[0].pt()".into(),
+            y_observable_script: "event.momenta[0].eta()".into(),
+            nx: 20,
+            x_min: 0.0,
+            x_max: 100.0,
+            ny: 25,
+            y_min: -5.0,
+            y_max: 5.0,
+        };
+        let json = serde_json::to_string(&plot).unwrap();
+        let back: PlotDefinition2D = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.name, "pT vs η");
+        assert_eq!(back.nx, 20);
+        assert_eq!(back.ny, 25);
+    }
+
+    #[test]
+    fn run_analysis_with_2d_plots() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "pT".into(),
+                observable_script: "event.momenta[0].pt()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 60.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 500,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
+            plots_2d: Some(vec![PlotDefinition2D {
+                name: "pT vs η".into(),
+                x_observable_script: "event.momenta[0].pt()".into(),
+                y_observable_script: "event.momenta[0].eta()".into(),
+                nx: 10,
+                x_min: 0.0,
+                x_max: 60.0,
+                ny: 10,
+                y_min: -5.0,
+                y_max: 5.0,
+            }]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        assert_eq!(result.histograms.len(), 1);
+        assert_eq!(result.histograms_2d.len(), 1);
+
+        let h2 = &result.histograms_2d[0];
+        assert_eq!(h2.name, "pT vs η");
+        assert_eq!(h2.nx, 10);
+        assert_eq!(h2.ny, 10);
+        assert_eq!(h2.bin_contents.len(), 100);
+        assert!(h2.entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_with_2d_plots() {
+        use crate::kinematics::RamboGenerator;
+
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "N jets".into(),
+                observable_script: "reco.n_jets().to_float()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 10.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 200,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("perfect".into()),
+            particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+            plots_2d: Some(vec![PlotDefinition2D {
+                name: "pT vs η (reco)".into(),
+                x_observable_script: "event.momenta[0].pt()".into(),
+                y_observable_script: "event.momenta[0].eta()".into(),
+                nx: 8,
+                x_min: 0.0,
+                x_max: 120.0,
+                ny: 8,
+                y_min: -5.0,
+                y_max: 5.0,
+            }]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+
+        assert_eq!(result.histograms.len(), 1);
+        assert_eq!(result.histograms_2d.len(), 1);
+        assert!(result.histograms_2d[0].entries > 0);
+    }
+
+    #[test]
+    fn analysis_config_2d_serde_roundtrip() {
+        let config = AnalysisConfig {
+            plots: vec![],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
+            plots_2d: Some(vec![PlotDefinition2D {
+                name: "test 2d".into(),
+                x_observable_script: "event.momenta[0].pt()".into(),
+                y_observable_script: "event.momenta[0].eta()".into(),
+                nx: 10,
+                x_min: 0.0,
+                x_max: 100.0,
+                ny: 10,
+                y_min: -5.0,
+                y_max: 5.0,
+            }]),
+        };
+        let json = serde_json::to_string(&config).unwrap();
+        let back: AnalysisConfig = serde_json::from_str(&json).unwrap();
+        assert!(back.plots_2d.is_some());
+        assert_eq!(back.plots_2d.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn analysis_result_with_2d_serde() {
+        let result = AnalysisResult {
+            histograms: vec![],
+            histograms_2d: vec![Histogram2DData {
+                name: "test".into(),
+                x_bin_edges: vec![0.0, 1.0],
+                y_bin_edges: vec![0.0, 1.0],
+                bin_contents: vec![5.0],
+                nx: 1,
+                ny: 1,
+                entries: 5,
+                total_weight: 5.0,
+            }],
+            cross_section: 1.0e-6,
+            cross_section_error: 1.0e-8,
+            events_generated: 100,
+            events_passed: 100,
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        let back: AnalysisResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.histograms_2d.len(), 1);
+        assert_eq!(back.histograms_2d[0].name, "test");
     }
 }

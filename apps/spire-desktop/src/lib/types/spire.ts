@@ -817,6 +817,13 @@ export interface AnalysisConfig {
    * When `undefined`, all particles are treated as hadrons.
    */
   particle_kinds?: string[] | null;
+  /**
+   * Optional 2D correlation plot definitions.
+   *
+   * Each entry specifies two observable scripts (X and Y axes) and binning
+   * parameters for a 2D heatmap.
+   */
+  plots_2d?: PlotDefinition2D[] | null;
 }
 
 /** Available detector presets for phenomenological simulation. */
@@ -849,6 +856,8 @@ export interface HistogramData {
 export interface AnalysisResult {
   /** Filled histogram data for each requested plot. */
   histograms: HistogramData[];
+  /** Filled 2D histogram data for each requested 2D correlation plot. */
+  histograms_2d: Histogram2DData[];
   /** Estimated total cross-section (GeV⁻²). */
   cross_section: number;
   /** Statistical uncertainty on the cross-section. */
@@ -857,4 +866,96 @@ export interface AnalysisResult {
   events_generated: number;
   /** Events passing all kinematic cuts. */
   events_passed: number;
+}
+
+// ---------------------------------------------------------------------------
+// 2D Histogramming
+// ---------------------------------------------------------------------------
+
+/** Serialized 2D histogram data for heatmap rendering. */
+export interface Histogram2DData {
+  /** Human-readable name. */
+  name: string;
+  /** X-axis bin edges (length = nx + 1). */
+  x_bin_edges: number[];
+  /** Y-axis bin edges (length = ny + 1). */
+  y_bin_edges: number[];
+  /** Bin contents in row-major order (length = nx * ny). */
+  bin_contents: number[];
+  /** Number of bins on the X axis. */
+  nx: number;
+  /** Number of bins on the Y axis. */
+  ny: number;
+  /** Total number of entries. */
+  entries: number;
+  /** Total accumulated weight. */
+  total_weight: number;
+}
+
+/** Definition of a 2D correlation plot. */
+export interface PlotDefinition2D {
+  /** Human-readable name (e.g., "pT vs η"). */
+  name: string;
+  /** Rhai script returning the X-axis observable value. */
+  x_observable_script: string;
+  /** Rhai script returning the Y-axis observable value. */
+  y_observable_script: string;
+  /** Number of bins on the X axis. */
+  nx: number;
+  /** Lower edge of the X-axis range. */
+  x_min: number;
+  /** Upper edge of the X-axis range. */
+  x_max: number;
+  /** Number of bins on the Y axis. */
+  ny: number;
+  /** Lower edge of the Y-axis range. */
+  y_min: number;
+  /** Upper edge of the Y-axis range. */
+  y_max: number;
+}
+
+// ---------------------------------------------------------------------------
+// 3D Event Display
+// ---------------------------------------------------------------------------
+
+/** 3D vector for event display rendering. */
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Jet representation for 3D event display. */
+export interface DisplayJet {
+  direction: Vec3;
+  energy: number;
+  pt: number;
+  eta: number;
+  phi: number;
+  n_constituents: number;
+}
+
+/** Track representation for 3D event display (leptons, photons). */
+export interface DisplayTrack {
+  direction: Vec3;
+  energy: number;
+  pt: number;
+  eta: number;
+  particle_type: string;
+}
+
+/** Missing transverse energy for 3D event display. */
+export interface DisplayMET {
+  direction: Vec3;
+  magnitude: number;
+}
+
+/** Complete event display data for the 3D visualiser. */
+export interface EventDisplayData {
+  jets: DisplayJet[];
+  electrons: DisplayTrack[];
+  muons: DisplayTrack[];
+  photons: DisplayTrack[];
+  met: DisplayMET;
+  cms_energy: number;
 }

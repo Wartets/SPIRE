@@ -11,12 +11,14 @@
     "@tauri-apps/api": "^1.5.0",
     "chart.js": "^4.5.1",
     "mermaid": "^11.12.3",
-    "svelte": "^4.0.0"
+    "svelte": "^4.0.0",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@sveltejs/adapter-auto": "next",
     "@sveltejs/kit": "next",
     "@tauri-apps/cli": "^1.5.0",
+    "@types/three": "^0.183.1",
     "svelte-check": "^3.0.0",
     "typescript": "^5.0.0"
   }

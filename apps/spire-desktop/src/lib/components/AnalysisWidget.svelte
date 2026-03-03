@@ -9,10 +9,10 @@
   Supports linear/logarithmic Y-axis scaling.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
-  import type { AnalysisResult, HistogramData, DetectorPreset, ParticleKind } from "$lib/types/spire";
+  import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import {
     Chart,
     BarController,
@@ -131,6 +131,57 @@
   ];
 
   // ---------------------------------------------------------------------------
+  // 2D Observable Presets
+  // ---------------------------------------------------------------------------
+  interface Observable2DPreset {
+    label: string;
+    xScript: string;
+    yScript: string;
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+    nx: number;
+    ny: number;
+    description: string;
+  }
+
+  const PRESETS_2D: Observable2DPreset[] = [
+    {
+      label: "pT vs η",
+      xScript: "event.momenta[0].pt()",
+      yScript: "event.momenta[0].eta()",
+      xMin: 0, xMax: 60, yMin: -5, yMax: 5,
+      nx: 25, ny: 25,
+      description: "Transverse momentum vs pseudorapidity correlation",
+    },
+    {
+      label: "pT vs φ",
+      xScript: "event.momenta[0].pt()",
+      yScript: "event.momenta[0].phi()",
+      xMin: 0, xMax: 60, yMin: -3.15, yMax: 3.15,
+      nx: 25, ny: 25,
+      description: "Transverse momentum vs azimuthal angle",
+    },
+    {
+      label: "η₁ vs η₂",
+      xScript: "event.momenta[0].eta()",
+      yScript: "event.momenta[1].eta()",
+      xMin: -5, xMax: 5, yMin: -5, yMax: 5,
+      nx: 20, ny: 20,
+      description: "Pseudorapidity correlation between first two particles",
+    },
+    {
+      label: "E vs pT",
+      xScript: "event.momenta[0].e()",
+      yScript: "event.momenta[0].pt()",
+      xMin: 0, xMax: 100, yMin: 0, yMax: 60,
+      nx: 25, ny: 25,
+      description: "Energy vs transverse momentum",
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
   // Detector Presets
   // ---------------------------------------------------------------------------
   interface DetectorPresetInfo {
@@ -149,6 +200,9 @@
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
+  /** Analysis mode: 1D bar charts or 2D heatmaps. */
+  let analysisMode: "1d" | "2d" = "1d";
+
   let plotName: string = "Leading pT";
   let observableScript: string = "event.momenta[0].pt()";
   let histMin: number = 0;
@@ -158,6 +212,17 @@
   let numEvents: number = 5000;
   let nFinalState: number = 2;
   let cutScript: string = "";
+
+  // 2D-specific state
+  let plot2DName: string = "pT vs η";
+  let xObservableScript: string = "event.momenta[0].pt()";
+  let yObservableScript: string = "event.momenta[0].eta()";
+  let xMin2D: number = 0;
+  let xMax2D: number = 60;
+  let yMin2D: number = -5;
+  let yMax2D: number = 5;
+  let nx2D: number = 25;
+  let ny2D: number = 25;
 
   // Detector simulation state
   let detectorPreset: DetectorPreset | '' = '';
@@ -182,7 +247,10 @@
   let result: AnalysisResult | null = null;
   let activeHistogram: HistogramData | null = null;
 
+  let activeHistogram2D: Histogram2DData | null = null;
+
   let canvasEl: HTMLCanvasElement;
+  let canvas2dEl: HTMLCanvasElement;
   let chart: Chart | null = null;
 
   // ---------------------------------------------------------------------------
@@ -195,6 +263,32 @@
     histMax = preset.max;
     nBins = preset.nBins;
     appendLog(`Analysis preset: ${preset.label}`);
+  }
+
+  interface Observable2DPreset {
+    label: string;
+    xScript: string;
+    yScript: string;
+    nx: number;
+    ny: number;
+    xMin: number;
+    xMax: number;
+    yMin: number;
+    yMax: number;
+    description: string;
+  }
+
+  function apply2DPreset(preset: Observable2DPreset): void {
+    plot2DName = preset.label;
+    xObservableScript = preset.xScript;
+    yObservableScript = preset.yScript;
+    nx2D = preset.nx;
+    ny2D = preset.ny;
+    xMin2D = preset.xMin;
+    xMax2D = preset.xMax;
+    yMin2D = preset.yMin;
+    yMax2D = preset.yMax;
+    appendLog(`2D preset: ${preset.label}`);
   }
 
   // ---------------------------------------------------------------------------
@@ -229,17 +323,31 @@
     errorMsg = "";
     result = null;
     activeHistogram = null;
+    activeHistogram2D = null;
 
     // Client-side validation.
-    if (nBins < 1 || nBins > 1000) {
-      errorMsg = "Bin count must be between 1 and 1000.";
-      loading = false;
-      return;
-    }
-    if (histMin >= histMax) {
-      errorMsg = "Histogram min must be less than max.";
-      loading = false;
-      return;
+    if (analysisMode === '1d') {
+      if (nBins < 1 || nBins > 1000) {
+        errorMsg = "Bin count must be between 1 and 1000.";
+        loading = false;
+        return;
+      }
+      if (histMin >= histMax) {
+        errorMsg = "Histogram min must be less than max.";
+        loading = false;
+        return;
+      }
+    } else {
+      if (nx2D < 1 || nx2D > 500 || ny2D < 1 || ny2D > 500) {
+        errorMsg = "2D bin counts must be between 1 and 500.";
+        loading = false;
+        return;
+      }
+      if (xMin2D >= xMax2D || yMin2D >= yMax2D) {
+        errorMsg = "2D axis min must be less than max.";
+        loading = false;
+        return;
+      }
     }
     if (cmsEnergy <= 0) {
       errorMsg = "CMS energy must be positive.";
@@ -255,21 +363,41 @@
     const finalMasses = Array(nFinalState).fill(0.0);
     const cutScripts = cutScript.trim() ? [cutScript.trim()] : [];
 
+    // Build 1D plots array (always include if mode is 1d).
+    const plots1D = analysisMode === '1d'
+      ? [{
+          name: plotName,
+          observable_script: observableScript,
+          n_bins: nBins,
+          min: histMin,
+          max: histMax,
+        }]
+      : [];
+
+    // Build 2D plots array (include if mode is 2d).
+    const plots2D = analysisMode === '2d'
+      ? [{
+          name: plot2DName,
+          x_observable_script: xObservableScript,
+          y_observable_script: yObservableScript,
+          nx: nx2D,
+          ny: ny2D,
+          x_min: xMin2D,
+          x_max: xMax2D,
+          y_min: yMin2D,
+          y_max: yMax2D,
+        }]
+      : null;
+
     try {
+      const modeLabel = analysisMode === '1d' ? plotName : plot2DName;
       appendLog(
-        `Running analysis: ${plotName}, ${numEvents} events at √s = ${cmsEnergy} GeV`,
+        `Running ${analysisMode.toUpperCase()} analysis: ${modeLabel}, ${numEvents} events at √s = ${cmsEnergy} GeV`,
       );
 
       const analysisResult = await runAnalysis({
-        plots: [
-          {
-            name: plotName,
-            observable_script: observableScript,
-            n_bins: nBins,
-            min: histMin,
-            max: histMax,
-          },
-        ],
+        plots: plots1D,
+        plots_2d: plots2D,
         cut_scripts: cutScripts,
         num_events: numEvents,
         cms_energy: cmsEnergy,
@@ -279,9 +407,15 @@
       });
 
       result = analysisResult;
-      if (analysisResult.histograms.length > 0) {
+
+      if (analysisMode === '1d' && analysisResult.histograms.length > 0) {
         activeHistogram = analysisResult.histograms[0];
         renderChart(activeHistogram);
+      } else if (analysisMode === '2d' && analysisResult.histograms_2d.length > 0) {
+        activeHistogram2D = analysisResult.histograms_2d[0];
+        // Use tick() to ensure canvas is mounted before rendering.
+        await tick();
+        render2DHeatmap(activeHistogram2D);
       }
 
       const xsecPb = analysisResult.cross_section * 0.3894e9;
@@ -399,6 +533,120 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 2D Heatmap Rendering (Canvas ImageData with Viridis palette)
+  // ---------------------------------------------------------------------------
+
+  /** Viridis-inspired colour scale: returns [r, g, b] for t in [0, 1]. */
+  function viridis(t: number): [number, number, number] {
+    // Simplified 5-stop Viridis approximation.
+    const stops: [number, number, number, number][] = [
+      [0.0, 68, 1, 84],
+      [0.25, 59, 82, 139],
+      [0.5, 33, 145, 140],
+      [0.75, 94, 201, 98],
+      [1.0, 253, 231, 37],
+    ];
+    const clamped = Math.max(0, Math.min(1, t));
+    let lo = stops[0], hi = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (clamped >= stops[i][0] && clamped <= stops[i + 1][0]) {
+        lo = stops[i];
+        hi = stops[i + 1];
+        break;
+      }
+    }
+    const frac = hi[0] === lo[0] ? 0 : (clamped - lo[0]) / (hi[0] - lo[0]);
+    return [
+      Math.round(lo[1] + frac * (hi[1] - lo[1])),
+      Math.round(lo[2] + frac * (hi[2] - lo[2])),
+      Math.round(lo[3] + frac * (hi[3] - lo[3])),
+    ];
+  }
+
+  function render2DHeatmap(data: Histogram2DData): void {
+    if (!canvas2dEl) return;
+
+    const { nx, ny, bin_contents, x_bin_edges, y_bin_edges, name } = data;
+    const cellW = 16;
+    const cellH = 16;
+    const marginLeft = 60;
+    const marginBottom = 50;
+    const marginTop = 30;
+    const marginRight = 80; // room for colour bar
+    const width = marginLeft + nx * cellW + marginRight;
+    const height = marginTop + ny * cellH + marginBottom;
+
+    canvas2dEl.width = width;
+    canvas2dEl.height = height;
+    const ctx = canvas2dEl.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#1e1e1e";
+    ctx.fillRect(0, 0, width, height);
+
+    // Find max bin value for normalisation.
+    const maxVal = Math.max(...bin_contents, 1e-30);
+
+    // Draw heatmap cells (row-major: row i = y-bin i, col j = x-bin j).
+    for (let iy = 0; iy < ny; iy++) {
+      for (let ix = 0; ix < nx; ix++) {
+        const val = bin_contents[iy * nx + ix];
+        const t = maxVal > 0 ? val / maxVal : 0;
+        const [r, g, b] = viridis(t);
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        // Y-axis is inverted (row 0 = top → largest y).
+        const px = marginLeft + ix * cellW;
+        const py = marginTop + (ny - 1 - iy) * cellH;
+        ctx.fillRect(px, py, cellW, cellH);
+      }
+    }
+
+    // X-axis labels.
+    ctx.fillStyle = "#999";
+    ctx.font = "10px JetBrains Mono, monospace";
+    ctx.textAlign = "center";
+    const xLabelCount = Math.min(nx + 1, 8);
+    const xStep = Math.max(1, Math.floor(nx / (xLabelCount - 1)));
+    for (let i = 0; i <= nx; i += xStep) {
+      const px = marginLeft + i * cellW;
+      const py = marginTop + ny * cellH + 15;
+      ctx.fillText(x_bin_edges[i].toFixed(1), px, py);
+    }
+
+    // Y-axis labels.
+    ctx.textAlign = "right";
+    const yLabelCount = Math.min(ny + 1, 8);
+    const yStep = Math.max(1, Math.floor(ny / (yLabelCount - 1)));
+    for (let i = 0; i <= ny; i += yStep) {
+      const px = marginLeft - 5;
+      const py = marginTop + (ny - i) * cellH + 4;
+      ctx.fillText(y_bin_edges[i].toFixed(1), px, py);
+    }
+
+    // Title.
+    ctx.fillStyle = "#e0e0e0";
+    ctx.font = "bold 12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(name, marginLeft + (nx * cellW) / 2, marginTop - 10);
+
+    // Colour bar.
+    const barX = marginLeft + nx * cellW + 15;
+    const barW = 15;
+    const barH = ny * cellH;
+    for (let i = 0; i < barH; i++) {
+      const t = i / barH;
+      const [r, g, b] = viridis(t);
+      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+      ctx.fillRect(barX, marginTop + barH - 1 - i, barW, 1);
+    }
+    ctx.fillStyle = "#999";
+    ctx.font = "9px JetBrains Mono, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText("0", barX + barW + 4, marginTop + barH);
+    ctx.fillText(maxVal.toExponential(1), barX + barW + 4, marginTop + 8);
+  }
+
+  // ---------------------------------------------------------------------------
   // Scale Toggle
   // ---------------------------------------------------------------------------
   function toggleScale(): void {
@@ -431,6 +679,22 @@
 <div class="analysis-widget">
   <!-- Configuration Panel -->
   <div class="config-panel">
+    <!-- Mode Toggle -->
+    <div class="mode-toggle">
+      <button
+        class="mode-btn"
+        class:active={analysisMode === '1d'}
+        on:click={() => analysisMode = '1d'}
+      >1D Histogram</button>
+      <button
+        class="mode-btn"
+        class:active={analysisMode === '2d'}
+        on:click={() => analysisMode = '2d'}
+      >2D Heatmap</button>
+    </div>
+
+    {#if analysisMode === '1d'}
+    <!-- ── 1D Mode ─────────────────────────────────────────────────── -->
     <!-- Preset Selector -->
     <div class="preset-row">
       <span class="preset-label">Presets:</span>
@@ -483,7 +747,77 @@
       </div>
     </div>
 
-    <!-- Physics Parameters -->
+    {:else}
+    <!-- ── 2D Mode ─────────────────────────────────────────────────── -->
+    <div class="preset-row">
+      <span class="preset-label">2D Presets:</span>
+      <div class="preset-buttons">
+        {#each PRESETS_2D as p2d}
+          <button
+            class="preset-btn"
+            title={p2d.description}
+            on:click={() => apply2DPreset(p2d)}
+          >{p2d.label}</button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="x-obs-script">X Observable Script (Rhai):</label>
+      <textarea
+        id="x-obs-script"
+        bind:value={xObservableScript}
+        rows="2"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <div class="field">
+      <label for="y-obs-script">Y Observable Script (Rhai):</label>
+      <textarea
+        id="y-obs-script"
+        bind:value={yObservableScript}
+        rows="2"
+        spellcheck="false"
+      ></textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field compact">
+        <label for="plot-name-2d">Name:</label>
+        <input id="plot-name-2d" type="text" bind:value={plot2DName} />
+      </div>
+      <div class="field compact">
+        <label for="nx-bins">X Bins:</label>
+        <input id="nx-bins" type="number" bind:value={nx2D} min="1" max="500" />
+      </div>
+      <div class="field compact">
+        <label for="ny-bins">Y Bins:</label>
+        <input id="ny-bins" type="number" bind:value={ny2D} min="1" max="500" />
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field compact">
+        <label for="x-min-2d">X Min:</label>
+        <input id="x-min-2d" type="number" bind:value={xMin2D} step="any" />
+      </div>
+      <div class="field compact">
+        <label for="x-max-2d">X Max:</label>
+        <input id="x-max-2d" type="number" bind:value={xMax2D} step="any" />
+      </div>
+      <div class="field compact">
+        <label for="y-min-2d">Y Min:</label>
+        <input id="y-min-2d" type="number" bind:value={yMin2D} step="any" />
+      </div>
+      <div class="field compact">
+        <label for="y-max-2d">Y Max:</label>
+        <input id="y-max-2d" type="number" bind:value={yMax2D} step="any" />
+      </div>
+    </div>
+    {/if}
+
+    <!-- Physics Parameters (shared) -->
     <div class="field-row">
       <div class="field compact">
         <label for="cms-energy">√s (GeV):</label>
@@ -565,7 +899,7 @@
       <button
         class="run-btn"
         on:click={handleRun}
-        disabled={loading || !scriptValid}
+        disabled={loading || (analysisMode === '1d' && !scriptValid)}
       >
         {#if loading}
           ⏳ Running…
@@ -573,7 +907,7 @@
           ▶ Run Analysis
         {/if}
       </button>
-      {#if activeHistogram}
+      {#if activeHistogram && analysisMode === '1d'}
         <button class="scale-btn" on:click={toggleScale}>
           {logScale ? "Linear" : "Log"} Y
         </button>
@@ -613,17 +947,36 @@
             </span>
           </div>
         {/if}
+        {#if activeHistogram2D}
+          <div class="stat">
+            <span class="stat-label">Entries:</span>
+            <span class="stat-value">{activeHistogram2D.entries.toLocaleString()}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Grid:</span>
+            <span class="stat-value">{activeHistogram2D.nx}×{activeHistogram2D.ny}</span>
+          </div>
+        {/if}
       </div>
     {/if}
   </div>
 
-  <!-- Chart Canvas -->
+  <!-- Chart / Heatmap Canvas -->
   <div class="chart-container">
-    <canvas bind:this={canvasEl}></canvas>
-    {#if !activeHistogram && !loading}
-      <div class="placeholder">
-        Configure an observable and click <strong>Run Analysis</strong> to generate a histogram.
-      </div>
+    {#if analysisMode === '1d'}
+      <canvas bind:this={canvasEl}></canvas>
+      {#if !activeHistogram && !loading}
+        <div class="placeholder">
+          Configure an observable and click <strong>Run Analysis</strong> to generate a histogram.
+        </div>
+      {/if}
+    {:else}
+      <canvas bind:this={canvas2dEl} class="heatmap-canvas"></canvas>
+      {#if !activeHistogram2D && !loading}
+        <div class="placeholder">
+          Configure X/Y observables and click <strong>Run Analysis</strong> to generate a 2D heatmap.
+        </div>
+      {/if}
     {/if}
   </div>
 </div>
@@ -889,5 +1242,45 @@
   .preset-section label {
     color: #aaa;
     font-size: 0.78rem;
+  }
+
+  /* --- Mode Toggle --- */
+
+  .mode-toggle {
+    display: flex;
+    gap: 0.3rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 0.3rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1px solid rgba(138, 180, 248, 0.2);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.03);
+    color: #888;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .mode-btn.active {
+    background: rgba(138, 180, 248, 0.15);
+    color: #8ab4f8;
+    border-color: rgba(138, 180, 248, 0.5);
+  }
+
+  .mode-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.06);
+    color: #bbb;
+  }
+
+  /* --- 2D Heatmap Canvas --- */
+
+  .heatmap-canvas {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
   }
 </style>

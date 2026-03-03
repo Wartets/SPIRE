@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
-use spire_kernel::analysis::{AnalysisConfig, AnalysisResult};
+use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::data_loader;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::kinematics::{self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult};
@@ -387,6 +387,37 @@ fn test_cut_script(script: String) -> Result<bool, String> {
 }
 
 // ---------------------------------------------------------------------------
+// 3D Event Display Command
+// ---------------------------------------------------------------------------
+
+/// Generate a single reconstructed event for 3D visualisation.
+///
+/// Runs one RAMBO event through the specified detector model and returns
+/// an `EventDisplayData` containing jets (as cones), lepton/photon tracks,
+/// and missing transverse energy for rendering in the Three.js event display.
+///
+/// # Arguments
+/// * `cms_energy` — Centre-of-mass energy (GeV).
+/// * `final_masses` — Final-state particle masses.
+/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds` — Optional particle kind labels per final-state leg.
+#[tauri::command]
+fn generate_display_event(
+    cms_energy: f64,
+    final_masses: Vec<f64>,
+    detector_preset: String,
+    particle_kinds: Option<Vec<String>>,
+) -> Result<EventDisplayData, String> {
+    spire_kernel::analysis::generate_display_event(
+        cms_energy,
+        &final_masses,
+        &detector_preset,
+        particle_kinds.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -406,6 +437,7 @@ fn main() {
             validate_script,
             test_observable_script,
             test_cut_script,
+            generate_display_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

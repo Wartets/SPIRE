@@ -24,6 +24,7 @@ export type WidgetType =
   | "kinematics"
   | "dalitz"
   | "analysis"
+  | "event_display"
   | "log";
 
 // ---------------------------------------------------------------------------
@@ -67,8 +68,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "amplitude",  label: "Amplitude Panel",     defaultColSpan: 1, defaultRowSpan: 2 },
   { type: "kinematics", label: "Kinematics",          defaultColSpan: 1, defaultRowSpan: 1 },
   { type: "dalitz",     label: "Dalitz Plot",         defaultColSpan: 2, defaultRowSpan: 2 },
-  { type: "analysis",   label: "Analysis",             defaultColSpan: 2, defaultRowSpan: 3 },
-  { type: "log",        label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
+  { type: "analysis",       label: "Analysis",             defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "event_display", label: "Event Display",        defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
 ];
 
 // ---------------------------------------------------------------------------

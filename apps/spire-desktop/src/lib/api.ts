@@ -325,3 +325,35 @@ export async function testCutScript(
 ): Promise<boolean> {
   return invoke<boolean>("test_cut_script", { script });
 }
+
+// ---------------------------------------------------------------------------
+// 3D Event Display
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a single reconstructed event for 3D visualisation.
+ *
+ * Runs one RAMBO event through the specified detector model and returns
+ * an `EventDisplayData` for rendering jets, tracks, and MET.
+ *
+ * @param cmsEnergy - Centre-of-mass energy (GeV).
+ * @param finalMasses - Final-state particle masses.
+ * @param detectorPreset - Detector preset name (e.g., "lhc_like").
+ * @param particleKinds - Optional particle kind labels per final-state leg.
+ */
+export async function generateDisplayEvent(
+  cmsEnergy: number,
+  finalMasses: number[],
+  detectorPreset: string,
+  particleKinds?: string[] | null,
+): Promise<import("$lib/types/spire").EventDisplayData> {
+  return invoke<import("$lib/types/spire").EventDisplayData>(
+    "generate_display_event",
+    {
+      cmsEnergy,
+      finalMasses,
+      detectorPreset,
+      particleKinds: particleKinds ?? null,
+    },
+  );
+}
