@@ -2,6 +2,7 @@
 name = "spire-bindings"
 version.workspace = true
 edition.workspace = true
+description = "WASM, Python (PyO3), and FFI bindings for the SPIRE physics kernel"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

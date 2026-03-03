@@ -1,0 +1,105 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  rust-tests:
+    name: Rust Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check workspace compilation
+        run: cargo check --workspace
+
+      - name: Run kernel test suite
+        run: cargo test -p spire-kernel
+
+      - name: Run bindings compilation check
+        run: cargo check -p spire-bindings
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy lints
+        run: cargo clippy --workspace -- -D warnings
+        continue-on-error: true
+
+  frontend-check:
+    name: Frontend Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: apps/spire-desktop/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/spire-desktop
+        run: npm install --legacy-peer-deps
+
+      - name: Run svelte-check and TypeScript compiler
+        working-directory: apps/spire-desktop
+        run: npm run check
+
+  documentation:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust documentation
+        run: cargo doc --workspace --no-deps
+
+  python-bindings:
+    name: Python Bindings Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Python bindings compilation
+        run: cargo check -p spire-bindings --features python

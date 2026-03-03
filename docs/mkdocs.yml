@@ -29,6 +29,8 @@ nav:
     - Formalism: theory/formalism.md
   - User Guide:
     - Quick Start: guide/quickstart.md
+    - Scripting Engine: guide/scripting.md
+    - Interoperability & Export: guide/interop.md
   - API Reference:
     - Overview: api/reference.md
 
