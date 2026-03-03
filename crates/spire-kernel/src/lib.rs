@@ -27,12 +27,20 @@
 //!   differential distributions from squared matrix elements over phase space.
 //! - [`pdf`] — Parton Distribution Function framework. Generic `PdfProvider` trait
 //!   with analytical toy implementations for proton parton densities.
+//! - [`scripting`] — Embedded Rhai scripting engine for runtime-defined observables,
+//!   kinematic cuts, and form factors.
+//! - [`io`] — Event serialization framework. Generic `EventWriter` trait with
+//!   Les Houches Event (LHE) format v3.0 implementation.
+//! - [`interface`] — External solver communication. Generic `ExternalSolver` trait
+//!   with CLI subprocess wrapper for invoking tools like FIRE and Kira.
 
 pub mod algebra;
 pub mod data_loader;
 pub mod graph;
 pub mod groups;
 pub mod integration;
+pub mod interface;
+pub mod io;
 pub mod kinematics;
 pub mod lagrangian;
 pub mod ontology;
