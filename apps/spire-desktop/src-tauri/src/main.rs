@@ -287,8 +287,14 @@ fn derive_amplitude_steps(
 /// This orchestrates the full analysis workflow in a single IPC call:
 /// 1. Compiles all Rhai observable and cut scripts.
 /// 2. Initialises histograms with the requested binning.
-/// 3. Runs the Monte Carlo event loop, applying cuts and filling histograms.
-/// 4. Returns serialized histogram data alongside cross-section estimates.
+/// 3. Optionally reconstructs events through a detector model.
+/// 4. Runs the Monte Carlo event loop, applying cuts and filling histograms.
+/// 5. Returns serialized histogram data alongside cross-section estimates.
+///
+/// When `config.detector_preset` is specified (e.g. `"lhc_like"`), the
+/// pipeline passes each truth-level event through a phenomenological
+/// detector simulation. Observable scripts can then access the
+/// `reco` variable (jets, leptons, MET) in addition to `event`.
 ///
 /// # Arguments
 /// * `config` — Analysis configuration with plot definitions, cuts, CMS energy, etc.
@@ -304,7 +310,7 @@ fn run_analysis(config: AnalysisConfig) -> Result<AnalysisResult, String> {
     // Use constant |M|² = 1 for phase-space distributions.
     // For realistic matrix elements, the frontend should provide the
     // process definition and the kernel would compute |M|² from diagrams.
-    spire_kernel::analysis::run_analysis(&config, |_| 1.0, &mut generator)
+    spire_kernel::analysis::run_reco_analysis(&config, |_| 1.0, &mut generator)
         .map_err(|e| e.to_string())
 }
 

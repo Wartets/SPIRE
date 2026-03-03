@@ -52,6 +52,8 @@ use rhai::{Array, Dynamic, Engine, AST};
 
 use crate::algebra::SpacetimeVector;
 use crate::kinematics::PhaseSpacePoint;
+use crate::reco::clustering::Jet;
+use crate::reco::detector::ReconstructedEvent;
 use crate::{SpireError, SpireResult};
 
 // ---------------------------------------------------------------------------
@@ -169,6 +171,104 @@ fn psp_get_weight(psp: &mut PhaseSpacePoint) -> f64 {
 }
 
 // ---------------------------------------------------------------------------
+// Jet — Rhai helper functions
+// ---------------------------------------------------------------------------
+
+/// Jet transverse momentum $p_T$.
+fn jet_pt(j: &mut Jet) -> f64 {
+    j.pt()
+}
+
+/// Jet pseudorapidity $\eta$.
+fn jet_eta(j: &mut Jet) -> f64 {
+    j.eta()
+}
+
+/// Jet azimuthal angle $\phi$.
+fn jet_phi(j: &mut Jet) -> f64 {
+    j.phi()
+}
+
+/// Jet energy.
+fn jet_e(j: &mut Jet) -> f64 {
+    j.energy()
+}
+
+/// Jet invariant mass.
+fn jet_m(j: &mut Jet) -> f64 {
+    j.mass()
+}
+
+/// Jet 4-momentum as a SpacetimeVector.
+fn jet_momentum(j: &mut Jet) -> SpacetimeVector {
+    j.momentum.clone()
+}
+
+/// Number of constituents in the jet.
+fn jet_n_constituents(j: &mut Jet) -> i64 {
+    j.n_constituents() as i64
+}
+
+/// Jet $p_x$.
+fn jet_px(j: &mut Jet) -> f64 {
+    j.momentum[1]
+}
+
+/// Jet $p_y$.
+fn jet_py(j: &mut Jet) -> f64 {
+    j.momentum[2]
+}
+
+/// Jet $p_z$.
+fn jet_pz(j: &mut Jet) -> f64 {
+    j.momentum[3]
+}
+
+// ---------------------------------------------------------------------------
+// ReconstructedEvent — Rhai helper functions
+// ---------------------------------------------------------------------------
+
+/// Get the jets array from a ReconstructedEvent.
+fn reco_get_jets(reco: &mut ReconstructedEvent) -> Array {
+    reco.jets.iter().map(|j| Dynamic::from(j.clone())).collect()
+}
+
+/// Get the electrons array from a ReconstructedEvent.
+fn reco_get_electrons(reco: &mut ReconstructedEvent) -> Array {
+    reco.electrons.iter().map(|v| Dynamic::from(v.clone())).collect()
+}
+
+/// Get the muons array from a ReconstructedEvent.
+fn reco_get_muons(reco: &mut ReconstructedEvent) -> Array {
+    reco.muons.iter().map(|v| Dynamic::from(v.clone())).collect()
+}
+
+/// Get the photons array from a ReconstructedEvent.
+fn reco_get_photons(reco: &mut ReconstructedEvent) -> Array {
+    reco.photons.iter().map(|v| Dynamic::from(v.clone())).collect()
+}
+
+/// Get the MET 4-vector from a ReconstructedEvent.
+fn reco_get_met(reco: &mut ReconstructedEvent) -> SpacetimeVector {
+    reco.met.clone()
+}
+
+/// Number of jets.
+fn reco_n_jets(reco: &mut ReconstructedEvent) -> i64 {
+    reco.n_jets() as i64
+}
+
+/// Number of leptons (electrons + muons).
+fn reco_n_leptons(reco: &mut ReconstructedEvent) -> i64 {
+    reco.n_leptons() as i64
+}
+
+/// MET magnitude $E_T^{\text{miss}}$.
+fn reco_met_pt(reco: &mut ReconstructedEvent) -> f64 {
+    reco.met_pt()
+}
+
+// ---------------------------------------------------------------------------
 // Script Engine
 // ---------------------------------------------------------------------------
 
@@ -216,6 +316,30 @@ impl SpireScriptEngine {
         engine.register_type_with_name::<PhaseSpacePoint>("PhaseSpacePoint");
         engine.register_get("momenta", psp_get_momenta);
         engine.register_get("weight", psp_get_weight);
+
+        // --- Register Jet ---
+        engine.register_type_with_name::<Jet>("Jet");
+        engine.register_fn("pt", jet_pt);
+        engine.register_fn("eta", jet_eta);
+        engine.register_fn("phi", jet_phi);
+        engine.register_fn("e", jet_e);
+        engine.register_fn("m", jet_m);
+        engine.register_fn("px", jet_px);
+        engine.register_fn("py", jet_py);
+        engine.register_fn("pz", jet_pz);
+        engine.register_get("momentum", jet_momentum);
+        engine.register_fn("n_constituents", jet_n_constituents);
+
+        // --- Register ReconstructedEvent ---
+        engine.register_type_with_name::<ReconstructedEvent>("ReconstructedEvent");
+        engine.register_get("jets", reco_get_jets);
+        engine.register_get("electrons", reco_get_electrons);
+        engine.register_get("muons", reco_get_muons);
+        engine.register_get("photons", reco_get_photons);
+        engine.register_get("met", reco_get_met);
+        engine.register_fn("n_jets", reco_n_jets);
+        engine.register_fn("n_leptons", reco_n_leptons);
+        engine.register_fn("met_pt", reco_met_pt);
 
         Self {
             engine: Arc::new(engine),
@@ -281,6 +405,35 @@ impl SpireScriptEngine {
             engine: Arc::clone(&self.engine),
             ast,
             source: script.to_string(),
+        })
+    }
+
+    /// Compile a script intended to be evaluated as a reconstructed-level observable.
+    ///
+    /// The script receives a `ReconstructedEvent` bound to the variable `reco`
+    /// and a `PhaseSpacePoint` bound to the variable `event`, and must return
+    /// a numeric (`f64`) value.
+    ///
+    /// Allows scripts like `reco.jets[0].pt()` or `reco.met.pt()`.
+    pub fn compile_reco_observable(&self, script: &str) -> SpireResult<RhaiRecoObservable> {
+        let ast = self.compile(script)?;
+        Ok(RhaiRecoObservable {
+            engine: Arc::clone(&self.engine),
+            ast,
+            name: "reco_observable".into(),
+        })
+    }
+
+    /// Compile a script for a reconstructed-level cut.
+    ///
+    /// The script receives both `reco` (ReconstructedEvent) and `event`
+    /// (PhaseSpacePoint) and must return a boolean.
+    pub fn compile_reco_cut(&self, script: &str) -> SpireResult<RhaiRecoCut> {
+        let ast = self.compile(script)?;
+        Ok(RhaiRecoCut {
+            engine: Arc::clone(&self.engine),
+            ast,
+            name: "reco_cut".into(),
         })
     }
 
@@ -454,6 +607,89 @@ impl CompiledFormFactor {
 
 unsafe impl Send for CompiledFormFactor {}
 unsafe impl Sync for CompiledFormFactor {}
+
+// ---------------------------------------------------------------------------
+// Reconstructed-Level Observable & Cut
+// ---------------------------------------------------------------------------
+
+/// A reco-level observable that receives both `reco` (`ReconstructedEvent`)
+/// and `event` (`PhaseSpacePoint`) in the Rhai scope.
+///
+/// Use [`SpireScriptEngine::compile_reco_observable`] to construct.
+pub struct RhaiRecoObservable {
+    engine: Arc<Engine>,
+    ast: AST,
+    name: String,
+}
+
+impl RhaiRecoObservable {
+    /// Set a descriptive name for this observable.
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
+
+    /// Evaluate this observable on a reconstructed event.
+    pub fn evaluate(&self, reco: &ReconstructedEvent, event: &PhaseSpacePoint) -> f64 {
+        let mut scope = rhai::Scope::new();
+        scope.push("reco", reco.clone());
+        scope.push("event", event.clone());
+        self.engine
+            .eval_ast_with_scope::<Dynamic>(&mut scope, &self.ast)
+            .and_then(|v| {
+                v.as_float().map_err(|_t| {
+                    rhai::EvalAltResult::ErrorMismatchOutputType(
+                        "f64".into(),
+                        "non-numeric".into(),
+                        rhai::Position::NONE,
+                    )
+                    .into()
+                })
+            })
+            .unwrap_or(f64::NAN)
+    }
+
+    /// Human-readable name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+unsafe impl Send for RhaiRecoObservable {}
+unsafe impl Sync for RhaiRecoObservable {}
+
+/// A reco-level boolean cut receiving both `reco` and `event`.
+pub struct RhaiRecoCut {
+    engine: Arc<Engine>,
+    ast: AST,
+    name: String,
+}
+
+impl RhaiRecoCut {
+    /// Set a descriptive name for this cut.
+    pub fn with_name(mut self, name: impl Into<String>) -> Self {
+        self.name = name.into();
+        self
+    }
+
+    /// Returns `true` if the event passes this cut.
+    pub fn is_passed(&self, reco: &ReconstructedEvent, event: &PhaseSpacePoint) -> bool {
+        let mut scope = rhai::Scope::new();
+        scope.push("reco", reco.clone());
+        scope.push("event", event.clone());
+        self.engine
+            .eval_ast_with_scope::<bool>(&mut scope, &self.ast)
+            .unwrap_or(false)
+    }
+
+    /// Human-readable name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+unsafe impl Send for RhaiRecoCut {}
+unsafe impl Sync for RhaiRecoCut {}
 
 // ---------------------------------------------------------------------------
 // Tests

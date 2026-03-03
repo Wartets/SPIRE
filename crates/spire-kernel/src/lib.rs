@@ -36,8 +36,10 @@
 //! - [`analysis`] — Integrated histogramming and analysis pipeline. High-performance
 //!   `Histogram1D` and `Histogram2D` structures with thread-local merge strategy
 //!   for parallel Monte Carlo, connected to the Rhai scripting engine for
-//!   runtime-defined observables.
-
+//!   runtime-defined observables./// - [`reco`] — Reconstruction and phenomenological detector simulation.
+///   Anti-$k_t$ jet clustering, configurable energy smearing and efficiency
+///   maps, missing transverse energy computation, and `ReconstructedEvent`
+///   objects for experimentally comparable observables.
 pub mod algebra;
 pub mod analysis;
 pub mod data_loader;
@@ -50,6 +52,7 @@ pub mod kinematics;
 pub mod lagrangian;
 pub mod ontology;
 pub mod pdf;
+pub mod reco;
 pub mod s_matrix;
 pub mod scripting;
 

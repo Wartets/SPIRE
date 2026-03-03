@@ -36,7 +36,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
-use crate::scripting::{Observable, RhaiObservable, SpireScriptEngine};
+use crate::reco::detector::{DetectorModel, ParticleKind};
+use crate::scripting::{
+    Observable, RhaiObservable, RhaiRecoObservable, SpireScriptEngine,
+};
 use crate::{SpireError, SpireResult};
 
 // ===========================================================================
@@ -491,6 +494,29 @@ pub struct AnalysisConfig {
     pub cms_energy: f64,
     /// Final-state particle masses in GeV.
     pub final_masses: Vec<f64>,
+
+    // --- Detector simulation (optional) ---
+
+    /// Detector preset name. When `Some`, the analysis pipeline will
+    /// reconstruct events through a phenomenological detector model
+    /// before evaluating observable scripts that reference `reco`.
+    ///
+    /// Supported values: `"perfect"`, `"lhc_like"`, `"ilc_like"`.
+    /// When `None`, no detector simulation is applied and only truth-level
+    /// observables (accessing `event`) are available.
+    #[serde(default)]
+    pub detector_preset: Option<String>,
+
+    /// Classification of each final-state particle by detector subsystem.
+    ///
+    /// Must have the same length as `final_masses` when `detector_preset`
+    /// is active. Each string maps to a [`ParticleKind`]:
+    /// `"electron"`, `"muon"`, `"photon"`, `"hadron"`, `"invisible"`.
+    ///
+    /// When `None` and a detector preset is active, all final-state
+    /// particles are assumed to be hadrons.
+    #[serde(default)]
+    pub particle_kinds: Option<Vec<String>>,
 }
 
 /// Complete analysis result returned to the frontend.
@@ -771,6 +797,191 @@ where
 }
 
 // ===========================================================================
+// Reconstruction-Aware Analysis Pipeline
+// ===========================================================================
+
+/// Parse a particle-kind string into the corresponding enum.
+fn parse_particle_kind(s: &str) -> SpireResult<ParticleKind> {
+    match s.to_lowercase().as_str() {
+        "electron" | "e" => Ok(ParticleKind::Electron),
+        "muon" | "mu" => Ok(ParticleKind::Muon),
+        "photon" | "gamma" | "a" => Ok(ParticleKind::Photon),
+        "hadron" | "jet" | "q" | "g" => Ok(ParticleKind::Hadron),
+        "invisible" | "neutrino" | "nu" => Ok(ParticleKind::Invisible),
+        _ => Err(SpireError::InternalError(format!(
+            "unknown particle kind '{s}'; expected one of: \
+             electron, muon, photon, hadron, invisible"
+        ))),
+    }
+}
+
+/// Execute a reconstruction-aware analysis pipeline.
+///
+/// This function extends the standard analysis pipeline with an optional
+/// phenomenological detector simulation step. When `config.detector_preset`
+/// is `Some`, each truth-level event is passed through the [`DetectorModel`]
+/// to produce a [`ReconstructedEvent`] before observable evaluation.
+///
+/// Observable scripts may access both:
+/// - `event` — the truth-level [`PhaseSpacePoint`]
+/// - `reco` — the reconstructed [`ReconstructedEvent`] (jets, leptons, MET)
+///
+/// When no detector preset is specified, this function delegates to
+/// [`run_analysis`] for backward compatibility.
+///
+/// # Arguments
+///
+/// * `config` — Analysis configuration including optional detector settings.
+/// * `integrand` — The squared matrix element $|\mathcal{M}|^2$.
+/// * `generator` — Phase-space generator (e.g., RAMBO).
+pub fn run_reco_analysis<F>(
+    config: &AnalysisConfig,
+    integrand: F,
+    generator: &mut dyn PhaseSpaceGenerator,
+) -> SpireResult<AnalysisResult>
+where
+    F: Fn(&PhaseSpacePoint) -> f64,
+{
+    // If no detector is requested, fall back to the standard pipeline.
+    let detector_preset = match &config.detector_preset {
+        Some(name) if !name.is_empty() => name.clone(),
+        _ => return run_analysis(config, integrand, generator),
+    };
+
+    // Build the detector model.
+    let detector = DetectorModel::from_preset(&detector_preset).ok_or_else(|| {
+        SpireError::InternalError(format!(
+            "unknown detector preset '{detector_preset}'; \
+             expected one of: perfect, lhc_like, ilc_like"
+        ))
+    })?;
+
+    // Parse particle kinds for each final-state leg.
+    let n_final = config.final_masses.len();
+    let particle_kinds: Vec<ParticleKind> = match &config.particle_kinds {
+        Some(kinds) => {
+            if kinds.len() != n_final {
+                return Err(SpireError::InternalError(format!(
+                    "particle_kinds length ({}) must match final_masses length ({n_final})",
+                    kinds.len()
+                )));
+            }
+            kinds.iter().map(|s| parse_particle_kind(s)).collect::<SpireResult<Vec<_>>>()?
+        }
+        // Default: treat all final-state particles as hadrons.
+        None => vec![ParticleKind::Hadron; n_final],
+    };
+
+    let engine = SpireScriptEngine::new();
+
+    // --- Compile all observable scripts (reco-aware) ---
+    let observables: Vec<RhaiRecoObservable> = config
+        .plots
+        .iter()
+        .map(|plot| {
+            engine
+                .compile_reco_observable(&plot.observable_script)
+                .map(|obs| obs.with_name(&plot.name))
+        })
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    // --- Compile all cut scripts (truth-level — applied before reconstruction) ---
+    let cuts: Vec<crate::scripting::RhaiCut> = config
+        .cut_scripts
+        .iter()
+        .map(|script| engine.compile_cut(script))
+        .collect::<SpireResult<Vec<_>>>()?;
+
+    // --- Initialise histograms ---
+    let mut histograms: Vec<Histogram1D> = config
+        .plots
+        .iter()
+        .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
+        .collect();
+
+    // --- Seeded RNG for reproducible detector smearing ---
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+    let mut rng = StdRng::seed_from_u64(42);
+
+    // --- Monte Carlo event loop ---
+    let mut sum_fw = 0.0_f64;
+    let mut sum_fw2 = 0.0_f64;
+    let mut n_generated = 0_usize;
+    let mut n_passed = 0_usize;
+
+    for _ in 0..config.num_events {
+        let event = generator.generate_event(config.cms_energy, &config.final_masses)?;
+        n_generated += 1;
+
+        // Apply truth-level kinematic cuts.
+        let passed = cuts
+            .iter()
+            .all(|cut| crate::scripting::KinematicCut::is_passed(cut, &event));
+        if !passed {
+            continue;
+        }
+        n_passed += 1;
+
+        // Evaluate the integrand (|M|²).
+        let f_val = integrand(&event);
+        if !f_val.is_finite() || !event.weight.is_finite() {
+            continue;
+        }
+
+        let fw = f_val * event.weight;
+        sum_fw += fw;
+        sum_fw2 += fw * fw;
+
+        // Reconstruct the event through the detector model.
+        let reco = crate::reco::detector::reconstruct_event(
+            &event,
+            &particle_kinds,
+            &detector,
+            &mut rng,
+        );
+
+        // Fill each histogram with the corresponding reco observable value.
+        for (obs, hist) in observables.iter().zip(histograms.iter_mut()) {
+            let value = obs.evaluate(&reco, &event);
+            if value.is_finite() {
+                hist.fill(value, fw);
+            }
+        }
+    }
+
+    // --- Compute cross-section statistics ---
+    let s = config.cms_energy * config.cms_energy;
+    let flux_factor = 2.0 * s;
+    let n_f = config.num_events as f64;
+
+    let (cross_section, cross_section_error) = if n_f > 0.0 && flux_factor > 1e-300 {
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+        (mean / flux_factor, std_error / flux_factor)
+    } else {
+        (0.0, 0.0)
+    };
+
+    // --- Serialize histograms ---
+    let histogram_data: Vec<HistogramData> = config
+        .plots
+        .iter()
+        .zip(histograms.iter())
+        .map(|(plot, hist)| hist.to_data(&plot.name))
+        .collect();
+
+    Ok(AnalysisResult {
+        histograms: histogram_data,
+        cross_section,
+        cross_section_error,
+        events_generated: n_generated,
+        events_passed: n_passed,
+    })
+}
+
+// ===========================================================================
 // Unit Tests
 // ===========================================================================
 
@@ -1023,6 +1234,8 @@ mod tests {
             num_events: 1000,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
         let json = serde_json::to_string(&config).unwrap();
         let back: AnalysisConfig = serde_json::from_str(&json).unwrap();
@@ -1060,6 +1273,8 @@ mod tests {
             num_events: 500,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1091,6 +1306,8 @@ mod tests {
             num_events: 2000,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1126,6 +1343,8 @@ mod tests {
             num_events: 300,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1152,6 +1371,8 @@ mod tests {
             num_events: 1000,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen1 = RamboGenerator::new();
@@ -1188,6 +1409,8 @@ mod tests {
             num_events: 5000,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1221,6 +1444,8 @@ mod tests {
             num_events: 500,
             cms_energy: 200.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1265,6 +1490,8 @@ mod tests {
             num_events: 10000,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1303,6 +1530,8 @@ mod tests {
             num_events: 100,
             cms_energy: 100.0,
             final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
         };
 
         let mut gen = RamboGenerator::new();
@@ -1327,5 +1556,282 @@ mod tests {
         assert_eq!(back.name, "Test");
         assert_eq!(back.bin_contents.len(), 3);
         assert_eq!(back.entries, 100);
+    }
+
+    // -----------------------------------------------------------------------
+    // Reconstruction-Aware Analysis Tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn run_reco_analysis_no_detector_delegates_to_standard() {
+        use crate::kinematics::RamboGenerator;
+        // With detector_preset = None, run_reco_analysis should behave
+        // identically to run_analysis.
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "Leading pT".into(),
+                observable_script: "let p = event.momenta[0]; p.pt()".into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 100.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 200,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: None,
+            particle_kinds: None,
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert_eq!(result.events_generated, 200);
+        assert_eq!(result.events_passed, 200);
+        assert_eq!(result.histograms.len(), 1);
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_perfect_detector() {
+        use crate::kinematics::RamboGenerator;
+        // Perfect detector: no smearing, 100% efficiency.
+        // A reco-level observable should yield values close to truth.
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "N jets".into(),
+                observable_script: "reco.n_jets().to_float()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 10.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("perfect".into()),
+            particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert_eq!(result.events_generated, 100);
+        assert!(result.events_passed > 0);
+        assert_eq!(result.histograms.len(), 1);
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_lhc_like_jet_pt() {
+        use crate::kinematics::RamboGenerator;
+        // LHC-like detector with 4-body hadronic final state.
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "Leading jet pT".into(),
+                observable_script: r#"
+                    let jets = reco.jets;
+                    if jets.len() > 0 {
+                        jets[0].pt()
+                    } else {
+                        -1.0
+                    }
+                "#
+                .into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 300.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 200,
+            cms_energy: 500.0,
+            final_masses: vec![0.0, 0.0, 0.0, 0.0],
+            detector_preset: Some("lhc_like".into()),
+            particle_kinds: None, // default all-hadronic
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert_eq!(result.events_generated, 200);
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_met_observable() {
+        use crate::kinematics::RamboGenerator;
+        // One visible + one invisible particle → MET from invisible.
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "MET".into(),
+                observable_script: "reco.met_pt()".into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 300.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("perfect".into()),
+            particle_kinds: Some(vec!["electron".into(), "invisible".into()]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert_eq!(result.events_generated, 100);
+        // MET should be non-zero for most events (invisible carries momentum).
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_invalid_preset_returns_error() {
+        use crate::kinematics::RamboGenerator;
+        let config = AnalysisConfig {
+            plots: vec![],
+            cut_scripts: vec![],
+            num_events: 10,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("nonexistent_detector".into()),
+            particle_kinds: None,
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn run_reco_analysis_mismatched_particle_kinds_returns_error() {
+        use crate::kinematics::RamboGenerator;
+        let config = AnalysisConfig {
+            plots: vec![],
+            cut_scripts: vec![],
+            num_events: 10,
+            cms_energy: 100.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("lhc_like".into()),
+            // 3 particle kinds but only 2 final masses.
+            particle_kinds: Some(vec![
+                "electron".into(),
+                "muon".into(),
+                "hadron".into(),
+            ]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn run_reco_analysis_truth_and_reco_in_same_script() {
+        use crate::kinematics::RamboGenerator;
+        // Script accesses both `event` (truth) and `reco` (detector-level).
+        // It adds the number of truth-level particles and the number of jets.
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "sum".into(),
+                observable_script:
+                    "reco.n_jets().to_float() + event.momenta.len().to_float()"
+                    .into(),
+                n_bins: 20,
+                min: 0.0,
+                max: 20.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("perfect".into()),
+            particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn run_reco_analysis_ilc_preset() {
+        use crate::kinematics::RamboGenerator;
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "N jets".into(),
+                observable_script: "reco.n_jets().to_float()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 10.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 50,
+            cms_energy: 500.0,
+            final_masses: vec![0.0, 0.0, 0.0, 0.0],
+            detector_preset: Some("ilc_like".into()),
+            particle_kinds: None,
+        };
+
+        let mut gen = RamboGenerator::new();
+        let result = run_reco_analysis(&config, |_| 1.0, &mut gen).unwrap();
+        assert!(result.events_passed > 0);
+        assert!(result.histograms[0].entries > 0);
+    }
+
+    #[test]
+    fn parse_particle_kind_variants() {
+        use super::parse_particle_kind;
+        use crate::reco::detector::ParticleKind;
+
+        assert!(matches!(parse_particle_kind("electron"), Ok(ParticleKind::Electron)));
+        assert!(matches!(parse_particle_kind("e"), Ok(ParticleKind::Electron)));
+        assert!(matches!(parse_particle_kind("muon"), Ok(ParticleKind::Muon)));
+        assert!(matches!(parse_particle_kind("mu"), Ok(ParticleKind::Muon)));
+        assert!(matches!(parse_particle_kind("photon"), Ok(ParticleKind::Photon)));
+        assert!(matches!(parse_particle_kind("gamma"), Ok(ParticleKind::Photon)));
+        assert!(matches!(parse_particle_kind("hadron"), Ok(ParticleKind::Hadron)));
+        assert!(matches!(parse_particle_kind("jet"), Ok(ParticleKind::Hadron)));
+        assert!(matches!(parse_particle_kind("q"), Ok(ParticleKind::Hadron)));
+        assert!(matches!(parse_particle_kind("g"), Ok(ParticleKind::Hadron)));
+        assert!(matches!(parse_particle_kind("invisible"), Ok(ParticleKind::Invisible)));
+        assert!(matches!(parse_particle_kind("neutrino"), Ok(ParticleKind::Invisible)));
+        assert!(matches!(parse_particle_kind("nu"), Ok(ParticleKind::Invisible)));
+        assert!(parse_particle_kind("unknown_type").is_err());
+    }
+
+    #[test]
+    fn analysis_config_with_detector_serde() {
+        let config = AnalysisConfig {
+            plots: vec![PlotDefinition {
+                name: "test".into(),
+                observable_script: "reco.n_jets().to_float()".into(),
+                n_bins: 10,
+                min: 0.0,
+                max: 100.0,
+            }],
+            cut_scripts: vec![],
+            num_events: 100,
+            cms_energy: 200.0,
+            final_masses: vec![0.0, 0.0],
+            detector_preset: Some("lhc_like".into()),
+            particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
+        };
+
+        let json = serde_json::to_string(&config).unwrap();
+        let back: AnalysisConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.detector_preset, Some("lhc_like".into()));
+        assert_eq!(back.particle_kinds.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn analysis_config_without_detector_deserializes() {
+        // Legacy JSON without detector fields should deserialize cleanly.
+        let json = r#"{
+            "plots": [],
+            "cut_scripts": [],
+            "num_events": 10,
+            "cms_energy": 100.0,
+            "final_masses": [0.0, 0.0]
+        }"#;
+        let config: AnalysisConfig = serde_json::from_str(json).unwrap();
+        assert!(config.detector_preset.is_none());
+        assert!(config.particle_kinds.is_none());
     }
 }

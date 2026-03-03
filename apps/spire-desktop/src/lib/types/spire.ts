@@ -802,7 +802,28 @@ export interface AnalysisConfig {
   cms_energy: number;
   /** Final-state particle masses in GeV. */
   final_masses: number[];
+  /**
+   * Detector preset name for phenomenological simulation.
+   *
+   * Supported values: `"perfect"`, `"lhc_like"`, `"ilc_like"`.
+   * When `undefined` or `null`, no detector simulation is applied.
+   */
+  detector_preset?: string | null;
+  /**
+   * Classification of each final-state particle by detector subsystem.
+   *
+   * Must have the same length as `final_masses` when `detector_preset` is set.
+   * Accepted values: `"electron"`, `"muon"`, `"photon"`, `"hadron"`, `"invisible"`.
+   * When `undefined`, all particles are treated as hadrons.
+   */
+  particle_kinds?: string[] | null;
 }
+
+/** Available detector presets for phenomenological simulation. */
+export type DetectorPreset = 'perfect' | 'lhc_like' | 'ilc_like';
+
+/** Particle kind classification for detector subsystem routing. */
+export type ParticleKind = 'electron' | 'muon' | 'photon' | 'hadron' | 'invisible';
 
 /** Serialized histogram data from the backend. */
 export interface HistogramData {

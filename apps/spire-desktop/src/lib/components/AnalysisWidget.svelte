@@ -12,7 +12,7 @@
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
-  import type { AnalysisResult, HistogramData } from "$lib/types/spire";
+  import type { AnalysisResult, HistogramData, DetectorPreset, ParticleKind } from "$lib/types/spire";
   import {
     Chart,
     BarController,
@@ -89,6 +89,64 @@
   ];
 
   // ---------------------------------------------------------------------------
+  // Reco-Level Observable Presets (require detector simulation)
+  // ---------------------------------------------------------------------------
+  const RECO_PRESETS: ObservablePreset[] = [
+    {
+      label: "Leading Jet pT",
+      script: "let jets = reco.jets; if jets.len() > 0 { jets[0].pt() } else { -1.0 }",
+      min: 0, max: 300, nBins: 30,
+      description: "Transverse momentum of the hardest reconstructed jet",
+    },
+    {
+      label: "Jet Multiplicity",
+      script: "reco.n_jets().to_float()",
+      min: 0, max: 10, nBins: 10,
+      description: "Number of reconstructed jets",
+    },
+    {
+      label: "Missing ET",
+      script: "reco.met_pt()",
+      min: 0, max: 200, nBins: 30,
+      description: "Missing transverse energy (MET) magnitude",
+    },
+    {
+      label: "Leading Jet η",
+      script: "let jets = reco.jets; if jets.len() > 0 { jets[0].eta() } else { 0.0 }",
+      min: -5, max: 5, nBins: 50,
+      description: "Pseudorapidity of the leading reconstructed jet",
+    },
+    {
+      label: "Leading Jet Mass",
+      script: "let jets = reco.jets; if jets.len() > 0 { jets[0].m() } else { -1.0 }",
+      min: 0, max: 50, nBins: 25,
+      description: "Invariant mass of the leading reconstructed jet",
+    },
+    {
+      label: "N Leptons",
+      script: "reco.n_leptons().to_float()",
+      min: 0, max: 6, nBins: 6,
+      description: "Number of reconstructed leptons (electrons + muons)",
+    },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Detector Presets
+  // ---------------------------------------------------------------------------
+  interface DetectorPresetInfo {
+    value: DetectorPreset | '';
+    label: string;
+    description: string;
+  }
+
+  const DETECTOR_PRESETS: DetectorPresetInfo[] = [
+    { value: '', label: 'None (truth-level)', description: 'No detector simulation — observables use truth-level kinematics' },
+    { value: 'perfect', label: 'Perfect Detector', description: 'No smearing, 100% efficiency — useful for validation' },
+    { value: 'lhc_like', label: 'LHC-like (ATLAS/CMS)', description: 'R = 0.4, pT > 25 GeV, hadronic σ/E ∝ 0.50/√E' },
+    { value: 'ilc_like', label: 'ILC-like (e⁺e⁻)', description: 'R = 0.7, pT > 10 GeV, hadronic σ/E ∝ 0.30/√E' },
+  ];
+
+  // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
   let plotName: string = "Leading pT";
@@ -100,6 +158,20 @@
   let numEvents: number = 5000;
   let nFinalState: number = 2;
   let cutScript: string = "";
+
+  // Detector simulation state
+  let detectorPreset: DetectorPreset | '' = '';
+  let particleKinds: ParticleKind[] = [];
+
+  // Keep particle_kinds array in sync with final-state count.
+  $: {
+    if (particleKinds.length !== nFinalState) {
+      particleKinds = Array(nFinalState).fill('hadron') as ParticleKind[];
+    }
+  }
+
+  /** Whether a detector simulation is active. */
+  $: detectorActive = detectorPreset !== '';
 
   let loading: boolean = false;
   let errorMsg: string = "";
@@ -202,6 +274,8 @@
         num_events: numEvents,
         cms_energy: cmsEnergy,
         final_masses: finalMasses,
+        detector_preset: detectorPreset || null,
+        particle_kinds: detectorPreset ? particleKinds : null,
       });
 
       result = analysisResult;
@@ -435,6 +509,56 @@
         placeholder="e.g., event.momenta[0].pt() > 20.0"
       />
     </div>
+
+    <!-- Detector Simulation -->
+    <div class="field">
+      <label for="detector-preset">Detector Simulation:</label>
+      <select id="detector-preset" bind:value={detectorPreset}>
+        {#each DETECTOR_PRESETS as dp}
+          <option value={dp.value}>{dp.label}</option>
+        {/each}
+      </select>
+      {#if detectorActive}
+        <span class="detector-hint">
+          {DETECTOR_PRESETS.find(d => d.value === detectorPreset)?.description ?? ''}
+        </span>
+      {/if}
+    </div>
+
+    <!-- Particle Kinds (when detector is active) -->
+    {#if detectorActive}
+      <div class="field">
+        <label>Particle Kinds:</label>
+        <div class="particle-kinds-row">
+          {#each particleKinds as kind, i}
+            <div class="particle-kind-item">
+              <span class="pk-label">p{i + 1}:</span>
+              <select bind:value={particleKinds[i]}>
+                <option value="hadron">hadron</option>
+                <option value="electron">electron</option>
+                <option value="muon">muon</option>
+                <option value="photon">photon</option>
+                <option value="invisible">invisible</option>
+              </select>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <!-- Reco-Level Observable Presets -->
+      <div class="preset-section">
+        <label>Reco Presets:</label>
+        <div class="preset-row">
+          {#each RECO_PRESETS as rp}
+            <button
+              class="preset-btn"
+              title={rp.description}
+              on:click={() => applyPreset(rp)}
+            >{rp.label}</button>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Run Button -->
     <div class="run-row">
@@ -712,5 +836,58 @@
     font-size: 0.85rem;
     text-align: center;
     padding: 1rem;
+  }
+
+  /* --- Detector Simulation UI --- */
+
+  select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    color: #e0e0e0;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .detector-hint {
+    font-size: 0.72rem;
+    color: #888;
+    font-style: italic;
+    margin-top: 0.1rem;
+  }
+
+  .particle-kinds-row {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .particle-kind-item {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  .pk-label {
+    font-size: 0.72rem;
+    color: #aaa;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+
+  .particle-kind-item select {
+    font-size: 0.72rem;
+    padding: 0.15rem 0.3rem;
+  }
+
+  .preset-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .preset-section label {
+    color: #aaa;
+    font-size: 0.78rem;
   }
 </style>
