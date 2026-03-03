@@ -263,3 +263,45 @@ export async function exportModelUfo(
     model,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Scripting — Observables & Cuts
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate a Rhai script for syntax correctness.
+ *
+ * @param script - The Rhai script source code.
+ * @returns Resolves if valid; rejects with an error message if invalid.
+ */
+export async function validateScript(script: string): Promise<void> {
+  return invoke<void>("validate_script", { script });
+}
+
+/**
+ * Compile an observable script and evaluate it against a synthetic test event.
+ *
+ * The test event is two massless back-to-back particles at 100 GeV CMS with
+ * two final-state particles at known momenta. This provides immediate feedback
+ * without running a full integration.
+ *
+ * @param script - The Rhai script for the observable.
+ * @returns The numeric result of evaluating the observable on the test event.
+ */
+export async function testObservableScript(
+  script: string,
+): Promise<number> {
+  return invoke<number>("test_observable_script", { script });
+}
+
+/**
+ * Compile a kinematic cut script and test it against a synthetic event.
+ *
+ * @param script - The Rhai script for the cut predicate.
+ * @returns `true` if the test event passes the cut, `false` otherwise.
+ */
+export async function testCutScript(
+  script: string,
+): Promise<boolean> {
+  return invoke<boolean>("test_cut_script", { script });
+}

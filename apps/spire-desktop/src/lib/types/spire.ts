@@ -739,3 +739,35 @@ export interface WorkspaceState {
   /** Kinematic analysis results. */
   kinematics: MandelstamVars | null;
 }
+
+// ---------------------------------------------------------------------------
+// Scripting — Observables & Cuts
+// ---------------------------------------------------------------------------
+
+/** A user-defined observable script. */
+export interface ObservableScript {
+  /** Human-readable name (e.g., "Invariant mass m₁₂"). */
+  name: string;
+  /** Rhai script source that computes a scalar from a PhaseSpacePoint. */
+  script: string;
+  /** Whether this script compiles successfully. */
+  isValid: boolean;
+  /** Compilation error message, if any. */
+  errorMessage?: string;
+  /** Result from the last test evaluation (synthetic event). */
+  testResult?: number;
+}
+
+/** A user-defined kinematic cut script. */
+export interface CutScript {
+  /** Human-readable name (e.g., "pT > 50 GeV"). */
+  name: string;
+  /** Rhai script source that returns a boolean. */
+  script: string;
+  /** Whether this script compiles successfully. */
+  isValid: boolean;
+  /** Compilation error message, if any. */
+  errorMessage?: string;
+  /** Whether the test event passed this cut. */
+  testResult?: boolean;
+}

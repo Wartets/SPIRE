@@ -19,6 +19,8 @@ import type {
   TheoreticalFramework,
   TheoreticalModel,
   WorkspaceState,
+  ObservableScript,
+  CutScript,
 } from "../types/spire";
 
 // ---------------------------------------------------------------------------
@@ -98,3 +100,13 @@ export const hasDiagrams = derived(
   generatedDiagrams,
   ($d) => $d !== null && $d.diagrams.length > 0,
 );
+
+// ---------------------------------------------------------------------------
+// Scripting — User-Defined Observables & Cuts
+// ---------------------------------------------------------------------------
+
+/** User-defined observable scripts. */
+export const observableScripts = writable<ObservableScript[]>([]);
+
+/** User-defined kinematic cut scripts. */
+export const cutScripts = writable<CutScript[]>([]);

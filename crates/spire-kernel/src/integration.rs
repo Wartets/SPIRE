@@ -348,6 +348,188 @@ impl UniformIntegrator {
             relative_error,
         })
     }
+
+    /// Integrate with kinematic cuts applied before the integrand.
+    ///
+    /// Events that fail **any** cut are discarded (zero contribution).
+    /// The efficiency metric reports the fraction of events passing all cuts.
+    ///
+    /// # Arguments
+    ///
+    /// * `integrand` — Squared matrix element $|\mathcal{M}|^2$.
+    /// * `cuts` — Kinematic cuts to apply sequentially.
+    /// * `generator` — Phase-space generator.
+    /// * `cms_energy` — Centre-of-mass energy in GeV.
+    /// * `final_masses` — Final-state particle masses.
+    /// * `num_events` — Number of phase-space events to generate.
+    pub fn integrate_with_cuts<F>(
+        &self,
+        integrand: F,
+        cuts: &[&dyn crate::scripting::KinematicCut],
+        generator: &mut dyn PhaseSpaceGenerator,
+        cms_energy: f64,
+        final_masses: &[f64],
+        num_events: usize,
+    ) -> SpireResult<IntegrationResult>
+    where
+        F: Fn(&PhaseSpacePoint) -> f64,
+    {
+        if num_events == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: 0,
+                efficiency: 0.0,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        let mut sum_fw = 0.0;
+        let mut sum_fw2 = 0.0;
+        let mut n_success = 0usize;
+        let mut n_passed_cuts = 0usize;
+
+        for _ in 0..num_events {
+            let event = generator.generate_event(cms_energy, final_masses)?;
+
+            // Apply all cuts.
+            let passed = cuts.iter().all(|cut| cut.is_passed(&event));
+            if !passed {
+                continue;
+            }
+            n_passed_cuts += 1;
+
+            let f_val = integrand(&event);
+
+            if !f_val.is_finite() || !event.weight.is_finite() {
+                continue;
+            }
+
+            let fw = f_val * event.weight;
+            sum_fw += fw;
+            sum_fw2 += fw * fw;
+            n_success += 1;
+        }
+
+        if n_success == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: num_events,
+                efficiency: n_passed_cuts as f64 / num_events as f64,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        // Normalise by the *total* number of events (not just those passing
+        // cuts) so that the integral correctly accounts for the cut efficiency.
+        let n_f = num_events as f64;
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+
+        let efficiency = n_passed_cuts as f64 / num_events as f64;
+        let relative_error = if mean.abs() > 1e-300 {
+            std_error / mean.abs()
+        } else {
+            f64::INFINITY
+        };
+
+        Ok(IntegrationResult {
+            value: mean,
+            error: std_error,
+            events_evaluated: n_success,
+            efficiency,
+            relative_error,
+        })
+    }
+
+    /// Parallel integration with kinematic cuts.
+    ///
+    /// Combines the parallel evaluation strategy of
+    /// [`integrate_parallel`](Self::integrate_parallel) with per-event
+    /// kinematic cut filtering. Events failing any cut contribute zero.
+    pub fn integrate_with_cuts_parallel<F>(
+        &self,
+        integrand: F,
+        cuts: &[&dyn crate::scripting::KinematicCut],
+        generator: &mut dyn PhaseSpaceGenerator,
+        cms_energy: f64,
+        final_masses: &[f64],
+        num_events: usize,
+    ) -> SpireResult<IntegrationResult>
+    where
+        F: Fn(&PhaseSpacePoint) -> f64 + Send + Sync,
+    {
+        if num_events == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: 0,
+                efficiency: 0.0,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        // Phase 1: sequential event generation.
+        let mut events = Vec::with_capacity(num_events);
+        for _ in 0..num_events {
+            events.push(generator.generate_event(cms_energy, final_masses)?);
+        }
+
+        // Phase 2: parallel evaluation with cut filtering.
+        let (sum_fw, sum_fw2, n_success, n_passed) = events
+            .par_iter()
+            .map(|event| {
+                let passed = cuts.iter().all(|cut| cut.is_passed(event));
+                if !passed {
+                    return (0.0, 0.0, 0_usize, 0_usize);
+                }
+                let f_val = integrand(event);
+                if !f_val.is_finite() || !event.weight.is_finite() {
+                    (0.0, 0.0, 0_usize, 1_usize)
+                } else {
+                    let fw = f_val * event.weight;
+                    (fw, fw * fw, 1_usize, 1_usize)
+                }
+            })
+            .reduce(
+                || (0.0, 0.0, 0_usize, 0_usize),
+                |(a0, a1, a2, a3), (b0, b1, b2, b3)| {
+                    (a0 + b0, a1 + b1, a2 + b2, a3 + b3)
+                },
+            );
+
+        if n_success == 0 {
+            return Ok(IntegrationResult {
+                value: 0.0,
+                error: 0.0,
+                events_evaluated: num_events,
+                efficiency: n_passed as f64 / num_events as f64,
+                relative_error: f64::INFINITY,
+            });
+        }
+
+        let n_f = num_events as f64;
+        let mean = sum_fw / n_f;
+        let variance = (sum_fw2 / n_f - mean * mean).max(0.0);
+        let std_error = (variance / n_f).sqrt();
+
+        let efficiency = n_passed as f64 / num_events as f64;
+        let relative_error = if mean.abs() > 1e-300 {
+            std_error / mean.abs()
+        } else {
+            f64::INFINITY
+        };
+
+        Ok(IntegrationResult {
+            value: mean,
+            error: std_error,
+            events_evaluated: n_success,
+            efficiency,
+            relative_error,
+        })
+    }
 }
 
 // ===========================================================================
@@ -1019,5 +1201,123 @@ mod tests {
         );
 
         assert!(result.is_err());
+    }
+
+    // -----------------------------------------------------------------------
+    // Cut-aware integration tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn integrate_with_no_cuts_matches_plain() {
+        let integrator = UniformIntegrator::new();
+        let mut gen1 = RamboGenerator::new();
+        let mut gen2 = RamboGenerator::new();
+        let cms = 100.0;
+        let masses = [0.0, 0.0];
+        let n = 2000;
+
+        let plain = integrator.integrate(|_| 1.0, &mut gen1, cms, &masses, n).unwrap();
+        let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![];
+        let with_cuts = integrator
+            .integrate_with_cuts(|_| 1.0, &cuts, &mut gen2, cms, &masses, n)
+            .unwrap();
+
+        // Same seed → same events → same result.
+        assert!((plain.value - with_cuts.value).abs() < 1e-12);
+    }
+
+    #[test]
+    fn integrate_with_cut_reduces_value() {
+        use crate::scripting::SpireScriptEngine;
+
+        let engine = SpireScriptEngine::new();
+        // Tight pT cut: only events where final-state particle has pT > 49 GeV.
+        // For 2-body massless at 100 GeV CMS, pT ≈ 50 sin(θ) ≤ 50 GeV.
+        let cut = engine
+            .compile_cut("event.momenta[0].pt() > 49.0")
+            .unwrap();
+        let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![&cut];
+
+        let integrator = UniformIntegrator::new();
+        let mut gen = RamboGenerator::new();
+        let cms = 100.0;
+        let masses = [0.0, 0.0];
+        let n = 5000;
+
+        let result = integrator
+            .integrate_with_cuts(|_| 1.0, &cuts, &mut gen, cms, &masses, n)
+            .unwrap();
+
+        // The cut should discard most events.
+        assert!(result.efficiency < 0.5, "Cut should reject most events");
+    }
+
+    #[test]
+    fn integrate_with_always_true_cut_preserves_value() {
+        use crate::scripting::SpireScriptEngine;
+
+        let engine = SpireScriptEngine::new();
+        let cut = engine.compile_cut("true").unwrap();
+        let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![&cut];
+
+        let integrator = UniformIntegrator::new();
+        let mut gen1 = RamboGenerator::new();
+        let mut gen2 = RamboGenerator::new();
+        let cms = 100.0;
+        let masses = [0.0, 0.0];
+        let n = 3000;
+
+        let plain = integrator.integrate(|_| 1.0, &mut gen1, cms, &masses, n).unwrap();
+        let with_cuts = integrator
+            .integrate_with_cuts(|_| 1.0, &cuts, &mut gen2, cms, &masses, n)
+            .unwrap();
+
+        // Same seed → identical results.
+        assert!((plain.value - with_cuts.value).abs() < 1e-12);
+        assert!((with_cuts.efficiency - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn integrate_with_always_false_cut_gives_zero() {
+        use crate::scripting::SpireScriptEngine;
+
+        let engine = SpireScriptEngine::new();
+        let cut = engine.compile_cut("false").unwrap();
+        let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![&cut];
+
+        let integrator = UniformIntegrator::new();
+        let mut gen = RamboGenerator::new();
+        let result = integrator
+            .integrate_with_cuts(|_| 1.0, &cuts, &mut gen, 100.0, &[0.0, 0.0], 1000)
+            .unwrap();
+
+        assert_eq!(result.value, 0.0);
+        assert!((result.efficiency - 0.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn integrate_with_cuts_parallel_consistency() {
+        use crate::scripting::SpireScriptEngine;
+
+        let engine = SpireScriptEngine::new();
+        let cut = engine.compile_cut("true").unwrap();
+        let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![&cut];
+
+        let integrator = UniformIntegrator::new();
+        let mut gen1 = RamboGenerator::new();
+        let mut gen2 = RamboGenerator::new();
+        let cms = 100.0;
+        let masses = [0.0, 0.0];
+        let n = 5000;
+
+        let seq = integrator
+            .integrate_with_cuts(|_| 1.0, &cuts, &mut gen1, cms, &masses, n)
+            .unwrap();
+        let par = integrator
+            .integrate_with_cuts_parallel(|_| 1.0, &cuts, &mut gen2, cms, &masses, n)
+            .unwrap();
+
+        // Same seed, same events → results should be very close.
+        assert!((seq.value - par.value).abs() / seq.value.max(1e-300) < 1e-10);
     }
 }

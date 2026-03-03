@@ -656,6 +656,27 @@ pub enum FormFactor {
         /// Scale parameter $\Lambda^2$ in GeV².
         lambda_sq: f64,
     },
+
+    /// A user-defined form factor expressed as a Rhai script.
+    ///
+    /// The script receives the squared momentum transfer as the variable `q2`
+    /// and must return a dimensionless suppression factor $F(Q^2)$.
+    ///
+    /// # Example
+    ///
+    /// ```text
+    /// // Dipole with cutoff at 0.71 GeV²
+    /// let r = 1.0 + q2 / 0.71;
+    /// 1.0 / (r * r)
+    /// ```
+    ///
+    /// The script is compiled to an AST on each call to [`evaluate`]. For
+    /// tight integration loops, prefer caching via
+    /// [`SpireScriptEngine::compile_form_factor`](crate::scripting::SpireScriptEngine::compile_form_factor).
+    Scripted {
+        /// The Rhai script source code.
+        script: String,
+    },
 }
 
 impl FormFactor {
@@ -691,13 +712,23 @@ impl FormFactor {
                 }
                 (-q2 / lambda_sq).exp()
             }
+            FormFactor::Scripted { script } => {
+                // Compile on-demand. For hot loops, prefer
+                // SpireScriptEngine::compile_form_factor() which pre-compiles
+                // the AST once and reuses it.
+                let engine = crate::scripting::SpireScriptEngine::new();
+                match engine.compile_form_factor(script) {
+                    Ok(ff) => ff.evaluate(q2),
+                    Err(_) => 1.0, // fall back to point-like on compilation error
+                }
+            }
         }
     }
 
     /// Return the scale parameter $\Lambda^2$ in GeV², or `None` for point-like.
     pub fn scale_sq(&self) -> Option<f64> {
         match self {
-            FormFactor::PointLike => None,
+            FormFactor::PointLike | FormFactor::Scripted { .. } => None,
             FormFactor::Monopole { lambda_sq }
             | FormFactor::Dipole { lambda_sq }
             | FormFactor::Exponential { lambda_sq } => Some(*lambda_sq),
@@ -1294,5 +1325,54 @@ mod tests {
 
         let ff2 = FormFactor::Exponential { lambda_sq: -1.0 };
         assert!((ff2.evaluate(10.0) - 1.0).abs() < 1e-15);
+    }
+
+    // --- Scripted form factor tests ---
+
+    #[test]
+    fn form_factor_scripted_dipole() {
+        let ff = FormFactor::Scripted {
+            script: "let r = 1.0 + q2 / 0.71; 1.0 / (r * r)".into(),
+        };
+        // F(0) = 1
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-10);
+        // F(0.71) = 0.25
+        assert!((ff.evaluate(0.71) - 0.25).abs() < 1e-10);
+    }
+
+    #[test]
+    fn form_factor_scripted_exponential() {
+        let ff = FormFactor::Scripted {
+            script: "(-q2 / 2.0).exp()".into(),
+        };
+        assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-10);
+        assert!((ff.evaluate(2.0) - (-1.0_f64).exp()).abs() < 1e-10);
+    }
+
+    #[test]
+    fn form_factor_scripted_invalid_returns_one() {
+        let ff = FormFactor::Scripted {
+            script: "let = ;;; bad syntax".into(),
+        };
+        // Compilation error → fallback to 1.0.
+        assert!((ff.evaluate(5.0) - 1.0).abs() < 1e-15);
+    }
+
+    #[test]
+    fn form_factor_scripted_serde_roundtrip() {
+        let ff = FormFactor::Scripted {
+            script: "1.0 / (1.0 + q2)".into(),
+        };
+        let json = serde_json::to_string(&ff).unwrap();
+        let ff2: FormFactor = serde_json::from_str(&json).unwrap();
+        assert_eq!(ff, ff2);
+    }
+
+    #[test]
+    fn form_factor_scripted_scale_sq_is_none() {
+        let ff = FormFactor::Scripted {
+            script: "1.0".into(),
+        };
+        assert!(ff.scale_sq().is_none());
     }
 }

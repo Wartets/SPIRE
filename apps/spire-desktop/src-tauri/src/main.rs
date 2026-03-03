@@ -277,6 +277,78 @@ fn derive_amplitude_steps(
 }
 
 // ---------------------------------------------------------------------------
+// Scripting IPC Commands
+// ---------------------------------------------------------------------------
+
+/// Validate a user-provided Rhai script for syntax correctness.
+///
+/// Returns `Ok(())` if the script compiles, or an error message describing
+/// the syntax error. This powers the "lint as you type" feature in the
+/// Observables & Cuts panel.
+#[tauri::command]
+fn validate_script(script: String) -> Result<(), String> {
+    let engine = spire_kernel::scripting::SpireScriptEngine::new();
+    engine.validate_script(&script)
+}
+
+/// Compile an observable script and evaluate it on a test event.
+///
+/// The frontend sends the script source; the backend compiles it, runs it
+/// against a synthetic test event (two massless back-to-back particles at
+/// 100 GeV CMS), and returns the numeric result. This allows immediate
+/// feedback in the UI without running a full integration.
+#[tauri::command]
+fn test_observable_script(script: String) -> Result<f64, String> {
+    let engine = spire_kernel::scripting::SpireScriptEngine::new();
+    let obs = engine.compile_observable(&script).map_err(|e| e.to_string())?;
+
+    // Synthetic 2→2 test event.
+    use spire_kernel::algebra::SpacetimeVector;
+    use spire_kernel::kinematics::PhaseSpacePoint;
+    let test_event = PhaseSpacePoint {
+        momenta: vec![
+            SpacetimeVector::new_4d(50.0, 0.0, 0.0, 50.0),
+            SpacetimeVector::new_4d(50.0, 0.0, 0.0, -50.0),
+            SpacetimeVector::new_4d(50.0, 30.0, 40.0, 0.0),
+            SpacetimeVector::new_4d(50.0, -30.0, -40.0, 0.0),
+        ],
+        weight: 1.0,
+    };
+
+    use spire_kernel::scripting::Observable;
+    let value = obs.evaluate(&test_event);
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err("Script returned non-finite value".into())
+    }
+}
+
+/// Compile a kinematic cut script and test it against a synthetic event.
+///
+/// Returns `true` if the test event passes, `false` otherwise.
+#[tauri::command]
+fn test_cut_script(script: String) -> Result<bool, String> {
+    let engine = spire_kernel::scripting::SpireScriptEngine::new();
+    let cut = engine.compile_cut(&script).map_err(|e| e.to_string())?;
+
+    use spire_kernel::algebra::SpacetimeVector;
+    use spire_kernel::kinematics::PhaseSpacePoint;
+    let test_event = PhaseSpacePoint {
+        momenta: vec![
+            SpacetimeVector::new_4d(50.0, 0.0, 0.0, 50.0),
+            SpacetimeVector::new_4d(50.0, 0.0, 0.0, -50.0),
+            SpacetimeVector::new_4d(50.0, 30.0, 40.0, 0.0),
+            SpacetimeVector::new_4d(50.0, -30.0, -40.0, 0.0),
+        ],
+        weight: 1.0,
+    };
+
+    use spire_kernel::scripting::KinematicCut;
+    Ok(cut.is_passed(&test_event))
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -292,6 +364,9 @@ fn main() {
             export_amplitude_latex,
             export_model_ufo,
             derive_amplitude_steps,
+            validate_script,
+            test_observable_script,
+            test_cut_script,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

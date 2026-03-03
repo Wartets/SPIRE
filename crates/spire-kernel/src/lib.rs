@@ -38,6 +38,7 @@ pub mod lagrangian;
 pub mod ontology;
 pub mod pdf;
 pub mod s_matrix;
+pub mod scripting;
 
 use serde::{Deserialize, Serialize};
 use std::fmt;

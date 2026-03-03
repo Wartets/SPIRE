@@ -16,6 +16,8 @@
     kinematics,
     appendLog,
     isModelLoaded,
+    observableScripts,
+    cutScripts,
   } from "$lib/stores/physicsStore";
   import {
     constructReaction,
@@ -23,6 +25,9 @@
     generateDiagrams,
     deriveAmplitude,
     computeKinematics,
+    validateScript,
+    testObservableScript,
+    testCutScript,
   } from "$lib/api";
   import {
     SM_PARTICLE_IDS,
@@ -184,6 +189,72 @@
       await handleComputeKinematics();
     }
   }
+
+  // --- Observables & Cuts ---
+
+  let newObsName: string = "";
+  let newObsScript: string = "";
+  let newCutName: string = "";
+  let newCutScript: string = "";
+  let scriptError: string = "";
+
+  async function handleAddObservable(): Promise<void> {
+    if (!newObsScript.trim()) return;
+    scriptError = "";
+    try {
+      await validateScript(newObsScript);
+      const testResult = await testObservableScript(newObsScript);
+      observableScripts.update((prev) => [
+        ...prev,
+        {
+          name: newObsName || `Observable ${prev.length + 1}`,
+          script: newObsScript,
+          isValid: true,
+          testResult,
+        },
+      ]);
+      appendLog(`Added observable "${newObsName || "Observable"}": test = ${testResult.toFixed(6)}`);
+      newObsName = "";
+      newObsScript = "";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      scriptError = msg;
+      appendLog(`Script error: ${msg}`);
+    }
+  }
+
+  async function handleAddCut(): Promise<void> {
+    if (!newCutScript.trim()) return;
+    scriptError = "";
+    try {
+      await validateScript(newCutScript);
+      const testResult = await testCutScript(newCutScript);
+      cutScripts.update((prev) => [
+        ...prev,
+        {
+          name: newCutName || `Cut ${prev.length + 1}`,
+          script: newCutScript,
+          isValid: true,
+          testResult,
+        },
+      ]);
+      appendLog(`Added cut "${newCutName || "Cut"}": test event ${testResult ? "passed" : "failed"}`);
+      newCutName = "";
+      newCutScript = "";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      scriptError = msg;
+      appendLog(`Script error: ${msg}`);
+    }
+  }
+
+  function removeObservable(idx: number): void {
+    observableScripts.update((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function removeCut(idx: number): void {
+    cutScripts.update((prev) => prev.filter((_, i) => i !== idx));
+  }
 </script>
 
 <div class="reaction-workspace">
@@ -301,6 +372,67 @@
         {/each}
       </div>
     {/if}
+
+    <!-- Observables & Cuts -->
+    <fieldset class="state-group scripting-panel">
+      <legend>Observables & Cuts</legend>
+
+      <!-- Observable Editor -->
+      <div class="script-section">
+        <h4>Custom Observable</h4>
+        <input class="script-name" type="text" bind:value={newObsName} placeholder="Name (e.g. Invariant mass)" />
+        <textarea class="script-editor" bind:value={newObsScript} placeholder="event.momenta[2].pt()" rows="3"></textarea>
+        <button class="small-btn" on:click={handleAddObservable}>+ Add Observable</button>
+      </div>
+
+      <!-- Cut Editor -->
+      <div class="script-section">
+        <h4>Kinematic Cut</h4>
+        <input class="script-name" type="text" bind:value={newCutName} placeholder="Name (e.g. pT > 50 GeV)" />
+        <textarea class="script-editor" bind:value={newCutScript} placeholder="event.momenta[2].pt() > 50.0" rows="3"></textarea>
+        <button class="small-btn" on:click={handleAddCut}>+ Add Cut</button>
+      </div>
+
+      {#if scriptError}
+        <p class="error-msg">{scriptError}</p>
+      {/if}
+
+      <!-- Active Observables -->
+      {#if $observableScripts.length > 0}
+        <div class="active-scripts">
+          <h4>Active Observables ({$observableScripts.length})</h4>
+          {#each $observableScripts as obs, i}
+            <div class="script-item">
+              <span class="script-item-name">{obs.name}</span>
+              {#if obs.testResult !== undefined}
+                <span class="script-item-result">= {obs.testResult.toFixed(4)}</span>
+              {/if}
+              <button class="tag-remove" on:click={() => removeObservable(i)}>&times;</button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
+      <!-- Active Cuts -->
+      {#if $cutScripts.length > 0}
+        <div class="active-scripts">
+          <h4>Active Cuts ({$cutScripts.length})</h4>
+          {#each $cutScripts as cut, i}
+            <div class="script-item">
+              <span class="script-item-name">{cut.name}</span>
+              {#if cut.testResult !== undefined}
+                <span class="script-item-result"
+                  class:pass={cut.testResult}
+                  class:fail={!cut.testResult}>
+                  {cut.testResult ? "✓ pass" : "✗ fail"}
+                </span>
+              {/if}
+              <button class="tag-remove" on:click={() => removeCut(i)}>&times;</button>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </fieldset>
   {/if}
 </div>
 
@@ -499,5 +631,64 @@
   .recon-weight {
     color: var(--fg-secondary);
     font-size: 0.72rem;
+  }
+
+  /* --- Scripting Panel --- */
+  .scripting-panel {
+    margin-top: 0.5rem;
+  }
+  .script-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .script-name {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    padding: 0.25rem 0.4rem;
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+  }
+  .script-editor {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    padding: 0.3rem 0.4rem;
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    resize: vertical;
+    min-height: 2.5rem;
+  }
+  .script-editor:focus, .script-name:focus {
+    border-color: var(--border-focus);
+    outline: none;
+  }
+  .active-scripts {
+    margin-top: 0.3rem;
+  }
+  .script-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0;
+    font-size: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .script-item-name {
+    flex: 1;
+    color: var(--fg-primary);
+  }
+  .script-item-result {
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+  .script-item-result.pass {
+    color: var(--hl-success);
+  }
+  .script-item-result.fail {
+    color: var(--hl-error);
   }
 </style>
