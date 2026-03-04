@@ -12,6 +12,8 @@
   import { theoreticalModel, appendLog, activeFramework } from "$lib/stores/physicsStore";
   import { loadModel, exportModelUfo } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { addCitations } from "$lib/core/services/CitationRegistry";
+  import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import {
     DEFAULT_PARTICLES_TOML,
     DEFAULT_VERTICES_TOML,
@@ -147,6 +149,7 @@
       theoreticalModel.set(model);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
+      addCitations(["pdg2024", "weinberg1967", "glashow1961"]);
       appendLog(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -241,7 +244,7 @@
 `;
 </script>
 
-<div class="model-loader">
+<div class="model-loader" data-tour-id="model-loader">
   <h3>Model Loader</h3>
 
   <!-- Framework Selector -->
@@ -316,7 +319,7 @@
       {#if ufoExporting}
         Exporting…
       {:else}
-        Export UFO
+        Export <HoverDef term="feynman_diagram">UFO</HoverDef>
       {/if}
     </button>
   {/if}

@@ -24,5 +24,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   lagrangian_workbench: "Lagrangian Workbench",
   external_models:      "External Models",
   compute_grid:          "Compute Grid",
+  references:             "References",
   log:           "Console",
 };

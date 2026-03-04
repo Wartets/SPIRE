@@ -45,6 +45,8 @@
   } from "$lib/stores/workspaceInputsStore";
 
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { addCitations } from "$lib/core/services/CitationRegistry";
+  import HoverDef from "$lib/components/ui/HoverDef.svelte";
 
   // --- Command Registration ---
   const REACTION_CMD_IDS = [
@@ -135,6 +137,7 @@
         $theoreticalModel,
       );
       activeReaction.set(reaction);
+      addCitations(["peskin1995", "pdg2024"]);
       appendLog(
         `Reaction constructed: ${$initialIdsInput.join(" ")} → ${$finalIdsInput.join(" ")} @ √s = ${$cmsEnergyInput} GeV` +
           (reaction.is_valid ? " [valid]" : ` [violated: ${reaction.violation_diagnostics.join("; ")}]`),
@@ -178,6 +181,7 @@
         $maxLoopOrderInput,
       );
       generatedDiagrams.set(topoSet);
+      addCitations(["hahn2001", "peskin1995"]);
       appendLog(`Generated ${topoSet.diagrams.length} Feynman diagram(s)`);
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
@@ -201,6 +205,7 @@
       if (results.length > 0) {
         activeAmplitude.set(results[0].expression);
       }
+      addCitations(["peskin1995", "kennedy1982"]);
       appendLog(`Derived ${results.length} amplitude expression(s)`);
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
@@ -220,6 +225,7 @@
       );
       const report = await computeKinematics(masses, $cmsEnergyInput);
       kinematics.set(report);
+      addCitations(["peskin1995"]);
       appendLog(
         `Kinematics: threshold = ${report.threshold.threshold_energy.toFixed(4)} GeV, ` +
           `allowed = ${report.is_allowed}`,
@@ -309,7 +315,7 @@
   }
 </script>
 
-<div class="reaction-workspace">
+<div class="reaction-workspace" data-tour-id="reaction-input">
   <h3>Reaction Workspace</h3>
 
   {#if !$isModelLoaded}
@@ -360,7 +366,7 @@
     <!-- Energy & Loop Order -->
     <div class="params-row">
       <label class="field-label">
-        Centre-of-Mass Energy (GeV)
+        <HoverDef term="mandelstam_s">Centre-of-Mass Energy</HoverDef> (GeV)
         <input type="number" bind:value={$cmsEnergyInput} min="0" step="0.1" />
       </label>
       <label class="field-label">
@@ -371,7 +377,7 @@
 
     <!-- Action Buttons -->
     <div class="actions">
-      <button class="action-btn" on:click={handleRunAll} disabled={busy}>
+      <button class="action-btn" on:click={handleRunAll} disabled={busy} data-tour-id="reaction-run">
         {busy ? "Running…" : "Run Full Pipeline"}
       </button>
       <div class="step-actions">
@@ -382,13 +388,13 @@
           Reconstruct
         </button>
         <button class="step-btn" on:click={handleGenerateDiagrams} disabled={busy || !$activeReaction}>
-          Diagrams
+          <HoverDef term="feynman_diagram">Diagrams</HoverDef>
         </button>
         <button class="step-btn" on:click={handleDeriveAmplitudes} disabled={busy || !$generatedDiagrams}>
           Amplitudes
         </button>
         <button class="step-btn" on:click={handleComputeKinematics} disabled={busy || !$activeReaction}>
-          Kinematics
+          <HoverDef term="phase_space">Kinematics</HoverDef>
         </button>
       </div>
     </div>

@@ -24,6 +24,8 @@
     matchesShortcut,
   } from "$lib/core/services/CommandRegistry";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+  import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
+  import { tutorialActive } from "$lib/core/services/TutorialService";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
@@ -133,6 +135,11 @@
   <!-- Command Palette Overlay -->
   {#if $paletteOpen}
     <CommandPalette />
+  {/if}
+
+  <!-- Tutorial Overlay -->
+  {#if $tutorialActive}
+    <TutorialOverlay />
   {/if}
 
   <!-- Main Content Area -->

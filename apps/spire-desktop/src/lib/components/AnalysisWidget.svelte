@@ -13,6 +13,8 @@
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { addCitations } from "$lib/core/services/CitationRegistry";
+  import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import WebglHeatmap from "./WebglHeatmap.svelte";
   import {
@@ -437,6 +439,7 @@
 
       const xsecPb = analysisResult.cross_section * 0.3894e9;
       const errPb = analysisResult.cross_section_error * 0.3894e9;
+      addCitations(["kleiss1986", "james1980", "peskin1995"]);
       appendLog(
         `Analysis complete: ${analysisResult.events_passed}/${analysisResult.events_generated} events passed` +
           ` | σ ≈ ${xsecPb.toExponential(3)} ± ${errPb.toExponential(2)} pb`,
@@ -593,7 +596,7 @@
 <!-- Template                                                                 -->
 <!-- ======================================================================= -->
 
-<div class="analysis-widget">
+<div class="analysis-widget" data-tour-id="analysis-widget">
   <!-- Configuration Panel -->
   <div class="config-panel">
     <!-- Mode Toggle -->
@@ -737,7 +740,7 @@
     <!-- Physics Parameters (shared) -->
     <div class="field-row">
       <div class="field compact">
-        <label for="cms-energy">√s (GeV):</label>
+        <label for="cms-energy"><HoverDef term="cross_section">√s</HoverDef> (GeV):</label>
         <input id="cms-energy" type="number" bind:value={cmsEnergy} min="0.1" step="any" />
       </div>
       <div class="field compact">

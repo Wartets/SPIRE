@@ -23,6 +23,7 @@
     runRgeFlow,
   } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { addCitations } from "$lib/core/services/CitationRegistry";
   import type {
     FieldSpin,
     LagrangianExpr,
@@ -218,6 +219,7 @@
 
     try {
       rgeResult = await runRgeFlow(config);
+      addCitations(["machacek1984", "gross1973"]);
       appendLog(`✓ RGE flow computed: ${rgeResult.coupling_name}, ${rgeResult.mu_values.length} points`);
       plotRge();
     } catch (e: unknown) {

@@ -30,6 +30,8 @@
     unregisterCommand,
     openPalette,
   } from "$lib/core/services/CommandRegistry";
+  import { startTutorial } from "$lib/core/services/TutorialService";
+  import { clearCitations } from "$lib/core/services/CitationRegistry";
   import WidgetCell from "$lib/components/workbench/WidgetCell.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
   import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
@@ -58,11 +60,14 @@
     "spire.ui.add_compute_grid",
     "spire.ui.add_dalitz",
     "spire.ui.add_diagram_editor",
+    "spire.ui.add_references",
     "spire.ui.reset_layout",
     "spire.ui.toggle_log",
     "spire.workspace.save",
     "spire.workspace.reset",
     "spire.palette.open",
+    "spire.help.tutorial",
+    "spire.references.clear_all",
   ];
 
   function registerGlobalCommands(): void {
@@ -148,6 +153,26 @@
       title: "Add Diagram Editor",
       category: "View",
       execute: () => addWidget("diagram_editor"),
+    });
+    registerCommand({
+      id: "spire.ui.add_references",
+      title: "Add References Panel",
+      category: "View",
+      execute: () => addWidget("references"),
+    });
+    registerCommand({
+      id: "spire.help.tutorial",
+      title: "Start Tutorial",
+      category: "Help",
+      shortcut: "Mod+Shift+T",
+      execute: () => startTutorial(),
+      icon: "?",
+    });
+    registerCommand({
+      id: "spire.references.clear_all",
+      title: "Clear All Citations",
+      category: "References",
+      execute: () => clearCitations(),
     });
   }
 

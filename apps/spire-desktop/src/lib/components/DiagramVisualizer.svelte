@@ -252,7 +252,7 @@
   $: diagramText = selectedDiagram ? renderDiagramText(selectedDiagram) : "";
 </script>
 
-<div class="diagram-viz">
+<div class="diagram-viz" data-tour-id="diagram-visualizer">
   <h3>Feynman Diagrams</h3>
 
   {#if diagrams.length === 0}

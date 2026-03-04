@@ -27,6 +27,7 @@
   import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
   import ExternalModels from "$lib/components/ExternalModels.svelte";
   import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
+  import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -63,6 +64,8 @@
     <ExternalModels />
   {:else if instance.type === "compute_grid"}
     <ComputeGridWidget />
+  {:else if instance.type === "references"}
+    <ReferencesPanel />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}

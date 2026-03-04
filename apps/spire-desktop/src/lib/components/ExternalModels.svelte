@@ -15,6 +15,7 @@
 <script lang="ts">
   import { appendLog, theoreticalModel } from "$lib/stores/physicsStore";
   import { importSlhaString, importUfoModel, deriveCounterterms } from "$lib/api";
+  import { addCitations } from "$lib/core/services/CitationRegistry";
   import type {
     SlhaDocument,
     SlhaBlock,
@@ -139,6 +140,7 @@
       const [model, theoretical] = await importUfoModel(ufoFiles, ufoModelName);
       ufoModel = model;
       ufoTheoreticalModel = theoretical;
+      addCitations(["degrande2012"]);
       appendLog(
         `UFO imported: ${model.particles.length} particles, ${model.vertices.length} vertices`,
       );
@@ -219,6 +221,7 @@
         knownFields[f.id] = f.spin;
       }
       nloResult = await deriveCounterterms(nloInput, knownFields, nloExternalFields);
+      addCitations(["kennedy1982", "bardin1999"]);
       appendLog(
         `NLO counterterms: ${nloResult.counterterms.length} terms, ` +
           `${nloResult.renorm_constants.length} constants`,
