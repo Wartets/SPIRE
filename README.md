@@ -4,7 +4,7 @@
 </p>
 
 <p align="center">
-  A rigorous computational framework for High Energy Physics and Quantum Field Theory —<br>
+  A rigorous computational framework for High Energy Physics and Quantum Field Theory, <br>
   from Lagrangian densities to publication-ready cross-sections, entirely from first principles.
 </p>
 
@@ -20,13 +20,13 @@
 
 ## Abstract
 
-**SPIRE** is a deductive physics engine and computational formalism designed for the automated analysis of particle interactions within Quantum Field Theory (QFT). Unlike conventional tools that rely on pre-calculated look-up tables or hard-coded process libraries, SPIRE constructs valid physical processes *ab initio* — from user-specified Lagrangian densities, symmetry groups, and conservation laws. Its core design enforces a strict **isomorphism** between the three canonical representations of a scattering process:
+**SPIRE** is a deductive physics engine and computational formalism designed for the automated analysis of particle interactions within Quantum Field Theory (QFT). Unlike conventional tools that rely on pre-calculated look-up tables or hard-coded process libraries, SPIRE constructs valid physical processes *ab initio*,  from user-specified Lagrangian densities, symmetry groups, and conservation laws. Its core design enforces a strict **isomorphism** between the three canonical representations of a scattering process:
 
 1. The **symbolic** reaction equation ($A + B \to C + D$),
 2. The **topological** structure (Feynman diagrams),
 3. The **analytical** expression (the invariant amplitude $\mathcal{M}$).
 
-A single unified data structure carries all three representations simultaneously, ensuring that no information is lost or desynchronised across the derivation chain. SPIRE provides a complete computational pipeline: Lagrangian parsing → vertex rule extraction → Feynman topology enumeration → symbolic amplitude construction → Dirac/Lorentz algebra simplification → Monte Carlo phase-space integration → histogram analysis → detector-level reconstruction — all within a single, memory-safe Rust kernel exposed through an interactive SvelteKit desktop application.
+A single unified data structure carries all three representations simultaneously, ensuring that no information is lost or desynchronised across the derivation chain. SPIRE provides a complete computational pipeline: Lagrangian parsing → vertex rule extraction → Feynman topology enumeration → symbolic amplitude construction → Dirac/Lorentz algebra simplification → Monte Carlo phase-space integration → histogram analysis → detector-level reconstruction,  all within a single, memory-safe Rust kernel exposed through an interactive SvelteKit desktop application.
 
 All project source code, documentation, and data files are hosted at [github.com/Wartets/SPIRE](https://github.com/Wartets/SPIRE).
 
@@ -90,7 +90,7 @@ $$\sigma_{pp} = \sum_{a,b} \int dx_1 \, dx_2 \; f_a(x_1, Q^2) \, f_b(x_2, Q^2) \
 - **Three presets**: Perfect (unity efficiency), LHC-like (ATLAS/CMS parametrisation), ILC-like ($e^+e^-$ collider).
 
 ### External Theory Bridge (SLHA & UFO)
-- **SLHA parser**: Full SUSY Les Houches Accord v1 ingestion — mass spectra (`BLOCK MASS`), mixing matrices (`BLOCK NMIX`, `BLOCK UMIX`), decay tables (`DECAY`), and running parameters with $Q$-scale tracking.
+- **SLHA parser**: Full SUSY Les Houches Accord v1 ingestion,  mass spectra (`BLOCK MASS`), mixing matrices (`BLOCK NMIX`, `BLOCK UMIX`), decay tables (`DECAY`), and running parameters with $Q$-scale tracking.
 - **UFO bridge**: Pure-Rust parser for Universal FeynRules Output models (WASM-compatible, no Python dependency). Reads `particles.py`, `vertices.py`, `couplings.py`, `parameters.py`, and `lorentz.py`, mapping them into SPIRE's ontology.
 - **NLO counterterm generator**: Automated multiplicative field renormalisation $\phi_0 = \sqrt{Z}\phi_R$ with extraction of all $\mathcal{O}(\delta)$ counterterm vertices and their Feynman rules.
 
@@ -141,7 +141,7 @@ The headless computational core contains all physics logic. It is a pure Rust li
 | `s_matrix` | Reaction construction, final-state reconstruction, cross-section integration |
 | `lagrangian` | Theoretical model assembly, vertex factors, propagators |
 | `graph` | Feynman topology generation, channel classification, symmetry factors |
-| `algebra` | CAS engine — Dirac algebra, trace evaluation, amplitude derivation |
+| `algebra` | CAS engine,  Dirac algebra, trace evaluation, amplitude derivation |
 | `kinematics` | Mandelstam variables, RAMBO phase-space, Dalitz boundaries, Lorentz boosts |
 | `analysis` | Histogram engine, observable scripting, detector simulation, jet clustering |
 | `theory` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA/UFO parsers, NLO counterterms |
@@ -164,7 +164,7 @@ A **Tauri** + **SvelteKit** application providing a reactive scientific workbenc
 ## Getting Started
 
 ### Prerequisites
-- **Rust** (edition 2021+) and Cargo — [rustup.rs](https://rustup.rs)
+- **Rust** (edition 2021+) and Cargo,  [rustup.rs](https://rustup.rs)
 - **Node.js** (LTS, ≥ 18) and npm
 - **System libraries** (Linux only): `build-essential`, `libwebkit2gtk-4.0-dev`, `libgtk-3-dev`, `libssl-dev`
 - **System libraries** (macOS): Xcode Command Line Tools
