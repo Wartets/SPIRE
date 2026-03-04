@@ -670,7 +670,7 @@ pub enum FormFactor {
     /// 1.0 / (r * r)
     /// ```
     ///
-    /// The script is compiled to an AST on each call to [`evaluate`]. For
+    /// The script is compiled to an AST on each call to `evaluate`. For
     /// tight integration loops, prefer caching via
     /// [`SpireScriptEngine::compile_form_factor`](crate::scripting::SpireScriptEngine::compile_form_factor).
     Scripted {

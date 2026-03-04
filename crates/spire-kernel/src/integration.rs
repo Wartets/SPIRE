@@ -14,9 +14,8 @@
 //!   flat uniform sampling ([`UniformIntegrator`]) and future adaptive
 //!   algorithms (VEGAS, multi-channel, etc.).
 //!
-//! - [`PhaseSpaceGenerator`](crate::kinematics::PhaseSpaceGenerator): Defines
-//!   *how* phase-space points are generated. The integrator is agnostic to the
-//!   generation algorithm.
+//! - [`PhaseSpaceGenerator`]: Defines *how* phase-space points are generated.
+//!   The integrator is agnostic to the generation algorithm.
 //!
 //! ## Cross-Section Formula
 //!

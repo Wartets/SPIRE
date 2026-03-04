@@ -2,7 +2,7 @@
 //!
 //! Parses SLHA-format files (v1 and v2) into a structured `SlhaDocument`,
 //! then merges the mass spectrum, decay widths, and mixing matrices into a
-//! [`TheoreticalModel`](crate::lagrangian::TheoreticalModel).
+//! [`TheoreticalModel`].
 //!
 //! ## Format Overview
 //!

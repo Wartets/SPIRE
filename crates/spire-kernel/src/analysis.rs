@@ -1187,11 +1187,11 @@ fn parse_particle_kind(s: &str) -> SpireResult<ParticleKind> {
 /// This function extends the standard analysis pipeline with an optional
 /// phenomenological detector simulation step. When `config.detector_preset`
 /// is `Some`, each truth-level event is passed through the [`DetectorModel`]
-/// to produce a [`ReconstructedEvent`] before observable evaluation.
+/// to produce a [`ReconstructedEvent`](crate::reco::detector::ReconstructedEvent) before observable evaluation.
 ///
 /// Observable scripts may access both:
 /// - `event` : the truth-level [`PhaseSpacePoint`]
-/// - `reco` : the reconstructed [`ReconstructedEvent`] (jets, leptons, MET)
+/// - `reco` : the reconstructed [`ReconstructedEvent`](crate::reco::detector::ReconstructedEvent) (jets, leptons, MET)
 ///
 /// When no detector preset is specified, this function delegates to
 /// [`run_analysis`] for backward compatibility.

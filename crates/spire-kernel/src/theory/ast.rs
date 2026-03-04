@@ -93,8 +93,8 @@ pub enum FieldSpin {
 /// A node in the Lagrangian expression tree.
 ///
 /// This is the fundamental building block for representing any local field
-/// theory interaction term symbolically. Nodes compose via [`Product`] and
-/// [`Sum`] to build arbitrarily complex expressions.
+/// theory interaction term symbolically. Nodes compose via [`LagrangianExpr::Product`] and
+/// [`LagrangianExpr::Sum`] to build arbitrarily complex expressions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LagrangianExpr {
     /// A real numerical constant (e.g., `1.0`, `-0.25`, `24.0`).

@@ -2,7 +2,7 @@
 //!
 //! Pure-Rust parser for UFO model files that maps external particle, vertex,
 //! coupling, and parameter definitions into the SPIRE ontology and
-//! [`TheoreticalModel`](crate::lagrangian::TheoreticalModel).
+//! [`TheoreticalModel`].
 //!
 //! ## Format Overview
 //!

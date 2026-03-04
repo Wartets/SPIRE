@@ -147,9 +147,9 @@ pub struct ProcessInfo {
 ///
 /// # Three-Phase Protocol
 ///
-/// 1. Call [`write_header`] once to emit the preamble.
-/// 2. Call [`write_event`] for each MC event (inside the integration loop).
-/// 3. Call [`finish`] to flush buffers and close the format.
+/// 1. Call [`EventWriter::write_header`] once to emit the preamble.
+/// 2. Call [`EventWriter::write_event`] for each MC event (inside the integration loop).
+/// 3. Call [`EventWriter::finish`] to flush buffers and close the format.
 ///
 /// # Performance
 ///

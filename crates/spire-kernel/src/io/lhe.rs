@@ -47,7 +47,7 @@ use crate::{SpireError, SpireResult};
 ///
 /// # Type Parameter
 ///
-/// `W` — any `std::io::Write` target (file, Vec<u8>, stdout, etc.).
+/// `W` — any `std::io::Write` target (file, `Vec<u8>`, stdout, etc.).
 ///
 /// # Usage
 ///
@@ -214,7 +214,7 @@ impl From<std::io::Error> for SpireError {
 // Helper: PhaseSpacePoint → EventRecord conversion
 // ---------------------------------------------------------------------------
 
-/// Build an [`EventRecord`] from a [`PhaseSpacePoint`] and process metadata.
+/// Build an [`EventRecord`] from a [`PhaseSpacePoint`](crate::kinematics::PhaseSpacePoint) and process metadata.
 ///
 /// This is the bridge between the kernel's internal phase-space representation
 /// and the format-agnostic event record used by all writers.

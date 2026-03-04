@@ -353,8 +353,8 @@ impl SpireScriptEngine {
 
     /// Compile a user script into a reusable AST.
     ///
-    /// This is the raw compilation step. Prefer [`compile_observable`] or
-    /// [`compile_cut`] for type-safe wrappers.
+    /// This is the raw compilation step. Prefer [`SpireScriptEngine::compile_observable`] or
+    /// [`SpireScriptEngine::compile_cut`] for type-safe wrappers.
     ///
     /// # Errors
     /// Returns a `SpireError::InternalError` if the script has syntax errors.
@@ -476,7 +476,7 @@ pub trait Observable: Send + Sync {
 /// A custom observable defined by a Rhai script.
 ///
 /// The script is pre-compiled to an AST at construction time. Each call
-/// to [`evaluate`] binds the event to the `event` variable and runs the
+/// to `evaluate` binds the event to the `event` variable and runs the
 /// AST, returning the final expression value.
 pub struct RhaiObservable {
     engine: Arc<Engine>,

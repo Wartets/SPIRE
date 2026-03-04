@@ -11,6 +11,9 @@
 //! Both modules wrap the same kernel calls, ensuring a consistent API contract
 //! regardless of the host language.
 
+// PyO3 0.20 generates non-local impl blocks; allow until pyo3 0.22+ is adopted.
+#![allow(non_local_definitions)]
+
 pub mod wasm_api;
 
 #[cfg(feature = "python")]

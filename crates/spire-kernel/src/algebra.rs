@@ -2288,7 +2288,7 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
 /// Evaluate the Dirac trace of a CAS expression.
 ///
 /// Supports:
-/// - $\mathrm{Tr}[I] = 4$
+/// - $\mathrm{Tr}\[I\] = 4$
 /// - $\mathrm{Tr}[\text{odd }\gamma] = 0$
 /// - $\mathrm{Tr}[\gamma^\mu \gamma^\nu] = 4\,g^{\mu\nu}$
 /// - $\mathrm{Tr}[\gamma^\mu \gamma^\nu \gamma^\rho \gamma^\sigma] = 4(g^{\mu\nu}g^{\rho\sigma} - g^{\mu\rho}g^{\nu\sigma} + g^{\mu\sigma}g^{\nu\rho})$
@@ -3579,7 +3579,7 @@ pub fn evaluate_trace(gamma_indices: &[u8], include_gamma5: bool) -> SpireResult
 ///
 /// | Identity | Result |
 /// |----------|--------|
-/// | $\mathrm{Tr}[I] = f(d)$ | $f(d)$ where $f(4) = 4$ in general $f(d)$ can be defined |
+/// | $\mathrm{Tr}\[I\] = f(d)$ | $f(d)$ where $f(4) = 4$ in general $f(d)$ can be defined |
 /// | $\mathrm{Tr}[\text{odd } \gamma]$ | 0 |
 /// | $\mathrm{Tr}[\gamma^\mu \gamma^\nu]$ | $f(d)\,g^{\mu\nu}$ |
 /// | $\gamma^\mu \gamma_\mu$ | $d \cdot I$ |
