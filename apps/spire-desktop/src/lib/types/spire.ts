@@ -959,3 +959,115 @@ export interface EventDisplayData {
   met: DisplayMET;
   cms_energy: number;
 }
+
+// ---------------------------------------------------------------------------
+// Lagrangian Workbench (Phase 32)
+// ---------------------------------------------------------------------------
+
+/** Classification of a tensor index. */
+export type IndexKind = "Lorentz" | { Gauge: string };
+
+/** Upper (contravariant) or lower (covariant) index position. */
+export type IndexPosition = "Upper" | "Lower";
+
+/** A single tensor index slot. */
+export interface IndexSlot {
+  name: string;
+  kind: IndexKind;
+  position: IndexPosition;
+}
+
+/** Spin classification of a field in the Lagrangian AST. */
+export type FieldSpin = "Scalar" | "Fermion" | "Vector" | "ThreeHalf" | "Tensor2";
+
+/**
+ * A node in the Lagrangian expression AST.
+ *
+ * This is a discriminated union matching the Rust `LagrangianExpr` enum.
+ */
+export type LagrangianExpr =
+  | { RealConstant: number }
+  | { CouplingConstant: { name: string; value: number | null } }
+  | {
+      FieldOp: {
+        field_id: string;
+        spin: FieldSpin;
+        is_adjoint: boolean;
+        lorentz_indices: IndexSlot[];
+        gauge_indices: IndexSlot[];
+      };
+    }
+  | { GammaMat: { index: IndexSlot } }
+  | "Gamma5"
+  | { Derivative: { index: IndexSlot } }
+  | { CovariantDerivative: { index: IndexSlot; gauge_field_id: string | null } }
+  | { Metric: { mu: IndexSlot; nu: IndexSlot } }
+  | {
+      FieldStrength: {
+        field_id: string;
+        mu: IndexSlot;
+        nu: IndexSlot;
+        gauge_index: IndexSlot | null;
+      };
+    }
+  | { Product: LagrangianExpr[] }
+  | { Sum: LagrangianExpr[] }
+  | { Scaled: { factor: number; inner: LagrangianExpr } };
+
+/** An external field for vertex derivation. */
+export interface ExternalField {
+  field_id: string;
+  is_adjoint: boolean;
+}
+
+/** Result of deriving a vertex rule from a Lagrangian term. */
+export interface DerivedVertexRule {
+  external_fields: ExternalField[];
+  residual_expr: LagrangianExpr;
+  latex: string;
+  symmetry_factor: number;
+  grassmann_sign: number;
+  n_legs: number;
+}
+
+/** A single diagnostic message from validation. */
+export interface ValidationMessage {
+  severity: string;
+  check: string;
+  message: string;
+}
+
+/** Result of validating a Lagrangian term. */
+export interface ValidationResult {
+  is_lorentz_scalar: boolean;
+  is_gauge_singlet: boolean;
+  is_hermitian: boolean;
+  is_renormalisable: boolean;
+  mass_dimension: number;
+  messages: ValidationMessage[];
+}
+
+/** Gauge representation info for a field. */
+export interface FieldGaugeInfo {
+  field_id: string;
+  representations: unknown[];
+  u1_charges: Record<string, number>;
+}
+
+/** Configuration for an RGE flow computation. */
+export interface RgeFlowConfig {
+  coupling_name: string;
+  beta_script: string;
+  initial_value: number;
+  mu_min: number;
+  mu_max: number;
+  n_points: number;
+  extra_constants?: Record<string, number>;
+}
+
+/** Result of an RGE flow integration. */
+export interface RgeFlowResult {
+  coupling_name: string;
+  mu_values: number[];
+  coupling_values: number[];
+}

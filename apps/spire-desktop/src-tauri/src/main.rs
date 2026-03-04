@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::data_loader;
+use spire_kernel::theory;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::kinematics::{self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult};
 use spire_kernel::lagrangian::TheoreticalModel;
@@ -448,6 +449,56 @@ fn generate_display_batch(
 }
 
 // ---------------------------------------------------------------------------
+// Lagrangian Workbench Commands (Phase 32)
+// ---------------------------------------------------------------------------
+
+/// Parse a Lagrangian term string into its AST representation.
+#[tauri::command]
+fn parse_lagrangian_term(
+    input: String,
+    known_fields: HashMap<String, theory::ast::FieldSpin>,
+) -> Result<theory::ast::LagrangianExpr, String> {
+    theory::ast::parse_lagrangian_term(&input, &known_fields).map_err(|e| e.to_string())
+}
+
+/// Derive a vertex rule from a Lagrangian term by functional differentiation.
+#[tauri::command]
+fn derive_vertex_rule_from_ast(
+    input: String,
+    known_fields: HashMap<String, theory::ast::FieldSpin>,
+    external_fields: Vec<theory::derivation::ExternalField>,
+) -> Result<theory::derivation::DerivedVertexRule, String> {
+    let expr =
+        theory::ast::parse_lagrangian_term(&input, &known_fields).map_err(|e| e.to_string())?;
+    theory::derivation::derive_vertex_rule(&expr, &external_fields).map_err(|e| e.to_string())
+}
+
+/// Validate a Lagrangian term for theoretical consistency.
+#[tauri::command]
+fn validate_lagrangian_term(
+    input: String,
+    known_fields: HashMap<String, theory::ast::FieldSpin>,
+    gauge_symmetry: Option<spire_kernel::groups::GaugeSymmetry>,
+    field_gauge_info: HashMap<String, theory::validation::FieldGaugeInfo>,
+) -> Result<theory::validation::ValidationResult, String> {
+    let expr =
+        theory::ast::parse_lagrangian_term(&input, &known_fields).map_err(|e| e.to_string())?;
+    Ok(theory::validation::validate_lagrangian_term(
+        &expr,
+        gauge_symmetry.as_ref(),
+        &field_gauge_info,
+    ))
+}
+
+/// Run an RGE coupling flow integration.
+#[tauri::command]
+fn run_rge_flow(
+    config: theory::rge::RgeFlowConfig,
+) -> Result<theory::rge::RgeFlowResult, String> {
+    theory::rge::run_rge_flow(&config).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -469,6 +520,10 @@ fn main() {
             test_cut_script,
             generate_display_event,
             generate_display_batch,
+            parse_lagrangian_term,
+            derive_vertex_rule_from_ast,
+            validate_lagrangian_term,
+            run_rge_flow,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

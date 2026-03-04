@@ -21,5 +21,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   analysis:      "Analysis",
   event_display: "Event Display",
   diagram_editor: "Diagram Editor",
+  lagrangian_workbench: "Lagrangian Workbench",
   log:           "Console",
 };

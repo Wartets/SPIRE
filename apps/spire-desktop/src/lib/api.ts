@@ -385,3 +385,61 @@ export async function generateDisplayBatch(
     },
   );
 }
+
+// ---------------------------------------------------------------------------
+// Lagrangian Workbench (Phase 32)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a Lagrangian term string into its AST representation.
+ */
+export async function parseLagrangianTerm(
+  input: string,
+  knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
+): Promise<import("$lib/types/spire").LagrangianExpr> {
+  return invoke<import("$lib/types/spire").LagrangianExpr>("parse_lagrangian_term", {
+    input,
+    knownFields,
+  });
+}
+
+/**
+ * Derive a vertex rule from a Lagrangian term via functional differentiation.
+ */
+export async function deriveVertexRuleFromAst(
+  input: string,
+  knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
+  externalFields: import("$lib/types/spire").ExternalField[],
+): Promise<import("$lib/types/spire").DerivedVertexRule> {
+  return invoke<import("$lib/types/spire").DerivedVertexRule>("derive_vertex_rule_from_ast", {
+    input,
+    knownFields,
+    externalFields,
+  });
+}
+
+/**
+ * Validate a Lagrangian term for theoretical consistency.
+ */
+export async function validateLagrangianTerm(
+  input: string,
+  knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
+  gaugeSymmetry?: import("$lib/types/spire").GaugeSymmetry | null,
+  fieldGaugeInfo?: Record<string, import("$lib/types/spire").FieldGaugeInfo>,
+): Promise<import("$lib/types/spire").ValidationResult> {
+  return invoke<import("$lib/types/spire").ValidationResult>("validate_lagrangian_term", {
+    input,
+    knownFields,
+    gaugeSymmetry: gaugeSymmetry ?? null,
+    fieldGaugeInfo: fieldGaugeInfo ?? {},
+  });
+}
+
+/**
+ * Run an RGE coupling flow integration.
+ */
+export async function runRgeFlow(
+  config: import("$lib/types/spire").RgeFlowConfig,
+): Promise<import("$lib/types/spire").RgeFlowResult> {
+  return invoke<import("$lib/types/spire").RgeFlowResult>("run_rge_flow", { config });
+}
