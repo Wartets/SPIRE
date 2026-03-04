@@ -17,9 +17,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::ast::{
-    validate_index_contraction, FieldSpin, LagrangianExpr,
-};
+use super::ast::{validate_index_contraction, FieldSpin, LagrangianExpr};
 use crate::groups::{GaugeSymmetry, LieGroup, LieGroupRepresentation};
 
 // ---------------------------------------------------------------------------
@@ -146,10 +144,7 @@ pub fn validate_lagrangian_term(
 ///
 /// A valid Lagrangian term must be a Lorentz scalar: every Lorentz index
 /// appears exactly twice (once upper, once lower).
-fn check_lorentz_invariance(
-    expr: &LagrangianExpr,
-    messages: &mut Vec<ValidationMessage>,
-) -> bool {
+fn check_lorentz_invariance(expr: &LagrangianExpr, messages: &mut Vec<ValidationMessage>) -> bool {
     match validate_index_contraction(expr) {
         Ok(()) => {
             messages.push(ValidationMessage {
@@ -360,10 +355,7 @@ fn collect_field_ids_recursive(expr: &LagrangianExpr, out: &mut Vec<(String, boo
 ///
 /// This is a heuristic check: we verify that for every fermion field
 /// appearing as $\psi$, there is a corresponding $\bar\psi$ (and vice versa).
-fn check_hermiticity(
-    expr: &LagrangianExpr,
-    messages: &mut Vec<ValidationMessage>,
-) -> bool {
+fn check_hermiticity(expr: &LagrangianExpr, messages: &mut Vec<ValidationMessage>) -> bool {
     let field_ids = collect_field_ids(expr);
 
     // Count fields and their adjoints.
@@ -490,9 +482,10 @@ fn compute_half_mass_dimension(expr: &LagrangianExpr) -> u32 {
         LagrangianExpr::CovariantDerivative { .. } => 2,
         LagrangianExpr::Metric { .. } => 0,
         LagrangianExpr::FieldStrength { .. } => 4, // F ~ ∂A, dimension 2
-        LagrangianExpr::Product(children) => {
-            children.iter().map(|c| compute_half_mass_dimension(c)).sum()
-        }
+        LagrangianExpr::Product(children) => children
+            .iter()
+            .map(|c| compute_half_mass_dimension(c))
+            .sum(),
         LagrangianExpr::Sum(children) => {
             // All terms in a sum should have the same dimension; take the max.
             children
@@ -578,11 +571,7 @@ mod tests {
     fn mass_dimension_non_renormalisable() {
         let fields = qed_fields();
         // Six scalar fields → dimension 6 → non-renormalisable
-        let expr = parse_lagrangian_term(
-            "g * phi * phi * phi * phi * phi * phi",
-            &fields,
-        )
-        .unwrap();
+        let expr = parse_lagrangian_term("g * phi * phi * phi * phi * phi * phi", &fields).unwrap();
         let dim = compute_mass_dimension(&expr);
         assert_eq!(dim, 6);
         let result = validate_lagrangian_term(&expr, None, &HashMap::new());

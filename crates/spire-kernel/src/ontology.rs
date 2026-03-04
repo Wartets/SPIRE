@@ -565,7 +565,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -590,7 +594,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Odd,
@@ -615,7 +623,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(0),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Even,
@@ -695,12 +707,12 @@ mod tests {
 
         // Additive QNs should be negated.
         let qn = &positron.particle.field.quantum_numbers;
-        assert_eq!(qn.electric_charge, ElectricCharge(3));    // +1
-        assert_eq!(qn.weak_isospin, WeakIsospin(1));          // +1/2
-        assert_eq!(qn.hypercharge, Hypercharge(3));           // +1
-        assert_eq!(qn.baryon_number, BaryonNumber(0));        // still 0
-        assert_eq!(qn.lepton_numbers.electron, -1);           // L_e = -1
-        // Spin and parity are preserved.
+        assert_eq!(qn.electric_charge, ElectricCharge(3)); // +1
+        assert_eq!(qn.weak_isospin, WeakIsospin(1)); // +1/2
+        assert_eq!(qn.hypercharge, Hypercharge(3)); // +1
+        assert_eq!(qn.baryon_number, BaryonNumber(0)); // still 0
+        assert_eq!(qn.lepton_numbers.electron, -1); // L_e = -1
+                                                    // Spin and parity are preserved.
         assert_eq!(qn.spin, Spin(1));
         // is_anti flag flipped.
         assert!(positron.particle.is_anti);
@@ -805,7 +817,10 @@ mod tests {
 
     #[test]
     fn physical_constants_default_is_natural() {
-        assert_eq!(PhysicalConstants::default(), PhysicalConstants::natural_units());
+        assert_eq!(
+            PhysicalConstants::default(),
+            PhysicalConstants::natural_units()
+        );
     }
 
     #[test]

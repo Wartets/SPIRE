@@ -284,25 +284,13 @@ pub fn derive_vertex_factor(term: &LagrangianTerm) -> SpireResult<VertexFactor> 
         "scalar" => format!("-i {}", term.coupling_symbol),
         "tensor" => format!("-i {} T^a γ^μ", term.coupling_symbol),
         // Dimension-6 four-fermion contact interactions: (V−A)×(V−A)
-        "contact_VmA" => format!(
-            "-i {}/Λ² (γ^μ P_L) ⊗ (γ_μ P_L)",
-            term.coupling_symbol
-        ),
+        "contact_VmA" => format!("-i {}/Λ² (γ^μ P_L) ⊗ (γ_μ P_L)", term.coupling_symbol),
         // Dimension-6 four-fermion contact interactions: (V+A)×(V+A)
-        "contact_VpA" => format!(
-            "-i {}/Λ² (γ^μ P_R) ⊗ (γ_μ P_R)",
-            term.coupling_symbol
-        ),
+        "contact_VpA" => format!("-i {}/Λ² (γ^μ P_R) ⊗ (γ_μ P_R)", term.coupling_symbol),
         // Dimension-6 scalar four-fermion contact interaction
-        "contact_SS" => format!(
-            "-i {}/Λ² (1) ⊗ (1)",
-            term.coupling_symbol
-        ),
+        "contact_SS" => format!("-i {}/Λ² (1) ⊗ (1)", term.coupling_symbol),
         // Generic dimension-6 four-fermion contact interaction
-        "contact_4f" => format!(
-            "-i {}/Λ² (γ^μ) ⊗ (γ_μ)",
-            term.coupling_symbol
-        ),
+        "contact_4f" => format!("-i {}/Λ² (γ^μ) ⊗ (γ_μ)", term.coupling_symbol),
         other => format!("-i {} [{}]", term.coupling_symbol, other),
     };
 
@@ -761,7 +749,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -785,7 +777,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Odd,
@@ -809,7 +805,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -833,7 +833,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(0),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Even,
@@ -846,7 +850,12 @@ mod tests {
     }
 
     fn make_test_model() -> TheoreticalModel {
-        let fields = vec![electron_field(), photon_field(), z_boson_field(), higgs_field()];
+        let fields = vec![
+            electron_field(),
+            photon_field(),
+            z_boson_field(),
+            higgs_field(),
+        ];
         let terms = vec![LagrangianTerm {
             id: "qed_eea".into(),
             description: "QED vertex".into(),
@@ -859,8 +868,14 @@ mod tests {
             operator_dimension: None,
         }];
         // Build model with derived propagators and vertex factors.
-        let propagators = fields.iter().map(|f| derive_propagator(f).unwrap()).collect();
-        let vertex_factors = terms.iter().map(|t| derive_vertex_factor(t).unwrap()).collect();
+        let propagators = fields
+            .iter()
+            .map(|f| derive_propagator(f).unwrap())
+            .collect();
+        let vertex_factors = terms
+            .iter()
+            .map(|t| derive_vertex_factor(t).unwrap())
+            .collect();
         TheoreticalModel {
             name: "Test Model".into(),
             description: "Minimal QED for unit tests".into(),
@@ -1092,7 +1107,10 @@ mod tests {
                 operator_dimension: Some(6),
             },
         ];
-        let propagators = fields.iter().map(|f| derive_propagator(f).unwrap()).collect();
+        let propagators = fields
+            .iter()
+            .map(|f| derive_propagator(f).unwrap())
+            .collect();
         let model = TheoreticalModel {
             name: "EFT Test".into(),
             description: "Test".into(),
@@ -1105,7 +1123,11 @@ mod tests {
             constants: crate::ontology::PhysicalConstants::default(),
         };
         let rules = derive_vertex_rules(&model).unwrap();
-        assert_eq!(rules.len(), 2, "Both Interaction and ContactInteraction should produce vertex rules");
+        assert_eq!(
+            rules.len(),
+            2,
+            "Both Interaction and ContactInteraction should produce vertex rules"
+        );
     }
 
     #[test]
@@ -1141,7 +1163,11 @@ mod tests {
     fn ufo_particles_py_pdg_codes() {
         let model = make_test_model();
         let output = model.to_ufo_particles_py();
-        assert!(output.contains("pdg_code=11"), "electron should have PDG 11: {}", output);
+        assert!(
+            output.contains("pdg_code=11"),
+            "electron should have PDG 11: {}",
+            output
+        );
         assert!(output.contains("pdg_code=22"), "photon should have PDG 22");
         assert!(output.contains("pdg_code=23"), "Z should have PDG 23");
         assert!(output.contains("pdg_code=25"), "Higgs should have PDG 25");
@@ -1153,7 +1179,11 @@ mod tests {
         let output = model.to_ufo_particles_py();
         // Higgs: spin=0 → 2J+1=1, Electron: spin=1(=2*1/2) → 2J+1=2,
         // Photon/Z: spin=2(=2*1) → 2J+1=3
-        assert!(output.contains("name='H'") && output.contains("spin=1"), "Higgs spin=1: {}", output);
+        assert!(
+            output.contains("name='H'") && output.contains("spin=1"),
+            "Higgs spin=1: {}",
+            output
+        );
     }
 
     #[test]
@@ -1161,7 +1191,10 @@ mod tests {
         let model = make_test_model();
         let output = model.to_ufo_particles_py();
         // Z has width > 0, photon has width = 0
-        assert!(output.contains("width='ZERO'"), "massless particles should have ZERO width");
+        assert!(
+            output.contains("width='ZERO'"),
+            "massless particles should have ZERO width"
+        );
     }
 
     #[test]
@@ -1176,26 +1209,44 @@ mod tests {
     fn ufo_parameters_py_masses() {
         let model = make_test_model();
         let output = model.to_ufo_parameters_py();
-        assert!(output.contains("block='MASS'"), "should have MASS block parameters");
+        assert!(
+            output.contains("block='MASS'"),
+            "should have MASS block parameters"
+        );
         // Electron mass
         assert!(output.contains("0.000511"), "should contain electron mass");
         // Higgs mass
-        assert!(output.contains("125.1"), "should contain Higgs mass: {}", output);
+        assert!(
+            output.contains("125.1"),
+            "should contain Higgs mass: {}",
+            output
+        );
     }
 
     #[test]
     fn ufo_parameters_py_couplings() {
         let model = make_test_model();
         let output = model.to_ufo_parameters_py();
-        assert!(output.contains("nature='internal'"), "should have internal coupling params");
-        assert!(output.contains("name='e'"), "should contain QED coupling 'e': {}", output);
+        assert!(
+            output.contains("nature='internal'"),
+            "should have internal coupling params"
+        );
+        assert!(
+            output.contains("name='e'"),
+            "should contain QED coupling 'e': {}",
+            output
+        );
     }
 
     #[test]
     fn ufo_parameters_py_width_for_z() {
         let model = make_test_model();
         let output = model.to_ufo_parameters_py();
-        assert!(output.contains("block='DECAY'"), "Z boson should have DECAY block: {}", output);
+        assert!(
+            output.contains("block='DECAY'"),
+            "Z boson should have DECAY block: {}",
+            output
+        );
         assert!(output.contains("2.4952"), "should contain Z width");
     }
 

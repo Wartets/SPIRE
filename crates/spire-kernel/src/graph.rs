@@ -439,40 +439,60 @@ fn build_s_channel_graph(
     });
 
     // External edges: incoming → vertex 1
-    graph.add_edge(n_in1, n_v1, Edge {
-        field: in1.field.clone(),
-        propagator: None,
-        momentum_label: "p1".into(),
-        is_external: true,
-    });
-    graph.add_edge(n_in2, n_v1, Edge {
-        field: in2.field.clone(),
-        propagator: None,
-        momentum_label: "p2".into(),
-        is_external: true,
-    });
+    graph.add_edge(
+        n_in1,
+        n_v1,
+        Edge {
+            field: in1.field.clone(),
+            propagator: None,
+            momentum_label: "p1".into(),
+            is_external: true,
+        },
+    );
+    graph.add_edge(
+        n_in2,
+        n_v1,
+        Edge {
+            field: in2.field.clone(),
+            propagator: None,
+            momentum_label: "p2".into(),
+            is_external: true,
+        },
+    );
 
     // Internal propagator: vertex 1 → vertex 2
-    graph.add_edge(n_v1, n_v2, Edge {
-        field: mediator.clone(),
-        propagator: mediator_propagator.cloned(),
-        momentum_label: "q".into(),
-        is_external: false,
-    });
+    graph.add_edge(
+        n_v1,
+        n_v2,
+        Edge {
+            field: mediator.clone(),
+            propagator: mediator_propagator.cloned(),
+            momentum_label: "q".into(),
+            is_external: false,
+        },
+    );
 
     // External edges: vertex 2 → outgoing
-    graph.add_edge(n_v2, n_out1, Edge {
-        field: out1.field.clone(),
-        propagator: None,
-        momentum_label: "p3".into(),
-        is_external: true,
-    });
-    graph.add_edge(n_v2, n_out2, Edge {
-        field: out2.field.clone(),
-        propagator: None,
-        momentum_label: "p4".into(),
-        is_external: true,
-    });
+    graph.add_edge(
+        n_v2,
+        n_out1,
+        Edge {
+            field: out1.field.clone(),
+            propagator: None,
+            momentum_label: "p3".into(),
+            is_external: true,
+        },
+    );
+    graph.add_edge(
+        n_v2,
+        n_out2,
+        Edge {
+            field: out2.field.clone(),
+            propagator: None,
+            momentum_label: "p4".into(),
+            is_external: true,
+        },
+    );
 
     // Snapshot for serialization
     let nodes: Vec<Node> = graph.node_weights().cloned().collect();
@@ -559,40 +579,60 @@ fn build_exchange_graph(
     });
 
     // Incoming → vertex
-    graph.add_edge(n_in1, n_v1, Edge {
-        field: in1.field.clone(),
-        propagator: None,
-        momentum_label: "p1".into(),
-        is_external: true,
-    });
-    graph.add_edge(n_in2, n_v2, Edge {
-        field: in2.field.clone(),
-        propagator: None,
-        momentum_label: "p2".into(),
-        is_external: true,
-    });
+    graph.add_edge(
+        n_in1,
+        n_v1,
+        Edge {
+            field: in1.field.clone(),
+            propagator: None,
+            momentum_label: "p1".into(),
+            is_external: true,
+        },
+    );
+    graph.add_edge(
+        n_in2,
+        n_v2,
+        Edge {
+            field: in2.field.clone(),
+            propagator: None,
+            momentum_label: "p2".into(),
+            is_external: true,
+        },
+    );
 
     // Exchange propagator: V1 → V2
-    graph.add_edge(n_v1, n_v2, Edge {
-        field: exchange.clone(),
-        propagator: exchange_propagator.cloned(),
-        momentum_label: "q".into(),
-        is_external: false,
-    });
+    graph.add_edge(
+        n_v1,
+        n_v2,
+        Edge {
+            field: exchange.clone(),
+            propagator: exchange_propagator.cloned(),
+            momentum_label: "q".into(),
+            is_external: false,
+        },
+    );
 
     // Vertex → outgoing
-    graph.add_edge(n_v1, n_out1, Edge {
-        field: out1.field.clone(),
-        propagator: None,
-        momentum_label: "p3".into(),
-        is_external: true,
-    });
-    graph.add_edge(n_v2, n_out2, Edge {
-        field: out2.field.clone(),
-        propagator: None,
-        momentum_label: "p4".into(),
-        is_external: true,
-    });
+    graph.add_edge(
+        n_v1,
+        n_out1,
+        Edge {
+            field: out1.field.clone(),
+            propagator: None,
+            momentum_label: "p3".into(),
+            is_external: true,
+        },
+    );
+    graph.add_edge(
+        n_v2,
+        n_out2,
+        Edge {
+            field: out2.field.clone(),
+            propagator: None,
+            momentum_label: "p4".into(),
+            is_external: true,
+        },
+    );
 
     let nodes: Vec<Node> = graph.node_weights().cloned().collect();
     let edges: Vec<(usize, usize, Edge)> = graph
@@ -667,22 +707,30 @@ fn build_single_vertex_graph(
 
     // Incoming edges → vertex
     for (i, &ni) in incoming_indices.iter().enumerate() {
-        graph.add_edge(ni, n_v, Edge {
-            field: incoming[i].field.clone(),
-            propagator: None,
-            momentum_label: format!("p{}", i + 1),
-            is_external: true,
-        });
+        graph.add_edge(
+            ni,
+            n_v,
+            Edge {
+                field: incoming[i].field.clone(),
+                propagator: None,
+                momentum_label: format!("p{}", i + 1),
+                is_external: true,
+            },
+        );
     }
 
     // Vertex → outgoing edges
     for (i, &ni) in outgoing_indices.iter().enumerate() {
-        graph.add_edge(n_v, ni, Edge {
-            field: outgoing[i].field.clone(),
-            propagator: None,
-            momentum_label: format!("p{}", incoming.len() + i + 1),
-            is_external: true,
-        });
+        graph.add_edge(
+            n_v,
+            ni,
+            Edge {
+                field: outgoing[i].field.clone(),
+                propagator: None,
+                momentum_label: format!("p{}", incoming.len() + i + 1),
+                is_external: true,
+            },
+        );
     }
 
     let nodes: Vec<Node> = graph.node_weights().cloned().collect();
@@ -779,8 +827,14 @@ pub fn generate_topologies(
     let mut next_id = 0usize;
 
     // Build label for the reaction
-    let in_labels: Vec<&str> = initial.iter().map(|s| s.particle.field.id.as_str()).collect();
-    let out_labels: Vec<&str> = final_st.iter().map(|s| s.particle.field.id.as_str()).collect();
+    let in_labels: Vec<&str> = initial
+        .iter()
+        .map(|s| s.particle.field.id.as_str())
+        .collect();
+    let out_labels: Vec<&str> = final_st
+        .iter()
+        .map(|s| s.particle.field.id.as_str())
+        .collect();
     let reaction_label = format!("{} → {}", in_labels.join(" + "), out_labels.join(" + "));
 
     // Extract Particle references
@@ -798,8 +852,10 @@ pub fn generate_topologies(
                 base_field_id(out_particles[1]),
             ];
             if let Some(vf) = find_matching_vertex(model, &ids) {
-                let incoming_ps: Vec<Particle> = in_particles.iter().map(|p| (*p).clone()).collect();
-                let outgoing_ps: Vec<Particle> = out_particles.iter().map(|p| (*p).clone()).collect();
+                let incoming_ps: Vec<Particle> =
+                    in_particles.iter().map(|p| (*p).clone()).collect();
+                let outgoing_ps: Vec<Particle> =
+                    out_particles.iter().map(|p| (*p).clone()).collect();
                 let mut fg = build_single_vertex_graph(next_id, &incoming_ps, &outgoing_ps, vf);
                 fg.symmetry_factor = compute_final_state_symmetry_factor(
                     &out_particles.iter().copied().collect::<Vec<_>>(),
@@ -818,8 +874,10 @@ pub fn generate_topologies(
                 base_field_id(out_particles[0]),
             ];
             if let Some(vf) = find_matching_vertex(model, &ids) {
-                let incoming_ps: Vec<Particle> = in_particles.iter().map(|p| (*p).clone()).collect();
-                let outgoing_ps: Vec<Particle> = out_particles.iter().map(|p| (*p).clone()).collect();
+                let incoming_ps: Vec<Particle> =
+                    in_particles.iter().map(|p| (*p).clone()).collect();
+                let outgoing_ps: Vec<Particle> =
+                    out_particles.iter().map(|p| (*p).clone()).collect();
                 let mut fg = build_single_vertex_graph(next_id, &incoming_ps, &outgoing_ps, vf);
                 fg.symmetry_factor = 1.0;
                 diagrams.push(fg);
@@ -866,8 +924,7 @@ pub fn generate_topologies(
             // --- t-channel ---
             // In1 emits exchange → Out1; In2 absorbs → Out2
             // Vertex 1: (In1, Out1, X), Vertex 2: (In2, Out2, X)
-            for (exch, vf1, vf2) in
-                find_exchange_mediators(model, id_in1, id_in2, id_out1, id_out2)
+            for (exch, vf1, vf2) in find_exchange_mediators(model, id_in1, id_in2, id_out1, id_out2)
             {
                 let key = diagram_key(Channel::T, &exch.id, &vf1.term_id, &vf2.term_id);
                 if seen_keys.insert(key) {
@@ -1027,11 +1084,7 @@ pub fn generate_topologies(
 
             // Generate box topologies for 2→2 processes
             if n_in == 2 && n_out == 2 {
-                let loop_diagrams = generate_box_topologies(
-                    &mut next_id,
-                    tree_diag,
-                    model,
-                );
+                let loop_diagrams = generate_box_topologies(&mut next_id, tree_diag, model);
                 diagrams.extend(loop_diagrams);
             }
         }
@@ -1262,53 +1315,80 @@ fn generate_self_energy_topologies(
             }
 
             // Connect: original V1 → Va
-            let prop_v1_va = model.propagators.iter().find(|p| p.field_id == original_field.id);
+            let prop_v1_va = model
+                .propagators
+                .iter()
+                .find(|p| p.field_id == original_field.id);
             if let Some(&n_src) = node_map.get(&prop_src) {
-                graph.add_edge(n_src, n_va, Edge {
-                    field: original_field.clone(),
-                    propagator: prop_v1_va.cloned(),
-                    momentum_label: "q1".into(),
-                    is_external: false,
-                });
+                graph.add_edge(
+                    n_src,
+                    n_va,
+                    Edge {
+                        field: original_field.clone(),
+                        propagator: prop_v1_va.cloned(),
+                        momentum_label: "q1".into(),
+                        is_external: false,
+                    },
+                );
             }
 
             // Connect: Vb → original V2
             if let Some(&n_tgt) = node_map.get(&prop_tgt) {
-                graph.add_edge(n_vb, n_tgt, Edge {
-                    field: original_field.clone(),
-                    propagator: prop_v1_va.cloned(),
-                    momentum_label: "q2".into(),
-                    is_external: false,
-                });
+                graph.add_edge(
+                    n_vb,
+                    n_tgt,
+                    Edge {
+                        field: original_field.clone(),
+                        propagator: prop_v1_va.cloned(),
+                        momentum_label: "q2".into(),
+                        is_external: false,
+                    },
+                );
             }
 
             // Loop propagator 1: Va → Vb
             let loop_prop_1 = model.propagators.iter().find(|p| p.field_id == f1.id);
-            graph.add_edge(n_va, n_vb, Edge {
-                field: f1.clone(),
-                propagator: loop_prop_1.cloned(),
-                momentum_label: "l".into(),
-                is_external: false,
-            });
+            graph.add_edge(
+                n_va,
+                n_vb,
+                Edge {
+                    field: f1.clone(),
+                    propagator: loop_prop_1.cloned(),
+                    momentum_label: "l".into(),
+                    is_external: false,
+                },
+            );
 
             // Loop propagator 2: Vb → Va (closing the loop)
             let loop_prop_2 = model.propagators.iter().find(|p| p.field_id == f2.id);
-            graph.add_edge(n_vb, n_va, Edge {
-                field: f2.clone(),
-                propagator: loop_prop_2.cloned(),
-                momentum_label: "l_q".into(),
-                is_external: false,
-            });
+            graph.add_edge(
+                n_vb,
+                n_va,
+                Edge {
+                    field: f2.clone(),
+                    propagator: loop_prop_2.cloned(),
+                    momentum_label: "l_q".into(),
+                    is_external: false,
+                },
+            );
 
             // Build momentum routing for the self-energy
             let routing = LoopMomentumRouting {
                 loop_momenta: vec!["l".to_string()],
                 edge_momenta: vec![
-                    (va_node_id, vb_node_id, MomentumExpression::loop_momentum("l")),
-                    (vb_node_id, va_node_id, MomentumExpression {
-                        loop_coefficients: vec![("l".to_string(), -1)],
-                        external_coefficients: vec![("q".to_string(), 1)],
-                    }),
+                    (
+                        va_node_id,
+                        vb_node_id,
+                        MomentumExpression::loop_momentum("l"),
+                    ),
+                    (
+                        vb_node_id,
+                        va_node_id,
+                        MomentumExpression {
+                            loop_coefficients: vec![("l".to_string(), -1)],
+                            external_coefficients: vec![("q".to_string(), 1)],
+                        },
+                    ),
                 ],
             };
 
@@ -1402,17 +1482,25 @@ fn generate_vertex_correction_topologies(
                         loop_momenta: vec!["l".to_string()],
                         edge_momenta: vec![
                             (0, 1, MomentumExpression::loop_momentum("l")),
-                            (1, 2, MomentumExpression {
-                                loop_coefficients: vec![("l".to_string(), 1)],
-                                external_coefficients: vec![("p1".to_string(), 1)],
-                            }),
-                            (2, 0, MomentumExpression {
-                                loop_coefficients: vec![("l".to_string(), 1)],
-                                external_coefficients: vec![
-                                    ("p1".to_string(), 1),
-                                    ("p2".to_string(), 1),
-                                ],
-                            }),
+                            (
+                                1,
+                                2,
+                                MomentumExpression {
+                                    loop_coefficients: vec![("l".to_string(), 1)],
+                                    external_coefficients: vec![("p1".to_string(), 1)],
+                                },
+                            ),
+                            (
+                                2,
+                                0,
+                                MomentumExpression {
+                                    loop_coefficients: vec![("l".to_string(), 1)],
+                                    external_coefficients: vec![
+                                        ("p1".to_string(), 1),
+                                        ("p2".to_string(), 1),
+                                    ],
+                                },
+                            ),
                         ],
                     };
 
@@ -1588,22 +1676,18 @@ fn generate_box_topologies(
                         // 4 external + 4 vertex = 8 nodes
                         let n_in1 = graph.add_node(Node {
                             id: 0,
-                            kind: NodeKind::ExternalIncoming(
-                                match &incoming[0].kind {
-                                    NodeKind::ExternalIncoming(p) => p.clone(),
-                                    _ => unreachable!(),
-                                },
-                            ),
+                            kind: NodeKind::ExternalIncoming(match &incoming[0].kind {
+                                NodeKind::ExternalIncoming(p) => p.clone(),
+                                _ => unreachable!(),
+                            }),
                             position: Some((-2.0, 1.0)),
                         });
                         let n_in2 = graph.add_node(Node {
                             id: 1,
-                            kind: NodeKind::ExternalIncoming(
-                                match &incoming[1].kind {
-                                    NodeKind::ExternalIncoming(p) => p.clone(),
-                                    _ => unreachable!(),
-                                },
-                            ),
+                            kind: NodeKind::ExternalIncoming(match &incoming[1].kind {
+                                NodeKind::ExternalIncoming(p) => p.clone(),
+                                _ => unreachable!(),
+                            }),
                             position: Some((-2.0, -1.0)),
                         });
                         let n_v1 = graph.add_node(Node {
@@ -1628,50 +1712,62 @@ fn generate_box_topologies(
                         });
                         let n_out1 = graph.add_node(Node {
                             id: 6,
-                            kind: NodeKind::ExternalOutgoing(
-                                match &outgoing[0].kind {
-                                    NodeKind::ExternalOutgoing(p) => p.clone(),
-                                    _ => unreachable!(),
-                                },
-                            ),
+                            kind: NodeKind::ExternalOutgoing(match &outgoing[0].kind {
+                                NodeKind::ExternalOutgoing(p) => p.clone(),
+                                _ => unreachable!(),
+                            }),
                             position: Some((2.0, 1.0)),
                         });
                         let n_out2 = graph.add_node(Node {
                             id: 7,
-                            kind: NodeKind::ExternalOutgoing(
-                                match &outgoing[1].kind {
-                                    NodeKind::ExternalOutgoing(p) => p.clone(),
-                                    _ => unreachable!(),
-                                },
-                            ),
+                            kind: NodeKind::ExternalOutgoing(match &outgoing[1].kind {
+                                NodeKind::ExternalOutgoing(p) => p.clone(),
+                                _ => unreachable!(),
+                            }),
                             position: Some((2.0, -1.0)),
                         });
 
                         // External edges
-                        graph.add_edge(n_in1, n_v1, Edge {
-                            field: in_fields[0].clone(),
-                            propagator: None,
-                            momentum_label: "p1".into(),
-                            is_external: true,
-                        });
-                        graph.add_edge(n_in2, n_v4, Edge {
-                            field: in_fields[1].clone(),
-                            propagator: None,
-                            momentum_label: "p2".into(),
-                            is_external: true,
-                        });
-                        graph.add_edge(n_v2, n_out1, Edge {
-                            field: out_fields[0].clone(),
-                            propagator: None,
-                            momentum_label: "p3".into(),
-                            is_external: true,
-                        });
-                        graph.add_edge(n_v3, n_out2, Edge {
-                            field: out_fields[1].clone(),
-                            propagator: None,
-                            momentum_label: "p4".into(),
-                            is_external: true,
-                        });
+                        graph.add_edge(
+                            n_in1,
+                            n_v1,
+                            Edge {
+                                field: in_fields[0].clone(),
+                                propagator: None,
+                                momentum_label: "p1".into(),
+                                is_external: true,
+                            },
+                        );
+                        graph.add_edge(
+                            n_in2,
+                            n_v4,
+                            Edge {
+                                field: in_fields[1].clone(),
+                                propagator: None,
+                                momentum_label: "p2".into(),
+                                is_external: true,
+                            },
+                        );
+                        graph.add_edge(
+                            n_v2,
+                            n_out1,
+                            Edge {
+                                field: out_fields[0].clone(),
+                                propagator: None,
+                                momentum_label: "p3".into(),
+                                is_external: true,
+                            },
+                        );
+                        graph.add_edge(
+                            n_v3,
+                            n_out2,
+                            Edge {
+                                field: out_fields[1].clone(),
+                                propagator: None,
+                                momentum_label: "p4".into(),
+                                is_external: true,
+                            },
+                        );
 
                         // 4 internal loop edges
                         let p1 = model.propagators.iter().find(|p| p.field_id == f1.id);
@@ -1679,50 +1775,78 @@ fn generate_box_topologies(
                         let p3 = model.propagators.iter().find(|p| p.field_id == f3.id);
                         let p4 = model.propagators.iter().find(|p| p.field_id == f4.id);
 
-                        graph.add_edge(n_v1, n_v2, Edge {
-                            field: f1.clone(),
-                            propagator: p1.cloned(),
-                            momentum_label: "l".into(),
-                            is_external: false,
-                        });
-                        graph.add_edge(n_v2, n_v3, Edge {
-                            field: f2.clone(),
-                            propagator: p2.cloned(),
-                            momentum_label: "l_p3".into(),
-                            is_external: false,
-                        });
-                        graph.add_edge(n_v3, n_v4, Edge {
-                            field: f3.clone(),
-                            propagator: p3.cloned(),
-                            momentum_label: "l_p3_p4".into(),
-                            is_external: false,
-                        });
-                        graph.add_edge(n_v4, n_v1, Edge {
-                            field: f4.clone(),
-                            propagator: p4.cloned(),
-                            momentum_label: "l_p1".into(),
-                            is_external: false,
-                        });
+                        graph.add_edge(
+                            n_v1,
+                            n_v2,
+                            Edge {
+                                field: f1.clone(),
+                                propagator: p1.cloned(),
+                                momentum_label: "l".into(),
+                                is_external: false,
+                            },
+                        );
+                        graph.add_edge(
+                            n_v2,
+                            n_v3,
+                            Edge {
+                                field: f2.clone(),
+                                propagator: p2.cloned(),
+                                momentum_label: "l_p3".into(),
+                                is_external: false,
+                            },
+                        );
+                        graph.add_edge(
+                            n_v3,
+                            n_v4,
+                            Edge {
+                                field: f3.clone(),
+                                propagator: p3.cloned(),
+                                momentum_label: "l_p3_p4".into(),
+                                is_external: false,
+                            },
+                        );
+                        graph.add_edge(
+                            n_v4,
+                            n_v1,
+                            Edge {
+                                field: f4.clone(),
+                                propagator: p4.cloned(),
+                                momentum_label: "l_p1".into(),
+                                is_external: false,
+                            },
+                        );
 
                         let routing = LoopMomentumRouting {
                             loop_momenta: vec!["l".to_string()],
                             edge_momenta: vec![
                                 (2, 3, MomentumExpression::loop_momentum("l")),
-                                (3, 4, MomentumExpression {
-                                    loop_coefficients: vec![("l".to_string(), 1)],
-                                    external_coefficients: vec![("p3".to_string(), -1)],
-                                }),
-                                (4, 5, MomentumExpression {
-                                    loop_coefficients: vec![("l".to_string(), 1)],
-                                    external_coefficients: vec![
-                                        ("p3".to_string(), -1),
-                                        ("p4".to_string(), -1),
-                                    ],
-                                }),
-                                (5, 2, MomentumExpression {
-                                    loop_coefficients: vec![("l".to_string(), 1)],
-                                    external_coefficients: vec![("p1".to_string(), 1)],
-                                }),
+                                (
+                                    3,
+                                    4,
+                                    MomentumExpression {
+                                        loop_coefficients: vec![("l".to_string(), 1)],
+                                        external_coefficients: vec![("p3".to_string(), -1)],
+                                    },
+                                ),
+                                (
+                                    4,
+                                    5,
+                                    MomentumExpression {
+                                        loop_coefficients: vec![("l".to_string(), 1)],
+                                        external_coefficients: vec![
+                                            ("p3".to_string(), -1),
+                                            ("p4".to_string(), -1),
+                                        ],
+                                    },
+                                ),
+                                (
+                                    5,
+                                    2,
+                                    MomentumExpression {
+                                        loop_coefficients: vec![("l".to_string(), 1)],
+                                        external_coefficients: vec![("p1".to_string(), 1)],
+                                    },
+                                ),
                             ],
                         };
 
@@ -1888,10 +2012,14 @@ pub fn compute_momentum_routing(diagram: &FeynmanGraph) -> Option<LoopMomentumRo
         // We use a simple linear assignment for now
         ext_coeffs.push((format!("p{}", idx), 1));
 
-        edge_momenta.push((src, tgt, MomentumExpression {
-            loop_coefficients: vec![("l".to_string(), 1)],
-            external_coefficients: ext_coeffs,
-        }));
+        edge_momenta.push((
+            src,
+            tgt,
+            MomentumExpression {
+                loop_coefficients: vec![("l".to_string(), 1)],
+                external_coefficients: ext_coeffs,
+            },
+        ));
     }
 
     Some(LoopMomentumRouting {
@@ -1929,7 +2057,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -1953,7 +2085,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: -1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: -1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -1977,7 +2113,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -2001,7 +2141,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: -1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: -1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -2025,7 +2169,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Odd,
@@ -2049,7 +2197,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -2235,8 +2387,14 @@ mod tests {
             },
         ];
 
-        let propagators = fields.iter().map(|f| derive_propagator(f).unwrap()).collect();
-        let vertex_factors = terms.iter().map(|t| derive_vertex_factor(t).unwrap()).collect();
+        let propagators = fields
+            .iter()
+            .map(|f| derive_propagator(f).unwrap())
+            .collect();
+        let vertex_factors = terms
+            .iter()
+            .map(|t| derive_vertex_factor(t).unwrap())
+            .collect();
 
         TheoreticalModel {
             name: "Full QED+WeakNC Test".into(),
@@ -2473,7 +2631,11 @@ mod tests {
 
         assert!(t_count >= 1, "e+e−→γγ: need ≥1 t-channel, got {}", t_count);
         assert!(u_count >= 1, "e+e−→γγ: need ≥1 u-channel, got {}", u_count);
-        assert!(topos.count >= 2, "e+e−→γγ: need ≥2 total diagrams, got {}", topos.count);
+        assert!(
+            topos.count >= 2,
+            "e+e−→γγ: need ≥2 total diagrams, got {}",
+            topos.count
+        );
     }
 
     #[test]
@@ -2487,7 +2649,10 @@ mod tests {
 
         let topos = generate_topologies(&reaction, &model, LoopOrder::Tree).unwrap();
         let s_count = isolate_channels(&topos, Channel::S).unwrap().len();
-        assert_eq!(s_count, 0, "e+e−→γγ should have no s-channel (no γγX vertex)");
+        assert_eq!(
+            s_count, 0,
+            "e+e−→γγ should have no s-channel (no γγX vertex)"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -2511,7 +2676,8 @@ mod tests {
             assert!(
                 (diagram.symmetry_factor - 0.5).abs() < 1e-12,
                 "Diagram {}: symmetry factor should be 0.5, got {}",
-                diagram.id, diagram.symmetry_factor
+                diagram.id,
+                diagram.symmetry_factor
             );
         }
     }
@@ -2531,7 +2697,8 @@ mod tests {
             assert!(
                 (diagram.symmetry_factor - 1.0).abs() < 1e-12,
                 "Bhabha diagram {}: factor should be 1.0, got {}",
-                diagram.id, diagram.symmetry_factor
+                diagram.id,
+                diagram.symmetry_factor
             );
         }
     }
@@ -2551,7 +2718,8 @@ mod tests {
             assert!(
                 (diagram.symmetry_factor - 0.5).abs() < 1e-12,
                 "Møller diagram {}: factor should be 0.5, got {}",
-                diagram.id, diagram.symmetry_factor
+                diagram.id,
+                diagram.symmetry_factor
             );
         }
     }
@@ -2568,7 +2736,11 @@ mod tests {
         let topos = generate_topologies(&reaction, &model, LoopOrder::Tree).unwrap();
         for diagram in &topos.diagrams {
             let sf = calculate_symmetry_factors(diagram).unwrap();
-            assert!((sf - 0.5).abs() < 1e-12, "calculate_symmetry_factors: expected 0.5, got {}", sf);
+            assert!(
+                (sf - 0.5).abs() < 1e-12,
+                "calculate_symmetry_factors: expected 0.5, got {}",
+                sf
+            );
         }
     }
 
@@ -2631,15 +2803,32 @@ mod tests {
         assert!(topos.count > 0);
 
         let diagram = &topos.diagrams[0];
-        assert_eq!(diagram.nodes.len(), 6, "s-channel: 4 external + 2 vertex = 6 nodes");
-        assert_eq!(diagram.edges.len(), 5, "s-channel: 4 external + 1 propagator = 5 edges");
+        assert_eq!(
+            diagram.nodes.len(),
+            6,
+            "s-channel: 4 external + 2 vertex = 6 nodes"
+        );
+        assert_eq!(
+            diagram.edges.len(),
+            5,
+            "s-channel: 4 external + 1 propagator = 5 edges"
+        );
 
-        let incoming = diagram.nodes.iter()
-            .filter(|n| matches!(n.kind, NodeKind::ExternalIncoming(_))).count();
-        let outgoing = diagram.nodes.iter()
-            .filter(|n| matches!(n.kind, NodeKind::ExternalOutgoing(_))).count();
-        let vertices = diagram.nodes.iter()
-            .filter(|n| matches!(n.kind, NodeKind::InternalVertex(_))).count();
+        let incoming = diagram
+            .nodes
+            .iter()
+            .filter(|n| matches!(n.kind, NodeKind::ExternalIncoming(_)))
+            .count();
+        let outgoing = diagram
+            .nodes
+            .iter()
+            .filter(|n| matches!(n.kind, NodeKind::ExternalOutgoing(_)))
+            .count();
+        let vertices = diagram
+            .nodes
+            .iter()
+            .filter(|n| matches!(n.kind, NodeKind::InternalVertex(_)))
+            .count();
 
         assert_eq!(incoming, 2);
         assert_eq!(outgoing, 2);
@@ -2685,7 +2874,11 @@ mod tests {
         let t = isolate_channels(&topos, Channel::T).unwrap().len();
         let u = isolate_channels(&topos, Channel::U).unwrap().len();
 
-        assert_eq!(s + t + u, topos.count, "Channel isolation should partition all diagrams");
+        assert_eq!(
+            s + t + u,
+            topos.count,
+            "Channel isolation should partition all diagrams"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -2752,7 +2945,8 @@ mod tests {
             let mediator_id = &internal[0].2.field.id;
             assert!(
                 mediator_id == "photon" || mediator_id == "Z0",
-                "Mediator should be photon or Z, got '{}'", mediator_id
+                "Mediator should be photon or Z, got '{}'",
+                mediator_id
             );
         }
     }
@@ -2824,12 +3018,14 @@ mod tests {
     fn momentum_routing_serde() {
         let routing = LoopMomentumRouting {
             loop_momenta: vec!["l".into()],
-            edge_momenta: vec![
-                (0, 1, MomentumExpression {
+            edge_momenta: vec![(
+                0,
+                1,
+                MomentumExpression {
                     loop_coefficients: vec![("l".into(), 1)],
                     external_coefficients: vec![],
-                }),
-            ],
+                },
+            )],
         };
         let json = serde_json::to_string(&routing).unwrap();
         let back: LoopMomentumRouting = serde_json::from_str(&json).unwrap();
@@ -2890,7 +3086,11 @@ mod tests {
         );
         let topos = generate_topologies(&reaction, &model, LoopOrder::OneLoop).unwrap();
 
-        for diagram in topos.diagrams.iter().filter(|d| d.loop_order == LoopOrder::OneLoop) {
+        for diagram in topos
+            .diagrams
+            .iter()
+            .filter(|d| d.loop_order == LoopOrder::OneLoop)
+        {
             assert!(
                 diagram.loop_topology_kind.is_some(),
                 "1-loop diagrams should have topology classification"
@@ -2908,13 +3108,20 @@ mod tests {
         );
         let topos = generate_topologies(&reaction, &model, LoopOrder::OneLoop).unwrap();
 
-        for diagram in topos.diagrams.iter().filter(|d| d.loop_order == LoopOrder::OneLoop) {
+        for diagram in topos
+            .diagrams
+            .iter()
+            .filter(|d| d.loop_order == LoopOrder::OneLoop)
+        {
             assert!(
                 diagram.momentum_routing.is_some(),
                 "1-loop diagrams should have momentum routing"
             );
             let routing = diagram.momentum_routing.as_ref().unwrap();
-            assert!(!routing.loop_momenta.is_empty(), "Should have at least one loop momentum");
+            assert!(
+                !routing.loop_momenta.is_empty(),
+                "Should have at least one loop momentum"
+            );
         }
     }
 
@@ -2933,10 +3140,17 @@ mod tests {
             .iter()
             .filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Bubble))
             .count();
-        assert!(bubble_count > 0, "Should have generated at least one bubble topology");
+        assert!(
+            bubble_count > 0,
+            "Should have generated at least one bubble topology"
+        );
 
         // All bubble diagrams should be 1-loop
-        for diag in topos.diagrams.iter().filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Bubble)) {
+        for diag in topos
+            .diagrams
+            .iter()
+            .filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Bubble))
+        {
             assert_eq!(diag.loop_order, LoopOrder::OneLoop);
         }
     }
@@ -2956,9 +3170,16 @@ mod tests {
             .iter()
             .filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Triangle))
             .count();
-        assert!(triangle_count > 0, "Should have generated at least one triangle topology");
+        assert!(
+            triangle_count > 0,
+            "Should have generated at least one triangle topology"
+        );
 
-        for diag in topos.diagrams.iter().filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Triangle)) {
+        for diag in topos
+            .diagrams
+            .iter()
+            .filter(|d| d.loop_topology_kind == Some(OneLoopTopologyKind::Triangle))
+        {
             assert_eq!(diag.loop_order, LoopOrder::OneLoop);
         }
     }
@@ -2973,7 +3194,12 @@ mod tests {
         );
         let topos = generate_topologies(&reaction, &model, LoopOrder::OneLoop).unwrap();
 
-        for diagram in topos.diagrams.iter().filter(|d| d.loop_order == LoopOrder::OneLoop).take(3) {
+        for diagram in topos
+            .diagrams
+            .iter()
+            .filter(|d| d.loop_order == LoopOrder::OneLoop)
+            .take(3)
+        {
             let json = serde_json::to_string(diagram).unwrap();
             let back: FeynmanGraph = serde_json::from_str(&json).unwrap();
             assert_eq!(back.loop_order, LoopOrder::OneLoop);

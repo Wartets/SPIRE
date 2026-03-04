@@ -118,10 +118,7 @@ impl Reaction {
     /// # Returns
     /// A fully populated `Reaction` with validity flag, violation diagnostics,
     /// and the list of compatible interaction types.
-    pub fn validate(
-        initial: AsymptoticState,
-        final_state: AsymptoticState,
-    ) -> SpireResult<Self> {
+    pub fn validate(initial: AsymptoticState, final_state: AsymptoticState) -> SpireResult<Self> {
         let interaction_types = [
             InteractionType::Electromagnetic,
             InteractionType::Strong,
@@ -135,11 +132,8 @@ impl Reaction {
         let mut all_violations = Vec::new();
 
         for &it in &interaction_types {
-            let result = groups::validate_conservation_laws(
-                &initial.states,
-                &final_state.states,
-                it,
-            )?;
+            let result =
+                groups::validate_conservation_laws(&initial.states, &final_state.states, it)?;
             if result.is_valid {
                 valid_interactions.push(it);
             } else {
@@ -422,8 +416,7 @@ pub fn classify_interaction(
 
     let mut compatible = Vec::new();
     for &it in &interaction_types {
-        let result =
-            groups::validate_conservation_laws(&initial.states, &final_state.states, it)?;
+        let result = groups::validate_conservation_laws(&initial.states, &final_state.states, it)?;
         if result.is_valid {
             compatible.push(it);
         }
@@ -646,7 +639,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -670,7 +667,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: -1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: -1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -694,7 +695,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -718,7 +723,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: -1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: -1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -742,7 +751,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Odd,
@@ -766,7 +779,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -790,7 +807,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(1),
                 baryon_number: BaryonNumber(1),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -814,7 +835,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(1),
                 baryon_number: BaryonNumber(1),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -864,11 +889,15 @@ mod tests {
     fn validate_ee_to_mumu_valid() {
         // e+ e- → μ+ μ- at 10 GeV — valid EM process.
         let model = make_test_model();
-        let rxn =
-            construct_reaction(&["e-", "e+"], &["mu-", "mu+"], &model, Some(10.0)).unwrap();
-        assert!(rxn.is_valid, "e+e- → μ+μ- should be valid: {:?}", rxn.violation_diagnostics);
+        let rxn = construct_reaction(&["e-", "e+"], &["mu-", "mu+"], &model, Some(10.0)).unwrap();
         assert!(
-            rxn.interaction_types.contains(&InteractionType::Electromagnetic),
+            rxn.is_valid,
+            "e+e- → μ+μ- should be valid: {:?}",
+            rxn.violation_diagnostics
+        );
+        assert!(
+            rxn.interaction_types
+                .contains(&InteractionType::Electromagnetic),
             "Should be compatible with EM"
         );
     }
@@ -878,7 +907,11 @@ mod tests {
         let model = make_test_model();
         let rxn =
             construct_reaction(&["e-", "e+"], &["photon", "photon"], &model, Some(10.0)).unwrap();
-        assert!(rxn.is_valid, "e+e- → γγ should be valid: {:?}", rxn.violation_diagnostics);
+        assert!(
+            rxn.is_valid,
+            "e+e- → γγ should be valid: {:?}",
+            rxn.violation_diagnostics
+        );
     }
 
     #[test]
@@ -899,8 +932,7 @@ mod tests {
     fn validate_kinematically_forbidden() {
         // e+ e- at 0.001 GeV (1 MeV) cannot produce μ+ μ- (mass sum ~0.211 GeV).
         let model = make_test_model();
-        let rxn =
-            construct_reaction(&["e-", "e+"], &["mu-", "mu+"], &model, Some(0.001)).unwrap();
+        let rxn = construct_reaction(&["e-", "e+"], &["mu-", "mu+"], &model, Some(0.001)).unwrap();
         assert!(!rxn.is_valid);
         assert!(
             rxn.violation_diagnostics
@@ -935,7 +967,10 @@ mod tests {
             let ids: Vec<&str> = r.particles.iter().map(|p| p.field.id.as_str()).collect();
             ids.contains(&"mu-") && ids.contains(&"mu+")
         });
-        assert!(has_mumu, "Reconstruction should find \u{03bc}+\u{03bc}- at 10 GeV");
+        assert!(
+            has_mumu,
+            "Reconstruction should find \u{03bc}+\u{03bc}- at 10 GeV"
+        );
     }
 
     #[test]
@@ -947,11 +982,13 @@ mod tests {
         let results = reconstruct_reaction(&[electron, positron], &model, 10.0).unwrap();
 
         // γγ should appear.
-        let has_gg = results.iter().any(|r| {
-            r.particles.iter().all(|p| p.field.id == "photon")
-                && r.particles.len() == 2
-        });
-        assert!(has_gg, "Reconstruction should find \u{03b3}\u{03b3} at 10 GeV");
+        let has_gg = results
+            .iter()
+            .any(|r| r.particles.iter().all(|p| p.field.id == "photon") && r.particles.len() == 2);
+        assert!(
+            has_gg,
+            "Reconstruction should find \u{03b3}\u{03b3} at 10 GeV"
+        );
     }
 
     #[test]
@@ -967,7 +1004,10 @@ mod tests {
             let ids: Vec<&str> = r.particles.iter().map(|p| p.field.id.as_str()).collect();
             ids.contains(&"e-") && ids.contains(&"mu+")
         });
-        assert!(!has_e_mu, "e- \u{03bc}+ should be rejected (lepton number violation)");
+        assert!(
+            !has_e_mu,
+            "e- \u{03bc}+ should be rejected (lepton number violation)"
+        );
     }
 
     #[test]
@@ -1146,8 +1186,7 @@ mod tests {
         // Phase-space cross-section for 2 → 2 massless at √s = 100 GeV.
         // σ = (1/2s) × Φ₂ where Φ₂ = 1/(8π) for massless 2-body.
         // So σ = 1/(16π s) ≈ 1/(16π × 10000) ≈ 1.99e-6 GeV⁻².
-        let result =
-            calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 50_000).unwrap();
+        let result = calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 50_000).unwrap();
 
         let s = 100.0_f64.powi(2);
         let analytic = 1.0 / (16.0 * std::f64::consts::PI * s);
@@ -1166,11 +1205,9 @@ mod tests {
     #[test]
     fn cross_section_with_constant_amplitude() {
         // |M|² = 42 everywhere — result should be 42× the phase-space-only value.
-        let ps_result =
-            calculate_phase_space_cross_section(50.0, &[0.0, 0.0], 20_000).unwrap();
+        let ps_result = calculate_phase_space_cross_section(50.0, &[0.0, 0.0], 20_000).unwrap();
 
-        let amp_result =
-            calculate_cross_section(50.0, &[0.0, 0.0], |_| 42.0, 20_000).unwrap();
+        let amp_result = calculate_cross_section(50.0, &[0.0, 0.0], |_| 42.0, 20_000).unwrap();
 
         let ratio = amp_result.cross_section / ps_result.cross_section;
         assert!(
@@ -1184,8 +1221,7 @@ mod tests {
     fn cross_section_result_fields_populated() {
         // Use 3-body to get non-trivial variance (2-body massless has constant
         // RAMBO weight, giving zero uncertainty for a constant integrand).
-        let result =
-            calculate_phase_space_cross_section(200.0, &[0.0, 0.0, 0.0], 5_000).unwrap();
+        let result = calculate_phase_space_cross_section(200.0, &[0.0, 0.0, 0.0], 5_000).unwrap();
 
         assert_eq!(result.events_evaluated, 5_000);
         assert!((result.cms_energy - 200.0).abs() < 1e-10);
@@ -1198,8 +1234,7 @@ mod tests {
 
     #[test]
     fn cross_section_picobarns_conversion() {
-        let result =
-            calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 10_000).unwrap();
+        let result = calculate_phase_space_cross_section(100.0, &[0.0, 0.0], 10_000).unwrap();
 
         let conv = 0.3894e9_f64;
         let expected_pb = result.cross_section * conv;
@@ -1215,8 +1250,7 @@ mod tests {
     #[test]
     fn cross_section_massive_two_body() {
         // 2 → 2 with m = 1 GeV each, √s = 10 GeV — well above threshold.
-        let result =
-            calculate_phase_space_cross_section(10.0, &[1.0, 1.0], 20_000).unwrap();
+        let result = calculate_phase_space_cross_section(10.0, &[1.0, 1.0], 20_000).unwrap();
 
         assert!(result.cross_section > 0.0);
         assert!(result.events_evaluated == 20_000);
@@ -1260,8 +1294,7 @@ mod tests {
     fn hadronic_phase_space_cross_section_convenience() {
         // Proton–proton at 13 TeV with massless 2-body final state.
         let s = 13000.0_f64.powi(2);
-        let result =
-            calculate_hadronic_phase_space_cross_section(s, &[0.0, 0.0], 2000).unwrap();
+        let result = calculate_hadronic_phase_space_cross_section(s, &[0.0, 0.0], 2000).unwrap();
 
         assert!(result.cross_section > 0.0);
         assert!(result.beam_energy_sq == s);

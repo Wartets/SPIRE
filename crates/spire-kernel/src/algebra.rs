@@ -107,7 +107,12 @@ impl MetricSignature {
     /// The standard 4D Minkowski signature $(+,-,-,-)$ (West Coast convention).
     pub fn minkowski_4d() -> Self {
         Self {
-            signs: vec![MetricSign::Plus, MetricSign::Minus, MetricSign::Minus, MetricSign::Minus],
+            signs: vec![
+                MetricSign::Plus,
+                MetricSign::Minus,
+                MetricSign::Minus,
+                MetricSign::Minus,
+            ],
         }
     }
 
@@ -122,7 +127,9 @@ impl MetricSignature {
     /// A $D$-dimensional Euclidean signature $(+,+,\ldots,+)$.
     pub fn euclidean(dim: usize) -> Self {
         assert!(dim >= 1, "Spacetime dimension must be at least 1");
-        Self { signs: vec![MetricSign::Plus; dim] }
+        Self {
+            signs: vec![MetricSign::Plus; dim],
+        }
     }
 
     /// The number of dimensions.
@@ -133,20 +140,30 @@ impl MetricSignature {
 
     /// The number of time-like ($+1$) dimensions.
     pub fn time_dimensions(&self) -> usize {
-        self.signs.iter().filter(|s| **s == MetricSign::Plus).count()
+        self.signs
+            .iter()
+            .filter(|s| **s == MetricSign::Plus)
+            .count()
     }
 
     /// The number of space-like ($-1$) dimensions.
     pub fn space_dimensions(&self) -> usize {
-        self.signs.iter().filter(|s| **s == MetricSign::Minus).count()
+        self.signs
+            .iter()
+            .filter(|s| **s == MetricSign::Minus)
+            .count()
     }
 
     /// Signature as a string, e.g. `"(+,-,-,-)"`.
     pub fn display_signature(&self) -> String {
-        let inner: Vec<&str> = self.signs.iter().map(|s| match s {
-            MetricSign::Plus => "+",
-            MetricSign::Minus => "-",
-        }).collect();
+        let inner: Vec<&str> = self
+            .signs
+            .iter()
+            .map(|s| match s {
+                MetricSign::Plus => "+",
+                MetricSign::Minus => "-",
+            })
+            .collect();
         format!("({})", inner.join(","))
     }
 
@@ -169,7 +186,9 @@ impl MetricSignature {
         if v.dimension() != dim || w.dimension() != dim {
             return Err(format!(
                 "Dimension mismatch: metric is {}D, vectors are {}D and {}D",
-                dim, v.dimension(), w.dimension()
+                dim,
+                v.dimension(),
+                w.dimension()
             ));
         }
 
@@ -178,9 +197,9 @@ impl MetricSignature {
             let vs = v.components();
             let ws = w.components();
             let result = self.signs[0].value() * vs[0] * ws[0]
-                       + self.signs[1].value() * vs[1] * ws[1]
-                       + self.signs[2].value() * vs[2] * ws[2]
-                       + self.signs[3].value() * vs[3] * ws[3];
+                + self.signs[1].value() * vs[1] * ws[1]
+                + self.signs[2].value() * vs[2] * ws[2]
+                + self.signs[3].value() * vs[3] * ws[3];
             return Ok(result);
         }
 
@@ -250,17 +269,23 @@ pub struct FlatMetric {
 impl FlatMetric {
     /// Standard 4D Minkowski metric $\eta_{\mu\nu} = \mathrm{diag}(+1,-1,-1,-1)$.
     pub fn minkowski_4d() -> Self {
-        Self { signature: MetricSignature::minkowski_4d() }
+        Self {
+            signature: MetricSignature::minkowski_4d(),
+        }
     }
 
     /// $D$-dimensional Minkowski metric $\eta_{\mu\nu} = \mathrm{diag}(+1,-1,\ldots,-1)$.
     pub fn minkowski(dim: usize) -> Self {
-        Self { signature: MetricSignature::minkowski(dim) }
+        Self {
+            signature: MetricSignature::minkowski(dim),
+        }
     }
 
     /// $D$-dimensional Euclidean metric $\delta_{\mu\nu} = \mathrm{diag}(+1,\ldots,+1)$.
     pub fn euclidean(dim: usize) -> Self {
-        Self { signature: MetricSignature::euclidean(dim) }
+        Self {
+            signature: MetricSignature::euclidean(dim),
+        }
     }
 }
 
@@ -329,7 +354,10 @@ impl VectorStorage {
         if v.len() <= 4 {
             let mut data = [0.0_f64; 4];
             data[..v.len()].copy_from_slice(&v);
-            VectorStorage::Inline { data, len: v.len() as u8 }
+            VectorStorage::Inline {
+                data,
+                len: v.len() as u8,
+            }
         } else {
             VectorStorage::Heap(v)
         }
@@ -338,14 +366,20 @@ impl VectorStorage {
     /// Create an Inline storage directly from four components.
     #[inline]
     fn inline_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
-        VectorStorage::Inline { data: [v0, v1, v2, v3], len: 4 }
+        VectorStorage::Inline {
+            data: [v0, v1, v2, v3],
+            len: 4,
+        }
     }
 
     /// Create a zero-filled storage of the given dimension.
     #[inline]
     fn zeros(dim: usize) -> Self {
         if dim <= 4 {
-            VectorStorage::Inline { data: [0.0; 4], len: dim as u8 }
+            VectorStorage::Inline {
+                data: [0.0; 4],
+                len: dim as u8,
+            }
         } else {
             VectorStorage::Heap(vec![0.0; dim])
         }
@@ -464,21 +498,30 @@ impl SpacetimeVector {
     /// The dimension is inferred from the length of the list.
     #[inline]
     pub fn new(components: Vec<f64>) -> Self {
-        assert!(!components.is_empty(), "SpacetimeVector must have at least 1 component");
-        Self { storage: VectorStorage::from_vec(components) }
+        assert!(
+            !components.is_empty(),
+            "SpacetimeVector must have at least 1 component"
+        );
+        Self {
+            storage: VectorStorage::from_vec(components),
+        }
     }
 
     /// Create a 4-vector $(v^0, v^1, v^2, v^3)$ — the most common case in
     /// particle physics.  Stack-allocated with zero heap allocation.
     #[inline]
     pub fn new_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
-        Self { storage: VectorStorage::inline_4d(v0, v1, v2, v3) }
+        Self {
+            storage: VectorStorage::inline_4d(v0, v1, v2, v3),
+        }
     }
 
     /// Create the zero vector in $D$ dimensions.
     #[inline]
     pub fn zero(dim: usize) -> Self {
-        Self { storage: VectorStorage::zeros(dim) }
+        Self {
+            storage: VectorStorage::zeros(dim),
+        }
     }
 
     /// The number of spacetime dimensions.
@@ -535,9 +578,16 @@ impl SpacetimeVector {
             for i in 0..dim {
                 data[i] = s[i] * factor;
             }
-            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+            Self {
+                storage: VectorStorage::Inline {
+                    data,
+                    len: dim as u8,
+                },
+            }
         } else {
-            Self { storage: VectorStorage::Heap(s.iter().map(|x| x * factor).collect()) }
+            Self {
+                storage: VectorStorage::Heap(s.iter().map(|x| x * factor).collect()),
+            }
         }
     }
 
@@ -547,7 +597,11 @@ impl SpacetimeVector {
     /// Panics if this vector is not 4-dimensional.
     #[inline]
     pub fn to_four_momentum(&self) -> FourMomentum {
-        assert_eq!(self.dimension(), 4, "Cannot convert non-4D vector to FourMomentum");
+        assert_eq!(
+            self.dimension(),
+            4,
+            "Cannot convert non-4D vector to FourMomentum"
+        );
         let s = self.components();
         FourMomentum {
             e: s[0],
@@ -561,7 +615,9 @@ impl SpacetimeVector {
 impl From<FourMomentum> for SpacetimeVector {
     #[inline]
     fn from(p: FourMomentum) -> Self {
-        Self { storage: VectorStorage::inline_4d(p.e, p.px, p.py, p.pz) }
+        Self {
+            storage: VectorStorage::inline_4d(p.e, p.px, p.py, p.pz),
+        }
     }
 }
 
@@ -571,16 +627,28 @@ impl Add for SpacetimeVector {
     #[inline]
     fn add(self, rhs: Self) -> Self::Output {
         let dim = self.dimension();
-        assert_eq!(dim, rhs.dimension(),
-            "Cannot add SpacetimeVectors of different dimensions");
+        assert_eq!(
+            dim,
+            rhs.dimension(),
+            "Cannot add SpacetimeVectors of different dimensions"
+        );
         let a = self.components();
         let b = rhs.components();
         if dim <= 4 {
             let mut data = [0.0_f64; 4];
-            for i in 0..dim { data[i] = a[i] + b[i]; }
-            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+            for i in 0..dim {
+                data[i] = a[i] + b[i];
+            }
+            Self {
+                storage: VectorStorage::Inline {
+                    data,
+                    len: dim as u8,
+                },
+            }
         } else {
-            Self { storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x + y).collect()) }
+            Self {
+                storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x + y).collect()),
+            }
         }
     }
 }
@@ -591,16 +659,28 @@ impl Sub for SpacetimeVector {
     #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
         let dim = self.dimension();
-        assert_eq!(dim, rhs.dimension(),
-            "Cannot subtract SpacetimeVectors of different dimensions");
+        assert_eq!(
+            dim,
+            rhs.dimension(),
+            "Cannot subtract SpacetimeVectors of different dimensions"
+        );
         let a = self.components();
         let b = rhs.components();
         if dim <= 4 {
             let mut data = [0.0_f64; 4];
-            for i in 0..dim { data[i] = a[i] - b[i]; }
-            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+            for i in 0..dim {
+                data[i] = a[i] - b[i];
+            }
+            Self {
+                storage: VectorStorage::Inline {
+                    data,
+                    len: dim as u8,
+                },
+            }
         } else {
-            Self { storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x - y).collect()) }
+            Self {
+                storage: VectorStorage::Heap(a.iter().zip(b).map(|(x, y)| x - y).collect()),
+            }
         }
     }
 }
@@ -614,17 +694,30 @@ impl Neg for SpacetimeVector {
         let dim = s.len();
         if dim <= 4 {
             let mut data = [0.0_f64; 4];
-            for i in 0..dim { data[i] = -s[i]; }
-            Self { storage: VectorStorage::Inline { data, len: dim as u8 } }
+            for i in 0..dim {
+                data[i] = -s[i];
+            }
+            Self {
+                storage: VectorStorage::Inline {
+                    data,
+                    len: dim as u8,
+                },
+            }
         } else {
-            Self { storage: VectorStorage::Heap(s.iter().map(|x| -x).collect()) }
+            Self {
+                storage: VectorStorage::Heap(s.iter().map(|x| -x).collect()),
+            }
         }
     }
 }
 
 impl std::fmt::Display for SpacetimeVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let parts: Vec<String> = self.components().iter().map(|c| format!("{:.6}", c)).collect();
+        let parts: Vec<String> = self
+            .components()
+            .iter()
+            .map(|c| format!("{:.6}", c))
+            .collect();
         write!(f, "({})", parts.join(", "))
     }
 }
@@ -670,7 +763,10 @@ impl SpacetimeConfig {
 
     /// Custom configuration with explicit metric and regularization.
     pub fn custom(metric: FlatMetric, regularization: SpacetimeDimension) -> Self {
-        Self { metric, regularization }
+        Self {
+            metric,
+            regularization,
+        }
     }
 
     /// The physical dimension of the spacetime.
@@ -769,9 +865,7 @@ impl SpacetimeDimension {
     /// $\gamma^\mu \gamma^\nu \gamma^\rho \gamma_\mu = 4g^{\nu\rho} - (4-d)\gamma^\nu\gamma^\rho$.
     pub fn double_gamma_contraction(&self) -> String {
         match self {
-            SpacetimeDimension::Fixed(4) => {
-                "4·g^{νρ}".into()
-            }
+            SpacetimeDimension::Fixed(4) => "4·g^{νρ}".into(),
             SpacetimeDimension::Fixed(d) => {
                 format!("4·g^{{νρ}} - {}·γ^ν γ^ρ", 4i32 - *d as i32)
             }
@@ -1060,7 +1154,6 @@ pub enum SpacetimeTensorKind {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CasExpr {
     // -- Atomic nodes (leaves) --
-
     /// A real numerical constant.
     Scalar(f64),
 
@@ -1076,42 +1169,27 @@ pub enum CasExpr {
     },
 
     /// The Minkowski metric tensor $g^{\mu\nu}$.
-    MetricTensor {
-        mu: LorentzIndex,
-        nu: LorentzIndex,
-    },
+    MetricTensor { mu: LorentzIndex, nu: LorentzIndex },
 
     /// The totally antisymmetric Levi-Civita tensor $\epsilon^{\mu\nu\rho\sigma}$.
     ///
     /// Convention: $\epsilon^{0123} = +1$ (particle physics convention).
-    LeviCivita {
-        indices: [LorentzIndex; 4],
-    },
+    LeviCivita { indices: [LorentzIndex; 4] },
 
     /// A Dirac gamma matrix $\gamma^\mu$ ($\mu = 0,1,2,3$).
-    GammaMat {
-        index: LorentzIndex,
-    },
+    GammaMat { index: LorentzIndex },
 
     /// The chiral matrix $\gamma^5 = i\gamma^0\gamma^1\gamma^2\gamma^3$.
     Gamma5,
 
     /// A four-momentum with a Lorentz index: $p^\mu$.
-    Momentum {
-        label: String,
-        index: LorentzIndex,
-    },
+    Momentum { label: String, index: LorentzIndex },
 
     /// A slashed momentum $\not{p} = \gamma^\mu p_\mu$.
-    SlashedMomentum {
-        label: String,
-    },
+    SlashedMomentum { label: String },
 
     /// The Minkowski dot product of two four-momenta: $p \cdot q = p^\mu q_\mu$.
-    DotProduct {
-        left: String,
-        right: String,
-    },
+    DotProduct { left: String, right: String },
 
     /// An external $u$-spinor: $u(p)$.
     SpinorU { label: String, momentum: String },
@@ -1140,7 +1218,6 @@ pub enum CasExpr {
     },
 
     // -- Composite nodes (branches) --
-
     /// Summation of terms: $\sum_i c_i$.
     ///
     /// An empty `Add` represents zero.
@@ -1173,16 +1250,10 @@ pub enum CasExpr {
     AntiCommutator(Box<CasExpr>, Box<CasExpr>),
 
     /// A Kronecker delta: $\delta^\mu_\nu$.
-    KroneckerDelta {
-        mu: LorentzIndex,
-        nu: LorentzIndex,
-    },
+    KroneckerDelta { mu: LorentzIndex, nu: LorentzIndex },
 
     /// A propagator denominator: $\frac{1}{p^2 - m^2 + i\epsilon}$.
-    PropagatorDenom {
-        momentum: String,
-        mass_sq: f64,
-    },
+    PropagatorDenom { momentum: String, mass_sq: f64 },
 }
 
 // ---------------------------------------------------------------------------
@@ -1213,15 +1284,15 @@ impl CasExpr {
             | CasExpr::SpinorV { .. }
             | CasExpr::SpinorVBar { .. } => false,
 
-            CasExpr::Momentum { .. }
-            | CasExpr::Tensor { .. } => true,
+            CasExpr::Momentum { .. } | CasExpr::Tensor { .. } => true,
 
             CasExpr::Add(terms) => terms.iter().all(|t| t.is_commutative()),
             CasExpr::Mul(factors) => factors.iter().all(|f| f.is_commutative()),
             CasExpr::Neg(inner) => inner.is_commutative(),
-            CasExpr::Fraction { numerator, denominator } => {
-                numerator.is_commutative() && denominator.is_commutative()
-            }
+            CasExpr::Fraction {
+                numerator,
+                denominator,
+            } => numerator.is_commutative() && denominator.is_commutative(),
             CasExpr::Trace(_) => true, // A trace is a scalar
             CasExpr::Commutator(_, _) | CasExpr::AntiCommutator(_, _) => false,
         }
@@ -1257,8 +1328,11 @@ impl CasExpr {
     /// Recursively collect all Lorentz indices (free and contracted).
     fn collect_indices(&self, out: &mut Vec<LorentzIndex>) {
         match self {
-            CasExpr::Scalar(_) | CasExpr::ImaginaryUnit | CasExpr::Gamma5
-            | CasExpr::DotProduct { .. } | CasExpr::PropagatorDenom { .. } => {}
+            CasExpr::Scalar(_)
+            | CasExpr::ImaginaryUnit
+            | CasExpr::Gamma5
+            | CasExpr::DotProduct { .. }
+            | CasExpr::PropagatorDenom { .. } => {}
 
             CasExpr::Symbol { indices, .. } => out.extend(indices.iter().cloned()),
             CasExpr::MetricTensor { mu, nu } => {
@@ -1275,8 +1349,10 @@ impl CasExpr {
             CasExpr::GammaMat { index } => out.push(index.clone()),
             CasExpr::Momentum { index, .. } => out.push(index.clone()),
             CasExpr::SlashedMomentum { .. } => {} // contracted internally
-            CasExpr::SpinorU { .. } | CasExpr::SpinorUBar { .. }
-            | CasExpr::SpinorV { .. } | CasExpr::SpinorVBar { .. } => {}
+            CasExpr::SpinorU { .. }
+            | CasExpr::SpinorUBar { .. }
+            | CasExpr::SpinorV { .. }
+            | CasExpr::SpinorVBar { .. } => {}
             CasExpr::Tensor { indices, .. } => out.extend(indices.iter().cloned()),
 
             CasExpr::Add(terms) => {
@@ -1290,7 +1366,10 @@ impl CasExpr {
                 }
             }
             CasExpr::Neg(inner) => inner.collect_indices(out),
-            CasExpr::Fraction { numerator, denominator } => {
+            CasExpr::Fraction {
+                numerator,
+                denominator,
+            } => {
                 numerator.collect_indices(out);
                 denominator.collect_indices(out);
             }
@@ -1333,9 +1412,7 @@ impl CasExpr {
                     self.clone()
                 }
             }
-            CasExpr::Add(terms) => {
-                CasExpr::Add(terms.iter().map(|t| t.expand()).collect())
-            }
+            CasExpr::Add(terms) => CasExpr::Add(terms.iter().map(|t| t.expand()).collect()),
             CasExpr::Neg(inner) => CasExpr::Neg(Box::new(inner.expand())),
             _ => self.clone(),
         }
@@ -1355,17 +1432,11 @@ impl CasExpr {
     pub fn simplify(&self, dim: SpacetimeDimension) -> CasExpr {
         match self {
             CasExpr::Add(terms) => {
-                let simplified: Vec<CasExpr> = terms
-                    .iter()
-                    .map(|t| t.simplify(dim))
-                    .collect();
+                let simplified: Vec<CasExpr> = terms.iter().map(|t| t.simplify(dim)).collect();
                 simplify_add(simplified)
             }
             CasExpr::Mul(factors) => {
-                let simplified: Vec<CasExpr> = factors
-                    .iter()
-                    .map(|f| f.simplify(dim))
-                    .collect();
+                let simplified: Vec<CasExpr> = factors.iter().map(|f| f.simplify(dim)).collect();
                 simplify_mul(simplified, dim)
             }
             CasExpr::Neg(inner) => {
@@ -1392,12 +1463,13 @@ impl CasExpr {
                 let ba = CasExpr::Mul(vec![b.simplify(dim), a.simplify(dim)]);
                 CasExpr::Add(vec![ab, ba]).simplify(dim)
             }
-            CasExpr::Fraction { numerator, denominator } => {
-                CasExpr::Fraction {
-                    numerator: Box::new(numerator.simplify(dim)),
-                    denominator: Box::new(denominator.simplify(dim)),
-                }
-            }
+            CasExpr::Fraction {
+                numerator,
+                denominator,
+            } => CasExpr::Fraction {
+                numerator: Box::new(numerator.simplify(dim)),
+                denominator: Box::new(denominator.simplify(dim)),
+            },
             // Atomic nodes are already simplified.
             other => other.clone(),
         }
@@ -1453,7 +1525,12 @@ impl CasExpr {
             CasExpr::SpinorVBar { momentum, .. } => {
                 format!("\\bar{{v}}({})", latex_momentum(momentum))
             }
-            CasExpr::Tensor { label, indices, is_conjugate, .. } => {
+            CasExpr::Tensor {
+                label,
+                indices,
+                is_conjugate,
+                ..
+            } => {
                 let conj = if *is_conjugate { "^{*}" } else { "" };
                 let idx_str: Vec<String> = indices.iter().map(|i| i.to_latex()).collect();
                 if indices.is_empty() {
@@ -1466,31 +1543,38 @@ impl CasExpr {
                 if terms.is_empty() {
                     return "0".into();
                 }
-                let parts: Vec<String> = terms.iter().enumerate().map(|(i, t)| {
-                    let s = t.to_cas_latex();
-                    if i == 0 {
-                        s
-                    } else if s.starts_with('-') {
-                        format!(" - {}", &s[1..])
-                    } else {
-                        format!(" + {}", s)
-                    }
-                }).collect();
+                let parts: Vec<String> = terms
+                    .iter()
+                    .enumerate()
+                    .map(|(i, t)| {
+                        let s = t.to_cas_latex();
+                        if i == 0 {
+                            s
+                        } else if s.starts_with('-') {
+                            format!(" - {}", &s[1..])
+                        } else {
+                            format!(" + {}", s)
+                        }
+                    })
+                    .collect();
                 parts.join("")
             }
             CasExpr::Mul(factors) => {
                 if factors.is_empty() {
                     return "1".into();
                 }
-                let parts: Vec<String> = factors.iter().map(|f| {
-                    let s = f.to_cas_latex();
-                    // Wrap Add nodes in parens
-                    if matches!(f, CasExpr::Add(_)) {
-                        format!("\\left({}\\right)", s)
-                    } else {
-                        s
-                    }
-                }).collect();
+                let parts: Vec<String> = factors
+                    .iter()
+                    .map(|f| {
+                        let s = f.to_cas_latex();
+                        // Wrap Add nodes in parens
+                        if matches!(f, CasExpr::Add(_)) {
+                            format!("\\left({}\\right)", s)
+                        } else {
+                            s
+                        }
+                    })
+                    .collect();
                 parts.join("\\,")
             }
             CasExpr::Neg(inner) => {
@@ -1501,7 +1585,10 @@ impl CasExpr {
                     format!("-{}", s)
                 }
             }
-            CasExpr::Fraction { numerator, denominator } => {
+            CasExpr::Fraction {
+                numerator,
+                denominator,
+            } => {
                 format!(
                     "\\frac{{{}}}{{{}}}",
                     numerator.to_cas_latex(),
@@ -1617,10 +1704,15 @@ impl CasExpr {
                 }
                 CasExpr::Mul(new_factors)
             }
-            CasExpr::Add(terms) => {
-                CasExpr::Add(terms.iter().map(|t| t.apply_dirac_equation(on_shell_masses)).collect())
+            CasExpr::Add(terms) => CasExpr::Add(
+                terms
+                    .iter()
+                    .map(|t| t.apply_dirac_equation(on_shell_masses))
+                    .collect(),
+            ),
+            CasExpr::Neg(inner) => {
+                CasExpr::Neg(Box::new(inner.apply_dirac_equation(on_shell_masses)))
             }
-            CasExpr::Neg(inner) => CasExpr::Neg(Box::new(inner.apply_dirac_equation(on_shell_masses))),
             other => other.clone(),
         }
     }
@@ -1727,7 +1819,9 @@ fn apply_metric_contractions(mut factors: Vec<CasExpr>, _dim: SpacetimeDimension
     while changed {
         changed = false;
         // Find a MetricTensor in the factor list
-        let metric_pos = factors.iter().position(|f| matches!(f, CasExpr::MetricTensor { .. }));
+        let metric_pos = factors
+            .iter()
+            .position(|f| matches!(f, CasExpr::MetricTensor { .. }));
         if let Some(pos) = metric_pos {
             let (mu, nu) = match &factors[pos] {
                 CasExpr::MetricTensor { mu, nu } => (mu.clone(), nu.clone()),
@@ -1739,12 +1833,10 @@ fn apply_metric_contractions(mut factors: Vec<CasExpr>, _dim: SpacetimeDimension
                 factors.remove(pos);
                 let d_expr = match _dim {
                     SpacetimeDimension::Fixed(d) => CasExpr::Scalar(d as f64),
-                    SpacetimeDimension::DimReg { base } => {
-                        CasExpr::Symbol {
-                            name: format!("({} - 2ε)", base),
-                            indices: vec![],
-                        }
-                    }
+                    SpacetimeDimension::DimReg { base } => CasExpr::Symbol {
+                        name: format!("({} - 2ε)", base),
+                        indices: vec![],
+                    },
                 };
                 factors.push(d_expr);
                 changed = true;
@@ -1790,10 +1882,17 @@ fn try_replace_index(expr: &CasExpr, old: &LorentzIndex, new: &LorentzIndex) -> 
         CasExpr::GammaMat { index } if index == old => {
             Some(CasExpr::GammaMat { index: new.clone() })
         }
-        CasExpr::Momentum { label, index } if index == old => {
-            Some(CasExpr::Momentum { label: label.clone(), index: new.clone() })
-        }
-        CasExpr::Tensor { label, kind, indices, momentum, is_conjugate } => {
+        CasExpr::Momentum { label, index } if index == old => Some(CasExpr::Momentum {
+            label: label.clone(),
+            index: new.clone(),
+        }),
+        CasExpr::Tensor {
+            label,
+            kind,
+            indices,
+            momentum,
+            is_conjugate,
+        } => {
             if indices.contains(old) {
                 let new_indices: Vec<LorentzIndex> = indices
                     .iter()
@@ -1815,7 +1914,10 @@ fn try_replace_index(expr: &CasExpr, old: &LorentzIndex, new: &LorentzIndex) -> 
                 .iter()
                 .map(|i| if i == old { new.clone() } else { i.clone() })
                 .collect();
-            Some(CasExpr::Symbol { name: name.clone(), indices: new_indices })
+            Some(CasExpr::Symbol {
+                name: name.clone(),
+                indices: new_indices,
+            })
         }
         _ => None,
     }
@@ -1946,15 +2048,19 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     .map(|n| matches!(n.kind, NodeKind::ExternalOutgoing(_)))
                     .unwrap_or(false);
                 let is_anti = if is_incoming {
-                    src_node.and_then(|n| match &n.kind {
-                        NodeKind::ExternalIncoming(p) => Some(p.is_anti),
-                        _ => None,
-                    }).unwrap_or(false)
+                    src_node
+                        .and_then(|n| match &n.kind {
+                            NodeKind::ExternalIncoming(p) => Some(p.is_anti),
+                            _ => None,
+                        })
+                        .unwrap_or(false)
                 } else if is_outgoing {
-                    tgt_node.and_then(|n| match &n.kind {
-                        NodeKind::ExternalOutgoing(p) => Some(p.is_anti),
-                        _ => None,
-                    }).unwrap_or(false)
+                    tgt_node
+                        .and_then(|n| match &n.kind {
+                            NodeKind::ExternalOutgoing(p) => Some(p.is_anti),
+                            _ => None,
+                        })
+                        .unwrap_or(false)
                 } else {
                     false
                 };
@@ -2048,7 +2154,10 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     factors.push(CasExpr::Fraction {
                         numerator: Box::new(CasExpr::ImaginaryUnit),
                         denominator: Box::new(CasExpr::Add(vec![
-                            CasExpr::DotProduct { left: p_label.clone(), right: p_label.clone() },
+                            CasExpr::DotProduct {
+                                left: p_label.clone(),
+                                right: p_label.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Scalar(prop.mass * prop.mass))),
                         ])),
                     });
@@ -2058,14 +2167,19 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     let numerator = CasExpr::Mul(vec![
                         CasExpr::ImaginaryUnit,
                         CasExpr::Add(vec![
-                            CasExpr::SlashedMomentum { label: p_label.clone() },
+                            CasExpr::SlashedMomentum {
+                                label: p_label.clone(),
+                            },
                             CasExpr::Scalar(prop.mass),
                         ]),
                     ]);
                     factors.push(CasExpr::Fraction {
                         numerator: Box::new(numerator),
                         denominator: Box::new(CasExpr::Add(vec![
-                            CasExpr::DotProduct { left: p_label.clone(), right: p_label.clone() },
+                            CasExpr::DotProduct {
+                                left: p_label.clone(),
+                                right: p_label.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Scalar(prop.mass * prop.mass))),
                         ])),
                     });
@@ -2095,11 +2209,20 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     lorentz_counter += 1;
                     let m_sq = prop.mass * prop.mass;
                     let numerator_tensor = CasExpr::Add(vec![
-                        CasExpr::MetricTensor { mu: idx1.clone(), nu: idx2.clone() },
+                        CasExpr::MetricTensor {
+                            mu: idx1.clone(),
+                            nu: idx2.clone(),
+                        },
                         CasExpr::Neg(Box::new(CasExpr::Fraction {
                             numerator: Box::new(CasExpr::Mul(vec![
-                                CasExpr::Momentum { label: p_label.clone(), index: idx1 },
-                                CasExpr::Momentum { label: p_label.clone(), index: idx2 },
+                                CasExpr::Momentum {
+                                    label: p_label.clone(),
+                                    index: idx1,
+                                },
+                                CasExpr::Momentum {
+                                    label: p_label.clone(),
+                                    index: idx2,
+                                },
                             ])),
                             denominator: Box::new(CasExpr::Scalar(m_sq)),
                         })),
@@ -2110,7 +2233,10 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                             numerator_tensor,
                         ])),
                         denominator: Box::new(CasExpr::Add(vec![
-                            CasExpr::DotProduct { left: p_label.clone(), right: p_label.clone() },
+                            CasExpr::DotProduct {
+                                left: p_label.clone(),
+                                right: p_label.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Scalar(m_sq))),
                         ])),
                     });
@@ -2127,35 +2253,58 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                         numerator: Box::new(CasExpr::Mul(vec![
                             CasExpr::Neg(Box::new(CasExpr::ImaginaryUnit)),
                             CasExpr::Add(vec![
-                                CasExpr::SlashedMomentum { label: p_label.clone() },
+                                CasExpr::SlashedMomentum {
+                                    label: p_label.clone(),
+                                },
                                 CasExpr::Scalar(prop.mass),
                             ]),
                             // Tensor structure (g^μν - γ^μγ^ν/3 - 2p^μp^ν/(3m²) + ...)
                             CasExpr::Add(vec![
-                                CasExpr::MetricTensor { mu: idx1.clone(), nu: idx2.clone() },
+                                CasExpr::MetricTensor {
+                                    mu: idx1.clone(),
+                                    nu: idx2.clone(),
+                                },
                                 CasExpr::Neg(Box::new(CasExpr::Fraction {
                                     numerator: Box::new(CasExpr::Mul(vec![
-                                        CasExpr::GammaMat { index: idx1.clone() },
-                                        CasExpr::GammaMat { index: idx2.clone() },
+                                        CasExpr::GammaMat {
+                                            index: idx1.clone(),
+                                        },
+                                        CasExpr::GammaMat {
+                                            index: idx2.clone(),
+                                        },
                                     ])),
                                     denominator: Box::new(CasExpr::Scalar(3.0)),
                                 })),
                                 CasExpr::Neg(Box::new(CasExpr::Fraction {
                                     numerator: Box::new(CasExpr::Mul(vec![
                                         CasExpr::Scalar(2.0),
-                                        CasExpr::Momentum { label: p_label.clone(), index: idx1.clone() },
-                                        CasExpr::Momentum { label: p_label.clone(), index: idx2.clone() },
+                                        CasExpr::Momentum {
+                                            label: p_label.clone(),
+                                            index: idx1.clone(),
+                                        },
+                                        CasExpr::Momentum {
+                                            label: p_label.clone(),
+                                            index: idx2.clone(),
+                                        },
                                     ])),
                                     denominator: Box::new(CasExpr::Scalar(3.0 * m_sq)),
                                 })),
                                 CasExpr::Fraction {
                                     numerator: Box::new(CasExpr::Add(vec![
                                         CasExpr::Mul(vec![
-                                            CasExpr::Momentum { label: p_label.clone(), index: idx1.clone() },
-                                            CasExpr::GammaMat { index: idx2.clone() },
+                                            CasExpr::Momentum {
+                                                label: p_label.clone(),
+                                                index: idx1.clone(),
+                                            },
+                                            CasExpr::GammaMat {
+                                                index: idx2.clone(),
+                                            },
                                         ]),
                                         CasExpr::Neg(Box::new(CasExpr::Mul(vec![
-                                            CasExpr::Momentum { label: p_label.clone(), index: idx2 },
+                                            CasExpr::Momentum {
+                                                label: p_label.clone(),
+                                                index: idx2,
+                                            },
                                             CasExpr::GammaMat { index: idx1 },
                                         ]))),
                                     ])),
@@ -2164,7 +2313,10 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                             ]),
                         ])),
                         denominator: Box::new(CasExpr::Add(vec![
-                            CasExpr::DotProduct { left: p_label.clone(), right: p_label.clone() },
+                            CasExpr::DotProduct {
+                                left: p_label.clone(),
+                                right: p_label.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Scalar(m_sq))),
                         ])),
                     });
@@ -2186,12 +2338,24 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                         },
                         CasExpr::Add(vec![
                             CasExpr::Mul(vec![
-                                CasExpr::MetricTensor { mu: mu.clone(), nu: rho.clone() },
-                                CasExpr::MetricTensor { mu: nu.clone(), nu: sigma.clone() },
+                                CasExpr::MetricTensor {
+                                    mu: mu.clone(),
+                                    nu: rho.clone(),
+                                },
+                                CasExpr::MetricTensor {
+                                    mu: nu.clone(),
+                                    nu: sigma.clone(),
+                                },
                             ]),
                             CasExpr::Mul(vec![
-                                CasExpr::MetricTensor { mu: mu.clone(), nu: sigma.clone() },
-                                CasExpr::MetricTensor { mu: nu.clone(), nu: rho.clone() },
+                                CasExpr::MetricTensor {
+                                    mu: mu.clone(),
+                                    nu: sigma.clone(),
+                                },
+                                CasExpr::MetricTensor {
+                                    mu: nu.clone(),
+                                    nu: rho.clone(),
+                                },
                             ]),
                             CasExpr::Neg(Box::new(CasExpr::Mul(vec![
                                 CasExpr::MetricTensor { mu, nu },
@@ -2221,11 +2385,20 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     // g̃^{ab} = g^{ab} - p^a p^b / m²
                     let g_tilde = |a: &LorentzIndex, b: &LorentzIndex| -> CasExpr {
                         CasExpr::Add(vec![
-                            CasExpr::MetricTensor { mu: a.clone(), nu: b.clone() },
+                            CasExpr::MetricTensor {
+                                mu: a.clone(),
+                                nu: b.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Fraction {
                                 numerator: Box::new(CasExpr::Mul(vec![
-                                    CasExpr::Momentum { label: p_label.clone(), index: a.clone() },
-                                    CasExpr::Momentum { label: p_label.clone(), index: b.clone() },
+                                    CasExpr::Momentum {
+                                        label: p_label.clone(),
+                                        index: a.clone(),
+                                    },
+                                    CasExpr::Momentum {
+                                        label: p_label.clone(),
+                                        index: b.clone(),
+                                    },
                                 ])),
                                 denominator: Box::new(CasExpr::Scalar(m_sq)),
                             })),
@@ -2249,7 +2422,10 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
                     factors.push(CasExpr::Fraction {
                         numerator: Box::new(numerator),
                         denominator: Box::new(CasExpr::Add(vec![
-                            CasExpr::DotProduct { left: p_label.clone(), right: p_label.clone() },
+                            CasExpr::DotProduct {
+                                left: p_label.clone(),
+                                right: p_label.clone(),
+                            },
                             CasExpr::Neg(Box::new(CasExpr::Scalar(m_sq))),
                         ])),
                     });
@@ -2309,10 +2485,8 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
         }
         CasExpr::Add(terms) => {
             // Tr[A + B] = Tr[A] + Tr[B]
-            let traces: Result<Vec<_>, _> = terms
-                .iter()
-                .map(|t| evaluate_cas_trace(t, dim))
-                .collect();
+            let traces: Result<Vec<_>, _> =
+                terms.iter().map(|t| evaluate_cas_trace(t, dim)).collect();
             return Ok(CasExpr::Add(traces?).simplify(dim));
         }
         _ => {
@@ -2329,7 +2503,9 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
 
     for f in &factors {
         match f {
-            CasExpr::Scalar(_) | CasExpr::ImaginaryUnit | CasExpr::Symbol { .. }
+            CasExpr::Scalar(_)
+            | CasExpr::ImaginaryUnit
+            | CasExpr::Symbol { .. }
             | CasExpr::DotProduct { .. } => {
                 scalars.push(f.clone());
             }
@@ -2393,12 +2569,24 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
             gammas[3].clone(),
         );
         let term1 = CasExpr::Mul(vec![
-            CasExpr::MetricTensor { mu: a.clone(), nu: b.clone() },
-            CasExpr::MetricTensor { mu: c.clone(), nu: d.clone() },
+            CasExpr::MetricTensor {
+                mu: a.clone(),
+                nu: b.clone(),
+            },
+            CasExpr::MetricTensor {
+                mu: c.clone(),
+                nu: d.clone(),
+            },
         ]);
         let term2 = CasExpr::Mul(vec![
-            CasExpr::MetricTensor { mu: a.clone(), nu: c.clone() },
-            CasExpr::MetricTensor { mu: b.clone(), nu: d.clone() },
+            CasExpr::MetricTensor {
+                mu: a.clone(),
+                nu: c.clone(),
+            },
+            CasExpr::MetricTensor {
+                mu: b.clone(),
+                nu: d.clone(),
+            },
         ]);
         let term3 = CasExpr::Mul(vec![
             CasExpr::MetricTensor { mu: a, nu: d },
@@ -2453,10 +2641,7 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
 /// \end{pmatrix}$$
 ///
 /// The sign follows the West Coast convention.
-pub fn contract_levi_civita(
-    eps1: &[LorentzIndex; 4],
-    eps2: &[LorentzIndex; 4],
-) -> CasExpr {
+pub fn contract_levi_civita(eps1: &[LorentzIndex; 4], eps2: &[LorentzIndex; 4]) -> CasExpr {
     // Find shared indices (contracted)
     let mut shared = Vec::new();
     for i in 0..4 {
@@ -2471,8 +2656,12 @@ pub fn contract_levi_civita(
         0 => {
             // No contraction — return the product of two ε tensors
             CasExpr::Mul(vec![
-                CasExpr::LeviCivita { indices: eps1.clone() },
-                CasExpr::LeviCivita { indices: eps2.clone() },
+                CasExpr::LeviCivita {
+                    indices: eps1.clone(),
+                },
+                CasExpr::LeviCivita {
+                    indices: eps2.clone(),
+                },
             ])
         }
         4 => {
@@ -2506,8 +2695,12 @@ pub fn contract_levi_civita(
             } else {
                 // Should not happen, but return product as fallback
                 CasExpr::Mul(vec![
-                    CasExpr::LeviCivita { indices: eps1.clone() },
-                    CasExpr::LeviCivita { indices: eps2.clone() },
+                    CasExpr::LeviCivita {
+                        indices: eps1.clone(),
+                    },
+                    CasExpr::LeviCivita {
+                        indices: eps2.clone(),
+                    },
                 ])
             }
         }
@@ -2555,8 +2748,12 @@ pub fn contract_levi_civita(
                 ])
             } else {
                 CasExpr::Mul(vec![
-                    CasExpr::LeviCivita { indices: eps1.clone() },
-                    CasExpr::LeviCivita { indices: eps2.clone() },
+                    CasExpr::LeviCivita {
+                        indices: eps1.clone(),
+                    },
+                    CasExpr::LeviCivita {
+                        indices: eps2.clone(),
+                    },
                 ])
             }
         }
@@ -2590,21 +2787,30 @@ pub fn contract_levi_civita(
                     make_delta(a, d),
                     CasExpr::Add(vec![
                         CasExpr::Mul(vec![make_delta(b, e), make_delta(c, f)]),
-                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![make_delta(b, f), make_delta(c, e)]))),
+                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![
+                            make_delta(b, f),
+                            make_delta(c, e),
+                        ]))),
                     ]),
                 ]);
                 let term2 = CasExpr::Mul(vec![
                     make_delta(a, e),
                     CasExpr::Add(vec![
                         CasExpr::Mul(vec![make_delta(b, d), make_delta(c, f)]),
-                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![make_delta(b, f), make_delta(c, d)]))),
+                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![
+                            make_delta(b, f),
+                            make_delta(c, d),
+                        ]))),
                     ]),
                 ]);
                 let term3 = CasExpr::Mul(vec![
                     make_delta(a, f),
                     CasExpr::Add(vec![
                         CasExpr::Mul(vec![make_delta(b, d), make_delta(c, e)]),
-                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![make_delta(b, e), make_delta(c, d)]))),
+                        CasExpr::Neg(Box::new(CasExpr::Mul(vec![
+                            make_delta(b, e),
+                            make_delta(c, d),
+                        ]))),
                     ]),
                 ]);
                 CasExpr::Neg(Box::new(CasExpr::Add(vec![
@@ -2614,16 +2820,24 @@ pub fn contract_levi_civita(
                 ])))
             } else {
                 CasExpr::Mul(vec![
-                    CasExpr::LeviCivita { indices: eps1.clone() },
-                    CasExpr::LeviCivita { indices: eps2.clone() },
+                    CasExpr::LeviCivita {
+                        indices: eps1.clone(),
+                    },
+                    CasExpr::LeviCivita {
+                        indices: eps2.clone(),
+                    },
                 ])
             }
         }
         _ => {
             // Should not happen (max 4 shared), return product
             CasExpr::Mul(vec![
-                CasExpr::LeviCivita { indices: eps1.clone() },
-                CasExpr::LeviCivita { indices: eps2.clone() },
+                CasExpr::LeviCivita {
+                    indices: eps1.clone(),
+                },
+                CasExpr::LeviCivita {
+                    indices: eps2.clone(),
+                },
             ])
         }
     }
@@ -2668,10 +2882,7 @@ pub fn apply_fierz_identity(bilinear1: &CasExpr, bilinear2: &CasExpr) -> CasExpr
 ///
 /// For photons in Feynman gauge:
 /// $$\sum_\lambda \epsilon^\mu(k,\lambda) \epsilon^{*\nu}(k,\lambda) = -g^{\mu\nu}$$
-pub fn polarization_sum_massless_vector(
-    idx_mu: &LorentzIndex,
-    idx_nu: &LorentzIndex,
-) -> CasExpr {
+pub fn polarization_sum_massless_vector(idx_mu: &LorentzIndex, idx_nu: &LorentzIndex) -> CasExpr {
     CasExpr::Neg(Box::new(CasExpr::MetricTensor {
         mu: idx_mu.clone(),
         nu: idx_nu.clone(),
@@ -2729,8 +2940,12 @@ pub fn polarization_sum_rarita_schwinger(
         label: momentum.to_string(),
         index: idx_nu.clone(),
     };
-    let g_mu_gamma_nu = CasExpr::GammaMat { index: idx_mu.clone() };
-    let g_nu_gamma_mu = CasExpr::GammaMat { index: idx_nu.clone() };
+    let g_mu_gamma_nu = CasExpr::GammaMat {
+        index: idx_mu.clone(),
+    };
+    let g_nu_gamma_mu = CasExpr::GammaMat {
+        index: idx_nu.clone(),
+    };
 
     // The tensor structure in parentheses
     let tensor_part = CasExpr::Add(vec![
@@ -2970,7 +3185,11 @@ impl SymbolicTerm {
     /// Render this symbolic term as a LaTeX fragment.
     pub fn to_latex(&self) -> String {
         match self {
-            SymbolicTerm::Spinor { kind, momentum_label, .. } => {
+            SymbolicTerm::Spinor {
+                kind,
+                momentum_label,
+                ..
+            } => {
                 let p = latex_momentum(momentum_label);
                 match kind {
                     SpinorKind::U => format!("u({p})"),
@@ -2997,7 +3216,12 @@ impl SymbolicTerm {
                 // Convert the symbolic vertex expression to LaTeX.
                 latex_vertex_expression(expression)
             }
-            SymbolicTerm::PropagatorTerm { form, momentum_label, mass, .. } => {
+            SymbolicTerm::PropagatorTerm {
+                form,
+                momentum_label,
+                mass,
+                ..
+            } => {
                 let p = latex_momentum(momentum_label);
                 match form {
                     PropagatorForm::Scalar => {
@@ -3014,9 +3238,7 @@ impl SymbolicTerm {
                                 mass, mass
                             )
                         } else {
-                            format!(
-                                "\\frac{{i\\,\\gamma \\cdot {p}}}{{{p}^2 + i\\epsilon}}"
-                            )
+                            format!("\\frac{{i\\,\\gamma \\cdot {p}}}{{{p}^2 + i\\epsilon}}")
                         }
                     }
                     PropagatorForm::MasslessVector => {
@@ -3029,10 +3251,7 @@ impl SymbolicTerm {
                         )
                     }
                     PropagatorForm::RaritaSchwinger => {
-                        format!(
-                            "S_{{3/2}}^{{\\mu\\nu}}({p},\\,{:.4})",
-                            mass
-                        )
+                        format!("S_{{3/2}}^{{\\mu\\nu}}({p},\\,{:.4})", mass)
                     }
                     PropagatorForm::MasslessSpin2 => {
                         format!(
@@ -3055,9 +3274,7 @@ impl SymbolicTerm {
             } => {
                 let d = spacetime_dim.to_latex();
                 let l = latex_momentum(loop_momentum_label);
-                let measure = format!(
-                    "\\int \\frac{{d^{{{d}}} {l}}}{{(2\\pi)^{{{d}}}}}"
-                );
+                let measure = format!("\\int \\frac{{d^{{{d}}} {l}}}{{(2\\pi)^{{{d}}}}}");
                 let denominator = match integral_type {
                     ScalarIntegralType::A0 { mass_sq } => {
                         format!("\\frac{{1}}{{{l}^2 - {:.4}}}", mass_sq)
@@ -3069,7 +3286,10 @@ impl SymbolicTerm {
                             m1_sq, m2_sq
                         )
                     }
-                    ScalarIntegralType::C0 { external_momenta_sq, masses_sq } => {
+                    ScalarIntegralType::C0 {
+                        external_momenta_sq,
+                        masses_sq,
+                    } => {
                         let props: Vec<String> = masses_sq
                             .iter()
                             .enumerate()
@@ -3086,7 +3306,11 @@ impl SymbolicTerm {
                             .collect();
                         format!("\\frac{{1}}{{{}}}", props.join(""))
                     }
-                    ScalarIntegralType::D0 { external_momenta_sq, masses_sq, .. } => {
+                    ScalarIntegralType::D0 {
+                        external_momenta_sq,
+                        masses_sq,
+                        ..
+                    } => {
                         let props: Vec<String> = masses_sq
                             .iter()
                             .enumerate()
@@ -3232,7 +3456,12 @@ impl FourMomentum {
 
     /// Create the zero four-momentum.
     pub fn zero() -> Self {
-        Self { e: 0.0, px: 0.0, py: 0.0, pz: 0.0 }
+        Self {
+            e: 0.0,
+            px: 0.0,
+            py: 0.0,
+            pz: 0.0,
+        }
     }
 
     /// Compute the **Minkowski inner product** in the $(+,-,-,-)$ metric:
@@ -3449,10 +3678,7 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
                 lorentz_counter += 1;
 
                 let conj_str = if is_outgoing { "*" } else { "" };
-                let expr = format!(
-                    "ε{}^{}({})",
-                    conj_str, idx, edge.momentum_label
-                );
+                let expr = format!("ε{}^{}({})", conj_str, idx, edge.momentum_label);
                 expression_parts.push(expr);
 
                 terms.push(SymbolicTerm::PolarizationVec {
@@ -3639,7 +3865,12 @@ pub fn evaluate_trace_d(
                 format!("Tr[{}{}]", indices_str.join(" "), gamma5_str)
             }
             _ => {
-                format!("Tr_{{d={}}}[{}{}]", d_str, indices_str.join(" "), gamma5_str)
+                format!(
+                    "Tr_{{d={}}}[{}{}]",
+                    d_str,
+                    indices_str.join(" "),
+                    gamma5_str
+                )
             }
         }
     };
@@ -3796,7 +4027,12 @@ pub fn classify_loop_integral(
     let external_momenta: Vec<String> = graph
         .nodes
         .iter()
-        .filter(|n| matches!(n.kind, NodeKind::ExternalIncoming(_) | NodeKind::ExternalOutgoing(_)))
+        .filter(|n| {
+            matches!(
+                n.kind,
+                NodeKind::ExternalIncoming(_) | NodeKind::ExternalOutgoing(_)
+            )
+        })
         .map(|n| format!("p_{}", n.id))
         .collect();
 
@@ -3839,11 +4075,7 @@ pub fn classify_loop_integral(
                     external_momenta_sq: ext_sq.clone(),
                     masses_sq: masses.clone(),
                 },
-                format!(
-                    "C₀({}; m²={:?})",
-                    ext_sq.join(", "),
-                    masses
-                ),
+                format!("C₀({}; m²={:?})", ext_sq.join(", "), masses),
             )
         }
         OneLoopTopologyKind::Box => {
@@ -3861,11 +4093,7 @@ pub fn classify_loop_integral(
                     mandelstam_invariants: vec!["s".into(), "t".into()],
                     masses_sq: masses.clone(),
                 },
-                format!(
-                    "D₀({}; s,t; m²={:?})",
-                    ext_sq.join(", "),
-                    masses
-                ),
+                format!("D₀({}; s,t; m²={:?})", ext_sq.join(", "), masses),
             )
         }
         OneLoopTopologyKind::NPoint(n) => {
@@ -3945,21 +4173,30 @@ impl Complex {
 
     /// Complex conjugate $z^* = \mathrm{Re}(z) - i \cdot \mathrm{Im}(z)$.
     pub fn conj(&self) -> Self {
-        Self { re: self.re, im: -self.im }
+        Self {
+            re: self.re,
+            im: -self.im,
+        }
     }
 }
 
 impl std::ops::Add for Complex {
     type Output = Self;
     fn add(self, rhs: Self) -> Self {
-        Self { re: self.re + rhs.re, im: self.im + rhs.im }
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
     }
 }
 
 impl std::ops::Sub for Complex {
     type Output = Self;
     fn sub(self, rhs: Self) -> Self {
-        Self { re: self.re - rhs.re, im: self.im - rhs.im }
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
     }
 }
 
@@ -3979,7 +4216,10 @@ impl std::ops::Div for Complex {
         let denom = rhs.norm_sq();
         if denom < 1e-300 {
             // Division by zero — return NaN-like sentinel.
-            return Self { re: f64::NAN, im: f64::NAN };
+            return Self {
+                re: f64::NAN,
+                im: f64::NAN,
+            };
         }
         Self {
             re: (self.re * rhs.re + self.im * rhs.im) / denom,
@@ -3991,7 +4231,10 @@ impl std::ops::Div for Complex {
 impl std::ops::Neg for Complex {
     type Output = Self;
     fn neg(self) -> Self {
-        Self { re: -self.re, im: -self.im }
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
     }
 }
 
@@ -4091,16 +4334,17 @@ impl NumericalContext {
 
     /// Retrieve a momentum by label, or return an error.
     pub fn get_momentum(&self, label: &str) -> Result<&SpacetimeVector, String> {
-        self.momenta.get(label).ok_or_else(|| {
-            format!("Momentum '{}' not found in numerical context", label)
-        })
+        self.momenta
+            .get(label)
+            .ok_or_else(|| format!("Momentum '{}' not found in numerical context", label))
     }
 
     /// Retrieve a symbol by name, or return an error.
     pub fn get_symbol(&self, name: &str) -> Result<Complex, String> {
-        self.symbols.get(name).copied().ok_or_else(|| {
-            format!("Symbol '{}' not found in numerical context", name)
-        })
+        self.symbols
+            .get(name)
+            .copied()
+            .ok_or_else(|| format!("Symbol '{}' not found in numerical context", name))
     }
 
     /// Compute the Minkowski dot product $p \cdot q$ for two named momenta.
@@ -4168,9 +4412,7 @@ impl CasExpr {
 
             CasExpr::ImaginaryUnit => Ok(Complex::i()),
 
-            CasExpr::Symbol { name, .. } => {
-                ctx.get_symbol(name)
-            }
+            CasExpr::Symbol { name, .. } => ctx.get_symbol(name),
 
             CasExpr::DotProduct { left, right } => {
                 let val = ctx.dot_product(left, right)?;
@@ -4201,8 +4443,12 @@ impl CasExpr {
                 let p = ctx.get_momentum(label)?;
                 let idx = resolve_numeric_index(index)?;
                 if idx >= p.dimension() {
-                    return Err(format!("Index {} out of bounds for {}-D momentum '{}'",
-                        idx, p.dimension(), label));
+                    return Err(format!(
+                        "Index {} out of bounds for {}-D momentum '{}'",
+                        idx,
+                        p.dimension(),
+                        label
+                    ));
                 }
                 Ok(Complex::real(p.components()[idx]))
             }
@@ -4232,11 +4478,12 @@ impl CasExpr {
                 Ok(product)
             }
 
-            CasExpr::Neg(inner) => {
-                Ok(-inner.evaluate_numerically(ctx)?)
-            }
+            CasExpr::Neg(inner) => Ok(-inner.evaluate_numerically(ctx)?),
 
-            CasExpr::Fraction { numerator, denominator } => {
+            CasExpr::Fraction {
+                numerator,
+                denominator,
+            } => {
                 let n = numerator.evaluate_numerically(ctx)?;
                 let d = denominator.evaluate_numerically(ctx)?;
                 Ok(n / d)
@@ -4262,14 +4509,15 @@ impl CasExpr {
 
             CasExpr::LeviCivita { indices } => {
                 // ε^{μνρσ} with numeric indices
-                let idx: Result<Vec<usize>, String> = indices.iter()
-                    .map(|i| resolve_numeric_index(i))
-                    .collect();
+                let idx: Result<Vec<usize>, String> =
+                    indices.iter().map(|i| resolve_numeric_index(i)).collect();
                 let idx = idx?;
                 if idx.len() != 4 {
                     return Err("Levi-Civita requires exactly 4 indices".into());
                 }
-                Ok(Complex::real(levi_civita_numeric(idx[0], idx[1], idx[2], idx[3])))
+                Ok(Complex::real(levi_civita_numeric(
+                    idx[0], idx[1], idx[2], idx[3],
+                )))
             }
 
             CasExpr::GammaMat { .. } | CasExpr::Gamma5 => {
@@ -4277,19 +4525,20 @@ impl CasExpr {
                 // amplitude they should not appear bare. Return an error.
                 Err("Cannot numerically evaluate bare gamma matrix. \
                      Ensure amplitude has been fully simplified (traces evaluated, \
-                     spinor contractions performed).".into())
+                     spinor contractions performed)."
+                    .into())
             }
 
-            CasExpr::SpinorU { .. } | CasExpr::SpinorUBar { .. }
-            | CasExpr::SpinorV { .. } | CasExpr::SpinorVBar { .. } => {
-                Err("Cannot numerically evaluate bare spinor. \
-                     Ensure amplitude has been squared and spin-summed.".into())
-            }
+            CasExpr::SpinorU { .. }
+            | CasExpr::SpinorUBar { .. }
+            | CasExpr::SpinorV { .. }
+            | CasExpr::SpinorVBar { .. } => Err("Cannot numerically evaluate bare spinor. \
+                     Ensure amplitude has been squared and spin-summed."
+                .into()),
 
-            CasExpr::Tensor { .. } => {
-                Err("Cannot numerically evaluate uncontracted tensor. \
-                     Ensure all Lorentz indices are contracted.".into())
-            }
+            CasExpr::Tensor { .. } => Err("Cannot numerically evaluate uncontracted tensor. \
+                     Ensure all Lorentz indices are contracted."
+                .into()),
 
             CasExpr::Commutator(a, b) => {
                 // [A, B] = AB - BA — evaluate as scalars
@@ -4314,14 +4563,16 @@ impl CasExpr {
 fn resolve_numeric_index(idx: &LorentzIndex) -> Result<usize, String> {
     match idx {
         LorentzIndex::Numeric(n) => Ok(*n as usize),
-        LorentzIndex::Named(name) => {
-            Err(format!("Cannot numerically resolve named index '{}'. \
-                         Ensure all indices are contracted.", name))
-        }
-        LorentzIndex::Dummy(n) => {
-            Err(format!("Cannot numerically resolve dummy index λ_{}. \
-                         Ensure all contractions have been performed.", n))
-        }
+        LorentzIndex::Named(name) => Err(format!(
+            "Cannot numerically resolve named index '{}'. \
+                         Ensure all indices are contracted.",
+            name
+        )),
+        LorentzIndex::Dummy(n) => Err(format!(
+            "Cannot numerically resolve dummy index λ_{}. \
+                         Ensure all contractions have been performed.",
+            n
+        )),
     }
 }
 
@@ -4349,7 +4600,11 @@ fn levi_civita_numeric(a: usize, b: usize, c: usize, d: usize) -> f64 {
             }
         }
     }
-    if inversions % 2 == 0 { 1.0 } else { -1.0 }
+    if inversions % 2 == 0 {
+        1.0
+    } else {
+        -1.0
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -4406,12 +4661,9 @@ pub fn spin_averaged_amplitude_sq(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::graph::{
-        Channel, Edge, FeynmanGraph, LoopOrder, Node, NodeKind,
-    };
+    use crate::graph::{Channel, Edge, FeynmanGraph, LoopOrder, Node, NodeKind};
     use crate::lagrangian::{
-        derive_propagator, LagrangianTerm, LagrangianTermKind, Propagator,
-        VertexFactor,
+        derive_propagator, LagrangianTerm, LagrangianTermKind, Propagator, VertexFactor,
     };
     use crate::ontology::*;
     use petgraph::graph::DiGraph;
@@ -4432,7 +4684,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -4456,7 +4712,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: -1, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: -1,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -4480,7 +4740,11 @@ mod tests {
                 weak_isospin: WeakIsospin(-1),
                 hypercharge: Hypercharge(-3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -4504,7 +4768,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: -1, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: -1,
+                    tau: 0,
+                },
                 spin: Spin(1),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -4528,7 +4796,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(2),
                 parity: Parity::Odd,
                 charge_conjugation: ChargeConjugation::Odd,
@@ -4552,7 +4824,11 @@ mod tests {
                 weak_isospin: WeakIsospin(1),
                 hypercharge: Hypercharge(3),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(0),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Even,
@@ -4574,7 +4850,12 @@ mod tests {
         }
     }
 
-    fn make_vertex_factor(term_id: &str, field_ids: &[&str], expr: &str, coupling: f64) -> VertexFactor {
+    fn make_vertex_factor(
+        term_id: &str,
+        field_ids: &[&str],
+        expr: &str,
+        coupling: f64,
+    ) -> VertexFactor {
         VertexFactor {
             term_id: term_id.into(),
             field_ids: field_ids.iter().map(|s| s.to_string()).collect(),
@@ -4627,7 +4908,12 @@ mod tests {
         let m = 0.938; // proton mass in GeV
         let p = FourMomentum::new(m, 0.0, 0.0, 0.0);
         let p_sq = p.invariant_mass_sq();
-        assert!((p_sq - m * m).abs() < 1e-12, "p² = {}, expected {}", p_sq, m * m);
+        assert!(
+            (p_sq - m * m).abs() < 1e-12,
+            "p² = {}, expected {}",
+            p_sq,
+            m * m
+        );
     }
 
     #[test]
@@ -4711,7 +4997,10 @@ mod tests {
     fn dot_product_symmetry() {
         let p = FourMomentum::new(5.0, 1.0, 2.0, 3.0);
         let q = FourMomentum::new(3.0, 0.5, 1.0, 1.5);
-        assert!((p.dot(&q) - q.dot(&p)).abs() < 1e-12, "dot product should be symmetric");
+        assert!(
+            (p.dot(&q) - q.dot(&p)).abs() < 1e-12,
+            "dot product should be symmetric"
+        );
     }
 
     #[test]
@@ -4746,7 +5035,11 @@ mod tests {
         let json = serde_json::to_string(&term).unwrap();
         let term2: SymbolicTerm = serde_json::from_str(&json).unwrap();
         match term2 {
-            SymbolicTerm::Spinor { kind, label, momentum_label } => {
+            SymbolicTerm::Spinor {
+                kind,
+                label,
+                momentum_label,
+            } => {
                 assert_eq!(kind, SpinorKind::UBar);
                 assert_eq!(label, "e-");
                 assert_eq!(momentum_label, "p3");
@@ -4766,7 +5059,12 @@ mod tests {
         let json = serde_json::to_string(&term).unwrap();
         let term2: SymbolicTerm = serde_json::from_str(&json).unwrap();
         match term2 {
-            SymbolicTerm::PropagatorTerm { form, momentum_label, mass, .. } => {
+            SymbolicTerm::PropagatorTerm {
+                form,
+                momentum_label,
+                mass,
+                ..
+            } => {
                 assert_eq!(form, PropagatorForm::DiracFermion);
                 assert_eq!(momentum_label, "q");
                 assert!((mass - 0.000511).abs() < 1e-12);
@@ -4779,12 +5077,10 @@ mod tests {
     fn amplitude_expression_serde_roundtrip() {
         let amp = AmplitudeExpression {
             diagram_id: 42,
-            terms: vec![
-                SymbolicTerm::VertexCoupling {
-                    expression: "-ie γ^μ".into(),
-                    term_id: "qed_eea".into(),
-                },
-            ],
+            terms: vec![SymbolicTerm::VertexCoupling {
+                expression: "-ie γ^μ".into(),
+                term_id: "qed_eea".into(),
+            }],
             couplings: vec!["0.303".into()],
             momenta_labels: vec!["p1".into(), "p2".into()],
             expression: "V[-ie γ^μ]".into(),
@@ -4815,42 +5111,106 @@ mod tests {
         let mu_minus = make_particle(&muon_field(), false);
         let mu_plus = make_particle(&antimuon_field(), true);
 
-        let vf1 = make_vertex_factor("qed_annihilation", &["e-", "e+", "photon"], "-i e γ^μ", 0.303);
-        let vf2 = make_vertex_factor("qed_mu_annihilation", &["mu-", "mu+", "photon"], "-i e γ^ν", 0.303);
+        let vf1 = make_vertex_factor(
+            "qed_annihilation",
+            &["e-", "e+", "photon"],
+            "-i e γ^μ",
+            0.303,
+        );
+        let vf2 = make_vertex_factor(
+            "qed_mu_annihilation",
+            &["mu-", "mu+", "photon"],
+            "-i e γ^ν",
+            0.303,
+        );
 
         let photon_prop = make_propagator(&photon_field());
 
         let mut graph = DiGraph::<Node, Edge>::new();
 
         // External nodes
-        let n_in1 = graph.add_node(Node { id: 0, kind: NodeKind::ExternalIncoming(e_minus.clone()), position: None });
-        let n_in2 = graph.add_node(Node { id: 1, kind: NodeKind::ExternalIncoming(e_plus.clone()), position: None });
-        let n_v1 = graph.add_node(Node { id: 2, kind: NodeKind::InternalVertex(vf1.clone()), position: None });
-        let n_v2 = graph.add_node(Node { id: 3, kind: NodeKind::InternalVertex(vf2.clone()), position: None });
-        let n_out1 = graph.add_node(Node { id: 4, kind: NodeKind::ExternalOutgoing(mu_minus.clone()), position: None });
-        let n_out2 = graph.add_node(Node { id: 5, kind: NodeKind::ExternalOutgoing(mu_plus.clone()), position: None });
+        let n_in1 = graph.add_node(Node {
+            id: 0,
+            kind: NodeKind::ExternalIncoming(e_minus.clone()),
+            position: None,
+        });
+        let n_in2 = graph.add_node(Node {
+            id: 1,
+            kind: NodeKind::ExternalIncoming(e_plus.clone()),
+            position: None,
+        });
+        let n_v1 = graph.add_node(Node {
+            id: 2,
+            kind: NodeKind::InternalVertex(vf1.clone()),
+            position: None,
+        });
+        let n_v2 = graph.add_node(Node {
+            id: 3,
+            kind: NodeKind::InternalVertex(vf2.clone()),
+            position: None,
+        });
+        let n_out1 = graph.add_node(Node {
+            id: 4,
+            kind: NodeKind::ExternalOutgoing(mu_minus.clone()),
+            position: None,
+        });
+        let n_out2 = graph.add_node(Node {
+            id: 5,
+            kind: NodeKind::ExternalOutgoing(mu_plus.clone()),
+            position: None,
+        });
 
         // Edges
-        graph.add_edge(n_in1, n_v1, Edge {
-            field: electron_field(), propagator: None,
-            momentum_label: "p1".into(), is_external: true,
-        });
-        graph.add_edge(n_in2, n_v1, Edge {
-            field: positron_field(), propagator: None,
-            momentum_label: "p2".into(), is_external: true,
-        });
-        graph.add_edge(n_v1, n_v2, Edge {
-            field: photon_field(), propagator: Some(photon_prop),
-            momentum_label: "q".into(), is_external: false,
-        });
-        graph.add_edge(n_v2, n_out1, Edge {
-            field: muon_field(), propagator: None,
-            momentum_label: "p3".into(), is_external: true,
-        });
-        graph.add_edge(n_v2, n_out2, Edge {
-            field: antimuon_field(), propagator: None,
-            momentum_label: "p4".into(), is_external: true,
-        });
+        graph.add_edge(
+            n_in1,
+            n_v1,
+            Edge {
+                field: electron_field(),
+                propagator: None,
+                momentum_label: "p1".into(),
+                is_external: true,
+            },
+        );
+        graph.add_edge(
+            n_in2,
+            n_v1,
+            Edge {
+                field: positron_field(),
+                propagator: None,
+                momentum_label: "p2".into(),
+                is_external: true,
+            },
+        );
+        graph.add_edge(
+            n_v1,
+            n_v2,
+            Edge {
+                field: photon_field(),
+                propagator: Some(photon_prop),
+                momentum_label: "q".into(),
+                is_external: false,
+            },
+        );
+        graph.add_edge(
+            n_v2,
+            n_out1,
+            Edge {
+                field: muon_field(),
+                propagator: None,
+                momentum_label: "p3".into(),
+                is_external: true,
+            },
+        );
+        graph.add_edge(
+            n_v2,
+            n_out2,
+            Edge {
+                field: antimuon_field(),
+                propagator: None,
+                momentum_label: "p4".into(),
+                is_external: true,
+            },
+        );
 
         let nodes: Vec<Node> = graph.node_weights().cloned().collect();
         let edges: Vec<(usize, usize, Edge)> = graph
@@ -4883,15 +5243,43 @@ mod tests {
         let diagram = make_s_channel_ee_to_mumu();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let n_spinors = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::Spinor { .. })).count();
-        let n_propagators = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::PropagatorTerm { .. })).count();
-        let n_vertices = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::VertexCoupling { .. })).count();
-        let n_polarizations = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::PolarizationVec { .. })).count();
+        let n_spinors = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::Spinor { .. }))
+            .count();
+        let n_propagators = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::PropagatorTerm { .. }))
+            .count();
+        let n_vertices = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::VertexCoupling { .. }))
+            .count();
+        let n_polarizations = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::PolarizationVec { .. }))
+            .count();
 
-        assert_eq!(n_spinors, 4, "4 external fermion spinors (u, ū, v, v̄), got {}", n_spinors);
-        assert_eq!(n_propagators, 1, "1 internal photon propagator, got {}", n_propagators);
+        assert_eq!(
+            n_spinors, 4,
+            "4 external fermion spinors (u, ū, v, v̄), got {}",
+            n_spinors
+        );
+        assert_eq!(
+            n_propagators, 1,
+            "1 internal photon propagator, got {}",
+            n_propagators
+        );
         assert_eq!(n_vertices, 2, "2 vertex couplings, got {}", n_vertices);
-        assert_eq!(n_polarizations, 0, "no external bosons, got {}", n_polarizations);
+        assert_eq!(
+            n_polarizations, 0,
+            "no external bosons, got {}",
+            n_polarizations
+        );
         assert_eq!(amp.terms.len(), 7, "total 7 terms, got {}", amp.terms.len());
     }
 
@@ -4900,23 +5288,43 @@ mod tests {
         let diagram = make_s_channel_ee_to_mumu();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let spinors: Vec<_> = amp.terms.iter().filter_map(|t| match t {
-            SymbolicTerm::Spinor { kind, label, .. } => Some((*kind, label.clone())),
-            _ => None,
-        }).collect();
+        let spinors: Vec<_> = amp
+            .terms
+            .iter()
+            .filter_map(|t| match t {
+                SymbolicTerm::Spinor { kind, label, .. } => Some((*kind, label.clone())),
+                _ => None,
+            })
+            .collect();
 
         // Incoming e- (particle, not anti) → U
-        assert!(spinors.iter().any(|(k, l)| *k == SpinorKind::U && l == "e-"),
-            "Expected U spinor for incoming e-");
+        assert!(
+            spinors
+                .iter()
+                .any(|(k, l)| *k == SpinorKind::U && l == "e-"),
+            "Expected U spinor for incoming e-"
+        );
         // Incoming e+ (antiparticle) → VBar
-        assert!(spinors.iter().any(|(k, l)| *k == SpinorKind::VBar && l == "e+"),
-            "Expected VBar spinor for incoming e+");
+        assert!(
+            spinors
+                .iter()
+                .any(|(k, l)| *k == SpinorKind::VBar && l == "e+"),
+            "Expected VBar spinor for incoming e+"
+        );
         // Outgoing μ- (particle) → UBar
-        assert!(spinors.iter().any(|(k, l)| *k == SpinorKind::UBar && l == "mu-"),
-            "Expected UBar spinor for outgoing μ-");
+        assert!(
+            spinors
+                .iter()
+                .any(|(k, l)| *k == SpinorKind::UBar && l == "mu-"),
+            "Expected UBar spinor for outgoing μ-"
+        );
         // Outgoing μ+ (antiparticle) → V
-        assert!(spinors.iter().any(|(k, l)| *k == SpinorKind::V && l == "mu+"),
-            "Expected V spinor for outgoing μ+");
+        assert!(
+            spinors
+                .iter()
+                .any(|(k, l)| *k == SpinorKind::V && l == "mu+"),
+            "Expected V spinor for outgoing μ+"
+        );
     }
 
     #[test]
@@ -4924,15 +5332,26 @@ mod tests {
         let diagram = make_s_channel_ee_to_mumu();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let props: Vec<_> = amp.terms.iter().filter_map(|t| match t {
-            SymbolicTerm::PropagatorTerm { form, momentum_label, mass, .. } => {
-                Some((*form, momentum_label.clone(), *mass))
-            }
-            _ => None,
-        }).collect();
+        let props: Vec<_> = amp
+            .terms
+            .iter()
+            .filter_map(|t| match t {
+                SymbolicTerm::PropagatorTerm {
+                    form,
+                    momentum_label,
+                    mass,
+                    ..
+                } => Some((*form, momentum_label.clone(), *mass)),
+                _ => None,
+            })
+            .collect();
 
         assert_eq!(props.len(), 1);
-        assert_eq!(props[0].0, PropagatorForm::MasslessVector, "photon propagator form");
+        assert_eq!(
+            props[0].0,
+            PropagatorForm::MasslessVector,
+            "photon propagator form"
+        );
         assert_eq!(props[0].1, "q", "propagator momentum label");
         assert!((props[0].2).abs() < 1e-12, "photon mass = 0");
     }
@@ -4942,12 +5361,17 @@ mod tests {
         let diagram = make_s_channel_ee_to_mumu();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let vertices: Vec<_> = amp.terms.iter().filter_map(|t| match t {
-            SymbolicTerm::VertexCoupling { expression, term_id } => {
-                Some((expression.clone(), term_id.clone()))
-            }
-            _ => None,
-        }).collect();
+        let vertices: Vec<_> = amp
+            .terms
+            .iter()
+            .filter_map(|t| match t {
+                SymbolicTerm::VertexCoupling {
+                    expression,
+                    term_id,
+                } => Some((expression.clone(), term_id.clone())),
+                _ => None,
+            })
+            .collect();
 
         assert_eq!(vertices.len(), 2);
         assert!(vertices.iter().any(|(e, _)| e.contains("γ^μ")));
@@ -4971,7 +5395,10 @@ mod tests {
         let diagram = make_s_channel_ee_to_mumu();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        assert!(!amp.couplings.is_empty(), "should collect coupling constants");
+        assert!(
+            !amp.couplings.is_empty(),
+            "should collect coupling constants"
+        );
     }
 
     #[test]
@@ -4980,7 +5407,10 @@ mod tests {
         let amp = generate_amplitude(&diagram).unwrap();
 
         assert!(!amp.expression.is_empty());
-        assert!(amp.expression.contains("×"), "expression should join terms with ×");
+        assert!(
+            amp.expression.contains("×"),
+            "expression should join terms with ×"
+        );
     }
 
     /// Test with external bosons: build a 1→2 decay with two photons in final state.
@@ -4992,8 +5422,16 @@ mod tests {
 
         let mut graph = DiGraph::<Node, Edge>::new();
 
-        let n_in = graph.add_node(Node { id: 0, kind: NodeKind::ExternalIncoming(higgs), position: None });
-        let n_v = graph.add_node(Node { id: 1, kind: NodeKind::InternalVertex(vf.clone()), position: None });
+        let n_in = graph.add_node(Node {
+            id: 0,
+            kind: NodeKind::ExternalIncoming(higgs),
+            position: None,
+        });
+        let n_v = graph.add_node(Node {
+            id: 1,
+            kind: NodeKind::InternalVertex(vf.clone()),
+            position: None,
+        });
         let n_out1 = graph.add_node(Node {
             id: 2,
             kind: NodeKind::ExternalOutgoing(make_particle(&photon_field(), false)),
@@ -5005,18 +5443,36 @@ mod tests {
             position: None,
         });
 
-        graph.add_edge(n_in, n_v, Edge {
-            field: higgs_field(), propagator: None,
-            momentum_label: "p1".into(), is_external: true,
-        });
-        graph.add_edge(n_v, n_out1, Edge {
-            field: photon_field(), propagator: None,
-            momentum_label: "p2".into(), is_external: true,
-        });
-        graph.add_edge(n_v, n_out2, Edge {
-            field: photon_field(), propagator: None,
-            momentum_label: "p3".into(), is_external: true,
-        });
+        graph.add_edge(
+            n_in,
+            n_v,
+            Edge {
+                field: higgs_field(),
+                propagator: None,
+                momentum_label: "p1".into(),
+                is_external: true,
+            },
+        );
+        graph.add_edge(
+            n_v,
+            n_out1,
+            Edge {
+                field: photon_field(),
+                propagator: None,
+                momentum_label: "p2".into(),
+                is_external: true,
+            },
+        );
+        graph.add_edge(
+            n_v,
+            n_out2,
+            Edge {
+                field: photon_field(),
+                propagator: None,
+                momentum_label: "p3".into(),
+                is_external: true,
+            },
+        );
 
         let nodes: Vec<Node> = graph.node_weights().cloned().collect();
         let edges: Vec<(usize, usize, Edge)> = graph
@@ -5048,10 +5504,26 @@ mod tests {
         let diagram = make_decay_to_photons();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let n_pol = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::PolarizationVec { .. })).count();
-        let n_vert = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::VertexCoupling { .. })).count();
-        let n_prop = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::PropagatorTerm { .. })).count();
-        let n_spinors = amp.terms.iter().filter(|t| matches!(t, SymbolicTerm::Spinor { .. })).count();
+        let n_pol = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::PolarizationVec { .. }))
+            .count();
+        let n_vert = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::VertexCoupling { .. }))
+            .count();
+        let n_prop = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::PropagatorTerm { .. }))
+            .count();
+        let n_spinors = amp
+            .terms
+            .iter()
+            .filter(|t| matches!(t, SymbolicTerm::Spinor { .. }))
+            .count();
 
         assert_eq!(n_pol, 2, "2 outgoing photon polarization vectors");
         assert_eq!(n_vert, 1, "1 vertex coupling");
@@ -5064,13 +5536,20 @@ mod tests {
         let diagram = make_decay_to_photons();
         let amp = generate_amplitude(&diagram).unwrap();
 
-        let pols: Vec<_> = amp.terms.iter().filter_map(|t| match t {
-            SymbolicTerm::PolarizationVec { is_conjugate, .. } => Some(*is_conjugate),
-            _ => None,
-        }).collect();
+        let pols: Vec<_> = amp
+            .terms
+            .iter()
+            .filter_map(|t| match t {
+                SymbolicTerm::PolarizationVec { is_conjugate, .. } => Some(*is_conjugate),
+                _ => None,
+            })
+            .collect();
 
         // Outgoing bosons should have conjugated polarization vectors (ε*)
-        assert!(pols.iter().all(|c| *c), "outgoing photon ε should be conjugated");
+        assert!(
+            pols.iter().all(|c| *c),
+            "outgoing photon ε should be conjugated"
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -5135,12 +5614,18 @@ mod tests {
         // Use the graph module's full model to generate topologies,
         // then translate a diagram to an amplitude.
         use crate::graph::generate_topologies;
-        use crate::lagrangian::{TheoreticalModel, derive_propagator, derive_vertex_factor};
-        use crate::s_matrix::{AsymptoticState, Reaction};
+        use crate::lagrangian::{derive_propagator, derive_vertex_factor, TheoreticalModel};
         use crate::ontology::initialize_state;
+        use crate::s_matrix::{AsymptoticState, Reaction};
 
         // Minimal model: e⁺e⁻ → μ⁺μ⁻ via photon only
-        let fields = vec![electron_field(), positron_field(), muon_field(), antimuon_field(), photon_field()];
+        let fields = vec![
+            electron_field(),
+            positron_field(),
+            muon_field(),
+            antimuon_field(),
+            photon_field(),
+        ];
         let terms = vec![
             LagrangianTerm {
                 id: "qed_annihilation_a".into(),
@@ -5166,8 +5651,14 @@ mod tests {
             },
         ];
 
-        let propagators = fields.iter().map(|f| derive_propagator(f).unwrap()).collect();
-        let vertex_factors = terms.iter().map(|t| derive_vertex_factor(t).unwrap()).collect();
+        let propagators = fields
+            .iter()
+            .map(|f| derive_propagator(f).unwrap())
+            .collect();
+        let vertex_factors = terms
+            .iter()
+            .map(|t| derive_vertex_factor(t).unwrap())
+            .collect();
 
         let model = TheoreticalModel {
             name: "Minimal QED".into(),
@@ -5191,8 +5682,14 @@ mod tests {
         ];
 
         let reaction = Reaction {
-            initial: AsymptoticState { states: initial_states, invariant_mass_sq: 40000.0 },
-            final_state: AsymptoticState { states: final_states, invariant_mass_sq: 40000.0 },
+            initial: AsymptoticState {
+                states: initial_states,
+                invariant_mass_sq: 40000.0,
+            },
+            final_state: AsymptoticState {
+                states: final_states,
+                invariant_mass_sq: 40000.0,
+            },
             is_valid: true,
             violation_diagnostics: vec![],
             interaction_types: vec![InteractionType::Electromagnetic],
@@ -5207,7 +5704,12 @@ mod tests {
         let amp = generate_amplitude(&topos.diagrams[0]).unwrap();
 
         // For a 2→2 tree-level s-channel: 4 spinors + 1 propagator + 2 vertices = 7
-        assert_eq!(amp.terms.len(), 7, "integrated test: expected 7 terms, got {}", amp.terms.len());
+        assert_eq!(
+            amp.terms.len(),
+            7,
+            "integrated test: expected 7 terms, got {}",
+            amp.terms.len()
+        );
     }
 
     #[test]
@@ -5494,8 +5996,8 @@ mod tests {
 
     #[test]
     fn evaluate_trace_d_steps_record_dim_info() {
-        let r = evaluate_trace_d(&[0, 1, 2, 3, 4, 5], false, SpacetimeDimension::dim_reg_4())
-            .unwrap();
+        let r =
+            evaluate_trace_d(&[0, 1, 2, 3, 4, 5], false, SpacetimeDimension::dim_reg_4()).unwrap();
         assert!(r.steps.iter().any(|s| s.contains("d-dimensional")));
         assert!(r.steps.iter().any(|s| s.contains("4 - 2ε")));
     }
@@ -5628,8 +6130,14 @@ mod tests {
 
     #[test]
     fn lorentz_index_equality() {
-        assert_eq!(LorentzIndex::Named("mu".into()), LorentzIndex::Named("mu".into()));
-        assert_ne!(LorentzIndex::Named("mu".into()), LorentzIndex::Named("nu".into()));
+        assert_eq!(
+            LorentzIndex::Named("mu".into()),
+            LorentzIndex::Named("mu".into())
+        );
+        assert_ne!(
+            LorentzIndex::Named("mu".into()),
+            LorentzIndex::Named("nu".into())
+        );
         assert_ne!(LorentzIndex::Named("mu".into()), LorentzIndex::Dummy(0));
     }
 
@@ -5647,36 +6155,63 @@ mod tests {
     fn cas_commutativity_scalars() {
         assert!(CasExpr::Scalar(3.14).is_commutative());
         assert!(CasExpr::ImaginaryUnit.is_commutative());
-        assert!(CasExpr::DotProduct { left: "p".into(), right: "q".into() }.is_commutative());
+        assert!(CasExpr::DotProduct {
+            left: "p".into(),
+            right: "q".into()
+        }
+        .is_commutative());
     }
 
     #[test]
     fn cas_commutativity_gamma_matrices() {
-        assert!(!CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) }.is_commutative());
+        assert!(!CasExpr::GammaMat {
+            index: LorentzIndex::Named("mu".into())
+        }
+        .is_commutative());
         assert!(!CasExpr::Gamma5.is_commutative());
         assert!(!CasExpr::SlashedMomentum { label: "p".into() }.is_commutative());
     }
 
     #[test]
     fn cas_commutativity_spinors() {
-        assert!(!CasExpr::SpinorU { label: "e".into(), momentum: "p1".into() }.is_commutative());
-        assert!(!CasExpr::SpinorUBar { label: "e".into(), momentum: "p1".into() }.is_commutative());
+        assert!(!CasExpr::SpinorU {
+            label: "e".into(),
+            momentum: "p1".into()
+        }
+        .is_commutative());
+        assert!(!CasExpr::SpinorUBar {
+            label: "e".into(),
+            momentum: "p1".into()
+        }
+        .is_commutative());
     }
 
     #[test]
     fn cas_commutativity_metric_and_levi_civita() {
         let mu = LorentzIndex::Named("mu".into());
         let nu = LorentzIndex::Named("nu".into());
-        assert!(CasExpr::MetricTensor { mu: mu.clone(), nu: nu.clone() }.is_commutative());
+        assert!(CasExpr::MetricTensor {
+            mu: mu.clone(),
+            nu: nu.clone()
+        }
+        .is_commutative());
         assert!(CasExpr::LeviCivita {
-            indices: [mu.clone(), nu.clone(), LorentzIndex::Named("rho".into()), LorentzIndex::Named("sigma".into())],
-        }.is_commutative());
+            indices: [
+                mu.clone(),
+                nu.clone(),
+                LorentzIndex::Named("rho".into()),
+                LorentzIndex::Named("sigma".into())
+            ],
+        }
+        .is_commutative());
     }
 
     #[test]
     fn cas_trace_is_commutative() {
         // The trace of anything is a scalar, hence commutative.
-        let inner = CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) };
+        let inner = CasExpr::GammaMat {
+            index: LorentzIndex::Named("mu".into()),
+        };
         assert!(CasExpr::Trace(Box::new(inner)).is_commutative());
     }
 
@@ -5686,7 +6221,10 @@ mod tests {
     fn cas_free_indices_metric_tensor() {
         let mu = LorentzIndex::Named("mu".into());
         let nu = LorentzIndex::Named("nu".into());
-        let expr = CasExpr::MetricTensor { mu: mu.clone(), nu: nu.clone() };
+        let expr = CasExpr::MetricTensor {
+            mu: mu.clone(),
+            nu: nu.clone(),
+        };
         let free = expr.get_free_indices();
         assert_eq!(free.len(), 2);
         assert!(free.contains(&mu));
@@ -5697,7 +6235,10 @@ mod tests {
     fn cas_free_indices_contracted() {
         // g^{μμ} — same index twice → contracted, no free indices
         let mu = LorentzIndex::Named("mu".into());
-        let expr = CasExpr::MetricTensor { mu: mu.clone(), nu: mu.clone() };
+        let expr = CasExpr::MetricTensor {
+            mu: mu.clone(),
+            nu: mu.clone(),
+        };
         let free = expr.get_free_indices();
         assert!(free.is_empty());
     }
@@ -5708,7 +6249,10 @@ mod tests {
         let mu = LorentzIndex::Named("mu".into());
         let nu = LorentzIndex::Named("nu".into());
         let expr = CasExpr::Mul(vec![
-            CasExpr::MetricTensor { mu: mu.clone(), nu: nu.clone() },
+            CasExpr::MetricTensor {
+                mu: mu.clone(),
+                nu: nu.clone(),
+            },
             CasExpr::GammaMat { index: nu.clone() },
         ]);
         let free = expr.get_free_indices();
@@ -5731,10 +6275,7 @@ mod tests {
 
     #[test]
     fn cas_simplify_add_combine_scalars() {
-        let expr = CasExpr::Add(vec![
-            CasExpr::Scalar(2.0),
-            CasExpr::Scalar(3.0),
-        ]);
+        let expr = CasExpr::Add(vec![CasExpr::Scalar(2.0), CasExpr::Scalar(3.0)]);
         let result = expr.simplify(SpacetimeDimension::four());
         assert_eq!(result, CasExpr::Scalar(5.0));
     }
@@ -5756,7 +6297,9 @@ mod tests {
     fn cas_simplify_mul_zero() {
         let expr = CasExpr::Mul(vec![
             CasExpr::Scalar(0.0),
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
         ]);
         let result = expr.simplify(SpacetimeDimension::four());
         assert_eq!(result, CasExpr::Scalar(0.0));
@@ -5764,10 +6307,7 @@ mod tests {
 
     #[test]
     fn cas_simplify_mul_combine_scalars() {
-        let expr = CasExpr::Mul(vec![
-            CasExpr::Scalar(2.0),
-            CasExpr::Scalar(3.0),
-        ]);
+        let expr = CasExpr::Mul(vec![CasExpr::Scalar(2.0), CasExpr::Scalar(3.0)]);
         let result = expr.simplify(SpacetimeDimension::four());
         assert_eq!(result, CasExpr::Scalar(6.0));
     }
@@ -5807,7 +6347,10 @@ mod tests {
         let mu = LorentzIndex::Named("mu".into());
         let nu = LorentzIndex::Named("nu".into());
         let expr = CasExpr::Mul(vec![
-            CasExpr::MetricTensor { mu: mu.clone(), nu: nu.clone() },
+            CasExpr::MetricTensor {
+                mu: mu.clone(),
+                nu: nu.clone(),
+            },
             CasExpr::GammaMat { index: nu },
         ]);
         let result = expr.simplify(SpacetimeDimension::four());
@@ -5818,9 +6361,10 @@ mod tests {
     fn cas_metric_trace_four_dimensions() {
         // g^{μ}_{μ} = 4
         let mu = LorentzIndex::Named("mu".into());
-        let expr = CasExpr::Mul(vec![
-            CasExpr::MetricTensor { mu: mu.clone(), nu: mu.clone() },
-        ]);
+        let expr = CasExpr::Mul(vec![CasExpr::MetricTensor {
+            mu: mu.clone(),
+            nu: mu.clone(),
+        }]);
         let result = expr.simplify(SpacetimeDimension::four());
         assert_eq!(result, CasExpr::Scalar(4.0));
     }
@@ -5880,9 +6424,15 @@ mod tests {
 
     #[test]
     fn cas_latex_spinors() {
-        let u = CasExpr::SpinorU { label: "e".into(), momentum: "p1".into() };
+        let u = CasExpr::SpinorU {
+            label: "e".into(),
+            momentum: "p1".into(),
+        };
         assert_eq!(u.to_cas_latex(), "u(p_{1})");
-        let ubar = CasExpr::SpinorUBar { label: "e".into(), momentum: "p2".into() };
+        let ubar = CasExpr::SpinorUBar {
+            label: "e".into(),
+            momentum: "p2".into(),
+        };
         assert_eq!(ubar.to_cas_latex(), "\\bar{u}(p_{2})");
     }
 
@@ -5894,15 +6444,14 @@ mod tests {
 
     #[test]
     fn cas_latex_add_and_mul() {
-        let expr = CasExpr::Add(vec![
-            CasExpr::Scalar(2.0),
-            CasExpr::Scalar(3.0),
-        ]);
+        let expr = CasExpr::Add(vec![CasExpr::Scalar(2.0), CasExpr::Scalar(3.0)]);
         assert_eq!(expr.to_cas_latex(), "2 + 3");
 
         let expr2 = CasExpr::Mul(vec![
             CasExpr::Scalar(2.0),
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
         ]);
         assert_eq!(expr2.to_cas_latex(), "2\\,\\gamma^{\\mu}");
     }
@@ -5919,8 +6468,12 @@ mod tests {
     #[test]
     fn cas_latex_trace() {
         let inner = CasExpr::Mul(vec![
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
-            CasExpr::GammaMat { index: LorentzIndex::Named("nu".into()) },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("nu".into()),
+            },
         ]);
         let expr = CasExpr::Trace(Box::new(inner));
         assert!(expr.to_cas_latex().contains("\\mathrm{Tr}"));
@@ -5937,7 +6490,9 @@ mod tests {
 
     #[test]
     fn cas_trace_odd_gammas_vanish() {
-        let expr = CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) };
+        let expr = CasExpr::GammaMat {
+            index: LorentzIndex::Named("mu".into()),
+        };
         let result = evaluate_cas_trace(&expr, SpacetimeDimension::four()).unwrap();
         assert_eq!(result, CasExpr::Scalar(0.0));
     }
@@ -5952,10 +6507,7 @@ mod tests {
             CasExpr::GammaMat { index: nu.clone() },
         ]);
         let result = evaluate_cas_trace(&expr, SpacetimeDimension::four()).unwrap();
-        let expected = CasExpr::Mul(vec![
-            CasExpr::Scalar(4.0),
-            CasExpr::MetricTensor { mu, nu },
-        ]);
+        let expected = CasExpr::Mul(vec![CasExpr::Scalar(4.0), CasExpr::MetricTensor { mu, nu }]);
         assert_eq!(result, expected);
     }
 
@@ -5970,12 +6522,18 @@ mod tests {
             CasExpr::GammaMat { index: mu.clone() },
             CasExpr::GammaMat { index: nu.clone() },
             CasExpr::GammaMat { index: rho.clone() },
-            CasExpr::GammaMat { index: sigma.clone() },
+            CasExpr::GammaMat {
+                index: sigma.clone(),
+            },
         ]);
         let result = evaluate_cas_trace(&expr, SpacetimeDimension::four()).unwrap();
         // Check it contains the metric tensors (structural check)
         let latex = result.to_cas_latex();
-        assert!(latex.contains("g^{"), "Result should contain metric tensors: {}", latex);
+        assert!(
+            latex.contains("g^{"),
+            "Result should contain metric tensors: {}",
+            latex
+        );
     }
 
     #[test]
@@ -5994,7 +6552,11 @@ mod tests {
         ]);
         let result = evaluate_cas_trace(&expr, SpacetimeDimension::four()).unwrap();
         let latex = result.to_cas_latex();
-        assert!(latex.contains("\\epsilon"), "γ^5 trace should produce Levi-Civita: {}", latex);
+        assert!(
+            latex.contains("\\epsilon"),
+            "γ^5 trace should produce Levi-Civita: {}",
+            latex
+        );
     }
 
     #[test]
@@ -6008,8 +6570,12 @@ mod tests {
         // Tr[γ^5 γ^μ γ^ν] = 0 (less than 4 gammas)
         let expr = CasExpr::Mul(vec![
             CasExpr::Gamma5,
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
-            CasExpr::GammaMat { index: LorentzIndex::Named("nu".into()) },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("nu".into()),
+            },
         ]);
         let result = evaluate_cas_trace(&expr, SpacetimeDimension::four()).unwrap();
         assert_eq!(result, CasExpr::Scalar(0.0));
@@ -6065,7 +6631,11 @@ mod tests {
         let eps2 = [beta.clone(), mu, nu, rho];
         let result = contract_levi_civita(&eps1, &eps2);
         let latex = result.to_cas_latex();
-        assert!(latex.contains("-6"), "Three-index contraction should give -6: {}", latex);
+        assert!(
+            latex.contains("-6"),
+            "Three-index contraction should give -6: {}",
+            latex
+        );
     }
 
     #[test]
@@ -6081,7 +6651,11 @@ mod tests {
         let eps2 = [gamma, delta, mu, nu];
         let result = contract_levi_civita(&eps1, &eps2);
         let latex = result.to_cas_latex();
-        assert!(latex.contains("-2"), "Two-index contraction should give -2: {}", latex);
+        assert!(
+            latex.contains("-2"),
+            "Two-index contraction should give -2: {}",
+            latex
+        );
     }
 
     #[test]
@@ -6115,7 +6689,10 @@ mod tests {
         // /p u(p) → m u(p) when on-shell
         let expr = CasExpr::Mul(vec![
             CasExpr::SlashedMomentum { label: "p1".into() },
-            CasExpr::SpinorU { label: "e".into(), momentum: "p1".into() },
+            CasExpr::SpinorU {
+                label: "e".into(),
+                momentum: "p1".into(),
+            },
         ]);
         let mut masses = std::collections::HashMap::new();
         masses.insert("p1".to_string(), 0.511e-3); // electron mass in GeV
@@ -6133,7 +6710,10 @@ mod tests {
     fn cas_dirac_equation_ubar_slashed_p() {
         // ū(p) /p → m ū(p)
         let expr = CasExpr::Mul(vec![
-            CasExpr::SpinorUBar { label: "e".into(), momentum: "p2".into() },
+            CasExpr::SpinorUBar {
+                label: "e".into(),
+                momentum: "p2".into(),
+            },
             CasExpr::SlashedMomentum { label: "p2".into() },
         ]);
         let mut masses = std::collections::HashMap::new();
@@ -6153,7 +6733,10 @@ mod tests {
         // /p v(p) → -m v(p)
         let expr = CasExpr::Mul(vec![
             CasExpr::SlashedMomentum { label: "p1".into() },
-            CasExpr::SpinorV { label: "e".into(), momentum: "p1".into() },
+            CasExpr::SpinorV {
+                label: "e".into(),
+                momentum: "p1".into(),
+            },
         ]);
         let mut masses = std::collections::HashMap::new();
         masses.insert("p1".to_string(), 1.5);
@@ -6244,8 +6827,13 @@ mod tests {
     fn cas_expr_serde_roundtrip() {
         let expr = CasExpr::Mul(vec![
             CasExpr::Scalar(2.0),
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
-            CasExpr::SpinorU { label: "e".into(), momentum: "p1".into() },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
+            CasExpr::SpinorU {
+                label: "e".into(),
+                momentum: "p1".into(),
+            },
         ]);
         let json = serde_json::to_string(&expr).unwrap();
         let back: CasExpr = serde_json::from_str(&json).unwrap();
@@ -6256,10 +6844,18 @@ mod tests {
     fn cas_expr_complex_serde_roundtrip() {
         let expr = CasExpr::Trace(Box::new(CasExpr::Mul(vec![
             CasExpr::Gamma5,
-            CasExpr::GammaMat { index: LorentzIndex::Named("mu".into()) },
-            CasExpr::GammaMat { index: LorentzIndex::Named("nu".into()) },
-            CasExpr::GammaMat { index: LorentzIndex::Named("rho".into()) },
-            CasExpr::GammaMat { index: LorentzIndex::Named("sigma".into()) },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("mu".into()),
+            },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("nu".into()),
+            },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("rho".into()),
+            },
+            CasExpr::GammaMat {
+                index: LorentzIndex::Named("sigma".into()),
+            },
         ])));
         let json = serde_json::to_string(&expr).unwrap();
         let back: CasExpr = serde_json::from_str(&json).unwrap();
@@ -6343,7 +6939,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(3),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Undefined,
@@ -6371,7 +6971,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(4),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Even,
@@ -6399,7 +7003,11 @@ mod tests {
                 weak_isospin: WeakIsospin(0),
                 hypercharge: Hypercharge(0),
                 baryon_number: BaryonNumber(0),
-                lepton_numbers: LeptonNumbers { electron: 0, muon: 0, tau: 0 },
+                lepton_numbers: LeptonNumbers {
+                    electron: 0,
+                    muon: 0,
+                    tau: 0,
+                },
                 spin: Spin(4),
                 parity: Parity::Even,
                 charge_conjugation: ChargeConjugation::Even,
@@ -6442,7 +7050,11 @@ mod tests {
             is_conjugate: true,
         };
         let latex = expr.to_cas_latex();
-        assert!(latex.contains("^{*}"), "Conjugate tensor should have star: {}", latex);
+        assert!(
+            latex.contains("^{*}"),
+            "Conjugate tensor should have star: {}",
+            latex
+        );
         let free = expr.get_free_indices();
         assert_eq!(free.len(), 2);
     }
@@ -6455,7 +7067,11 @@ mod tests {
         let a = CasExpr::Scalar(5.0);
         let expr = CasExpr::Commutator(Box::new(a.clone()), Box::new(a));
         let result = expr.simplify(SpacetimeDimension::four());
-        assert!(result.is_scalar_zero(), "Commutator [A, A] should be 0, got: {:?}", result);
+        assert!(
+            result.is_scalar_zero(),
+            "Commutator [A, A] should be 0, got: {:?}",
+            result
+        );
     }
 
     #[test]
@@ -6709,7 +7325,12 @@ mod tests {
 
     #[test]
     fn spacetime_vector_from_four_momentum() {
-        let p = FourMomentum { e: 10.0, px: 1.0, py: 2.0, pz: 3.0 };
+        let p = FourMomentum {
+            e: 10.0,
+            px: 1.0,
+            py: 2.0,
+            pz: 3.0,
+        };
         let sv: SpacetimeVector = p.into();
         assert_eq!(sv.dimension(), 4);
         assert_eq!(sv.components(), &[10.0, 1.0, 2.0, 3.0]);
@@ -6767,10 +7388,7 @@ mod tests {
 
     #[test]
     fn spacetime_config_custom_10d() {
-        let cfg = SpacetimeConfig::custom(
-            FlatMetric::minkowski(10),
-            SpacetimeDimension::Fixed(10),
-        );
+        let cfg = SpacetimeConfig::custom(FlatMetric::minkowski(10), SpacetimeDimension::Fixed(10));
         assert_eq!(cfg.dimension(), 10);
         assert_eq!(cfg.signature().time_dimensions(), 1);
         assert_eq!(cfg.signature().space_dimensions(), 9);
@@ -6797,7 +7415,9 @@ mod tests {
         // 2 → 2 scattering in 10D: p1 + p2 = p3 + p4
         let sig = MetricSignature::minkowski(10);
         let p1 = SpacetimeVector::new(vec![100.0, 10.0, 20.0, 30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
-        let p2 = SpacetimeVector::new(vec![100.0, -10.0, -20.0, -30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        let p2 = SpacetimeVector::new(vec![
+            100.0, -10.0, -20.0, -30.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        ]);
         let p3 = SpacetimeVector::new(vec![120.0, 5.0, 15.0, 25.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let p4 = (p1.clone() + p2.clone()) - p3.clone();
 
@@ -7029,7 +7649,10 @@ mod tests {
     fn numerical_eval_symbol_lookup() {
         let mut ctx = NumericalContext::new_minkowski();
         ctx.set_symbol("g_e", Complex::real(0.3028));
-        let expr = CasExpr::Symbol { name: "g_e".into(), indices: vec![] };
+        let expr = CasExpr::Symbol {
+            name: "g_e".into(),
+            indices: vec![],
+        };
         let result = expr.evaluate_numerically(&ctx).unwrap();
         assert!((result.re - 0.3028).abs() < 1e-12);
     }
@@ -7037,7 +7660,10 @@ mod tests {
     #[test]
     fn numerical_eval_symbol_missing_error() {
         let ctx = NumericalContext::new_minkowski();
-        let expr = CasExpr::Symbol { name: "unknown".into(), indices: vec![] };
+        let expr = CasExpr::Symbol {
+            name: "unknown".into(),
+            indices: vec![],
+        };
         assert!(expr.evaluate_numerically(&ctx).is_err());
     }
 
@@ -7053,14 +7679,29 @@ mod tests {
         ctx.set_symbol("u", Complex::real(-7500.0));
 
         // g_e^4 * 2(s^2 + u^2) / t^2
-        let g_e = CasExpr::Symbol { name: "g_e".into(), indices: vec![] };
-        let s = CasExpr::Symbol { name: "s".into(), indices: vec![] };
-        let t = CasExpr::Symbol { name: "t".into(), indices: vec![] };
-        let u = CasExpr::Symbol { name: "u".into(), indices: vec![] };
+        let g_e = CasExpr::Symbol {
+            name: "g_e".into(),
+            indices: vec![],
+        };
+        let s = CasExpr::Symbol {
+            name: "s".into(),
+            indices: vec![],
+        };
+        let t = CasExpr::Symbol {
+            name: "t".into(),
+            indices: vec![],
+        };
+        let u = CasExpr::Symbol {
+            name: "u".into(),
+            indices: vec![],
+        };
 
         let expr = CasExpr::Fraction {
             numerator: Box::new(CasExpr::Mul(vec![
-                g_e.clone(), g_e.clone(), g_e.clone(), g_e.clone(),
+                g_e.clone(),
+                g_e.clone(),
+                g_e.clone(),
+                g_e.clone(),
                 CasExpr::Scalar(2.0),
                 CasExpr::Add(vec![
                     CasExpr::Mul(vec![s.clone(), s.clone()]),
@@ -7085,7 +7726,10 @@ mod tests {
         let mut ctx = NumericalContext::new_minkowski();
         ctx.set_symbol("msq", Complex::real(100.0));
 
-        let expr = CasExpr::Symbol { name: "msq".into(), indices: vec![] };
+        let expr = CasExpr::Symbol {
+            name: "msq".into(),
+            indices: vec![],
+        };
         // 2 spin-1/2 initial-state fermions: 2 dofs each → N_avg = 4
         let result = spin_averaged_amplitude_sq(&expr, &ctx, &[2, 2]).unwrap();
         assert!((result - 25.0).abs() < 1e-12);

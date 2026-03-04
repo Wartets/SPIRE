@@ -193,8 +193,14 @@ impl GaugeSymmetry {
     pub fn standard_model() -> Self {
         GaugeSymmetry {
             groups: vec![
-                LieGroup::SU { n: 3, label: "C".into() },
-                LieGroup::SU { n: 2, label: "L".into() },
+                LieGroup::SU {
+                    n: 3,
+                    label: "C".into(),
+                },
+                LieGroup::SU {
+                    n: 2,
+                    label: "L".into(),
+                },
                 LieGroup::U1 { label: "Y".into() },
             ],
             label: "SU(3)_C × SU(2)_L × U(1)_Y".into(),
@@ -204,7 +210,10 @@ impl GaugeSymmetry {
     /// Construct an $SU(5)$ GUT gauge symmetry.
     pub fn su5_gut() -> Self {
         GaugeSymmetry {
-            groups: vec![LieGroup::SU { n: 5, label: "GUT".into() }],
+            groups: vec![LieGroup::SU {
+                n: 5,
+                label: "GUT".into(),
+            }],
             label: "SU(5)".into(),
         }
     }
@@ -212,7 +221,10 @@ impl GaugeSymmetry {
     /// Construct an $SO(10)$ GUT gauge symmetry.
     pub fn so10_gut() -> Self {
         GaugeSymmetry {
-            groups: vec![LieGroup::SO { n: 10, label: "GUT".into() }],
+            groups: vec![LieGroup::SO {
+                n: 10,
+                label: "GUT".into(),
+            }],
             label: "SO(10)".into(),
         }
     }
@@ -308,10 +320,7 @@ pub fn validate_gauge_invariance(
     match group {
         LieGroup::U1 { .. } => {
             // Additive: sum of charges must be zero.
-            let charge_sum: f64 = relevant
-                .iter()
-                .map(|r| r.charge.unwrap_or(0.0))
-                .sum();
+            let charge_sum: f64 = relevant.iter().map(|r| r.charge.unwrap_or(0.0)).sum();
             // Use a tolerance for floating-point comparison.
             Ok(charge_sum.abs() < 1e-10)
         }
@@ -395,7 +404,11 @@ pub fn validate_generalized_conservation(
                 if na_i % (*n as u32) != na_f % (*n as u32) {
                     violations.push(format!(
                         "SU({})_{} {}-ality violated: initial={}, final={}",
-                        n, label, n, na_i % (*n as u32), na_f % (*n as u32)
+                        n,
+                        label,
+                        n,
+                        na_i % (*n as u32),
+                        na_f % (*n as u32)
                     ));
                 }
             }
@@ -478,25 +491,46 @@ pub fn validate_conservation_laws(
 
     // Helper: sum an additive quantum number across a set of states.
     let sum_q = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.electric_charge.0 as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.electric_charge.0 as i32)
+            .sum()
     };
     let sum_b = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.baryon_number.0 as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.baryon_number.0 as i32)
+            .sum()
     };
     let sum_le = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.lepton_numbers.electron as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.lepton_numbers.electron as i32)
+            .sum()
     };
     let sum_lmu = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.lepton_numbers.muon as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.lepton_numbers.muon as i32)
+            .sum()
     };
     let sum_ltau = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.lepton_numbers.tau as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.lepton_numbers.tau as i32)
+            .sum()
     };
     let sum_t3 = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.weak_isospin.0 as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.weak_isospin.0 as i32)
+            .sum()
     };
     let sum_y = |states: &[QuantumState]| -> i32 {
-        states.iter().map(|s| s.particle.field.quantum_numbers.hypercharge.0 as i32).sum()
+        states
+            .iter()
+            .map(|s| s.particle.field.quantum_numbers.hypercharge.0 as i32)
+            .sum()
     };
 
     // Electric charge is ALWAYS conserved.
@@ -504,7 +538,8 @@ pub fn validate_conservation_laws(
     let q_f = sum_q(final_states);
     if q_i != q_f {
         violations.push(format!(
-            "Electric charge violated: initial 3Q={}, final 3Q={}", q_i, q_f
+            "Electric charge violated: initial 3Q={}, final 3Q={}",
+            q_i, q_f
         ));
     }
 
@@ -513,7 +548,8 @@ pub fn validate_conservation_laws(
     let b_f = sum_b(final_states);
     if b_i != b_f {
         violations.push(format!(
-            "Baryon number violated: initial 3B={}, final 3B={}", b_i, b_f
+            "Baryon number violated: initial 3B={}, final 3B={}",
+            b_i, b_f
         ));
     }
 
@@ -522,7 +558,8 @@ pub fn validate_conservation_laws(
     let le_f = sum_le(final_states);
     if le_i != le_f {
         violations.push(format!(
-            "Electron lepton number Le violated: initial={}, final={}", le_i, le_f
+            "Electron lepton number Le violated: initial={}, final={}",
+            le_i, le_f
         ));
     }
 
@@ -530,7 +567,8 @@ pub fn validate_conservation_laws(
     let lmu_f = sum_lmu(final_states);
     if lmu_i != lmu_f {
         violations.push(format!(
-            "Muon lepton number Lmu violated: initial={}, final={}", lmu_i, lmu_f
+            "Muon lepton number Lmu violated: initial={}, final={}",
+            lmu_i, lmu_f
         ));
     }
 
@@ -538,7 +576,8 @@ pub fn validate_conservation_laws(
     let ltau_f = sum_ltau(final_states);
     if ltau_i != ltau_f {
         violations.push(format!(
-            "Tau lepton number Ltau violated: initial={}, final={}", ltau_i, ltau_f
+            "Tau lepton number Ltau violated: initial={}, final={}",
+            ltau_i, ltau_f
         ));
     }
 
@@ -550,14 +589,16 @@ pub fn validate_conservation_laws(
             let t3_f = sum_t3(final_states);
             if t3_i != t3_f {
                 violations.push(format!(
-                    "Weak isospin T3 violated: initial 2T3={}, final 2T3={}", t3_i, t3_f
+                    "Weak isospin T3 violated: initial 2T3={}, final 2T3={}",
+                    t3_i, t3_f
                 ));
             }
             let y_i = sum_y(initial);
             let y_f = sum_y(final_states);
             if y_i != y_f {
                 violations.push(format!(
-                    "Hypercharge Y violated: initial 3Y={}, final 3Y={}", y_i, y_f
+                    "Hypercharge Y violated: initial 3Y={}, final 3Y={}",
+                    y_i, y_f
                 ));
             }
         }
@@ -608,9 +649,7 @@ pub fn check_cpt(
             // Yukawa couplings in the SM conserve C, P, T.
             (Some(true), Some(true), Some(true), Some(true), vec![])
         }
-        InteractionType::ScalarSelf => {
-            (Some(true), Some(true), Some(true), Some(true), vec![])
-        }
+        InteractionType::ScalarSelf => (Some(true), Some(true), Some(true), Some(true), vec![]),
     };
 
     Ok(DiscreteSymmetryResult {
@@ -686,7 +725,13 @@ pub fn validate_poincare_invariance(
             // New max = j_max + s.
             // New min = absolute difference of closest approach.
             let new_max = j_max + s;
-            let new_min = if j_min > s { j_min - s } else if s > j_max { s - j_max } else { 0 };
+            let new_min = if j_min > s {
+                j_min - s
+            } else if s > j_max {
+                s - j_max
+            } else {
+                0
+            };
             j_min = new_min;
             j_max = new_max;
         }
@@ -718,15 +763,7 @@ mod tests {
     use crate::ontology::*;
 
     /// Helper: create a minimal QuantumState from quantum numbers.
-    fn make_state(
-        q: i8,
-        b: i8,
-        le: i8,
-        lmu: i8,
-        ltau: i8,
-        t3: i8,
-        y: i8,
-    ) -> QuantumState {
+    fn make_state(q: i8, b: i8, le: i8, lmu: i8, ltau: i8, t3: i8, y: i8) -> QuantumState {
         let field = Field {
             id: "test".into(),
             name: "Test".into(),
@@ -829,7 +866,11 @@ mod tests {
             InteractionType::Electromagnetic,
         )
         .unwrap();
-        assert!(result.is_valid, "e+e- -> γγ should be valid: {:?}", result.violations);
+        assert!(
+            result.is_valid,
+            "e+e- -> γγ should be valid: {:?}",
+            result.violations
+        );
     }
 
     #[test]
@@ -838,14 +879,14 @@ mod tests {
         let electron = make_state(-3, 0, 1, 0, 0, -1, -3);
         let photon = make_state(0, 0, 0, 0, 0, 0, 0);
 
-        let result = validate_conservation_laws(
-            &[electron],
-            &[photon],
-            InteractionType::Electromagnetic,
-        )
-        .unwrap();
+        let result =
+            validate_conservation_laws(&[electron], &[photon], InteractionType::Electromagnetic)
+                .unwrap();
         assert!(!result.is_valid);
-        assert!(result.violations.iter().any(|v| v.contains("Electric charge")));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.contains("Electric charge")));
     }
 
     #[test]
@@ -854,14 +895,14 @@ mod tests {
         let electron = make_state(-3, 0, 1, 0, 0, -1, -3);
         let muon = make_state(-3, 0, 0, 1, 0, -1, -3);
 
-        let result = validate_conservation_laws(
-            &[electron],
-            &[muon],
-            InteractionType::Electromagnetic,
-        )
-        .unwrap();
+        let result =
+            validate_conservation_laws(&[electron], &[muon], InteractionType::Electromagnetic)
+                .unwrap();
         assert!(!result.is_valid);
-        assert!(result.violations.iter().any(|v| v.contains("Electron lepton")));
+        assert!(result
+            .violations
+            .iter()
+            .any(|v| v.contains("Electron lepton")));
         assert!(result.violations.iter().any(|v| v.contains("Muon lepton")));
     }
 
@@ -878,17 +919,17 @@ mod tests {
         let e = make_state(-3, 0, 1, 0, 0, -1, -3);
         let u = make_state(2, 1, 0, 0, 0, 1, 1);
 
-        let result = validate_conservation_laws(
-            &[nu_e, d],
-            &[e, u],
-            InteractionType::WeakCC,
-        )
-        .unwrap();
+        let result =
+            validate_conservation_laws(&[nu_e, d], &[e, u], InteractionType::WeakCC).unwrap();
         // Charge: 0+(-1)=-1 vs -3+2=-1 ✓
         // B: 0+1=1 vs 0+1=1 ✓
         // Le: 1+0=1 vs 1+0=1 ✓
         // T3 not checked for WeakCC
-        assert!(result.is_valid, "nu_e d -> e- u should be valid in CC: {:?}", result.violations);
+        assert!(
+            result.is_valid,
+            "nu_e d -> e- u should be valid in CC: {:?}",
+            result.violations
+        );
     }
 
     // --- CPT ---
@@ -915,8 +956,16 @@ mod tests {
     fn color_singlet_leptons() {
         // All singlets -> trivially singlet.
         let reps = vec![
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 1, label: "1".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 1, label: "1".into() },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 1,
+                label: "1".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 1,
+                label: "1".into(),
+            },
         ];
         assert!(validate_color_singlet(&reps).unwrap());
     }
@@ -925,8 +974,16 @@ mod tests {
     fn color_singlet_quark_antiquark() {
         // 3 ⊗ 3̄ -> contains 1.
         let reps = vec![
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3bar".into() },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3bar".into(),
+            },
         ];
         assert!(validate_color_singlet(&reps).unwrap());
     }
@@ -935,9 +992,21 @@ mod tests {
     fn color_singlet_three_quarks() {
         // 3 ⊗ 3 ⊗ 3 -> contains 1 (baryon).
         let reps = vec![
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
         ];
         assert!(validate_color_singlet(&reps).unwrap());
     }
@@ -946,8 +1015,16 @@ mod tests {
     fn color_non_singlet_two_quarks() {
         // 3 ⊗ 3 -> does NOT contain 1.
         let reps = vec![
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 3, label: "3".into() },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 3,
+                label: "3".into(),
+            },
         ];
         assert!(!validate_color_singlet(&reps).unwrap());
     }
@@ -956,8 +1033,16 @@ mod tests {
     fn color_singlet_gluon_pair() {
         // 8 ⊗ 8 -> contains 1.
         let reps = vec![
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 8, label: "8".into() },
-            GaugeRepresentation { group: GaugeGroup::SU3C, dimension: 8, label: "8".into() },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 8,
+                label: "8".into(),
+            },
+            GaugeRepresentation {
+                group: GaugeGroup::SU3C,
+                dimension: 8,
+                label: "8".into(),
+            },
         ];
         assert!(validate_color_singlet(&reps).unwrap());
     }
@@ -968,9 +1053,21 @@ mod tests {
     fn poincare_ffv_vertex() {
         // Two spin-1/2 fermions + one spin-1 boson -> J=0 achievable.
         let reps = vec![
-            PoincareRepresentation { mass: 0.000511, twice_spin: 1, is_massless: false },
-            PoincareRepresentation { mass: 0.000511, twice_spin: 1, is_massless: false },
-            PoincareRepresentation { mass: 0.0, twice_spin: 2, is_massless: true },
+            PoincareRepresentation {
+                mass: 0.000511,
+                twice_spin: 1,
+                is_massless: false,
+            },
+            PoincareRepresentation {
+                mass: 0.000511,
+                twice_spin: 1,
+                is_massless: false,
+            },
+            PoincareRepresentation {
+                mass: 0.0,
+                twice_spin: 2,
+                is_massless: true,
+            },
         ];
         assert!(validate_poincare_invariance(&reps).unwrap());
     }
@@ -979,9 +1076,21 @@ mod tests {
     fn poincare_ffs_vertex() {
         // Two spin-1/2 fermions + one spin-0 scalar -> J=0 achievable.
         let reps = vec![
-            PoincareRepresentation { mass: 0.000511, twice_spin: 1, is_massless: false },
-            PoincareRepresentation { mass: 0.000511, twice_spin: 1, is_massless: false },
-            PoincareRepresentation { mass: 125.0, twice_spin: 0, is_massless: false },
+            PoincareRepresentation {
+                mass: 0.000511,
+                twice_spin: 1,
+                is_massless: false,
+            },
+            PoincareRepresentation {
+                mass: 0.000511,
+                twice_spin: 1,
+                is_massless: false,
+            },
+            PoincareRepresentation {
+                mass: 125.0,
+                twice_spin: 0,
+                is_massless: false,
+            },
         ];
         assert!(validate_poincare_invariance(&reps).unwrap());
     }
@@ -989,9 +1098,11 @@ mod tests {
     #[test]
     fn poincare_single_massive_vector_not_scalar() {
         // A single spin-1 particle alone cannot form a scalar.
-        let reps = vec![
-            PoincareRepresentation { mass: 91.2, twice_spin: 2, is_massless: false },
-        ];
+        let reps = vec![PoincareRepresentation {
+            mass: 91.2,
+            twice_spin: 2,
+            is_massless: false,
+        }];
         assert!(!validate_poincare_invariance(&reps).unwrap());
     }
 
@@ -1011,7 +1122,10 @@ mod tests {
 
     #[test]
     fn lie_group_su2_rank() {
-        let g = LieGroup::SU { n: 2, label: "L".into() };
+        let g = LieGroup::SU {
+            n: 2,
+            label: "L".into(),
+        };
         assert_eq!(g.rank(), 1);
         assert_eq!(g.adjoint_dimension(), 3); // 2²-1
         assert_eq!(g.display_name(), "SU(2)_L");
@@ -1019,28 +1133,40 @@ mod tests {
 
     #[test]
     fn lie_group_su3_rank() {
-        let g = LieGroup::SU { n: 3, label: "C".into() };
+        let g = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
         assert_eq!(g.rank(), 2);
         assert_eq!(g.adjoint_dimension(), 8); // 3²-1
     }
 
     #[test]
     fn lie_group_su5_rank() {
-        let g = LieGroup::SU { n: 5, label: "GUT".into() };
+        let g = LieGroup::SU {
+            n: 5,
+            label: "GUT".into(),
+        };
         assert_eq!(g.rank(), 4);
         assert_eq!(g.adjoint_dimension(), 24); // 5²-1
     }
 
     #[test]
     fn lie_group_so10_rank() {
-        let g = LieGroup::SO { n: 10, label: "GUT".into() };
-        assert_eq!(g.rank(), 5);   // ⌊10/2⌋
+        let g = LieGroup::SO {
+            n: 10,
+            label: "GUT".into(),
+        };
+        assert_eq!(g.rank(), 5); // ⌊10/2⌋
         assert_eq!(g.adjoint_dimension(), 45); // 10*9/2
     }
 
     #[test]
     fn lie_group_display_trait() {
-        let g = LieGroup::SU { n: 3, label: "C".into() };
+        let g = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
         assert_eq!(format!("{}", g), "SU(3)_C");
     }
 
@@ -1164,12 +1290,20 @@ mod tests {
         let u1 = LieGroup::U1 { label: "EM".into() };
         let reps = vec![
             LieGroupRepresentation {
-                group: u1.clone(), dimension: 1, charge: Some(-1.0),
-                is_conjugate: false, dynkin_labels: vec![], label: "-1".into(),
+                group: u1.clone(),
+                dimension: 1,
+                charge: Some(-1.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "-1".into(),
             },
             LieGroupRepresentation {
-                group: u1.clone(), dimension: 1, charge: Some(1.0),
-                is_conjugate: false, dynkin_labels: vec![], label: "+1".into(),
+                group: u1.clone(),
+                dimension: 1,
+                charge: Some(1.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "+1".into(),
             },
         ];
         assert!(validate_gauge_invariance(&u1, &reps).unwrap());
@@ -1180,12 +1314,20 @@ mod tests {
         let u1 = LieGroup::U1 { label: "EM".into() };
         let reps = vec![
             LieGroupRepresentation {
-                group: u1.clone(), dimension: 1, charge: Some(-1.0),
-                is_conjugate: false, dynkin_labels: vec![], label: "-1".into(),
+                group: u1.clone(),
+                dimension: 1,
+                charge: Some(-1.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "-1".into(),
             },
             LieGroupRepresentation {
-                group: u1.clone(), dimension: 1, charge: Some(-1.0),
-                is_conjugate: false, dynkin_labels: vec![], label: "-1".into(),
+                group: u1.clone(),
+                dimension: 1,
+                charge: Some(-1.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "-1".into(),
             },
         ];
         assert!(!validate_gauge_invariance(&u1, &reps).unwrap());
@@ -1194,15 +1336,26 @@ mod tests {
     #[test]
     fn su3_singlet_vertex_valid() {
         // Quark (3) + antiquark (3̄) → octet (or singlet), triality: 1+2=3≡0 mod 3
-        let su3 = LieGroup::SU { n: 3, label: "C".into() };
+        let su3 = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: true, dynkin_labels: vec![0, 1], label: "3̄".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: true,
+                dynkin_labels: vec![0, 1],
+                label: "3̄".into(),
             },
         ];
         assert!(validate_gauge_invariance(&su3, &reps).unwrap());
@@ -1211,15 +1364,26 @@ mod tests {
     #[test]
     fn su3_non_singlet_vertex_invalid() {
         // Two quarks (3+3), triality: 1+1=2 mod 3 ≠ 0
-        let su3 = LieGroup::SU { n: 3, label: "C".into() };
+        let su3 = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
         ];
         assert!(!validate_gauge_invariance(&su3, &reps).unwrap());
@@ -1228,19 +1392,34 @@ mod tests {
     #[test]
     fn su3_three_quarks_valid_baryon() {
         // Three quarks (3+3+3), triality: 1+1+1=3≡0 mod 3 → colour singlet (baryon)
-        let su3 = LieGroup::SU { n: 3, label: "C".into() };
+        let su3 = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
             LieGroupRepresentation {
-                group: su3.clone(), dimension: 3, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0], label: "3".into(),
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
             },
         ];
         assert!(validate_gauge_invariance(&su3, &reps).unwrap());
@@ -1249,15 +1428,26 @@ mod tests {
     #[test]
     fn su5_5_and_5bar_valid() {
         // 5 + 5̄ of SU(5): 5-ality 1+4=5≡0 mod 5 → singlet
-        let su5 = LieGroup::SU { n: 5, label: "GUT".into() };
+        let su5 = LieGroup::SU {
+            n: 5,
+            label: "GUT".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: su5.clone(), dimension: 5, charge: None,
-                is_conjugate: false, dynkin_labels: vec![1, 0, 0, 0], label: "5".into(),
+                group: su5.clone(),
+                dimension: 5,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0, 0, 0],
+                label: "5".into(),
             },
             LieGroupRepresentation {
-                group: su5.clone(), dimension: 5, charge: None,
-                is_conjugate: true, dynkin_labels: vec![0, 0, 0, 1], label: "5̄".into(),
+                group: su5.clone(),
+                dimension: 5,
+                charge: None,
+                is_conjugate: true,
+                dynkin_labels: vec![0, 0, 0, 1],
+                label: "5̄".into(),
             },
         ];
         assert!(validate_gauge_invariance(&su5, &reps).unwrap());
@@ -1266,19 +1456,34 @@ mod tests {
     #[test]
     fn su5_10_and_5bar_and_5bar_valid() {
         // 10 + 5̄ + 5̄ of SU(5): 5-ality 2+4+4=10≡0 mod 5 → valid
-        let su5 = LieGroup::SU { n: 5, label: "GUT".into() };
+        let su5 = LieGroup::SU {
+            n: 5,
+            label: "GUT".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: su5.clone(), dimension: 10, charge: None,
-                is_conjugate: false, dynkin_labels: vec![0, 1, 0, 0], label: "10".into(),
+                group: su5.clone(),
+                dimension: 10,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0, 1, 0, 0],
+                label: "10".into(),
             },
             LieGroupRepresentation {
-                group: su5.clone(), dimension: 5, charge: None,
-                is_conjugate: true, dynkin_labels: vec![0, 0, 0, 1], label: "5̄".into(),
+                group: su5.clone(),
+                dimension: 5,
+                charge: None,
+                is_conjugate: true,
+                dynkin_labels: vec![0, 0, 0, 1],
+                label: "5̄".into(),
             },
             LieGroupRepresentation {
-                group: su5.clone(), dimension: 5, charge: None,
-                is_conjugate: true, dynkin_labels: vec![0, 0, 0, 1], label: "5̄".into(),
+                group: su5.clone(),
+                dimension: 5,
+                charge: None,
+                is_conjugate: true,
+                dynkin_labels: vec![0, 0, 0, 1],
+                label: "5̄".into(),
             },
         ];
         assert!(validate_gauge_invariance(&su5, &reps).unwrap());
@@ -1287,15 +1492,26 @@ mod tests {
     #[test]
     fn so10_even_spinors_valid() {
         // Two spinor 16's of SO(10): even spinorial parity → valid
-        let so10 = LieGroup::SO { n: 10, label: "GUT".into() };
+        let so10 = LieGroup::SO {
+            n: 10,
+            label: "GUT".into(),
+        };
         let reps = vec![
             LieGroupRepresentation {
-                group: so10.clone(), dimension: 16, charge: None,
-                is_conjugate: false, dynkin_labels: vec![], label: "16".into(),
+                group: so10.clone(),
+                dimension: 16,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "16".into(),
             },
             LieGroupRepresentation {
-                group: so10.clone(), dimension: 16, charge: None,
-                is_conjugate: false, dynkin_labels: vec![], label: "16".into(),
+                group: so10.clone(),
+                dimension: 16,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "16".into(),
             },
         ];
         assert!(validate_gauge_invariance(&so10, &reps).unwrap());
@@ -1304,13 +1520,18 @@ mod tests {
     #[test]
     fn so10_odd_spinor_invalid() {
         // Single spinor 16 of SO(10): odd spinorial parity → invalid
-        let so10 = LieGroup::SO { n: 10, label: "GUT".into() };
-        let reps = vec![
-            LieGroupRepresentation {
-                group: so10.clone(), dimension: 16, charge: None,
-                is_conjugate: false, dynkin_labels: vec![], label: "16".into(),
-            },
-        ];
+        let so10 = LieGroup::SO {
+            n: 10,
+            label: "GUT".into(),
+        };
+        let reps = vec![LieGroupRepresentation {
+            group: so10.clone(),
+            dimension: 16,
+            charge: None,
+            is_conjugate: false,
+            dynkin_labels: vec![],
+            label: "16".into(),
+        }];
         assert!(!validate_gauge_invariance(&so10, &reps).unwrap());
     }
 
@@ -1323,29 +1544,119 @@ mod tests {
         // SU(2)_L: all singlet ✓
         // U(1)_Y: charges must balance
         let sm = GaugeSymmetry::standard_model();
-        let su3 = LieGroup::SU { n: 3, label: "C".into() };
-        let su2 = LieGroup::SU { n: 2, label: "L".into() };
+        let su3 = LieGroup::SU {
+            n: 3,
+            label: "C".into(),
+        };
+        let su2 = LieGroup::SU {
+            n: 2,
+            label: "L".into(),
+        };
         let u1y = LieGroup::U1 { label: "Y".into() };
 
         let initial = vec![
             // Quark: 3 under SU(3), 1 under SU(2), Y=1/6
-            LieGroupRepresentation { group: su3.clone(), dimension: 3, charge: None, is_conjugate: false, dynkin_labels: vec![1,0], label: "3".into() },
-            LieGroupRepresentation { group: su2.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0], label: "1".into() },
-            LieGroupRepresentation { group: u1y.clone(), dimension: 1, charge: Some(1.0/6.0), is_conjugate: false, dynkin_labels: vec![], label: "1/6".into() },
+            LieGroupRepresentation {
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![1, 0],
+                label: "3".into(),
+            },
+            LieGroupRepresentation {
+                group: su2.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: u1y.clone(),
+                dimension: 1,
+                charge: Some(1.0 / 6.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "1/6".into(),
+            },
             // Antiquark: 3̄ under SU(3), 1 under SU(2), Y=-1/6
-            LieGroupRepresentation { group: su3.clone(), dimension: 3, charge: None, is_conjugate: true, dynkin_labels: vec![0,1], label: "3̄".into() },
-            LieGroupRepresentation { group: su2.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0], label: "1".into() },
-            LieGroupRepresentation { group: u1y.clone(), dimension: 1, charge: Some(-1.0/6.0), is_conjugate: false, dynkin_labels: vec![], label: "-1/6".into() },
+            LieGroupRepresentation {
+                group: su3.clone(),
+                dimension: 3,
+                charge: None,
+                is_conjugate: true,
+                dynkin_labels: vec![0, 1],
+                label: "3̄".into(),
+            },
+            LieGroupRepresentation {
+                group: su2.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: u1y.clone(),
+                dimension: 1,
+                charge: Some(-1.0 / 6.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "-1/6".into(),
+            },
         ];
         let final_state = vec![
             // Lepton: 1 under SU(3), 1 under SU(2), Y=-1/2
-            LieGroupRepresentation { group: su3.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0,0], label: "1".into() },
-            LieGroupRepresentation { group: su2.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0], label: "1".into() },
-            LieGroupRepresentation { group: u1y.clone(), dimension: 1, charge: Some(-1.0/2.0), is_conjugate: false, dynkin_labels: vec![], label: "-1/2".into() },
+            LieGroupRepresentation {
+                group: su3.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0, 0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: su2.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: u1y.clone(),
+                dimension: 1,
+                charge: Some(-1.0 / 2.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "-1/2".into(),
+            },
             // Antilepton: 1 under SU(3), 1 under SU(2), Y=+1/2
-            LieGroupRepresentation { group: su3.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0,0], label: "1".into() },
-            LieGroupRepresentation { group: su2.clone(), dimension: 1, charge: None, is_conjugate: false, dynkin_labels: vec![0], label: "1".into() },
-            LieGroupRepresentation { group: u1y.clone(), dimension: 1, charge: Some(1.0/2.0), is_conjugate: false, dynkin_labels: vec![], label: "1/2".into() },
+            LieGroupRepresentation {
+                group: su3.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0, 0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: su2.clone(),
+                dimension: 1,
+                charge: None,
+                is_conjugate: false,
+                dynkin_labels: vec![0],
+                label: "1".into(),
+            },
+            LieGroupRepresentation {
+                group: u1y.clone(),
+                dimension: 1,
+                charge: Some(1.0 / 2.0),
+                is_conjugate: false,
+                dynkin_labels: vec![],
+                label: "1/2".into(),
+            },
         ];
 
         let result = validate_generalized_conservation(&sm, &initial, &final_state).unwrap();
@@ -1357,12 +1668,22 @@ mod tests {
     fn generalized_conservation_u1_violation() {
         let dark = GaugeSymmetry::dark_u1();
         let u1 = LieGroup::U1 { label: "'".into() };
-        let initial = vec![
-            LieGroupRepresentation { group: u1.clone(), dimension: 1, charge: Some(1.0), is_conjugate: false, dynkin_labels: vec![], label: "1".into() },
-        ];
-        let final_state = vec![
-            LieGroupRepresentation { group: u1.clone(), dimension: 1, charge: Some(2.0), is_conjugate: false, dynkin_labels: vec![], label: "2".into() },
-        ];
+        let initial = vec![LieGroupRepresentation {
+            group: u1.clone(),
+            dimension: 1,
+            charge: Some(1.0),
+            is_conjugate: false,
+            dynkin_labels: vec![],
+            label: "1".into(),
+        }];
+        let final_state = vec![LieGroupRepresentation {
+            group: u1.clone(),
+            dimension: 1,
+            charge: Some(2.0),
+            is_conjugate: false,
+            dynkin_labels: vec![],
+            label: "2".into(),
+        }];
         let result = validate_generalized_conservation(&dark, &initial, &final_state).unwrap();
         assert!(!result.is_valid);
         assert_eq!(result.violations.len(), 1);
@@ -1374,7 +1695,10 @@ mod tests {
     #[test]
     fn lie_group_representation_serde_roundtrip() {
         let rep = LieGroupRepresentation {
-            group: LieGroup::SU { n: 3, label: "C".into() },
+            group: LieGroup::SU {
+                n: 3,
+                label: "C".into(),
+            },
             dimension: 3,
             charge: None,
             is_conjugate: false,
@@ -1398,8 +1722,14 @@ mod tests {
     fn lie_group_serde_roundtrip() {
         let groups = vec![
             LieGroup::U1 { label: "Y".into() },
-            LieGroup::SU { n: 5, label: "GUT".into() },
-            LieGroup::SO { n: 10, label: "GUT".into() },
+            LieGroup::SU {
+                n: 5,
+                label: "GUT".into(),
+            },
+            LieGroup::SO {
+                n: 10,
+                label: "GUT".into(),
+            },
         ];
         for g in &groups {
             let json = serde_json::to_string(g).unwrap();
@@ -1410,7 +1740,9 @@ mod tests {
 
     #[test]
     fn empty_representations_trivially_valid() {
-        let u1 = LieGroup::U1 { label: "test".into() };
+        let u1 = LieGroup::U1 {
+            label: "test".into(),
+        };
         assert!(validate_gauge_invariance(&u1, &[]).unwrap());
     }
 }

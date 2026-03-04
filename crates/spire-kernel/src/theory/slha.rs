@@ -170,12 +170,14 @@ pub fn parse_slha(input: &str) -> SpireResult<SlhaDocument> {
             // Optional scale Q=<value>
             let scale = parse_block_scale(rest);
 
-            blocks.entry(block_name.clone()).or_insert_with(|| SlhaBlock {
-                name: block_name.clone(),
-                scale,
-                entries: HashMap::new(),
-                comments: HashMap::new(),
-            });
+            blocks
+                .entry(block_name.clone())
+                .or_insert_with(|| SlhaBlock {
+                    name: block_name.clone(),
+                    scale,
+                    entries: HashMap::new(),
+                    comments: HashMap::new(),
+                });
 
             context = ParseContext::Block(block_name);
             continue;
@@ -186,25 +188,19 @@ pub fn parse_slha(input: &str) -> SpireResult<SlhaDocument> {
             let rest = line[5..].trim();
             let mut parts = rest.split_whitespace();
 
-            let pdg_id: i32 = parts
-                .next()
-                .and_then(|s| s.parse().ok())
-                .ok_or_else(|| {
-                    SpireError::ModelParseError(format!(
-                        "Line {}: DECAY without valid PDG ID",
-                        line_num + 1
-                    ))
-                })?;
+            let pdg_id: i32 = parts.next().and_then(|s| s.parse().ok()).ok_or_else(|| {
+                SpireError::ModelParseError(format!(
+                    "Line {}: DECAY without valid PDG ID",
+                    line_num + 1
+                ))
+            })?;
 
-            let width: f64 = parts
-                .next()
-                .and_then(|s| s.parse().ok())
-                .ok_or_else(|| {
-                    SpireError::ModelParseError(format!(
-                        "Line {}: DECAY without valid width",
-                        line_num + 1
-                    ))
-                })?;
+            let width: f64 = parts.next().and_then(|s| s.parse().ok()).ok_or_else(|| {
+                SpireError::ModelParseError(format!(
+                    "Line {}: DECAY without valid width",
+                    line_num + 1
+                ))
+            })?;
 
             decays.entry(pdg_id).or_insert_with(|| SlhaDecay {
                 pdg_id,
@@ -489,7 +485,9 @@ pub fn merge_slha_into_model(
                 if let Some(field_id) = pdg_map.get(&pdg_id) {
                     if let Some(field) = merged.fields.iter_mut().find(|f| &f.id == field_id) {
                         field.mass = mass.abs(); // SLHA masses can be negative (sign = CP phase)
-                        summary.masses_updated.push((pdg_id, field_id.clone(), mass));
+                        summary
+                            .masses_updated
+                            .push((pdg_id, field_id.clone(), mass));
                     } else {
                         summary.unmatched_pdg_ids.push(pdg_id);
                     }

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! # Proptest Strategies — Reusable Generators for Physics Types
 //!
 //! This module defines `proptest` strategies for generating random instances
@@ -46,16 +47,14 @@ pub fn arbitrary_cms_energy(m_a: f64, m_b: f64) -> impl Strategy<Value = f64> {
 /// The spatial direction is uniform on the sphere and the 3-momentum
 /// magnitude is drawn from $[0.01, 1000]$ GeV.
 pub fn arbitrary_four_momentum(m: f64) -> impl Strategy<Value = FourMomentum> {
-    (0.01_f64..1000.0, -1.0_f64..1.0, 0.0_f64..2.0 * PI).prop_map(
-        move |(p_mag, cos_theta, phi)| {
-            let sin_theta = (1.0 - cos_theta * cos_theta).max(0.0).sqrt();
-            let px = p_mag * sin_theta * phi.cos();
-            let py = p_mag * sin_theta * phi.sin();
-            let pz = p_mag * cos_theta;
-            let e = (p_mag * p_mag + m * m).sqrt();
-            FourMomentum::new(e, px, py, pz)
-        },
-    )
+    (0.01_f64..1000.0, -1.0_f64..1.0, 0.0_f64..2.0 * PI).prop_map(move |(p_mag, cos_theta, phi)| {
+        let sin_theta = (1.0 - cos_theta * cos_theta).max(0.0).sqrt();
+        let px = p_mag * sin_theta * phi.cos();
+        let py = p_mag * sin_theta * phi.sin();
+        let pz = p_mag * cos_theta;
+        let e = (p_mag * p_mag + m * m).sqrt();
+        FourMomentum::new(e, px, py, pz)
+    })
 }
 
 /// Generate an on-shell `SpacetimeVector` (4D) with mass `m`.
@@ -100,8 +99,7 @@ pub fn arbitrary_boost() -> impl Strategy<Value = LorentzBoost> {
 
 /// Generate a complex number with bounded real and imaginary parts.
 pub fn arbitrary_complex() -> impl Strategy<Value = Complex> {
-    (-1000.0_f64..=1000.0, -1000.0_f64..=1000.0)
-        .prop_map(|(re, im)| Complex::new(re, im))
+    (-1000.0_f64..=1000.0, -1000.0_f64..=1000.0).prop_map(|(re, im)| Complex::new(re, im))
 }
 
 /// Generate a non-zero complex number (for division tests).
@@ -118,18 +116,14 @@ pub fn arbitrary_nonzero_complex() -> impl Strategy<Value = Complex> {
 /// Length is in $[2, 8]$ (even), indices in $[0, 3]$.
 pub fn arbitrary_even_gamma_indices() -> impl Strategy<Value = Vec<u8>> {
     // Pick an even length, then fill with random indices.
-    (1_usize..=4).prop_flat_map(|half_len| {
-        proptest::collection::vec(0_u8..4, half_len * 2)
-    })
+    (1_usize..=4).prop_flat_map(|half_len| proptest::collection::vec(0_u8..4, half_len * 2))
 }
 
 /// Generate an odd-length sequence of gamma matrix Lorentz indices.
 ///
 /// Length is in $[1, 7]$ (odd), indices in $[0, 3]$.
 pub fn arbitrary_odd_gamma_indices() -> impl Strategy<Value = Vec<u8>> {
-    (0_usize..=3).prop_flat_map(|half_len| {
-        proptest::collection::vec(0_u8..4, half_len * 2 + 1)
-    })
+    (0_usize..=3).prop_flat_map(|half_len| proptest::collection::vec(0_u8..4, half_len * 2 + 1))
 }
 
 // ---------------------------------------------------------------------------

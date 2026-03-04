@@ -135,10 +135,7 @@ pub fn apply_field_renormalization(
                     name: dz_name.clone(),
                     value: None,
                 };
-                let delta_times_field = LagrangianExpr::Product(vec![
-                    delta_z,
-                    original.clone(),
-                ]);
+                let delta_times_field = LagrangianExpr::Product(vec![delta_z, original.clone()]);
                 let half_delta_field = LagrangianExpr::Scaled {
                     factor: 0.5,
                     inner: Box::new(delta_times_field),
@@ -188,14 +185,12 @@ pub fn apply_field_renormalization(
             }
         }
 
-        LagrangianExpr::Sum(terms) => {
-            LagrangianExpr::Sum(
-                terms
-                    .iter()
-                    .map(|t| apply_field_renormalization(t, field_renorm))
-                    .collect(),
-            )
-        }
+        LagrangianExpr::Sum(terms) => LagrangianExpr::Sum(
+            terms
+                .iter()
+                .map(|t| apply_field_renormalization(t, field_renorm))
+                .collect(),
+        ),
 
         _ => expr.clone(),
     }
@@ -223,30 +218,24 @@ pub fn apply_coupling_renormalization(
             }
         }
 
-        LagrangianExpr::Product(factors) => {
-            LagrangianExpr::Product(
-                factors
-                    .iter()
-                    .map(|f| apply_coupling_renormalization(f, coupling_renorm))
-                    .collect(),
-            )
-        }
+        LagrangianExpr::Product(factors) => LagrangianExpr::Product(
+            factors
+                .iter()
+                .map(|f| apply_coupling_renormalization(f, coupling_renorm))
+                .collect(),
+        ),
 
-        LagrangianExpr::Sum(terms) => {
-            LagrangianExpr::Sum(
-                terms
-                    .iter()
-                    .map(|t| apply_coupling_renormalization(t, coupling_renorm))
-                    .collect(),
-            )
-        }
+        LagrangianExpr::Sum(terms) => LagrangianExpr::Sum(
+            terms
+                .iter()
+                .map(|t| apply_coupling_renormalization(t, coupling_renorm))
+                .collect(),
+        ),
 
-        LagrangianExpr::Scaled { factor, inner } => {
-            LagrangianExpr::Scaled {
-                factor: *factor,
-                inner: Box::new(apply_coupling_renormalization(inner, coupling_renorm)),
-            }
-        }
+        LagrangianExpr::Scaled { factor, inner } => LagrangianExpr::Scaled {
+            factor: *factor,
+            inner: Box::new(apply_coupling_renormalization(inner, coupling_renorm)),
+        },
 
         _ => expr.clone(),
     }
@@ -258,9 +247,7 @@ pub fn apply_coupling_renormalization(
 /// Returns `None` for expressions that were not shifted.
 fn extract_delta_part(expr: &LagrangianExpr) -> Option<LagrangianExpr> {
     match expr {
-        LagrangianExpr::Sum(terms) if terms.len() == 2 => {
-            Some(terms[1].clone())
-        }
+        LagrangianExpr::Sum(terms) if terms.len() == 2 => Some(terms[1].clone()),
         _ => None,
     }
 }
@@ -291,10 +278,7 @@ pub fn extract_counterterms(
             // ½ δZ × tree_level  =  Scaled(0.5, Product([δZ, tree_level]))
             let half_dz_tree = LagrangianExpr::Scaled {
                 factor: 0.5,
-                inner: Box::new(LagrangianExpr::Product(vec![
-                    delta_z,
-                    tree_level.clone(),
-                ])),
+                inner: Box::new(LagrangianExpr::Product(vec![delta_z, tree_level.clone()])),
             };
 
             counterterms.push(CountertermEntry {
@@ -372,28 +356,26 @@ fn replace_coupling_with_delta(
                 value: None,
             }
         }
-        LagrangianExpr::Product(factors) => {
-            LagrangianExpr::Product(
-                factors
-                    .iter()
-                    .map(|f| replace_coupling_with_delta(f, coupling_name, delta_name))
-                    .collect(),
-            )
-        }
-        LagrangianExpr::Sum(terms) => {
-            LagrangianExpr::Sum(
-                terms
-                    .iter()
-                    .map(|t| replace_coupling_with_delta(t, coupling_name, delta_name))
-                    .collect(),
-            )
-        }
-        LagrangianExpr::Scaled { factor, inner } => {
-            LagrangianExpr::Scaled {
-                factor: *factor,
-                inner: Box::new(replace_coupling_with_delta(inner, coupling_name, delta_name)),
-            }
-        }
+        LagrangianExpr::Product(factors) => LagrangianExpr::Product(
+            factors
+                .iter()
+                .map(|f| replace_coupling_with_delta(f, coupling_name, delta_name))
+                .collect(),
+        ),
+        LagrangianExpr::Sum(terms) => LagrangianExpr::Sum(
+            terms
+                .iter()
+                .map(|t| replace_coupling_with_delta(t, coupling_name, delta_name))
+                .collect(),
+        ),
+        LagrangianExpr::Scaled { factor, inner } => LagrangianExpr::Scaled {
+            factor: *factor,
+            inner: Box::new(replace_coupling_with_delta(
+                inner,
+                coupling_name,
+                delta_name,
+            )),
+        },
         _ => expr.clone(),
     }
 }
@@ -602,7 +584,7 @@ fn build_scheme_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theory::ast::{FieldSpin, IndexSlot, IndexKind, IndexPosition};
+    use crate::theory::ast::{FieldSpin, IndexKind, IndexPosition, IndexSlot};
 
     /// Build a simple QED vertex term: e * ψ̄ * γ^μ * ψ * A_μ
     fn qed_vertex_expr() -> LagrangianExpr {
@@ -715,7 +697,11 @@ mod tests {
         // - ½δZ_A (field strength for A)
         // - ½δZ_psi (field strength for ψ)
         // - δe (coupling)
-        assert!(cts.len() >= 3, "Expected at least 3 counterterms, got {}", cts.len());
+        assert!(
+            cts.len() >= 3,
+            "Expected at least 3 counterterms, got {}",
+            cts.len()
+        );
 
         let delta_params: Vec<&str> = cts
             .iter()
@@ -736,21 +722,23 @@ mod tests {
             coupling_renorm: HashMap::new(),
             mass_renorm: HashMap::new(),
         };
-        scheme
-            .field_renorm
-            .insert("psi".into(), "dZ_psi".into());
-        scheme
-            .mass_renorm
-            .insert("psi".into(), "dm_e".into());
+        scheme.field_renorm.insert("psi".into(), "dZ_psi".into());
+        scheme.mass_renorm.insert("psi".into(), "dm_e".into());
         scheme
             .coupling_renorm
             .insert("m_e".into(), "dm_e_coupling".into());
 
         let cts = extract_counterterms(&expr, &scheme);
 
-        assert!(cts.len() >= 2, "Expected at least 2 counterterms, got {}", cts.len());
+        assert!(
+            cts.len() >= 2,
+            "Expected at least 2 counterterms, got {}",
+            cts.len()
+        );
 
-        let has_mass_ct = cts.iter().any(|ct| ct.delta_parameters.contains(&"dm_e".to_string()));
+        let has_mass_ct = cts
+            .iter()
+            .any(|ct| ct.delta_parameters.contains(&"dm_e".to_string()));
         assert!(has_mass_ct, "Should contain mass counterterm");
     }
 
@@ -811,7 +799,10 @@ mod tests {
     #[test]
     fn replace_coupling_with_delta_works() {
         let expr = LagrangianExpr::Product(vec![
-            LagrangianExpr::CouplingConstant { name: "g".into(), value: None },
+            LagrangianExpr::CouplingConstant {
+                name: "g".into(),
+                value: None,
+            },
             LagrangianExpr::FieldOp {
                 field_id: "phi".into(),
                 spin: FieldSpin::Scalar,
@@ -824,12 +815,10 @@ mod tests {
         let replaced = replace_coupling_with_delta(&expr, "g", "dg");
 
         match &replaced {
-            LagrangianExpr::Product(factors) => {
-                match &factors[0] {
-                    LagrangianExpr::CouplingConstant { name, .. } => assert_eq!(name, "dg"),
-                    _ => panic!("Expected replaced coupling"),
-                }
-            }
+            LagrangianExpr::Product(factors) => match &factors[0] {
+                LagrangianExpr::CouplingConstant { name, .. } => assert_eq!(name, "dg"),
+                _ => panic!("Expected replaced coupling"),
+            },
             _ => panic!("Expected Product"),
         }
     }
@@ -840,9 +829,18 @@ mod tests {
         let scheme = build_default_scheme(&expr);
 
         let external = vec![
-            ExternalField { field_id: "psi".into(), is_adjoint: true },
-            ExternalField { field_id: "psi".into(), is_adjoint: false },
-            ExternalField { field_id: "A".into(), is_adjoint: false },
+            ExternalField {
+                field_id: "psi".into(),
+                is_adjoint: true,
+            },
+            ExternalField {
+                field_id: "psi".into(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "A".into(),
+                is_adjoint: false,
+            },
         ];
 
         let result = generate_counterterms(&expr, &scheme, &external).unwrap();
@@ -850,11 +848,8 @@ mod tests {
         assert!(!result.counterterms.is_empty());
         assert!(!result.renorm_constants.is_empty());
 
-        let kinds: Vec<CountertermKind> = result
-            .renorm_constants
-            .iter()
-            .map(|rc| rc.kind)
-            .collect();
+        let kinds: Vec<CountertermKind> =
+            result.renorm_constants.iter().map(|rc| rc.kind).collect();
         assert!(kinds.contains(&CountertermKind::FieldStrength));
         assert!(kinds.contains(&CountertermKind::Coupling));
     }

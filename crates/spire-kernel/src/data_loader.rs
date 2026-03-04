@@ -273,7 +273,11 @@ pub fn build_model(
                      Defined particle IDs: [{}]",
                     raw_vertex.id,
                     fid,
-                    fields.iter().map(|f| f.id.as_str()).collect::<Vec<_>>().join(", ")
+                    fields
+                        .iter()
+                        .map(|f| f.id.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )));
             }
         }
@@ -370,14 +374,18 @@ pub struct ModelConfigFile {
 /// * `toml_str` — Raw TOML string that may contain a `[spacetime]` table.
 pub fn parse_spacetime_config(
     toml_str: &str,
-) -> SpireResult<(crate::algebra::SpacetimeConfig, crate::ontology::PhysicalConstants)> {
-    use crate::algebra::{FlatMetric, MetricSign, MetricSignature, SpacetimeConfig, SpacetimeDimension};
+) -> SpireResult<(
+    crate::algebra::SpacetimeConfig,
+    crate::ontology::PhysicalConstants,
+)> {
+    use crate::algebra::{
+        FlatMetric, MetricSign, MetricSignature, SpacetimeConfig, SpacetimeDimension,
+    };
     use crate::ontology::PhysicalConstants;
 
     // Try parsing the TOML — if it fails or has no [spacetime], use defaults.
-    let config: ModelConfigFile = toml::from_str(toml_str).unwrap_or(ModelConfigFile {
-        spacetime: None,
-    });
+    let config: ModelConfigFile =
+        toml::from_str(toml_str).unwrap_or(ModelConfigFile { spacetime: None });
 
     let raw = match config.spacetime {
         Some(r) => r,
@@ -418,10 +426,8 @@ pub fn parse_spacetime_config(
     };
 
     let dim_val = signature.dimension() as u32;
-    let spacetime_config = SpacetimeConfig::custom(
-        FlatMetric { signature },
-        SpacetimeDimension::Fixed(dim_val),
-    );
+    let spacetime_config =
+        SpacetimeConfig::custom(FlatMetric { signature }, SpacetimeDimension::Fixed(dim_val));
 
     // Build physical constants
     let defaults = PhysicalConstants::default();
@@ -432,7 +438,9 @@ pub fn parse_spacetime_config(
             gravitational_constant: raw_c
                 .gravitational_constant
                 .unwrap_or(defaults.gravitational_constant),
-            boltzmann_constant: raw_c.boltzmann_constant.unwrap_or(defaults.boltzmann_constant),
+            boltzmann_constant: raw_c
+                .boltzmann_constant
+                .unwrap_or(defaults.boltzmann_constant),
         }
     } else {
         defaults
@@ -597,7 +605,10 @@ fn legacy_sm_to_representations(
     let mut reps = Vec::new();
 
     // SU(3)_C representation.
-    let su3 = LieGroup::SU { n: 3, label: "C".into() };
+    let su3 = LieGroup::SU {
+        n: 3,
+        label: "C".into(),
+    };
     match color {
         ColorRepresentation::Triplet => reps.push(LieGroupRepresentation {
             group: su3,
@@ -634,7 +645,10 @@ fn legacy_sm_to_representations(
     }
 
     // SU(2)_L representation.
-    let su2 = LieGroup::SU { n: 2, label: "L".into() };
+    let su2 = LieGroup::SU {
+        n: 2,
+        label: "L".into(),
+    };
     match weak_multiplet {
         WeakMultiplet::DoubletUp | WeakMultiplet::DoubletDown => {
             reps.push(LieGroupRepresentation {
@@ -787,9 +801,15 @@ n_legs            = 3
         assert_eq!(field.quantum_numbers.lepton_numbers.muon, 0);
         assert_eq!(field.quantum_numbers.lepton_numbers.tau, 0);
         assert_eq!(field.quantum_numbers.parity, Parity::Even);
-        assert_eq!(field.quantum_numbers.charge_conjugation, ChargeConjugation::Undefined);
+        assert_eq!(
+            field.quantum_numbers.charge_conjugation,
+            ChargeConjugation::Undefined
+        );
         assert_eq!(field.quantum_numbers.color, ColorRepresentation::Singlet);
-        assert_eq!(field.quantum_numbers.weak_multiplet, WeakMultiplet::DoubletDown);
+        assert_eq!(
+            field.quantum_numbers.weak_multiplet,
+            WeakMultiplet::DoubletDown
+        );
         assert_eq!(field.interactions.len(), 3);
         assert_eq!(field.interactions[0], InteractionType::Electromagnetic);
     }
@@ -861,7 +881,10 @@ n_legs            = 3
 "#;
 
         let result = build_model(SAMPLE_PARTICLES_TOML, dangling_vertices, "Bad Model");
-        assert!(result.is_err(), "Should reject vertex referencing undefined particle");
+        assert!(
+            result.is_err(),
+            "Should reject vertex referencing undefined particle"
+        );
         if let Err(SpireError::ModelParseError(msg)) = result {
             assert!(
                 msg.contains("graviton"),
@@ -896,7 +919,10 @@ n_legs            = 3
 "#;
 
         let result = build_model(SAMPLE_PARTICLES_TOML, valid_vertices, "Valid Model");
-        assert!(result.is_ok(), "Should accept vertex with all defined particles");
+        assert!(
+            result.is_ok(),
+            "Should accept vertex with all defined particles"
+        );
     }
 
     // --- EFT / ContactInteraction tests ---
@@ -968,7 +994,10 @@ operator_dimension = 6
         assert_eq!(model.name, "EFT Test");
         assert_eq!(model.fields.len(), 2);
         assert_eq!(model.terms.len(), 1);
-        assert_eq!(model.terms[0].term_kind, LagrangianTermKind::ContactInteraction);
+        assert_eq!(
+            model.terms[0].term_kind,
+            LagrangianTermKind::ContactInteraction
+        );
         assert_eq!(model.terms[0].operator_dimension, Some(6));
         assert_eq!(model.vertex_factors.len(), 1);
         assert_eq!(model.vertex_factors[0].n_legs, 4);
@@ -983,10 +1012,7 @@ operator_dimension = 6
         // No [spacetime] table → standard 4D Minkowski + natural units
         let (st, c) = parse_spacetime_config("").unwrap();
         assert_eq!(st.dimension(), 4);
-        assert_eq!(
-            st.metric.signature.display_signature(),
-            "(+,-,-,-)"
-        );
+        assert_eq!(st.metric.signature.display_signature(), "(+,-,-,-)");
         assert_eq!(c.speed_of_light, 1.0);
         assert_eq!(c.hbar, 1.0);
     }
@@ -1011,10 +1037,7 @@ metric_signature = ["+", "+", "-", "-"]
 "#;
         let (st, _) = parse_spacetime_config(toml).unwrap();
         assert_eq!(st.dimension(), 4);
-        assert_eq!(
-            st.metric.signature.display_signature(),
-            "(+,+,-,-)"
-        );
+        assert_eq!(st.metric.signature.display_signature(), "(+,+,-,-)");
     }
 
     #[test]

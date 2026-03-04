@@ -535,9 +535,21 @@ pub fn reconstruct_event(
     });
 
     // --- Sort all collections by descending pT ---
-    electrons.sort_by(|a, b| compute_pt(b).partial_cmp(&compute_pt(a)).unwrap_or(std::cmp::Ordering::Equal));
-    muons.sort_by(|a, b| compute_pt(b).partial_cmp(&compute_pt(a)).unwrap_or(std::cmp::Ordering::Equal));
-    photons.sort_by(|a, b| compute_pt(b).partial_cmp(&compute_pt(a)).unwrap_or(std::cmp::Ordering::Equal));
+    electrons.sort_by(|a, b| {
+        compute_pt(b)
+            .partial_cmp(&compute_pt(a))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    muons.sort_by(|a, b| {
+        compute_pt(b)
+            .partial_cmp(&compute_pt(a))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    photons.sort_by(|a, b| {
+        compute_pt(b)
+            .partial_cmp(&compute_pt(a))
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     // Jets already sorted by cluster_jets.
 
     // --- MET Computation ---
@@ -614,7 +626,7 @@ mod tests {
     fn invisible_particles_create_met() {
         let event = PhaseSpacePoint {
             momenta: vec![
-                SpacetimeVector::new_4d(50.0, 30.0, 40.0, 0.0),  // visible
+                SpacetimeVector::new_4d(50.0, 30.0, 40.0, 0.0), // visible
                 SpacetimeVector::new_4d(50.0, -30.0, -40.0, 0.0), // invisible (neutrino)
             ],
             weight: 1.0,
@@ -642,7 +654,11 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(42);
 
         let reco = reconstruct_event(&event, &kinds, &detector, &mut rng);
-        assert_eq!(reco.electrons.len(), 0, "Zero efficiency should drop all electrons");
+        assert_eq!(
+            reco.electrons.len(),
+            0,
+            "Zero efficiency should drop all electrons"
+        );
     }
 
     #[test]
@@ -699,7 +715,7 @@ mod tests {
 
         let event = PhaseSpacePoint {
             momenta: vec![
-                SpacetimeVector::new_4d(100.0, 50.0, 0.0, 0.0),  // η = 0 → passes
+                SpacetimeVector::new_4d(100.0, 50.0, 0.0, 0.0), // η = 0 → passes
                 SpacetimeVector::new_4d(100.0, 1.0, 0.0, 99.99), // η ≈ 5.3 → fails
             ],
             weight: 1.0,
@@ -749,15 +765,21 @@ mod tests {
             mean_e
         );
         // Variance should be non-zero (smearing is happening).
-        let variance: f64 = energies.iter().map(|e| (e - mean_e).powi(2)).sum::<f64>()
-            / energies.len() as f64;
-        assert!(variance > 0.01, "Smearing should produce energy fluctuations");
+        let variance: f64 =
+            energies.iter().map(|e| (e - mean_e).powi(2)).sum::<f64>() / energies.len() as f64;
+        assert!(
+            variance > 0.01,
+            "Smearing should produce energy fluctuations"
+        );
     }
 
     #[test]
     fn resolution_profile_sigma() {
         // LHC hadronic: a=0.5, b=0.03.
-        let res = ResolutionProfile { stochastic: 0.5, constant: 0.03 };
+        let res = ResolutionProfile {
+            stochastic: 0.5,
+            constant: 0.03,
+        };
         // At 100 GeV: σ/E = sqrt(0.25/100 + 0.0009) = sqrt(0.0025 + 0.0009) = sqrt(0.0034)
         let sigma = res.sigma_over_e(100.0);
         let expected = (0.25 / 100.0 + 0.0009_f64).sqrt();
@@ -862,10 +884,10 @@ mod tests {
         // e + ν + q + q̄ (like a W → eν event with hadronic recoil).
         let event = PhaseSpacePoint {
             momenta: vec![
-                SpacetimeVector::new_4d(50.0, 40.0, 30.0, 0.0),  // electron
+                SpacetimeVector::new_4d(50.0, 40.0, 30.0, 0.0), // electron
                 SpacetimeVector::new_4d(50.0, -40.0, -30.0, 0.0), // neutrino
-                SpacetimeVector::new_4d(50.0, 50.0, 0.0, 0.0),   // quark
-                SpacetimeVector::new_4d(50.0, -50.0, 0.0, 0.0),  // antiquark
+                SpacetimeVector::new_4d(50.0, 50.0, 0.0, 0.0),  // quark
+                SpacetimeVector::new_4d(50.0, -50.0, 0.0, 0.0), // antiquark
             ],
             weight: 1.0,
         };

@@ -128,7 +128,11 @@ fn sv_rapidity(v: &mut SpacetimeVector) -> f64 {
     let plus = e + pz;
     let minus = e - pz;
     if minus.abs() < 1e-300 || plus.abs() < 1e-300 {
-        return if pz >= 0.0 { f64::INFINITY } else { f64::NEG_INFINITY };
+        return if pz >= 0.0 {
+            f64::INFINITY
+        } else {
+            f64::NEG_INFINITY
+        };
     }
     0.5 * (plus / minus).abs().ln()
 }
@@ -235,17 +239,26 @@ fn reco_get_jets(reco: &mut ReconstructedEvent) -> Array {
 
 /// Get the electrons array from a ReconstructedEvent.
 fn reco_get_electrons(reco: &mut ReconstructedEvent) -> Array {
-    reco.electrons.iter().map(|v| Dynamic::from(v.clone())).collect()
+    reco.electrons
+        .iter()
+        .map(|v| Dynamic::from(v.clone()))
+        .collect()
 }
 
 /// Get the muons array from a ReconstructedEvent.
 fn reco_get_muons(reco: &mut ReconstructedEvent) -> Array {
-    reco.muons.iter().map(|v| Dynamic::from(v.clone())).collect()
+    reco.muons
+        .iter()
+        .map(|v| Dynamic::from(v.clone()))
+        .collect()
 }
 
 /// Get the photons array from a ReconstructedEvent.
 fn reco_get_photons(reco: &mut ReconstructedEvent) -> Array {
-    reco.photons.iter().map(|v| Dynamic::from(v.clone())).collect()
+    reco.photons
+        .iter()
+        .map(|v| Dynamic::from(v.clone()))
+        .collect()
 }
 
 /// Get the MET 4-vector from a ReconstructedEvent.
@@ -498,13 +511,16 @@ impl Observable for RhaiObservable {
         scope.push("event", event.clone());
         self.engine
             .eval_ast_with_scope::<Dynamic>(&mut scope, &self.ast)
-            .and_then(|v| v.as_float().map_err(|_t| {
-                rhai::EvalAltResult::ErrorMismatchOutputType(
-                    "f64".into(),
-                    "non-numeric".into(),
-                    rhai::Position::NONE,
-                ).into()
-            }))
+            .and_then(|v| {
+                v.as_float().map_err(|_t| {
+                    rhai::EvalAltResult::ErrorMismatchOutputType(
+                        "f64".into(),
+                        "non-numeric".into(),
+                        rhai::Position::NONE,
+                    )
+                    .into()
+                })
+            })
             .unwrap_or(f64::NAN)
     }
 
@@ -594,13 +610,16 @@ impl CompiledFormFactor {
         scope.push("q2", q2);
         self.engine
             .eval_ast_with_scope::<Dynamic>(&mut scope, &self.ast)
-            .and_then(|v| v.as_float().map_err(|_t| {
-                rhai::EvalAltResult::ErrorMismatchOutputType(
-                    "f64".into(),
-                    "non-numeric".into(),
-                    rhai::Position::NONE,
-                ).into()
-            }))
+            .and_then(|v| {
+                v.as_float().map_err(|_t| {
+                    rhai::EvalAltResult::ErrorMismatchOutputType(
+                        "f64".into(),
+                        "non-numeric".into(),
+                        rhai::Position::NONE,
+                    )
+                    .into()
+                })
+            })
             .unwrap_or(1.0)
     }
 }
@@ -740,9 +759,7 @@ mod tests {
     #[test]
     fn observable_energy() {
         let engine = SpireScriptEngine::new();
-        let obs = engine
-            .compile_observable("event.momenta[2].e()")
-            .unwrap();
+        let obs = engine.compile_observable("event.momenta[2].e()").unwrap();
         let event = sample_event();
         let val = obs.evaluate(&event);
         assert!((val - 100.0).abs() < 1e-10);
@@ -751,9 +768,7 @@ mod tests {
     #[test]
     fn observable_transverse_momentum() {
         let engine = SpireScriptEngine::new();
-        let obs = engine
-            .compile_observable("event.momenta[2].pt()")
-            .unwrap();
+        let obs = engine.compile_observable("event.momenta[2].pt()").unwrap();
         let event = sample_event();
         // pt = sqrt(30^2 + 40^2) = 50
         let val = obs.evaluate(&event);
@@ -782,9 +797,7 @@ mod tests {
     #[test]
     fn observable_pseudorapidity() {
         let engine = SpireScriptEngine::new();
-        let obs = engine
-            .compile_observable("event.momenta[0].eta()")
-            .unwrap();
+        let obs = engine.compile_observable("event.momenta[0].eta()").unwrap();
         let event = sample_event();
         // Particle 0: (100, 0, 0, 100) → massless along +z, eta → +∞
         let val = obs.evaluate(&event);
@@ -794,9 +807,7 @@ mod tests {
     #[test]
     fn observable_phi() {
         let engine = SpireScriptEngine::new();
-        let obs = engine
-            .compile_observable("event.momenta[2].phi()")
-            .unwrap();
+        let obs = engine.compile_observable("event.momenta[2].phi()").unwrap();
         let event = sample_event();
         // Particle 2: px=30, py=40 → phi = atan2(40, 30) ≈ 0.927 rad
         let val = obs.evaluate(&event);
@@ -819,9 +830,7 @@ mod tests {
     #[test]
     fn observable_weight() {
         let engine = SpireScriptEngine::new();
-        let obs = engine
-            .compile_observable("event.weight")
-            .unwrap();
+        let obs = engine.compile_observable("event.weight").unwrap();
         let event = sample_event();
         let val = obs.evaluate(&event);
         assert!((val - 1.0).abs() < 1e-10);
@@ -830,9 +839,7 @@ mod tests {
     #[test]
     fn cut_passes() {
         let engine = SpireScriptEngine::new();
-        let cut = engine
-            .compile_cut("event.momenta[2].pt() > 40.0")
-            .unwrap();
+        let cut = engine.compile_cut("event.momenta[2].pt() > 40.0").unwrap();
         let event = sample_event();
         // pt = 50, so 50 > 40 → true
         assert!(cut.is_passed(&event));
@@ -841,9 +848,7 @@ mod tests {
     #[test]
     fn cut_fails() {
         let engine = SpireScriptEngine::new();
-        let cut = engine
-            .compile_cut("event.momenta[2].pt() > 60.0")
-            .unwrap();
+        let cut = engine.compile_cut("event.momenta[2].pt() > 60.0").unwrap();
         let event = sample_event();
         // pt = 50, so 50 > 60 → false
         assert!(!cut.is_passed(&event));
@@ -938,9 +943,7 @@ mod tests {
     #[test]
     fn form_factor_exponential() {
         let engine = SpireScriptEngine::new();
-        let ff = engine
-            .compile_form_factor("(-q2 / 1.0).exp()")
-            .unwrap();
+        let ff = engine.compile_form_factor("(-q2 / 1.0).exp()").unwrap();
         // At q2 = 0: F = 1.0
         assert!((ff.evaluate(0.0) - 1.0).abs() < 1e-10);
         // At q2 = 1: F = e^{-1}
@@ -983,9 +986,8 @@ mod tests {
     fn observable_trait_object() {
         // Verify Observable is object-safe.
         let engine = SpireScriptEngine::new();
-        let obs: Box<dyn Observable> = Box::new(
-            engine.compile_observable("event.momenta[0].e()").unwrap(),
-        );
+        let obs: Box<dyn Observable> =
+            Box::new(engine.compile_observable("event.momenta[0].e()").unwrap());
         let event = sample_event();
         let val = obs.evaluate(&event);
         assert!((val - 100.0).abs() < 1e-10);
@@ -995,9 +997,7 @@ mod tests {
     fn cut_trait_object() {
         // Verify KinematicCut is object-safe.
         let engine = SpireScriptEngine::new();
-        let cut: Box<dyn KinematicCut> = Box::new(
-            engine.compile_cut("true").unwrap(),
-        );
+        let cut: Box<dyn KinematicCut> = Box::new(engine.compile_cut("true").unwrap());
         let event = sample_event();
         assert!(cut.is_passed(&event));
     }

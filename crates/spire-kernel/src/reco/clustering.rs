@@ -247,11 +247,7 @@ fn delta_r_sq(a: &PseudoJet, b: &PseudoJet) -> f64 {
 /// # Returns
 ///
 /// A vector of [`Jet`] objects sorted by descending transverse momentum.
-pub fn cluster_jets(
-    inputs: &[SpacetimeVector],
-    algorithm: JetAlgorithm,
-    radius: f64,
-) -> Vec<Jet> {
+pub fn cluster_jets(inputs: &[SpacetimeVector], algorithm: JetAlgorithm, radius: f64) -> Vec<Jet> {
     if inputs.is_empty() {
         return Vec::new();
     }
@@ -295,7 +291,11 @@ pub fn cluster_jets(
                 pt_i.powf(two_p)
             } else {
                 // Very soft particle: d_iB → ∞ for Anti-k_t (p=-1).
-                if p < 0.0 { f64::INFINITY } else { 0.0 }
+                if p < 0.0 {
+                    f64::INFINITY
+                } else {
+                    0.0
+                }
             };
 
             if d_ib < min_d {
@@ -311,7 +311,11 @@ pub fn cluster_jets(
             let kti_2p = if pt_i > 1e-300 {
                 pt_i.powf(two_p)
             } else {
-                if p < 0.0 { f64::INFINITY } else { 0.0 }
+                if p < 0.0 {
+                    f64::INFINITY
+                } else {
+                    0.0
+                }
             };
 
             for j in (i + 1)..n {
@@ -319,7 +323,11 @@ pub fn cluster_jets(
                 let ktj_2p = if pt_j > 1e-300 {
                     pt_j.powf(two_p)
                 } else {
-                    if p < 0.0 { f64::INFINITY } else { 0.0 }
+                    if p < 0.0 {
+                        f64::INFINITY
+                    } else {
+                        0.0
+                    }
                 };
 
                 let min_kt = kti_2p.min(ktj_2p);
@@ -355,7 +363,11 @@ pub fn cluster_jets(
     }
 
     // Sort jets by descending pT.
-    jets.sort_by(|a, b| b.pt().partial_cmp(&a.pt()).unwrap_or(std::cmp::Ordering::Equal));
+    jets.sort_by(|a, b| {
+        b.pt()
+            .partial_cmp(&a.pt())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     jets
 }
@@ -445,7 +457,11 @@ mod tests {
         let inputs = vec![p0, p1, p2];
 
         let jets = cluster_jets(&inputs, JetAlgorithm::AntiKt, 0.4);
-        assert_eq!(jets.len(), 2, "Should get 2 jets: merged(0,1) and isolated(2)");
+        assert_eq!(
+            jets.len(),
+            2,
+            "Should get 2 jets: merged(0,1) and isolated(2)"
+        );
 
         // Leading jet should be parton 2 (60 GeV) or merged(0+1, ~70 GeV).
         let total_01 = jets.iter().find(|j| j.n_constituents() == 2);
@@ -506,7 +522,7 @@ mod tests {
         // Two pairs of partons at opposite η: should get 2 jets.
         let inputs = vec![
             make_massless(50.0, 2.0, 0.0),
-            make_massless(30.0, 2.1, 0.05),  // close to parton 0
+            make_massless(30.0, 2.1, 0.05), // close to parton 0
             make_massless(40.0, -2.0, PI),
             make_massless(20.0, -1.9, PI - 0.05), // close to parton 2
         ];

@@ -162,12 +162,7 @@ impl<W: Write + Send> EventWriter for LheWriter<W> {
         writeln!(
             buf,
             " {} {} {:E} {:E} {:E} {:E}",
-            nup,
-            event.process_id,
-            event.weight,
-            event.scale,
-            event.alpha_qed,
-            event.alpha_qcd,
+            nup, event.process_id, event.weight, event.scale, event.alpha_qed, event.alpha_qcd,
         )?;
 
         // One line per particle.
@@ -495,10 +490,10 @@ mod tests {
         }
         let output = String::from_utf8(buf).unwrap();
         // Electron (11), positron (-11), muon (13), anti-muon (-13).
-        assert!(output.contains(" 11 -1"));   // electron, initial state
-        assert!(output.contains(" -11 -1"));  // positron, initial state
-        assert!(output.contains(" 13 1"));    // muon, final state
-        assert!(output.contains(" -13 1"));   // anti-muon, final state
+        assert!(output.contains(" 11 -1")); // electron, initial state
+        assert!(output.contains(" -11 -1")); // positron, initial state
+        assert!(output.contains(" 13 1")); // muon, final state
+        assert!(output.contains(" -13 1")); // anti-muon, final state
     }
 
     #[test]

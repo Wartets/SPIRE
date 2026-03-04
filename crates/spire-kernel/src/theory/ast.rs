@@ -126,18 +126,14 @@ pub enum LagrangianExpr {
     },
 
     /// A Dirac gamma matrix $\gamma^\mu$.
-    GammaMat {
-        index: IndexSlot,
-    },
+    GammaMat { index: IndexSlot },
 
     /// The chiral projection matrix $\gamma^5$.
     Gamma5,
 
     /// A partial derivative $\partial_\mu$ (position space) or
     /// $-i p_\mu$ (after Fourier transform to momentum space).
-    Derivative {
-        index: IndexSlot,
-    },
+    Derivative { index: IndexSlot },
 
     /// A covariant derivative $D_\mu = \partial_\mu - i g A_\mu^a T^a$.
     CovariantDerivative {
@@ -147,10 +143,7 @@ pub enum LagrangianExpr {
     },
 
     /// The Minkowski metric tensor $g^{\mu\nu}$ or $g_{\mu\nu}$.
-    Metric {
-        mu: IndexSlot,
-        nu: IndexSlot,
-    },
+    Metric { mu: IndexSlot, nu: IndexSlot },
 
     /// A field strength tensor $F_{\mu\nu}$ or $G_{\mu\nu}^a$.
     FieldStrength {
@@ -408,8 +401,10 @@ fn parse_token(
     }
 
     // Field strength tensor: F^{mu nu}, F_{mu nu}, G^{a,mu nu}
-    if (token.starts_with("F^{") || token.starts_with("F_{")
-        || token.starts_with("G^{") || token.starts_with("G_{"))
+    if (token.starts_with("F^{")
+        || token.starts_with("F_{")
+        || token.starts_with("G^{")
+        || token.starts_with("G_{"))
         && token.contains('{')
     {
         return parse_field_strength(token, known_fields);
@@ -438,8 +433,10 @@ fn parse_token(
     }
 
     // Partial derivative: d^mu, d_mu, partial^mu, partial_mu
-    if token.starts_with("d^") || token.starts_with("d_")
-        || token.starts_with("partial^") || token.starts_with("partial_")
+    if token.starts_with("d^")
+        || token.starts_with("d_")
+        || token.starts_with("partial^")
+        || token.starts_with("partial_")
     {
         let (prefix_len, pos) = if token.starts_with("partial^") {
             (8, IndexPosition::Upper)
@@ -480,10 +477,7 @@ fn parse_token(
     if token.ends_with("dagger") || token.ends_with("†") {
         let suffix_len = if token.ends_with("dagger") { 6 } else { 3 }; // "†" is 3 bytes in UTF-8
         let base = &token[..token.len() - suffix_len];
-        let spin = known_fields
-            .get(base)
-            .copied()
-            .unwrap_or(FieldSpin::Scalar);
+        let spin = known_fields.get(base).copied().unwrap_or(FieldSpin::Scalar);
         return Ok(LagrangianExpr::FieldOp {
             field_id: base.to_string(),
             spin,
@@ -499,7 +493,10 @@ fn parse_token(
         if let Some(&spin) = known_fields.get(base) {
             let idx_name = token[underscore_pos + 1..].trim().to_string();
             let mut lorentz_indices = Vec::new();
-            if spin == FieldSpin::Vector || spin == FieldSpin::ThreeHalf || spin == FieldSpin::Tensor2 {
+            if spin == FieldSpin::Vector
+                || spin == FieldSpin::ThreeHalf
+                || spin == FieldSpin::Tensor2
+            {
                 lorentz_indices.push(IndexSlot {
                     name: idx_name,
                     kind: IndexKind::Lorentz,
@@ -521,7 +518,10 @@ fn parse_token(
         if let Some(&spin) = known_fields.get(base) {
             let idx_name = token[caret_pos + 1..].trim().to_string();
             let mut lorentz_indices = Vec::new();
-            if spin == FieldSpin::Vector || spin == FieldSpin::ThreeHalf || spin == FieldSpin::Tensor2 {
+            if spin == FieldSpin::Vector
+                || spin == FieldSpin::ThreeHalf
+                || spin == FieldSpin::Tensor2
+            {
                 lorentz_indices.push(IndexSlot {
                     name: idx_name,
                     kind: IndexKind::Lorentz,
@@ -767,15 +767,25 @@ mod tests {
         if let LagrangianExpr::Product(factors) = &expr {
             assert_eq!(factors.len(), 5);
             // coupling
-            assert!(matches!(&factors[0], LagrangianExpr::CouplingConstant { name, .. } if name == "e"));
+            assert!(
+                matches!(&factors[0], LagrangianExpr::CouplingConstant { name, .. } if name == "e")
+            );
             // psi-bar
-            assert!(matches!(&factors[1], LagrangianExpr::FieldOp { field_id, is_adjoint: true, spin: FieldSpin::Fermion, .. } if field_id == "psi"));
+            assert!(
+                matches!(&factors[1], LagrangianExpr::FieldOp { field_id, is_adjoint: true, spin: FieldSpin::Fermion, .. } if field_id == "psi")
+            );
             // gamma^mu
-            assert!(matches!(&factors[2], LagrangianExpr::GammaMat { index } if index.name == "mu"));
+            assert!(
+                matches!(&factors[2], LagrangianExpr::GammaMat { index } if index.name == "mu")
+            );
             // psi
-            assert!(matches!(&factors[3], LagrangianExpr::FieldOp { field_id, is_adjoint: false, spin: FieldSpin::Fermion, .. } if field_id == "psi"));
+            assert!(
+                matches!(&factors[3], LagrangianExpr::FieldOp { field_id, is_adjoint: false, spin: FieldSpin::Fermion, .. } if field_id == "psi")
+            );
             // A_mu
-            assert!(matches!(&factors[4], LagrangianExpr::FieldOp { field_id, is_adjoint: false, spin: FieldSpin::Vector, .. } if field_id == "A"));
+            assert!(
+                matches!(&factors[4], LagrangianExpr::FieldOp { field_id, is_adjoint: false, spin: FieldSpin::Vector, .. } if field_id == "A")
+            );
         } else {
             panic!("Expected Product");
         }
@@ -787,7 +797,12 @@ mod tests {
         let expr = parse_lagrangian_term("lambda * phi * phi * phi * phi", &fields).unwrap();
         if let LagrangianExpr::Product(factors) = &expr {
             assert_eq!(factors.len(), 5);
-            let phi_count = factors.iter().filter(|f| matches!(f, LagrangianExpr::FieldOp { field_id, .. } if field_id == "phi")).count();
+            let phi_count = factors
+                .iter()
+                .filter(
+                    |f| matches!(f, LagrangianExpr::FieldOp { field_id, .. } if field_id == "phi"),
+                )
+                .count();
             assert_eq!(phi_count, 4);
         } else {
             panic!("Expected Product");
@@ -818,9 +833,15 @@ mod tests {
         let expr = parse_lagrangian_term("-0.25 * F^{mu nu} * F_{mu nu}", &fields).unwrap();
         if let LagrangianExpr::Product(factors) = &expr {
             assert_eq!(factors.len(), 3);
-            assert!(matches!(&factors[0], LagrangianExpr::RealConstant(v) if (*v + 0.25).abs() < 1e-12));
-            assert!(matches!(&factors[1], LagrangianExpr::FieldStrength { mu, nu, .. } if mu.position == IndexPosition::Upper && nu.position == IndexPosition::Upper));
-            assert!(matches!(&factors[2], LagrangianExpr::FieldStrength { mu, nu, .. } if mu.position == IndexPosition::Lower && nu.position == IndexPosition::Lower));
+            assert!(
+                matches!(&factors[0], LagrangianExpr::RealConstant(v) if (*v + 0.25).abs() < 1e-12)
+            );
+            assert!(
+                matches!(&factors[1], LagrangianExpr::FieldStrength { mu, nu, .. } if mu.position == IndexPosition::Upper && nu.position == IndexPosition::Upper)
+            );
+            assert!(
+                matches!(&factors[2], LagrangianExpr::FieldStrength { mu, nu, .. } if mu.position == IndexPosition::Lower && nu.position == IndexPosition::Lower)
+            );
         } else {
             panic!("Expected Product");
         }
@@ -849,7 +870,9 @@ mod tests {
         let fields = qed_fields();
         let expr = parse_lagrangian_term("psibar * gamma^mu * d_mu * psi", &fields).unwrap();
         if let LagrangianExpr::Product(factors) = &expr {
-            assert!(matches!(&factors[2], LagrangianExpr::Derivative { index } if index.name == "mu" && index.position == IndexPosition::Lower));
+            assert!(
+                matches!(&factors[2], LagrangianExpr::Derivative { index } if index.name == "mu" && index.position == IndexPosition::Lower)
+            );
         } else {
             panic!("Expected Product");
         }
@@ -877,7 +900,9 @@ mod tests {
     fn parse_metric_tensor() {
         let fields = qed_fields();
         let expr = parse_lagrangian_term("g^{mu nu}", &fields).unwrap();
-        assert!(matches!(expr, LagrangianExpr::Metric { mu, nu } if mu.name == "mu" && nu.name == "nu"));
+        assert!(
+            matches!(expr, LagrangianExpr::Metric { mu, nu } if mu.name == "mu" && nu.name == "nu")
+        );
     }
 
     #[test]
@@ -899,8 +924,12 @@ mod tests {
         let fields = qed_fields();
         let expr = parse_lagrangian_term("phidagger * phi", &fields).unwrap();
         if let LagrangianExpr::Product(factors) = &expr {
-            assert!(matches!(&factors[0], LagrangianExpr::FieldOp { field_id, is_adjoint: true, .. } if field_id == "phi"));
-            assert!(matches!(&factors[1], LagrangianExpr::FieldOp { field_id, is_adjoint: false, .. } if field_id == "phi"));
+            assert!(
+                matches!(&factors[0], LagrangianExpr::FieldOp { field_id, is_adjoint: true, .. } if field_id == "phi")
+            );
+            assert!(
+                matches!(&factors[1], LagrangianExpr::FieldOp { field_id, is_adjoint: false, .. } if field_id == "phi")
+            );
         } else {
             panic!("Expected Product");
         }

@@ -36,9 +36,9 @@ use std::f64::consts::PI;
 
 use crate::algebra::{FourMomentum, MetricSignature, SpacetimeVector};
 use crate::SpireResult;
+use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
 
 // ---------------------------------------------------------------------------
 // Core Data Structures
@@ -504,9 +504,8 @@ pub fn generate_dalitz_plot_data(
         let s_ab = s_ab_min + (i as f64 + 0.5) * s_ab_step;
 
         // Get the allowed s_bc range at this s_ab slice.
-        let (s_bc_lo, s_bc_hi) = match dalitz_s_bc_limits_at_s_ab(
-            mother_mass, m_a, m_b, m_c, s_ab,
-        ) {
+        let (s_bc_lo, s_bc_hi) = match dalitz_s_bc_limits_at_s_ab(mother_mass, m_a, m_b, m_c, s_ab)
+        {
             Some(limits) => limits,
             None => continue, // outside physical region
         };
@@ -689,10 +688,7 @@ pub fn compute_cm_boost(
 /// # Arguments
 /// * `total_energy_cm` — Total CM energy in GeV.
 /// * `final_masses` — Masses of the $N$ final-state particles.
-pub fn generate_phase_space(
-    total_energy_cm: f64,
-    final_masses: &[f64],
-) -> SpireResult<PhaseSpace> {
+pub fn generate_phase_space(total_energy_cm: f64, final_masses: &[f64]) -> SpireResult<PhaseSpace> {
     let n = final_masses.len();
     if n == 0 {
         return Err(crate::SpireError::KinematicsForbidden(
@@ -871,14 +867,13 @@ impl PhaseSpaceGenerator for RamboGenerator {
         }
 
         // Step 1: Generate N massless isotropic 4-momenta.
-        let q: Vec<SpacetimeVector> = (0..n)
-            .map(|_| self.generate_massless_isotropic())
-            .collect();
+        let q: Vec<SpacetimeVector> = (0..n).map(|_| self.generate_massless_isotropic()).collect();
 
         // Step 2: Compute total 4-vector Q = Σq_i.
         let q_total = sum_vectors(&q);
         let metric = MetricSignature::minkowski_4d();
-        let q_sq = metric.inner_product(&q_total, &q_total)
+        let q_sq = metric
+            .inner_product(&q_total, &q_total)
             .map_err(|e| crate::SpireError::InternalError(e))?;
         let m_q = q_sq.sqrt();
 
@@ -890,9 +885,10 @@ impl PhaseSpaceGenerator for RamboGenerator {
 
         // Step 3: Boost + scale to the CM frame with total energy = cms_energy.
         let x = cms_energy / m_q;
-        let mut p: Vec<SpacetimeVector> = q.iter().map(|qi| {
-            rambo_boost_and_scale(qi, &q_total, m_q, x)
-        }).collect();
+        let mut p: Vec<SpacetimeVector> = q
+            .iter()
+            .map(|qi| rambo_boost_and_scale(qi, &q_total, m_q, x))
+            .collect();
 
         // Step 4: Compute the massless RAMBO weight.
         let massless_weight = rambo_massless_weight(n, cms_energy);
@@ -920,7 +916,8 @@ impl PhaseSpaceGenerator for RamboGenerator {
             }
 
             // Compute mass correction weight factor.
-            let mass_weight = rambo_mass_weight_factor(&massive_momenta, final_masses, xi, n, cms_energy);
+            let mass_weight =
+                rambo_mass_weight_factor(&massive_momenta, final_masses, xi, n, cms_energy);
             p = massive_momenta;
             massless_weight * mass_weight
         };
@@ -1012,12 +1009,7 @@ fn rambo_boost_and_scale(
     let pz_new = qi_z + bz * (a * bq + qi_e);
 
     // Scale by x = E_cms / M_Q
-    SpacetimeVector::new_4d(
-        x * e_new,
-        x * px_new,
-        x * py_new,
-        x * pz_new,
-    )
+    SpacetimeVector::new_4d(x * e_new, x * px_new, x * py_new, x * pz_new)
 }
 
 /// Compute the flat massless RAMBO weight.
@@ -1064,9 +1056,10 @@ fn rambo_mass_rescale(
     let mut xi = (1.0 - ratio * ratio).max(1e-10).sqrt();
 
     // Spatial momentum magnitudes squared
-    let p_sq: Vec<f64> = momenta.iter().map(|p| {
-        p.components()[1..].iter().map(|c| c * c).sum()
-    }).collect();
+    let p_sq: Vec<f64> = momenta
+        .iter()
+        .map(|p| p.components()[1..].iter().map(|c| c * c).sum())
+        .collect();
 
     // Newton iterations
     for _ in 0..100 {
@@ -1148,7 +1141,11 @@ mod tests {
 
     #[test]
     fn mandelstam_vars_serde() {
-        let m = MandelstamVars { s: 100.0, t: -25.0, u: -75.0 };
+        let m = MandelstamVars {
+            s: 100.0,
+            t: -25.0,
+            u: -75.0,
+        };
         let json = serde_json::to_string(&m).unwrap();
         let m2: MandelstamVars = serde_json::from_str(&json).unwrap();
         assert_eq!(m.s, m2.s);
@@ -1198,7 +1195,11 @@ mod tests {
 
         // For massless: s + t + u = 0
         let sum = m.s + m.t + m.u;
-        assert!(sum.abs() < 0.01, "s + t + u = {} (expected ≈ 0 for massless)", sum);
+        assert!(
+            sum.abs() < 0.01,
+            "s + t + u = {} (expected ≈ 0 for massless)",
+            sum
+        );
 
         // t = (p1 - p3)²  — should be negative (space-like)
         assert!(m.t < 0.0, "t should be negative for scattering");
@@ -1215,7 +1216,11 @@ mod tests {
 
         let m = compute_mandelstam(&p1, &p2, &p3, &p4);
         let masses = [0.0_f64; 4];
-        assert!(m.verify_sum_rule(&masses), "sum rule failed for massless: s+t+u = {}", m.s + m.t + m.u);
+        assert!(
+            m.verify_sum_rule(&masses),
+            "sum rule failed for massless: s+t+u = {}",
+            m.s + m.t + m.u
+        );
     }
 
     #[test]
@@ -1284,8 +1289,8 @@ mod tests {
     fn kallen_lambda_equal_masses() {
         // λ(s, m², m²) = s² + 2m⁴ - 2s·m² - 2s·m²  (simplifies)
         // = s² - 4s·m² + 4m⁴ = ... wait let's be precise:
-        // λ(s, m², m²) = s² + m⁴ + m⁴ - 2s·m² - 2s·m² - 2m⁴ = s² - 4sm² + 4m⁴ = ... 
-        // Actually: x=s, y=z=m² → λ = s² + 2m⁴ - 4sm²  
+        // λ(s, m², m²) = s² + m⁴ + m⁴ - 2s·m² - 2s·m² - 2m⁴ = s² - 4sm² + 4m⁴ = ...
+        // Actually: x=s, y=z=m² → λ = s² + 2m⁴ - 4sm²
         // Wait: λ = s² + m⁴ + m⁴ - 2s·m² - 2s·m² - 2m²·m² = s² + 2m⁴ - 4sm² - 2m⁴ = s² - 4sm²
         // Hmm: s² + m⁴ + m⁴ - 2s·m² - 2s·m² - 2·m²·m² = s² + 2m⁴ - 4sm² - 2m⁴ = s² - 4sm²
         // = s(s - 4m²)
@@ -1293,7 +1298,12 @@ mod tests {
         let s = 10.0;
         let lam = kallen_lambda(s, m * m, m * m);
         let expected = s * (s - 4.0 * m * m); // s(s - 4m²)
-        assert!((lam - expected).abs() < 1e-10, "λ = {}, expected {}", lam, expected);
+        assert!(
+            (lam - expected).abs() < 1e-10,
+            "λ = {}, expected {}",
+            lam,
+            expected
+        );
     }
 
     #[test]
@@ -1303,7 +1313,12 @@ mod tests {
         let m_sq = 25.0;
         let lam = kallen_lambda(s, 0.0, m_sq);
         let expected = (s - m_sq) * (s - m_sq);
-        assert!((lam - expected).abs() < 1e-10, "λ = {}, expected {}", lam, expected);
+        assert!(
+            (lam - expected).abs() < 1e-10,
+            "λ = {}, expected {}",
+            lam,
+            expected
+        );
     }
 
     #[test]
@@ -1323,7 +1338,12 @@ mod tests {
         let m_h = 125.1;
         let s = m_h * m_h;
         let p_star = cm_momentum(s, 0.0, 0.0);
-        assert!((p_star - m_h / 2.0).abs() < 1e-10, "p* = {} (expected {})", p_star, m_h / 2.0);
+        assert!(
+            (p_star - m_h / 2.0).abs() < 1e-10,
+            "p* = {} (expected {})",
+            p_star,
+            m_h / 2.0
+        );
     }
 
     #[test]
@@ -1334,7 +1354,12 @@ mod tests {
         let s = big_m * big_m;
         let p_star = cm_momentum(s, m, m);
         let expected = (big_m * big_m / 4.0 - m * m).sqrt();
-        assert!((p_star - expected).abs() < 1e-10, "p* = {} (expected {})", p_star, expected);
+        assert!(
+            (p_star - expected).abs() < 1e-10,
+            "p* = {} (expected {})",
+            p_star,
+            expected
+        );
     }
 
     #[test]
@@ -1344,7 +1369,11 @@ mod tests {
         let m_b = 0.140;
         let s_thr = (m_a + m_b) * (m_a + m_b);
         let p_star = cm_momentum(s_thr, m_a, m_b);
-        assert!(p_star.abs() < 1e-10, "p* at threshold = {} (expected 0)", p_star);
+        assert!(
+            p_star.abs() < 1e-10,
+            "p* at threshold = {} (expected 0)",
+            p_star
+        );
     }
 
     #[test]
@@ -1366,7 +1395,12 @@ mod tests {
         let p_star = cm_momentum(s, m_mu, m_mu);
         // p* ≈ 200/2 = 100 GeV minus tiny mass correction
         let expected = (s / 4.0 - m_mu * m_mu).sqrt();
-        assert!((p_star - expected).abs() < 1e-6, "p* = {} (expected {})", p_star, expected);
+        assert!(
+            (p_star - expected).abs() < 1e-6,
+            "p* = {} (expected {})",
+            p_star,
+            expected
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1380,7 +1414,12 @@ mod tests {
         let s = m_h * m_h;
         let phi2 = two_body_phase_space(s, 0.0, 0.0);
         let expected = 1.0 / (16.0 * PI);
-        assert!((phi2 - expected).abs() < 1e-10, "Φ₂ = {} (expected {})", phi2, expected);
+        assert!(
+            (phi2 - expected).abs() < 1e-10,
+            "Φ₂ = {} (expected {})",
+            phi2,
+            expected
+        );
     }
 
     #[test]
@@ -1395,7 +1434,11 @@ mod tests {
         let m = 5.0;
         let s = (2.0 * m) * (2.0 * m);
         let phi2 = two_body_phase_space(s, m, m);
-        assert!(phi2.abs() < 1e-10, "Φ₂ at threshold = {} (expected 0)", phi2);
+        assert!(
+            phi2.abs() < 1e-10,
+            "Φ₂ at threshold = {} (expected 0)",
+            phi2
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1413,13 +1456,21 @@ mod tests {
 
         // s_ab_min = (m_K + m_π⁺)² = (0.634)²
         let expected_ab_min = (0.494 + 0.140) * (0.494 + 0.140);
-        assert!((db.m_ab_sq_min - expected_ab_min).abs() < 1e-6,
-            "s_ab_min = {} (expected {})", db.m_ab_sq_min, expected_ab_min);
+        assert!(
+            (db.m_ab_sq_min - expected_ab_min).abs() < 1e-6,
+            "s_ab_min = {} (expected {})",
+            db.m_ab_sq_min,
+            expected_ab_min
+        );
 
         // s_ab_max = (M_D - m_π⁰)² = (1.730)²
         let expected_ab_max = (m_d - 0.135) * (m_d - 0.135);
-        assert!((db.m_ab_sq_max - expected_ab_max).abs() < 1e-6,
-            "s_ab_max = {} (expected {})", db.m_ab_sq_max, expected_ab_max);
+        assert!(
+            (db.m_ab_sq_max - expected_ab_max).abs() < 1e-6,
+            "s_ab_max = {} (expected {})",
+            db.m_ab_sq_max,
+            expected_ab_max
+        );
 
         // s_bc_min = (m_π⁺ + m_π⁰)² = (0.275)²
         let expected_bc_min = (0.140 + 0.135) * (0.140 + 0.135);
@@ -1471,8 +1522,12 @@ mod tests {
 
         let (s_bc_min, s_bc_max) = limits.unwrap();
         // Physical region must satisfy s_bc_min < s_bc_max
-        assert!(s_bc_min < s_bc_max + 1e-10,
-            "s_bc_min = {} > s_bc_max = {}", s_bc_min, s_bc_max);
+        assert!(
+            s_bc_min < s_bc_max + 1e-10,
+            "s_bc_min = {} > s_bc_max = {}",
+            s_bc_min,
+            s_bc_max
+        );
         // Both should be within absolute Dalitz boundaries
         assert!(s_bc_min >= db.m_bc_sq_min - 1e-8);
         assert!(s_bc_max <= db.m_bc_sq_max + 1e-8);
@@ -1492,9 +1547,12 @@ mod tests {
         let (s_bc_min, s_bc_max) = limits.unwrap();
         // At s_ab threshold, b has zero momentum in (a,b) frame → s_bc_min ≈ s_bc_max
         // (the Dalitz boundary collapses to a point at the corner)
-        assert!((s_bc_max - s_bc_min).abs() < 1e-6,
+        assert!(
+            (s_bc_max - s_bc_min).abs() < 1e-6,
             "at s_ab threshold: s_bc range = [{}, {}] should be degenerate",
-            s_bc_min, s_bc_max);
+            s_bc_min,
+            s_bc_max
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1507,20 +1565,39 @@ mod tests {
         let m_d = 1.865;
         let data = generate_dalitz_plot_data(m_d, 0.494, 0.140, 0.135, 3000).unwrap();
 
-        assert!(!data.points.is_empty(), "should produce non-empty point set");
+        assert!(
+            !data.points.is_empty(),
+            "should produce non-empty point set"
+        );
         assert!(data.n_grid > 1, "grid should have multiple divisions");
         assert!((data.boundaries.mother_mass - m_d).abs() < 1e-12);
 
         // Every point must lie within the absolute Dalitz boundaries.
         for &(s_ab, s_bc) in &data.points {
-            assert!(s_ab >= data.boundaries.m_ab_sq_min - 1e-10,
-                "s_ab = {} below min {}", s_ab, data.boundaries.m_ab_sq_min);
-            assert!(s_ab <= data.boundaries.m_ab_sq_max + 1e-10,
-                "s_ab = {} above max {}", s_ab, data.boundaries.m_ab_sq_max);
-            assert!(s_bc >= data.boundaries.m_bc_sq_min - 1e-10,
-                "s_bc = {} below min {}", s_bc, data.boundaries.m_bc_sq_min);
-            assert!(s_bc <= data.boundaries.m_bc_sq_max + 1e-10,
-                "s_bc = {} above max {}", s_bc, data.boundaries.m_bc_sq_max);
+            assert!(
+                s_ab >= data.boundaries.m_ab_sq_min - 1e-10,
+                "s_ab = {} below min {}",
+                s_ab,
+                data.boundaries.m_ab_sq_min
+            );
+            assert!(
+                s_ab <= data.boundaries.m_ab_sq_max + 1e-10,
+                "s_ab = {} above max {}",
+                s_ab,
+                data.boundaries.m_ab_sq_max
+            );
+            assert!(
+                s_bc >= data.boundaries.m_bc_sq_min - 1e-10,
+                "s_bc = {} below min {}",
+                s_bc,
+                data.boundaries.m_bc_sq_min
+            );
+            assert!(
+                s_bc <= data.boundaries.m_bc_sq_max + 1e-10,
+                "s_bc = {} above max {}",
+                s_bc,
+                data.boundaries.m_bc_sq_max
+            );
         }
     }
 
@@ -1535,8 +1612,14 @@ mod tests {
             let limits = dalitz_s_bc_limits_at_s_ab(big_m, m, m, m, s_ab);
             assert!(limits.is_some(), "s_ab = {} should have valid limits", s_ab);
             let (lo, hi) = limits.unwrap();
-            assert!(s_bc >= lo - 1e-10 && s_bc <= hi + 1e-10,
-                "s_bc = {} outside [{}, {}] at s_ab = {}", s_bc, lo, hi, s_ab);
+            assert!(
+                s_bc >= lo - 1e-10 && s_bc <= hi + 1e-10,
+                "s_bc = {} outside [{}, {}] at s_ab = {}",
+                s_bc,
+                lo,
+                hi,
+                s_ab
+            );
         }
     }
 
@@ -1551,14 +1634,20 @@ mod tests {
     fn dalitz_plot_data_respects_n_points() {
         // With small n_points, we should still get a reasonable number of points
         let data = generate_dalitz_plot_data(1.865, 0.494, 0.140, 0.135, 100).unwrap();
-        assert!(data.points.len() > 0 && data.points.len() <= 200,
-            "100 requested → got {} points", data.points.len());
+        assert!(
+            data.points.len() > 0 && data.points.len() <= 200,
+            "100 requested → got {} points",
+            data.points.len()
+        );
 
         // With large n_points, we should get more
         let data_large = generate_dalitz_plot_data(1.865, 0.494, 0.140, 0.135, 10000).unwrap();
-        assert!(data_large.points.len() > data.points.len(),
+        assert!(
+            data_large.points.len() > data.points.len(),
             "10000 requested ({}) should produce more than 100 requested ({})",
-            data_large.points.len(), data.points.len());
+            data_large.points.len(),
+            data.points.len()
+        );
     }
 
     #[test]
@@ -1580,11 +1669,19 @@ mod tests {
 
         // The mean should be within ~10% of the midpoint.
         let range_ab = data.boundaries.m_ab_sq_max - data.boundaries.m_ab_sq_min;
-        assert!((mean_s_ab - s_ab_centre).abs() < 0.15 * range_ab,
-            "mean s_ab = {:.4} far from centre {:.4}", mean_s_ab, s_ab_centre);
+        assert!(
+            (mean_s_ab - s_ab_centre).abs() < 0.15 * range_ab,
+            "mean s_ab = {:.4} far from centre {:.4}",
+            mean_s_ab,
+            s_ab_centre
+        );
         let range_bc = data.boundaries.m_bc_sq_max - data.boundaries.m_bc_sq_min;
-        assert!((mean_s_bc - s_bc_centre).abs() < 0.15 * range_bc,
-            "mean s_bc = {:.4} far from centre {:.4}", mean_s_bc, s_bc_centre);
+        assert!(
+            (mean_s_bc - s_bc_centre).abs() < 0.15 * range_bc,
+            "mean s_bc = {:.4} far from centre {:.4}",
+            mean_s_bc,
+            s_bc_centre
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1653,8 +1750,16 @@ mod tests {
         // All massless: s_min = 0, t in [-s, 0]
         let bounds = compute_mandelstam_boundaries([0.0; 4], 100.0).unwrap();
         assert!((bounds.s_min).abs() < 1e-12, "s_min = {}", bounds.s_min);
-        assert!((bounds.t_min + 100.0).abs() < 1e-8, "t_min = {} (expected -100)", bounds.t_min);
-        assert!((bounds.t_max).abs() < 1e-8, "t_max = {} (expected 0)", bounds.t_max);
+        assert!(
+            (bounds.t_min + 100.0).abs() < 1e-8,
+            "t_min = {} (expected -100)",
+            bounds.t_min
+        );
+        assert!(
+            (bounds.t_max).abs() < 1e-8,
+            "t_max = {} (expected 0)",
+            bounds.t_max
+        );
     }
 
     #[test]
@@ -1667,7 +1772,8 @@ mod tests {
         assert!(
             (bounds.t_max - bounds.t_min).abs() < 1e-6,
             "at threshold: t_min={} t_max={} should be degenerate",
-            bounds.t_min, bounds.t_max
+            bounds.t_min,
+            bounds.t_max
         );
     }
 
@@ -1687,7 +1793,10 @@ mod tests {
     fn lorentz_boost_identity() {
         // Zero boost should return the same momentum
         let p = FourMomentum::new(10.0, 1.0, 2.0, 3.0);
-        let boost = LorentzBoost { beta: [0.0, 0.0, 0.0], gamma: 1.0 };
+        let boost = LorentzBoost {
+            beta: [0.0, 0.0, 0.0],
+            gamma: 1.0,
+        };
         let p_prime = apply_lorentz_boost(&p, &boost).unwrap();
         assert!((p_prime.e - p.e).abs() < 1e-12);
         assert!((p_prime.px - p.px).abs() < 1e-12);
@@ -1704,7 +1813,10 @@ mod tests {
 
         let beta_z: f64 = 0.5;
         let gamma = 1.0 / (1.0 - beta_z * beta_z).sqrt();
-        let boost = LorentzBoost { beta: [0.0, 0.0, beta_z], gamma };
+        let boost = LorentzBoost {
+            beta: [0.0, 0.0, beta_z],
+            gamma,
+        };
 
         let p_prime = apply_lorentz_boost(&p, &boost).unwrap();
         let m_sq_boosted = p_prime.invariant_mass_sq();
@@ -1712,7 +1824,8 @@ mod tests {
         assert!(
             (m_sq_original - m_sq_boosted).abs() < 1e-8,
             "p² changed: {:.6} → {:.6}",
-            m_sq_original, m_sq_boosted
+            m_sq_original,
+            m_sq_boosted
         );
     }
 
@@ -1726,13 +1839,25 @@ mod tests {
 
         let beta_z = pz / e;
         let gamma = 1.0 / (1.0 - beta_z * beta_z).sqrt();
-        let boost = LorentzBoost { beta: [0.0, 0.0, beta_z], gamma };
+        let boost = LorentzBoost {
+            beta: [0.0, 0.0, beta_z],
+            gamma,
+        };
 
         let p_rest = apply_lorentz_boost(&p, &boost).unwrap();
 
         // In rest frame: E = m, p = 0
-        assert!((p_rest.e - m).abs() < 1e-8, "E_rest = {} (expected {})", p_rest.e, m);
-        assert!(p_rest.pz.abs() < 1e-8, "pz_rest = {} (expected 0)", p_rest.pz);
+        assert!(
+            (p_rest.e - m).abs() < 1e-8,
+            "E_rest = {} (expected {})",
+            p_rest.e,
+            m
+        );
+        assert!(
+            p_rest.pz.abs() < 1e-8,
+            "pz_rest = {} (expected 0)",
+            p_rest.pz
+        );
     }
 
     #[test]
@@ -1808,13 +1933,15 @@ mod tests {
             assert!(
                 (total[0] - cms).abs() < 1e-8,
                 "Energy not conserved: E_total = {}, expected {}",
-                total[0], cms
+                total[0],
+                cms
             );
             for j in 1..4 {
                 assert!(
                     total[j].abs() < 1e-8,
                     "Spatial momentum not conserved: p[{}] = {}",
-                    j, total[j]
+                    j,
+                    total[j]
                 );
             }
 
@@ -1845,18 +1972,23 @@ mod tests {
                 assert!(
                     total[j].abs() < 1e-8,
                     "3-momentum not conserved: p[{}] = {}",
-                    j, total[j]
+                    j,
+                    total[j]
                 );
             }
 
             // Each massless particle should satisfy E = |p|.
             for p in &event.momenta {
-                let p_mag: f64 = p.components()[1..].iter()
-                    .map(|c| c * c).sum::<f64>().sqrt();
+                let p_mag: f64 = p.components()[1..]
+                    .iter()
+                    .map(|c| c * c)
+                    .sum::<f64>()
+                    .sqrt();
                 assert!(
                     (p[0] - p_mag).abs() < 1e-8,
                     "Massless particle not on-shell: E = {}, |p| = {}",
-                    p[0], p_mag
+                    p[0],
+                    p_mag
                 );
             }
         }
@@ -1881,14 +2013,11 @@ mod tests {
             assert!(
                 (total[0] - cms).abs() < 1e-6,
                 "Energy: {} vs {}",
-                total[0], cms
+                total[0],
+                cms
             );
             for j in 1..4 {
-                assert!(
-                    total[j].abs() < 1e-6,
-                    "p[{}] = {}",
-                    j, total[j]
-                );
+                assert!(total[j].abs() < 1e-6, "p[{}] = {}", j, total[j]);
             }
 
             // On-shell check: p² = m².
@@ -1897,7 +2026,9 @@ mod tests {
                 assert!(
                     (p_sq - masses[i] * masses[i]).abs() < 1e-4,
                     "Particle {} off-shell: p² = {}, m² = {}",
-                    i, p_sq, masses[i] * masses[i]
+                    i,
+                    p_sq,
+                    masses[i] * masses[i]
                 );
             }
 
@@ -1918,10 +2049,7 @@ mod tests {
             assert_eq!(event.momenta.len(), 3);
 
             let total = sum_vectors(&event.momenta);
-            assert!(
-                (total[0] - cms).abs() < 1e-6,
-                "E = {}", total[0]
-            );
+            assert!((total[0] - cms).abs() < 1e-6, "E = {}", total[0]);
             for j in 1..4 {
                 assert!(total[j].abs() < 1e-6);
             }
@@ -1932,7 +2060,9 @@ mod tests {
                 assert!(
                     (p_sq - masses[i] * masses[i]).abs() < 1e-4,
                     "Particle {} off-shell: p²={}, m²={}",
-                    i, p_sq, masses[i] * masses[i]
+                    i,
+                    p_sq,
+                    masses[i] * masses[i]
                 );
             }
         }
@@ -1977,7 +2107,8 @@ mod tests {
         assert!(
             (w - expected).abs() < 1e-10,
             "RAMBO 2-body weight: {} vs expected {}",
-            w, expected
+            w,
+            expected
         );
     }
 

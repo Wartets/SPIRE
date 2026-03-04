@@ -1,4 +1,4 @@
-﻿//! # Analysis : Integrated Histogramming & Observable Pipeline
+//! # Analysis : Integrated Histogramming & Observable Pipeline
 //!
 //! This module provides high-performance histogramming structures and an
 //! analysis pipeline that connects the Monte Carlo integration engine
@@ -37,9 +37,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
 use crate::reco::detector::{DetectorModel, ParticleKind};
-use crate::scripting::{
-    Observable, RhaiObservable, RhaiRecoObservable, SpireScriptEngine,
-};
+use crate::scripting::{Observable, RhaiObservable, RhaiRecoObservable, SpireScriptEngine};
 use crate::{SpireError, SpireResult};
 
 // ===========================================================================
@@ -103,7 +101,12 @@ impl Histogram1D {
     /// Panics if `n_bins == 0` or `min >= max`.
     pub fn new(n_bins: usize, min: f64, max: f64) -> Self {
         assert!(n_bins > 0, "Histogram must have at least one bin");
-        assert!(min < max, "Histogram min ({}) must be less than max ({})", min, max);
+        assert!(
+            min < max,
+            "Histogram min ({}) must be less than max ({})",
+            min,
+            max
+        );
 
         let bin_width = (max - min) / n_bins as f64;
         let inv_bin_width = 1.0 / bin_width;
@@ -162,7 +165,8 @@ impl Histogram1D {
     ///
     /// Returns an error if the binning parameters do not match.
     pub fn merge(&mut self, other: &Histogram1D) -> SpireResult<()> {
-        if self.n_bins != other.n_bins || (self.min - other.min).abs() > 1e-12
+        if self.n_bins != other.n_bins
+            || (self.min - other.min).abs() > 1e-12
             || (self.max - other.max).abs() > 1e-12
         {
             return Err(SpireError::InternalError(
@@ -341,15 +345,11 @@ impl Histogram2D {
     /// # Panics
     ///
     /// Panics if either axis has zero bins or `min >= max`.
-    pub fn new(
-        nx: usize,
-        x_min: f64,
-        x_max: f64,
-        ny: usize,
-        y_min: f64,
-        y_max: f64,
-    ) -> Self {
-        assert!(nx > 0 && ny > 0, "2D histogram must have at least one bin per axis");
+    pub fn new(nx: usize, x_min: f64, x_max: f64, ny: usize, y_min: f64, y_max: f64) -> Self {
+        assert!(
+            nx > 0 && ny > 0,
+            "2D histogram must have at least one bin per axis"
+        );
         assert!(x_min < x_max, "X-axis min must be less than max");
         assert!(y_min < y_max, "Y-axis min must be less than max");
 
@@ -609,9 +609,7 @@ pub fn generate_display_event(
     use rand::SeedableRng;
 
     let detector = DetectorModel::from_preset(detector_preset).ok_or_else(|| {
-        SpireError::InternalError(format!(
-            "unknown detector preset '{detector_preset}'"
-        ))
+        SpireError::InternalError(format!("unknown detector preset '{detector_preset}'"))
     })?;
 
     let n_final = final_masses.len();
@@ -623,7 +621,10 @@ pub fn generate_display_event(
                     kinds.len()
                 )));
             }
-            kinds.iter().map(|s| parse_particle_kind(s)).collect::<SpireResult<Vec<_>>>()?
+            kinds
+                .iter()
+                .map(|s| parse_particle_kind(s))
+                .collect::<SpireResult<Vec<_>>>()?
         }
         None => vec![ParticleKind::Hadron; n_final],
     };
@@ -640,32 +641,32 @@ pub fn generate_display_event(
         .unwrap_or(42);
     let mut rng = StdRng::seed_from_u64(seed);
 
-    let reco = crate::reco::detector::reconstruct_event(
-        &event,
-        &particle_kinds,
-        &detector,
-        &mut rng,
-    );
+    let reco =
+        crate::reco::detector::reconstruct_event(&event, &particle_kinds, &detector, &mut rng);
 
     // Convert to display format.
-    let jets: Vec<DisplayJet> = reco.jets.iter().map(|jet| {
-        let px = jet.momentum[1];
-        let py = jet.momentum[2];
-        let pz = jet.momentum[3];
-        let p_mag = (px * px + py * py + pz * pz).sqrt().max(1e-30);
-        DisplayJet {
-            direction: Vec3 {
-                x: px / p_mag,
-                y: py / p_mag,
-                z: pz / p_mag,
-            },
-            energy: jet.energy(),
-            pt: jet.pt(),
-            eta: jet.eta(),
-            phi: jet.phi(),
-            n_constituents: jet.n_constituents(),
-        }
-    }).collect();
+    let jets: Vec<DisplayJet> = reco
+        .jets
+        .iter()
+        .map(|jet| {
+            let px = jet.momentum[1];
+            let py = jet.momentum[2];
+            let pz = jet.momentum[3];
+            let p_mag = (px * px + py * py + pz * pz).sqrt().max(1e-30);
+            DisplayJet {
+                direction: Vec3 {
+                    x: px / p_mag,
+                    y: py / p_mag,
+                    z: pz / p_mag,
+                },
+                energy: jet.energy(),
+                pt: jet.pt(),
+                eta: jet.eta(),
+                phi: jet.phi(),
+                n_constituents: jet.n_constituents(),
+            }
+        })
+        .collect();
 
     let make_track = |v: &crate::algebra::SpacetimeVector, ptype: &str| -> DisplayTrack {
         let px = v[1];
@@ -673,7 +674,11 @@ pub fn generate_display_event(
         let pz = v[3];
         let p_mag = (px * px + py * py + pz * pz).sqrt().max(1e-30);
         let pt = (px * px + py * py).sqrt();
-        let eta = if p_mag > 1e-30 { (pz / p_mag).atanh() } else { 0.0 };
+        let eta = if p_mag > 1e-30 {
+            (pz / p_mag).atanh()
+        } else {
+            0.0
+        };
         DisplayTrack {
             direction: Vec3 {
                 x: px / p_mag,
@@ -687,13 +692,15 @@ pub fn generate_display_event(
         }
     };
 
-    let electrons: Vec<DisplayTrack> = reco.electrons.iter()
+    let electrons: Vec<DisplayTrack> = reco
+        .electrons
+        .iter()
         .map(|v| make_track(v, "electron"))
         .collect();
-    let muons: Vec<DisplayTrack> = reco.muons.iter()
-        .map(|v| make_track(v, "muon"))
-        .collect();
-    let photons: Vec<DisplayTrack> = reco.photons.iter()
+    let muons: Vec<DisplayTrack> = reco.muons.iter().map(|v| make_track(v, "muon")).collect();
+    let photons: Vec<DisplayTrack> = reco
+        .photons
+        .iter()
         .map(|v| make_track(v, "photon"))
         .collect();
 
@@ -702,8 +709,16 @@ pub fn generate_display_event(
     let met_mag = (met_px * met_px + met_py * met_py).sqrt();
     let met = DisplayMET {
         direction: Vec3 {
-            x: if met_mag > 1e-30 { met_px / met_mag } else { 0.0 },
-            y: if met_mag > 1e-30 { met_py / met_mag } else { 0.0 },
+            x: if met_mag > 1e-30 {
+                met_px / met_mag
+            } else {
+                0.0
+            },
+            y: if met_mag > 1e-30 {
+                met_py / met_mag
+            } else {
+                0.0
+            },
             z: 0.0,
         },
         magnitude: met_mag,
@@ -819,7 +834,6 @@ pub struct AnalysisConfig {
     pub final_masses: Vec<f64>,
 
     // --- Detector simulation (optional) ---
-
     /// Detector preset name. When `Some`, the analysis pipeline will
     /// reconstruct events through a phenomenological detector model
     /// before evaluating observable scripts that reference `reco`.
@@ -1082,14 +1096,7 @@ where
     let (sum_fw, sum_fw2, n_passed, merged_hists) = events
         .par_iter()
         .fold(
-            || {
-                (
-                    0.0_f64,
-                    0.0_f64,
-                    0_usize,
-                    initial_hists.clone(),
-                )
-            },
+            || (0.0_f64, 0.0_f64, 0_usize, initial_hists.clone()),
             |(mut s_fw, mut s_fw2, mut n_p, mut hists), event| {
                 // Apply cuts.
                 let passed = cuts
@@ -1233,7 +1240,10 @@ where
                     kinds.len()
                 )));
             }
-            kinds.iter().map(|s| parse_particle_kind(s)).collect::<SpireResult<Vec<_>>>()?
+            kinds
+                .iter()
+                .map(|s| parse_particle_kind(s))
+                .collect::<SpireResult<Vec<_>>>()?
         }
         // Default: treat all final-state particles as hadrons.
         None => vec![ParticleKind::Hadron; n_final],
@@ -1317,12 +1327,8 @@ where
         sum_fw2 += fw * fw;
 
         // Reconstruct the event through the detector model.
-        let reco = crate::reco::detector::reconstruct_event(
-            &event,
-            &particle_kinds,
-            &detector,
-            &mut rng,
-        );
+        let reco =
+            crate::reco::detector::reconstruct_event(&event, &particle_kinds, &detector, &mut rng);
 
         // Fill each 1D histogram with the corresponding reco observable value.
         for (obs, hist) in observables.iter().zip(histograms.iter_mut()) {
@@ -1513,8 +1519,8 @@ mod tests {
     fn histogram1d_max_bin() {
         let mut h = Histogram1D::new(10, 0.0, 100.0);
         h.fill(55.0, 10.0); // bin 5
-        h.fill(15.0, 3.0);  // bin 1
-        h.fill(55.0, 5.0);  // bin 5 again
+        h.fill(15.0, 3.0); // bin 1
+        h.fill(55.0, 5.0); // bin 5 again
         assert_eq!(h.max_bin(), 5);
     }
 
@@ -1791,8 +1797,7 @@ mod tests {
         assert_eq!(seq.events_passed, par.events_passed);
         // Cross-sections should be very close (same events, same seed).
         assert!(
-            (seq.cross_section - par.cross_section).abs()
-                / seq.cross_section.abs().max(1e-300)
+            (seq.cross_section - par.cross_section).abs() / seq.cross_section.abs().max(1e-300)
                 < 0.01,
             "Sequential and parallel cross-sections should agree"
         );
@@ -1822,7 +1827,10 @@ mod tests {
         let mut gen = RamboGenerator::new();
         let result = run_analysis(&config, |_| 1.0, &mut gen).unwrap();
 
-        assert!(result.cross_section > 0.0, "Cross-section should be positive");
+        assert!(
+            result.cross_section > 0.0,
+            "Cross-section should be positive"
+        );
         assert!(result.cross_section_error >= 0.0);
     }
 
@@ -2124,11 +2132,7 @@ mod tests {
             final_masses: vec![0.0, 0.0],
             detector_preset: Some("lhc_like".into()),
             // 3 particle kinds but only 2 final masses.
-            particle_kinds: Some(vec![
-                "electron".into(),
-                "muon".into(),
-                "hadron".into(),
-            ]),
+            particle_kinds: Some(vec!["electron".into(), "muon".into(), "hadron".into()]),
             plots_2d: None,
         };
 
@@ -2145,8 +2149,7 @@ mod tests {
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
                 name: "sum".into(),
-                observable_script:
-                    "reco.n_jets().to_float() + event.momenta.len().to_float()"
+                observable_script: "reco.n_jets().to_float() + event.momenta.len().to_float()"
                     .into(),
                 n_bins: 20,
                 min: 0.0,
@@ -2197,19 +2200,49 @@ mod tests {
         use super::parse_particle_kind;
         use crate::reco::detector::ParticleKind;
 
-        assert!(matches!(parse_particle_kind("electron"), Ok(ParticleKind::Electron)));
-        assert!(matches!(parse_particle_kind("e"), Ok(ParticleKind::Electron)));
-        assert!(matches!(parse_particle_kind("muon"), Ok(ParticleKind::Muon)));
+        assert!(matches!(
+            parse_particle_kind("electron"),
+            Ok(ParticleKind::Electron)
+        ));
+        assert!(matches!(
+            parse_particle_kind("e"),
+            Ok(ParticleKind::Electron)
+        ));
+        assert!(matches!(
+            parse_particle_kind("muon"),
+            Ok(ParticleKind::Muon)
+        ));
         assert!(matches!(parse_particle_kind("mu"), Ok(ParticleKind::Muon)));
-        assert!(matches!(parse_particle_kind("photon"), Ok(ParticleKind::Photon)));
-        assert!(matches!(parse_particle_kind("gamma"), Ok(ParticleKind::Photon)));
-        assert!(matches!(parse_particle_kind("hadron"), Ok(ParticleKind::Hadron)));
-        assert!(matches!(parse_particle_kind("jet"), Ok(ParticleKind::Hadron)));
+        assert!(matches!(
+            parse_particle_kind("photon"),
+            Ok(ParticleKind::Photon)
+        ));
+        assert!(matches!(
+            parse_particle_kind("gamma"),
+            Ok(ParticleKind::Photon)
+        ));
+        assert!(matches!(
+            parse_particle_kind("hadron"),
+            Ok(ParticleKind::Hadron)
+        ));
+        assert!(matches!(
+            parse_particle_kind("jet"),
+            Ok(ParticleKind::Hadron)
+        ));
         assert!(matches!(parse_particle_kind("q"), Ok(ParticleKind::Hadron)));
         assert!(matches!(parse_particle_kind("g"), Ok(ParticleKind::Hadron)));
-        assert!(matches!(parse_particle_kind("invisible"), Ok(ParticleKind::Invisible)));
-        assert!(matches!(parse_particle_kind("neutrino"), Ok(ParticleKind::Invisible)));
-        assert!(matches!(parse_particle_kind("nu"), Ok(ParticleKind::Invisible)));
+        assert!(matches!(
+            parse_particle_kind("invisible"),
+            Ok(ParticleKind::Invisible)
+        ));
+        assert!(matches!(
+            parse_particle_kind("neutrino"),
+            Ok(ParticleKind::Invisible)
+        ));
+        assert!(matches!(
+            parse_particle_kind("nu"),
+            Ok(ParticleKind::Invisible)
+        ));
         assert!(parse_particle_kind("unknown_type").is_err());
     }
 

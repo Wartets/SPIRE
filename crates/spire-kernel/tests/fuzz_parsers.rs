@@ -18,8 +18,8 @@ mod strategies;
 use proptest::prelude::*;
 use spire_kernel::algebra::FourMomentum;
 use spire_kernel::kinematics::{
-    apply_lorentz_boost, cm_momentum, compute_mandelstam, is_kinematically_allowed,
-    kallen_lambda, LorentzBoost, PhaseSpaceGenerator, RamboGenerator,
+    apply_lorentz_boost, cm_momentum, compute_mandelstam, is_kinematically_allowed, kallen_lambda,
+    LorentzBoost, PhaseSpaceGenerator, RamboGenerator,
 };
 use spire_kernel::lagrangian::parse_model;
 

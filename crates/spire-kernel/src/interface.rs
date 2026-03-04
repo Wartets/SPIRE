@@ -206,14 +206,9 @@ impl ExternalSolver for CliSolver {
         }
 
         // Wait with timeout.
-        let output = child
-            .wait_with_output()
-            .map_err(|e| {
-                SpireError::InternalError(format!(
-                    "Failed to wait for '{}': {}",
-                    self.executable, e
-                ))
-            })?;
+        let output = child.wait_with_output().map_err(|e| {
+            SpireError::InternalError(format!("Failed to wait for '{}': {}", self.executable, e))
+        })?;
 
         // Check exit code.
         if !output.status.success() {
@@ -221,16 +216,15 @@ impl ExternalSolver for CliSolver {
             let code = output.status.code().unwrap_or(-1);
             return Err(SpireError::InternalError(format!(
                 "External solver '{}' exited with code {}: {}",
-                self.executable, code, stderr_str.trim()
+                self.executable,
+                code,
+                stderr_str.trim()
             )));
         }
 
         // Return stdout.
         String::from_utf8(output.stdout).map_err(|e| {
-            SpireError::InternalError(format!(
-                "Non-UTF8 output from '{}': {}",
-                self.executable, e
-            ))
+            SpireError::InternalError(format!("Non-UTF8 output from '{}': {}", self.executable, e))
         })
     }
 }
@@ -261,7 +255,10 @@ mod tests {
             .env("OTHER", "world");
 
         assert_eq!(solver.env_vars.len(), 2);
-        assert_eq!(solver.env_vars[0], ("MY_VAR".to_string(), "hello".to_string()));
+        assert_eq!(
+            solver.env_vars[0],
+            ("MY_VAR".to_string(), "hello".to_string())
+        );
     }
 
     #[test]

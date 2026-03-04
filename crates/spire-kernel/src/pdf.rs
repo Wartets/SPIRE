@@ -89,9 +89,7 @@ const PDG_SBAR: i32 = -3;
 const PDG_GLUON: i32 = 21;
 
 /// All flavour codes supported by the toy proton PDF.
-const SUPPORTED_FLAVOURS: [i32; 7] = [
-    PDG_D, PDG_DBAR, PDG_U, PDG_UBAR, PDG_S, PDG_SBAR, PDG_GLUON,
-];
+const SUPPORTED_FLAVOURS: [i32; 7] = [PDG_D, PDG_DBAR, PDG_U, PDG_UBAR, PDG_S, PDG_SBAR, PDG_GLUON];
 
 /// A simple analytical parametrisation of the proton PDF for pipeline
 /// validation and testing.
@@ -143,7 +141,12 @@ impl ToyProtonPdf {
     ///
     /// Useful for testing sensitivity to PDF parameters.
     pub fn with_params(a_u: f64, a_d: f64, a_sea: f64, a_gluon: f64) -> Self {
-        Self { a_u, a_d, a_sea, a_gluon }
+        Self {
+            a_u,
+            a_d,
+            a_sea,
+            a_gluon,
+        }
     }
 
     /// Evaluate the $u$-valence distribution: $u_v(x) = A_u x^{0.5} (1-x)^3$.
@@ -541,11 +544,7 @@ mod tests {
         let pdf = ToyProtonPdf::new();
         let u = pdf.evaluate(PDG_U, 0.5, 100.0);
         let d = pdf.evaluate(PDG_D, 0.5, 100.0);
-        assert!(
-            u > d,
-            "u(0.5) = {} should exceed d(0.5) = {}",
-            u, d
-        );
+        assert!(u > d, "u(0.5) = {} should exceed d(0.5) = {}", u, d);
     }
 
     #[test]

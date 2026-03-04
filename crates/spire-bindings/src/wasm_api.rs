@@ -70,8 +70,8 @@ pub fn wasm_load_model(
     model_name: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let name = model_name.unwrap_or_else(|| "Standard Model".into());
-    let model =
-        data_loader::build_model(particles_toml, vertices_toml, &name).map_err(|e| to_js_err(e.to_string()))?;
+    let model = data_loader::build_model(particles_toml, vertices_toml, &name)
+        .map_err(|e| to_js_err(e.to_string()))?;
     serde_wasm_bindgen::to_value(&model).map_err(|e| to_js_err(e.to_string()))
 }
 
@@ -102,8 +102,9 @@ pub fn wasm_construct_reaction(
     let init_refs: Vec<&str> = init.iter().map(|s| s.as_str()).collect();
     let final_refs: Vec<&str> = finals.iter().map(|s| s.as_str()).collect();
 
-    let reaction = s_matrix::construct_reaction(&init_refs, &final_refs, &the_model, Some(cms_energy))
-        .map_err(|e| to_js_err(e.to_string()))?;
+    let reaction =
+        s_matrix::construct_reaction(&init_refs, &final_refs, &the_model, Some(cms_energy))
+            .map_err(|e| to_js_err(e.to_string()))?;
 
     serde_wasm_bindgen::to_value(&reaction).map_err(|e| to_js_err(e.to_string()))
 }
@@ -333,10 +334,7 @@ pub fn wasm_export_model_ufo(model: JsValue) -> Result<JsValue, JsValue> {
 /// # Returns
 /// A JS array of `DerivationStep` objects.
 #[wasm_bindgen(js_name = "deriveAmplitudeSteps")]
-pub fn wasm_derive_amplitude_steps(
-    diagram: JsValue,
-    dim: JsValue,
-) -> Result<JsValue, JsValue> {
+pub fn wasm_derive_amplitude_steps(diagram: JsValue, dim: JsValue) -> Result<JsValue, JsValue> {
     let the_diagram: FeynmanGraph =
         serde_wasm_bindgen::from_value(diagram).map_err(|e| to_js_err(e.to_string()))?;
     let spacetime_dim: algebra::SpacetimeDimension =
@@ -412,12 +410,9 @@ pub fn wasm_calculate_hadronic_cross_section(
     let masses: Vec<f64> =
         serde_wasm_bindgen::from_value(final_masses).map_err(|e| to_js_err(e.to_string()))?;
 
-    let result = s_matrix::calculate_hadronic_phase_space_cross_section(
-        beam_energy_sq,
-        &masses,
-        num_events,
-    )
-    .map_err(|e| to_js_err(e.to_string()))?;
+    let result =
+        s_matrix::calculate_hadronic_phase_space_cross_section(beam_energy_sq, &masses, num_events)
+            .map_err(|e| to_js_err(e.to_string()))?;
 
     serde_wasm_bindgen::to_value(&result).map_err(|e| to_js_err(e.to_string()))
 }

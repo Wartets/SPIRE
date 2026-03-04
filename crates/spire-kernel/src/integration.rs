@@ -38,8 +38,8 @@
 //!
 //! where $f_i = |\mathcal{M}(p_i)|^2 \cdot w_i$.
 
-use serde::{Deserialize, Serialize};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
 use crate::SpireResult;
@@ -312,9 +312,7 @@ impl UniformIntegrator {
             })
             .reduce(
                 || (0.0, 0.0, 0_usize),
-                |(a_fw, a_fw2, a_n), (b_fw, b_fw2, b_n)| {
-                    (a_fw + b_fw, a_fw2 + b_fw2, a_n + b_n)
-                },
+                |(a_fw, a_fw2, a_n), (b_fw, b_fw2, b_n)| (a_fw + b_fw, a_fw2 + b_fw2, a_n + b_n),
             );
 
         if n_success == 0 {
@@ -494,9 +492,7 @@ impl UniformIntegrator {
             })
             .reduce(
                 || (0.0, 0.0, 0_usize, 0_usize),
-                |(a0, a1, a2, a3), (b0, b1, b2, b3)| {
-                    (a0 + b0, a1 + b1, a2 + b2, a3 + b3)
-                },
+                |(a0, a1, a2, a3), (b0, b1, b2, b3)| (a0 + b0, a1 + b1, a2 + b2, a3 + b3),
             );
 
         if n_success == 0 {
@@ -663,9 +659,9 @@ pub fn compute_hadronic_cross_section<F>(
 where
     F: Fn(&PhaseSpacePoint, f64) -> f64,
 {
+    use rand::rngs::StdRng;
     use rand::Rng;
     use rand::SeedableRng;
-    use rand::rngs::StdRng;
 
     let s_had = config.s_hadronic;
     if s_had <= 0.0 {
@@ -709,11 +705,7 @@ where
             relative_error: f64::INFINITY,
             beam_energy_sq: s_had,
             pdf_name: config.pdf1.name().to_string(),
-            beam_description: format!(
-                "{} {} → X",
-                config.beam1.label(),
-                config.beam2.label()
-            ),
+            beam_description: format!("{} {} → X", config.beam1.label(), config.beam2.label()),
         });
     }
 
@@ -789,11 +781,7 @@ where
             relative_error: f64::INFINITY,
             beam_energy_sq: s_had,
             pdf_name: config.pdf1.name().to_string(),
-            beam_description: format!(
-                "{} {} → X",
-                config.beam1.label(),
-                config.beam2.label()
-            ),
+            beam_description: format!("{} {} → X", config.beam1.label(), config.beam2.label()),
         });
     }
 
@@ -816,11 +804,7 @@ where
         relative_error,
         beam_energy_sq: s_had,
         pdf_name: config.pdf1.name().to_string(),
-        beam_description: format!(
-            "{} {} → X",
-            config.beam1.label(),
-            config.beam2.label()
-        ),
+        beam_description: format!("{} {} → X", config.beam1.label(), config.beam2.label()),
     })
 }
 
@@ -870,13 +854,9 @@ mod tests {
         let cms = 100.0;
         let masses = [0.0, 0.0];
 
-        let result = integrator.integrate(
-            |_event| 1.0,
-            &mut gen,
-            cms,
-            &masses,
-            5000,
-        ).unwrap();
+        let result = integrator
+            .integrate(|_event| 1.0, &mut gen, cms, &masses, 5000)
+            .unwrap();
 
         // For constant integrand, value = average weight.
         assert!(result.value > 0.0, "Integral should be positive");
@@ -889,13 +869,9 @@ mod tests {
     fn uniform_integrator_zero_events() {
         let integrator = UniformIntegrator::new();
         let mut gen = RamboGenerator::new();
-        let result = integrator.integrate(
-            |_| 1.0,
-            &mut gen,
-            100.0,
-            &[0.0, 0.0],
-            0,
-        ).unwrap();
+        let result = integrator
+            .integrate(|_| 1.0, &mut gen, 100.0, &[0.0, 0.0], 0)
+            .unwrap();
         assert_eq!(result.events_evaluated, 0);
         assert_eq!(result.value, 0.0);
     }
@@ -915,14 +891,8 @@ mod tests {
         let cms = 100.0;
         let masses = [0.0, 0.0];
 
-        let result = compute_cross_section(
-            |_| 1.0,
-            &integrator,
-            &mut gen,
-            cms,
-            &masses,
-            10000,
-        ).unwrap();
+        let result =
+            compute_cross_section(|_| 1.0, &integrator, &mut gen, cms, &masses, 10000).unwrap();
 
         // σ = (1/2s) * ∫ |M|² dΦ₂ ≈ (1/2s) * <w>
         let s = cms * cms;
@@ -939,31 +909,20 @@ mod tests {
         let masses = [0.0, 0.0];
 
         let mut gen1 = RamboGenerator::new();
-        let r1 = compute_cross_section(
-            |_| 1.0,
-            &integrator,
-            &mut gen1,
-            cms,
-            &masses,
-            1000,
-        ).unwrap();
+        let r1 =
+            compute_cross_section(|_| 1.0, &integrator, &mut gen1, cms, &masses, 1000).unwrap();
 
         let mut gen2 = RamboGenerator::new();
-        let r2 = compute_cross_section(
-            |_| 1.0,
-            &integrator,
-            &mut gen2,
-            cms,
-            &masses,
-            100000,
-        ).unwrap();
+        let r2 =
+            compute_cross_section(|_| 1.0, &integrator, &mut gen2, cms, &masses, 100000).unwrap();
 
         // With 100x more events, relative error should decrease by ~10x.
         // Allow generous margins for statistical fluctuations.
         assert!(
             r2.relative_error < r1.relative_error,
             "More events should reduce relative error: {} vs {}",
-            r2.relative_error, r1.relative_error
+            r2.relative_error,
+            r1.relative_error
         );
     }
 
@@ -975,14 +934,8 @@ mod tests {
         let cms = 200.0;
         let masses = [0.10566, 0.10566]; // muon masses
 
-        let result = compute_cross_section(
-            |_| 1.0,
-            &integrator,
-            &mut gen,
-            cms,
-            &masses,
-            5000,
-        ).unwrap();
+        let result =
+            compute_cross_section(|_| 1.0, &integrator, &mut gen, cms, &masses, 5000).unwrap();
 
         assert!(result.value > 0.0);
         assert!(result.events_evaluated > 0);
@@ -996,14 +949,8 @@ mod tests {
         let cms = 10.0;
         let masses = [0.0, 0.0, 0.0];
 
-        let result = compute_cross_section(
-            |_| 1.0,
-            &integrator,
-            &mut gen,
-            cms,
-            &masses,
-            5000,
-        ).unwrap();
+        let result =
+            compute_cross_section(|_| 1.0, &integrator, &mut gen, cms, &masses, 5000).unwrap();
 
         assert!(result.value > 0.0);
         assert!(result.error >= 0.0);
@@ -1014,13 +961,9 @@ mod tests {
         // Verify the trait works through a generic function (static dispatch).
         fn run_integration<I: MonteCarloIntegrator>(integrator: &I) -> IntegrationResult {
             let mut gen = RamboGenerator::new();
-            integrator.integrate(
-                |_| 42.0,
-                &mut gen,
-                100.0,
-                &[0.0, 0.0],
-                100,
-            ).unwrap()
+            integrator
+                .integrate(|_| 42.0, &mut gen, 100.0, &[0.0, 0.0], 100)
+                .unwrap()
         }
 
         let integrator = UniformIntegrator::new();
@@ -1058,9 +1001,15 @@ mod tests {
         )
         .unwrap();
 
-        assert!(result.cross_section > 0.0, "Hadronic xsec should be positive");
+        assert!(
+            result.cross_section > 0.0,
+            "Hadronic xsec should be positive"
+        );
         assert!(result.uncertainty > 0.0, "Should have non-zero error");
-        assert!(result.cross_section_pb > 0.0, "pb conversion should be positive");
+        assert!(
+            result.cross_section_pb > 0.0,
+            "pb conversion should be positive"
+        );
         assert_eq!(result.beam_energy_sq, 10000.0);
         assert!(result.beam_description.contains("p"));
     }
@@ -1124,7 +1073,7 @@ mod tests {
 
     #[test]
     fn hadronic_cross_section_toy_proton_pdf() {
-        use crate::pdf::{ToyProtonPdf, Hadron};
+        use crate::pdf::{Hadron, ToyProtonPdf};
 
         let pdf = ToyProtonPdf::new();
         let config = HadronicIntegratorConfig {
@@ -1215,7 +1164,9 @@ mod tests {
         let masses = [0.0, 0.0];
         let n = 2000;
 
-        let plain = integrator.integrate(|_| 1.0, &mut gen1, cms, &masses, n).unwrap();
+        let plain = integrator
+            .integrate(|_| 1.0, &mut gen1, cms, &masses, n)
+            .unwrap();
         let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![];
         let with_cuts = integrator
             .integrate_with_cuts(|_| 1.0, &cuts, &mut gen2, cms, &masses, n)
@@ -1232,9 +1183,7 @@ mod tests {
         let engine = SpireScriptEngine::new();
         // Tight pT cut: only events where final-state particle has pT > 49 GeV.
         // For 2-body massless at 100 GeV CMS, pT ≈ 50 sin(θ) ≤ 50 GeV.
-        let cut = engine
-            .compile_cut("event.momenta[0].pt() > 49.0")
-            .unwrap();
+        let cut = engine.compile_cut("event.momenta[0].pt() > 49.0").unwrap();
         let cuts: Vec<&dyn crate::scripting::KinematicCut> = vec![&cut];
 
         let integrator = UniformIntegrator::new();
@@ -1266,7 +1215,9 @@ mod tests {
         let masses = [0.0, 0.0];
         let n = 3000;
 
-        let plain = integrator.integrate(|_| 1.0, &mut gen1, cms, &masses, n).unwrap();
+        let plain = integrator
+            .integrate(|_| 1.0, &mut gen1, cms, &masses, n)
+            .unwrap();
         let with_cuts = integrator
             .integrate_with_cuts(|_| 1.0, &cuts, &mut gen2, cms, &masses, n)
             .unwrap();

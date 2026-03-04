@@ -25,13 +25,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::lagrangian::{
-    LagrangianTerm, LagrangianTermKind, TheoreticalModel, VertexFactor,
-};
+use crate::lagrangian::{LagrangianTerm, LagrangianTermKind, TheoreticalModel, VertexFactor};
 use crate::ontology::{
-    ColorRepresentation, Field, InteractionType, QuantumNumbers,
-    Spin, WeakMultiplet, Parity, ChargeConjugation,
-    ElectricCharge, WeakIsospin, Hypercharge, BaryonNumber, LeptonNumbers,
+    BaryonNumber, ChargeConjugation, ColorRepresentation, ElectricCharge, Field, Hypercharge,
+    InteractionType, LeptonNumbers, Parity, QuantumNumbers, Spin, WeakIsospin, WeakMultiplet,
 };
 use crate::SpireResult;
 
@@ -326,14 +323,21 @@ fn find_constructor_calls<'a>(content: &'a str, class_name: &str) -> Vec<(String
             let before = &content[..abs_pos];
             if let Some(eq_pos) = before.rfind('=') {
                 // Make sure this isn't inside a string or a !=, ==, etc.
-                if eq_pos > 0 && !matches!(before.as_bytes().get(eq_pos - 1), Some(b'!' | b'<' | b'>' | b'=')) {
-                    let var_name = before[before[..eq_pos].rfind('\n').map(|p| p + 1).unwrap_or(0)..eq_pos]
+                if eq_pos > 0
+                    && !matches!(
+                        before.as_bytes().get(eq_pos - 1),
+                        Some(b'!' | b'<' | b'>' | b'=')
+                    )
+                {
+                    let var_name = before
+                        [before[..eq_pos].rfind('\n').map(|p| p + 1).unwrap_or(0)..eq_pos]
                         .trim()
                         .to_string();
 
                     // Extract the balanced parenthesized body.
                     let paren_start = abs_pos + class_name.len();
-                    if let Some((body, end_pos)) = extract_balanced(content, paren_start, '(', ')') {
+                    if let Some((body, end_pos)) = extract_balanced(content, paren_start, '(', ')')
+                    {
                         results.push((var_name, body));
                         // Skip ahead to avoid re-matching.
                         if end_pos > line_start {
@@ -385,10 +389,7 @@ pub fn parse_ufo_particles(content: &str) -> SpireResult<Vec<UfoParticle>> {
             .and_then(|s| s.parse::<i32>().ok())
             .unwrap_or(0);
 
-        let name = map
-            .get("name")
-            .map(|s| strip_quotes(s))
-            .unwrap_or_default();
+        let name = map.get("name").map(|s| strip_quotes(s)).unwrap_or_default();
 
         let antiname = map
             .get("antiname")
@@ -455,10 +456,7 @@ pub fn parse_ufo_couplings(content: &str) -> SpireResult<Vec<UfoCoupling>> {
         let kwargs = parse_kwargs(body);
         let map: HashMap<String, String> = kwargs.into_iter().collect();
 
-        let name = map
-            .get("name")
-            .map(|s| strip_quotes(s))
-            .unwrap_or_default();
+        let name = map.get("name").map(|s| strip_quotes(s)).unwrap_or_default();
 
         let value = map
             .get("value")
@@ -512,10 +510,7 @@ pub fn parse_ufo_parameters(content: &str) -> SpireResult<Vec<UfoParameter>> {
         let kwargs = parse_kwargs(body);
         let map: HashMap<String, String> = kwargs.into_iter().collect();
 
-        let name = map
-            .get("name")
-            .map(|s| strip_quotes(s))
-            .unwrap_or_default();
+        let name = map.get("name").map(|s| strip_quotes(s)).unwrap_or_default();
 
         let nature = map
             .get("nature")
@@ -572,10 +567,7 @@ pub fn parse_ufo_lorentz(content: &str) -> SpireResult<Vec<UfoLorentz>> {
         let kwargs = parse_kwargs(body);
         let map: HashMap<String, String> = kwargs.into_iter().collect();
 
-        let name = map
-            .get("name")
-            .map(|s| strip_quotes(s))
-            .unwrap_or_default();
+        let name = map.get("name").map(|s| strip_quotes(s)).unwrap_or_default();
 
         let spins = map
             .get("spins")
@@ -611,10 +603,7 @@ pub fn parse_ufo_vertices(content: &str) -> SpireResult<Vec<UfoVertex>> {
         let kwargs = parse_kwargs(body);
         let map: HashMap<String, String> = kwargs.into_iter().collect();
 
-        let name = map
-            .get("name")
-            .map(|s| strip_quotes(s))
-            .unwrap_or_default();
+        let name = map.get("name").map(|s| strip_quotes(s)).unwrap_or_default();
 
         // Particles: [P.e__minus__, P.e__plus__, P.a]
         let particles = map
@@ -865,10 +854,7 @@ fn build_param_values(params: &[UfoParameter]) -> HashMap<String, f64> {
 ///
 /// * `ufo` — The parsed UFO model.
 /// * `model_name` — Human-readable name for the model.
-pub fn ufo_to_theoretical_model(
-    ufo: &UfoModel,
-    model_name: &str,
-) -> SpireResult<TheoreticalModel> {
+pub fn ufo_to_theoretical_model(ufo: &UfoModel, model_name: &str) -> SpireResult<TheoreticalModel> {
     let param_values = build_param_values(&ufo.parameters);
 
     // --- Convert particles to Fields ---
@@ -876,14 +862,8 @@ pub fn ufo_to_theoretical_model(
         .particles
         .iter()
         .map(|p| {
-            let mass = param_values
-                .get(&p.mass_name)
-                .copied()
-                .unwrap_or(0.0);
-            let width = param_values
-                .get(&p.width_name)
-                .copied()
-                .unwrap_or(0.0);
+            let mass = param_values.get(&p.mass_name).copied().unwrap_or(0.0);
+            let width = param_values.get(&p.width_name).copied().unwrap_or(0.0);
 
             // Map charge: UFO gives float; SPIRE stores i8 in units of e/3.
             let charge_thirds = (p.charge * 3.0).round() as i8;
@@ -924,12 +904,7 @@ pub fn ufo_to_theoretical_model(
         let term_id = format!("ufo_{}", vtx.name);
 
         // Determine coupling value from first coupling entry.
-        let coupling_name = vtx
-            .couplings
-            .values()
-            .next()
-            .cloned()
-            .unwrap_or_default();
+        let coupling_name = vtx.couplings.values().next().cloned().unwrap_or_default();
         let coupling_value = ufo
             .couplings
             .iter()
@@ -970,8 +945,11 @@ pub fn ufo_to_theoretical_model(
 
     Ok(TheoreticalModel {
         name: model_name.to_string(),
-        description: format!("Model imported from UFO format ({} particles, {} vertices)",
-            ufo.particles.len(), ufo.vertices.len()),
+        description: format!(
+            "Model imported from UFO format ({} particles, {} vertices)",
+            ufo.particles.len(),
+            ufo.vertices.len()
+        ),
         fields,
         terms,
         vertex_factors,
@@ -987,15 +965,15 @@ fn infer_interaction_type(
     particle_names: &[String],
     all_particles: &[UfoParticle],
 ) -> InteractionType {
-    let has_gluon = particle_names.iter().any(|n| {
-        all_particles
-            .iter()
-            .any(|p| &p.name == n && p.color == 8)
-    });
+    let has_gluon = particle_names
+        .iter()
+        .any(|n| all_particles.iter().any(|p| &p.name == n && p.color == 8));
     let has_photon = particle_names.iter().any(|n| n == "a" || n == "A");
     let has_w = particle_names.iter().any(|n| n.contains("W"));
     let has_z = particle_names.iter().any(|n| n.contains("Z"));
-    let has_higgs = particle_names.iter().any(|n| n.contains("H") || n.contains("h"));
+    let has_higgs = particle_names
+        .iter()
+        .any(|n| n.contains("H") || n.contains("h"));
 
     if has_gluon {
         InteractionType::Strong
@@ -1125,7 +1103,11 @@ V_5 = Vertex(name = 'V_5', particles = [P.g, P.g, P.g],
     fn parse_ufo_particles_basic() {
         let particles = parse_ufo_particles(TEST_PARTICLES_PY).unwrap();
 
-        assert!(particles.len() >= 4, "Expected at least 4 particles, got {}", particles.len());
+        assert!(
+            particles.len() >= 4,
+            "Expected at least 4 particles, got {}",
+            particles.len()
+        );
 
         let photon = particles.iter().find(|p| p.name == "a").unwrap();
         assert_eq!(photon.pdg_code, 22);
@@ -1205,11 +1187,11 @@ V_5 = Vertex(name = 'V_5', particles = [P.g, P.g, P.g],
 
     #[test]
     fn ufo_spin_mapping() {
-        assert_eq!(ufo_spin_to_spire(1), Spin(0));  // scalar
-        assert_eq!(ufo_spin_to_spire(2), Spin(1));  // fermion
-        assert_eq!(ufo_spin_to_spire(3), Spin(2));  // vector
-        assert_eq!(ufo_spin_to_spire(4), Spin(3));  // spin-3/2
-        assert_eq!(ufo_spin_to_spire(5), Spin(4));  // spin-2
+        assert_eq!(ufo_spin_to_spire(1), Spin(0)); // scalar
+        assert_eq!(ufo_spin_to_spire(2), Spin(1)); // fermion
+        assert_eq!(ufo_spin_to_spire(3), Spin(2)); // vector
+        assert_eq!(ufo_spin_to_spire(4), Spin(3)); // spin-3/2
+        assert_eq!(ufo_spin_to_spire(5), Spin(4)); // spin-2
     }
 
     #[test]

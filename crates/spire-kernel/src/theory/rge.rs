@@ -156,9 +156,7 @@ pub fn run_rge_flow(config: &RgeFlowConfig) -> SpireResult<RgeFlowResult> {
 fn eval_beta(engine: &rhai::Engine, ast: &rhai::AST, g: f64) -> SpireResult<f64> {
     let result: f64 = engine
         .call_fn(&mut rhai::Scope::new(), ast, "beta", (g,))
-        .map_err(|e| {
-            SpireError::InternalError(format!("β-function evaluation failed: {}", e))
-        })?;
+        .map_err(|e| SpireError::InternalError(format!("β-function evaluation failed: {}", e)))?;
     Ok(result)
 }
 
@@ -197,7 +195,7 @@ mod tests {
             coupling_name: "g_lin".to_string(),
             beta_script: "1.0".to_string(),
             initial_value: 0.0,
-            mu_min: 1.0,  // ln(1) = 0
+            mu_min: 1.0,                 // ln(1) = 0
             mu_max: std::f64::consts::E, // ln(e) = 1
             n_points: 1001,
             extra_constants: Default::default(),
@@ -205,11 +203,7 @@ mod tests {
         let result = run_rge_flow(&config).unwrap();
         let last = *result.coupling_values.last().unwrap();
         // g(ln(e)) = 0 + 1 = 1.0
-        assert!(
-            (last - 1.0).abs() < 1e-6,
-            "Expected ~1.0, got {}",
-            last
-        );
+        assert!((last - 1.0).abs() < 1e-6, "Expected ~1.0, got {}", last);
     }
 
     #[test]

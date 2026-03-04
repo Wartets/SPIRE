@@ -22,9 +22,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::ast::{
-    expr_to_latex, LagrangianExpr,
-};
+use super::ast::{expr_to_latex, LagrangianExpr};
 use crate::lagrangian::VertexFactor;
 use crate::{SpireError, SpireResult};
 
@@ -90,9 +88,7 @@ pub fn functional_derivative(
             }
         }
 
-        LagrangianExpr::Product(factors) => {
-            differentiate_product(factors, field_id, is_adjoint)
-        }
+        LagrangianExpr::Product(factors) => differentiate_product(factors, field_id, is_adjoint),
 
         LagrangianExpr::Sum(terms) => {
             let mut result_terms = Vec::new();
@@ -152,7 +148,8 @@ fn differentiate_product(
             for j in 0..n {
                 if j == i {
                     // Only include the differentiated factor if it's not just 1.0
-                    if !matches!(&diff_i, LagrangianExpr::RealConstant(v) if (*v - 1.0).abs() < 1e-12) {
+                    if !matches!(&diff_i, LagrangianExpr::RealConstant(v) if (*v - 1.0).abs() < 1e-12)
+                    {
                         remaining.push(diff_i.clone());
                     }
                 } else {
@@ -313,10 +310,7 @@ fn replace_derivatives_with_momenta(expr: &LagrangianExpr) -> LagrangianExpr {
 /// In practice, the $n!$ from differentiation cancels the $1/n!$ convention
 /// factor in the Lagrangian. We return the raw combinatorial factor $n!$
 /// so the caller can compare against the expected convention.
-fn compute_symmetry_factor(
-    _expr: &LagrangianExpr,
-    external_fields: &[ExternalField],
-) -> f64 {
+fn compute_symmetry_factor(_expr: &LagrangianExpr, external_fields: &[ExternalField]) -> f64 {
     // Count how many times each (field_id, is_adjoint) pair appears in the externals.
     let mut field_counts: HashMap<(String, bool), usize> = HashMap::new();
     for ext in external_fields {
@@ -384,34 +378,57 @@ mod tests {
     #[test]
     fn derive_qed_vertex() {
         let fields = qed_fields();
-        let expr =
-            parse_lagrangian_term("e * psibar * gamma^mu * psi * A_mu", &fields).unwrap();
+        let expr = parse_lagrangian_term("e * psibar * gamma^mu * psi * A_mu", &fields).unwrap();
 
         let externals = vec![
-            ExternalField { field_id: "psi".to_string(), is_adjoint: true },
-            ExternalField { field_id: "psi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "A".to_string(), is_adjoint: false },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: true,
+            },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "A".to_string(),
+                is_adjoint: false,
+            },
         ];
 
         let rule = derive_vertex_rule(&expr, &externals).unwrap();
         assert_eq!(rule.n_legs, 3);
         // After differentiating out ψ̄, ψ, A_μ, the residual should be e * gamma^mu.
         let latex = expr_to_latex(&rule.residual_expr);
-        assert!(latex.contains("\\gamma^{mu}") || latex.contains("e"), "LaTeX: {}", latex);
+        assert!(
+            latex.contains("\\gamma^{mu}") || latex.contains("e"),
+            "LaTeX: {}",
+            latex
+        );
     }
 
     #[test]
     fn derive_scalar_quartic_vertex() {
         let fields = qed_fields();
         // λ * φ * φ * φ * φ  →  differentiating 4 φ's should leave λ
-        let expr =
-            parse_lagrangian_term("lambda * phi * phi * phi * phi", &fields).unwrap();
+        let expr = parse_lagrangian_term("lambda * phi * phi * phi * phi", &fields).unwrap();
 
         let externals = vec![
-            ExternalField { field_id: "phi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "phi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "phi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "phi".to_string(), is_adjoint: false },
+            ExternalField {
+                field_id: "phi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "phi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "phi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "phi".to_string(),
+                is_adjoint: false,
+            },
         ];
 
         let rule = derive_vertex_rule(&expr, &externals).unwrap();
@@ -425,19 +442,31 @@ mod tests {
         let mut fields = qed_fields();
         fields.insert("H".to_string(), FieldSpin::Scalar);
 
-        let expr =
-            parse_lagrangian_term("y * psibar * psi * H", &fields).unwrap();
+        let expr = parse_lagrangian_term("y * psibar * psi * H", &fields).unwrap();
 
         let externals = vec![
-            ExternalField { field_id: "psi".to_string(), is_adjoint: true },
-            ExternalField { field_id: "psi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "H".to_string(), is_adjoint: false },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: true,
+            },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "H".to_string(),
+                is_adjoint: false,
+            },
         ];
 
         let rule = derive_vertex_rule(&expr, &externals).unwrap();
         assert_eq!(rule.n_legs, 3);
         let latex = expr_to_latex(&rule.residual_expr);
-        assert!(latex.contains("y"), "Residual should contain Yukawa coupling: {}", latex);
+        assert!(
+            latex.contains("y"),
+            "Residual should contain Yukawa coupling: {}",
+            latex
+        );
     }
 
     #[test]
@@ -445,9 +474,10 @@ mod tests {
         let fields = qed_fields();
         let expr = parse_lagrangian_term("e * psibar * gamma^mu * psi * A_mu", &fields).unwrap();
 
-        let externals = vec![
-            ExternalField { field_id: "Z".to_string(), is_adjoint: false },
-        ];
+        let externals = vec![ExternalField {
+            field_id: "Z".to_string(),
+            is_adjoint: false,
+        }];
 
         let result = derive_vertex_rule(&expr, &externals);
         assert!(result.is_err());
@@ -480,9 +510,15 @@ mod tests {
         assert!(result.is_some());
         let (diff, sign) = result.unwrap();
         // The residual should be psibar
-        assert!(matches!(&diff, LagrangianExpr::FieldOp { field_id, is_adjoint: true, .. } if field_id == "psi"),
-            "Expected psibar, got: {:?}", diff);
-        assert_eq!(sign, 1, "Differentiating from the right: no sign flip for rightmost fermion");
+        assert!(
+            matches!(&diff, LagrangianExpr::FieldOp { field_id, is_adjoint: true, .. } if field_id == "psi"),
+            "Expected psibar, got: {:?}",
+            diff
+        );
+        assert_eq!(
+            sign, 1,
+            "Differentiating from the right: no sign flip for rightmost fermion"
+        );
     }
 
     #[test]
@@ -490,9 +526,18 @@ mod tests {
         let fields = qed_fields();
         let expr = parse_lagrangian_term("e * psibar * gamma^mu * psi * A_mu", &fields).unwrap();
         let externals = vec![
-            ExternalField { field_id: "psi".to_string(), is_adjoint: true },
-            ExternalField { field_id: "psi".to_string(), is_adjoint: false },
-            ExternalField { field_id: "A".to_string(), is_adjoint: false },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: true,
+            },
+            ExternalField {
+                field_id: "psi".to_string(),
+                is_adjoint: false,
+            },
+            ExternalField {
+                field_id: "A".to_string(),
+                is_adjoint: false,
+            },
         ];
         let rule = derive_vertex_rule(&expr, &externals).unwrap();
         let vf = to_vertex_factor(&rule, "qed_vertex", Some(0.3028));

@@ -57,8 +57,8 @@
 //! Gated behind the `python` cargo feature to avoid pulling in PyO3/NumPy
 //! dependencies when building for WASM or desktop-only targets.
 
-use pyo3::prelude::*;
 use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use pyo3::prelude::*;
 
 use numpy::{PyArray1, PyArray3};
 
@@ -92,18 +92,14 @@ fn to_py_err(e: SpireError) -> PyErr {
         SpireError::UnknownParticle(msg) => {
             PyValueError::new_err(format!("Unknown particle: {}", msg))
         }
-        SpireError::InvalidVertex(msg) => {
-            PyValueError::new_err(format!("Invalid vertex: {}", msg))
-        }
+        SpireError::InvalidVertex(msg) => PyValueError::new_err(format!("Invalid vertex: {}", msg)),
         SpireError::ModelParseError(msg) => {
             PyValueError::new_err(format!("Model parse error: {}", msg))
         }
         SpireError::GroupTheoryError(msg) => {
             PyValueError::new_err(format!("Group theory error: {}", msg))
         }
-        SpireError::AlgebraError(msg) => {
-            PyRuntimeError::new_err(format!("Algebra error: {}", msg))
-        }
+        SpireError::AlgebraError(msg) => PyRuntimeError::new_err(format!("Algebra error: {}", msg)),
         SpireError::InternalError(msg) => {
             PyRuntimeError::new_err(format!("Internal error: {}", msg))
         }
@@ -416,8 +412,7 @@ impl PyCrossSectionResult {
 
     /// Serialise to a JSON string.
     fn to_json(&self) -> PyResult<String> {
-        serde_json::to_string(&self.inner)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        serde_json::to_string(&self.inner).map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     fn __repr__(&self) -> String {
@@ -497,8 +492,7 @@ impl PyHadronicResult {
 
     /// Serialise to a JSON string.
     fn to_json(&self) -> PyResult<String> {
-        serde_json::to_string(&self.inner)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        serde_json::to_string(&self.inner).map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     fn __repr__(&self) -> String {
@@ -712,9 +706,7 @@ fn generate_phase_space_events<'py>(
         ));
     }
     if num_events == 0 {
-        return Err(PyValueError::new_err(
-            "Number of events must be positive",
-        ));
+        return Err(PyValueError::new_err("Number of events must be positive"));
     }
 
     let n_particles = final_masses.len();
@@ -731,9 +723,11 @@ fn generate_phase_space_events<'py>(
     // Fill the arrays event-by-event.
     // SAFETY: We have exclusive access (just allocated) and indices are in-bounds.
     unsafe {
-        let momenta_slice = momenta_array.as_slice_mut()
+        let momenta_slice = momenta_array
+            .as_slice_mut()
             .map_err(|e| PyRuntimeError::new_err(format!("NumPy buffer error: {}", e)))?;
-        let weights_slice = weights_array.as_slice_mut()
+        let weights_slice = weights_array
+            .as_slice_mut()
             .map_err(|e| PyRuntimeError::new_err(format!("NumPy buffer error: {}", e)))?;
 
         for i in 0..num_events {
@@ -836,8 +830,8 @@ fn calculate_hadronic_cross_section(
 #[pyfunction]
 #[pyo3(signature = (particles_toml, vertices_toml, model_name="Standard Model"))]
 fn load_model(particles_toml: &str, vertices_toml: &str, model_name: &str) -> PyResult<String> {
-    let model = data_loader::build_model(particles_toml, vertices_toml, model_name)
-        .map_err(to_py_err)?;
+    let model =
+        data_loader::build_model(particles_toml, vertices_toml, model_name).map_err(to_py_err)?;
     serde_json::to_string(&model).map_err(|e| PyRuntimeError::new_err(e.to_string()))
 }
 
@@ -858,9 +852,8 @@ fn construct_reaction(
     let init_refs: Vec<&str> = initial.iter().map(|s| s.as_str()).collect();
     let final_refs: Vec<&str> = final_state.iter().map(|s| s.as_str()).collect();
 
-    let reaction =
-        s_matrix::construct_reaction(&init_refs, &final_refs, &model, Some(cms_energy))
-            .map_err(to_py_err)?;
+    let reaction = s_matrix::construct_reaction(&init_refs, &final_refs, &model, Some(cms_energy))
+        .map_err(to_py_err)?;
 
     let json =
         serde_json::to_string(&reaction).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -902,8 +895,8 @@ fn reconstruct_reaction(
         })
         .collect::<PyResult<Vec<_>>>()?;
 
-    let results = s_matrix::reconstruct_reaction(&particles, &model, cms_energy)
-        .map_err(to_py_err)?;
+    let results =
+        s_matrix::reconstruct_reaction(&particles, &model, cms_energy).map_err(to_py_err)?;
 
     serde_json::to_string(&results).map_err(|e| PyRuntimeError::new_err(e.to_string()))
 }
@@ -930,8 +923,7 @@ fn generate_diagrams(
         n => LoopOrder::NLoop(n),
     };
 
-    let topologies = graph::generate_topologies(&reaction, &model, order)
-        .map_err(to_py_err)?;
+    let topologies = graph::generate_topologies(&reaction, &model, order).map_err(to_py_err)?;
 
     let json =
         serde_json::to_string(&topologies).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -950,8 +942,7 @@ fn compute_amplitude(diagram_json: String) -> PyResult<PyAmplitudeResult> {
     let diagram: graph::FeynmanGraph =
         serde_json::from_str(&diagram_json).map_err(|e| PyValueError::new_err(e.to_string()))?;
 
-    let amplitude = algebra::generate_amplitude(&diagram)
-        .map_err(to_py_err)?;
+    let amplitude = algebra::generate_amplitude(&diagram).map_err(to_py_err)?;
 
     let json =
         serde_json::to_string(&amplitude).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -973,8 +964,7 @@ fn calculate_threshold(
     final_masses: Vec<f64>,
     target_mass: Option<f64>,
 ) -> PyResult<PyKinematicsResult> {
-    let result = kinematics::calculate_thresholds(&final_masses, target_mass)
-        .map_err(to_py_err)?;
+    let result = kinematics::calculate_thresholds(&final_masses, target_mass).map_err(to_py_err)?;
 
     let json =
         serde_json::to_string(&result).map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
@@ -1094,7 +1084,9 @@ mod tests {
             efficiency: 1.0,
             relative_error: 0.037,
         };
-        let py = PyIntegrationResult { inner: inner.clone() };
+        let py = PyIntegrationResult {
+            inner: inner.clone(),
+        };
         assert!((py.inner.value - 1.23e-6).abs() < 1e-15);
         assert_eq!(py.inner.events_evaluated, 10000);
 

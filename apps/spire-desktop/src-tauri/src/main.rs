@@ -28,12 +28,14 @@ use std::collections::HashMap;
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::data_loader;
-use spire_kernel::theory;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
-use spire_kernel::kinematics::{self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult};
+use spire_kernel::kinematics::{
+    self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
+};
 use spire_kernel::lagrangian::TheoreticalModel;
 use spire_kernel::ontology;
 use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
+use spire_kernel::theory;
 
 // ---------------------------------------------------------------------------
 // KinematicsReport — aggregate return type
@@ -99,13 +101,9 @@ fn validate_and_reconstruct_reaction(
             // Construct a specific reaction.
             let init_refs: Vec<&str> = initial_ids.iter().map(|s| s.as_str()).collect();
             let final_refs: Vec<&str> = finals.iter().map(|s| s.as_str()).collect();
-            let reaction = s_matrix::construct_reaction(
-                &init_refs,
-                &final_refs,
-                &model,
-                Some(cms_energy),
-            )
-            .map_err(|e| e.to_string())?;
+            let reaction =
+                s_matrix::construct_reaction(&init_refs, &final_refs, &model, Some(cms_energy))
+                    .map_err(|e| e.to_string())?;
 
             serde_json::to_value(&reaction).map_err(|e| e.to_string())
         }
@@ -189,9 +187,7 @@ fn compute_kinematics(
     // Compute Mandelstam boundaries if 4 external masses and s are provided.
     let mandelstam_boundaries = if let Some(masses) = external_masses {
         let s = cms_energy * cms_energy;
-        Some(
-            kinematics::compute_mandelstam_boundaries(masses, s).map_err(|e| e.to_string())?,
-        )
+        Some(kinematics::compute_mandelstam_boundaries(masses, s).map_err(|e| e.to_string())?)
     } else {
         None
     };
@@ -339,7 +335,9 @@ fn validate_script(script: String) -> Result<(), String> {
 #[tauri::command]
 fn test_observable_script(script: String) -> Result<f64, String> {
     let engine = spire_kernel::scripting::SpireScriptEngine::new();
-    let obs = engine.compile_observable(&script).map_err(|e| e.to_string())?;
+    let obs = engine
+        .compile_observable(&script)
+        .map_err(|e| e.to_string())?;
 
     // Synthetic 2→2 test event.
     use spire_kernel::algebra::SpacetimeVector;
@@ -492,9 +490,7 @@ fn validate_lagrangian_term(
 
 /// Run an RGE coupling flow integration.
 #[tauri::command]
-fn run_rge_flow(
-    config: theory::rge::RgeFlowConfig,
-) -> Result<theory::rge::RgeFlowResult, String> {
+fn run_rge_flow(config: theory::rge::RgeFlowConfig) -> Result<theory::rge::RgeFlowResult, String> {
     theory::rge::run_rge_flow(&config).map_err(|e| e.to_string())
 }
 
@@ -504,9 +500,7 @@ fn run_rge_flow(
 
 /// Parse an SLHA spectrum string and return the parsed document.
 #[tauri::command]
-fn import_slha_string(
-    slha_text: String,
-) -> Result<theory::slha::SlhaDocument, String> {
+fn import_slha_string(slha_text: String) -> Result<theory::slha::SlhaDocument, String> {
     theory::slha::parse_slha(&slha_text).map_err(|e| e.to_string())
 }
 
@@ -521,7 +515,8 @@ fn import_ufo_model(
     model_name: String,
 ) -> Result<(theory::ufo::UfoModel, TheoreticalModel), String> {
     let ufo = theory::ufo::parse_ufo_model(&file_contents).map_err(|e| e.to_string())?;
-    let model = theory::ufo::ufo_to_theoretical_model(&ufo, &model_name).map_err(|e| e.to_string())?;
+    let model =
+        theory::ufo::ufo_to_theoretical_model(&ufo, &model_name).map_err(|e| e.to_string())?;
     Ok((ufo, model))
 }
 

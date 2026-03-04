@@ -13,13 +13,11 @@ mod strategies;
 use proptest::prelude::*;
 use spire_kernel::algebra::{FourMomentum, MetricSignature, SpacetimeVector};
 use spire_kernel::kinematics::{
-    apply_lorentz_boost, cm_momentum, compute_mandelstam, kallen_lambda,
-    PhaseSpaceGenerator, RamboGenerator,
+    apply_lorentz_boost, cm_momentum, compute_mandelstam, kallen_lambda, PhaseSpaceGenerator,
+    RamboGenerator,
 };
 
-use strategies::{
-    arbitrary_boost, arbitrary_four_momentum, arbitrary_mass,
-};
+use strategies::{arbitrary_boost, arbitrary_four_momentum, arbitrary_mass};
 
 // ===========================================================================
 // Lorentz Invariance of the Invariant Mass

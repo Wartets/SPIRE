@@ -121,15 +121,9 @@ fn bench_cross_section(c: &mut Criterion) {
     c.bench_function("cross_section_1k_events", |b| {
         b.iter(|| {
             let mut gen = RamboGenerator::with_seed(54321);
-            let result = compute_cross_section(
-                |_ps| 1.0,
-                &integrator,
-                &mut gen,
-                cms_energy,
-                &masses,
-                1_000,
-            )
-            .unwrap();
+            let result =
+                compute_cross_section(|_ps| 1.0, &integrator, &mut gen, cms_energy, &masses, 1_000)
+                    .unwrap();
             black_box(result)
         })
     });
