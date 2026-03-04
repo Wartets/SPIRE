@@ -345,28 +345,6 @@ and extraction of all terms linear in the renormalisation constants $\delta Z$, 
 
 ---
 
-## Roadmap & Philosophy
-
-SPIRE is built on the principle of **modular universality**: every hardcoded physical assumption is eventually replaced by a configurable abstraction. The project has been developed across **34 phases** organised into **11 thematic parts**:
-
-| Part | Theme | Phases |
-|:-:|:-|:-|
-| I | The Foundation | 01–10: Core kernel, ontology, S-matrix, Feynman calculus, kinematics, frontend |
-| II | The Expansion | 11–13: BSM/EFT, Dalitz plots, LaTeX/UFO/LHE interop |
-| III | The Grand Unification | 14–16: Arbitrary gauge groups, loop calculus, CAS engine |
-| IV | The Multiverse Simulator | 17–19: Mutable spacetime, Monte Carlo, PDFs, composite dynamics |
-| V | Ubiquity | 20: WASM grid, Python integration, real-time collaboration |
-| VI | The Interface Paradigm | 21–22: Adaptive workbench, workspace persistence |
-| VII | Kernel Hardening | 23–24, 27: Property-based testing, SIMD optimisation, benchmarks |
-| VIII | Open Architecture | 25–26, 28–29: Plugin system, external bridges, analysis pipeline, detector sim |
-| IX | Visual Physics Engine | 30–31: 2D heatmaps, 3D event display, animation, diagram editor |
-| X | The Theoretical Studio | 32–33: Lagrangian workbench, SLHA/UFO ingestion, NLO counterterms |
-| XI | Distributed Discovery | 34: WASM Compute Grid, distributed Monte Carlo, convergence dashboard |
-
-The ultimate vision — sometimes called the *Multiverse Simulator* ethos — is to provide absolute modular control to simulate, reconstruct, and analyse any theoretically consistent physical interaction, whether it exists in our universe, extends beyond the Standard Model, or operates under entirely custom axioms.
-
----
-
 ## Contributing
 
 Contributions are welcome. Please refer to the project's issue tracker for areas of active development. For major changes, please open an issue first to discuss the proposed modification. All submitted code should maintain the existing test coverage (currently 764+ tests) and compile without warnings.
