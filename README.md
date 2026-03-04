@@ -1,140 +1,396 @@
-# SPIRE: Structured Particle Interaction and Reaction Engine
+<p align="center">
+  <strong>S P I R E</strong><br>
+  <em>Structured Particle Interaction and Reaction Engine</em>
+</p>
 
-## Table of Contents
-1.  [Abstract](#abstract)
-2.  [Key Features](#key-features)
-3.  [Theoretical Formalism](#theoretical-formalism)
-4.  [System Architecture and Capabilities](#system-architecture-and-capabilities)
-5.  [Installation and Usage](#installation-and-usage)
-6.  [Documentation](#documentation)
-7.  [Contributing](#contributing)
-8.  [License](#license)
-9.  [Citation](#citation)
+<p align="center">
+  A rigorous computational framework for High Energy Physics and Quantum Field Theory —<br>
+  from Lagrangian densities to publication-ready cross-sections, entirely from first principles.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Wartets/SPIRE">Repository</a> ·
+  <a href="#getting-started">Getting Started</a> ·
+  <a href="#usage-walkthrough">Usage</a> ·
+  <a href="#theoretical-formalism">Formalism</a> ·
+  <a href="#roadmap--philosophy">Roadmap</a>
+</p>
+
+---
 
 ## Abstract
 
-SPIRE is a computational formalism and software environment designed for the rigorous analysis of High Energy Physics (HEP) and Quantum Field Theory (QFT). Operating on the principle of strict isomorphism between symbolic, topological, and analytical representations of physical phenomena, SPIRE functions as a deductive engine. Rather than retrieving pre-calculated scenarios, the system constructs valid physical processes from fundamental axioms—Lagrangian densities, symmetry groups, and conservation laws. It provides a unified workspace for the automated derivation of Feynman diagrams, the evaluation of symbolic scattering amplitudes, and the computation of kinematic phase space boundaries within the Standard Model and user-defined Beyond Standard Model (BSM) effective field theories.
+**SPIRE** is a deductive physics engine and computational formalism designed for the automated analysis of particle interactions within Quantum Field Theory (QFT). Unlike conventional tools that rely on pre-calculated look-up tables or hard-coded process libraries, SPIRE constructs valid physical processes *ab initio* — from user-specified Lagrangian densities, symmetry groups, and conservation laws. Its core design enforces a strict **isomorphism** between the three canonical representations of a scattering process:
 
-## Key Features
+1. The **symbolic** reaction equation ($A + B \to C + D$),
+2. The **topological** structure (Feynman diagrams),
+3. The **analytical** expression (the invariant amplitude $\mathcal{M}$).
 
-*   **Deductive Physics Engine**: Derives valid reactions from first principles, not from a static database.
-*   **Automated Topology Generation**: Enumerates all topologically distinct tree-level Feynman diagrams for any valid process.
-*   **Symbolic Amplitude Calculation**: Constructs the invariant amplitude $\mathcal{M}$ from Feynman rules.
-*   **Advanced Kinematic Analysis**: Computes reaction thresholds, Mandelstam variables, and Dalitz plot distributions.
-*   **BSM & EFT Support**: Enables the definition of custom particles, interactions, and higher-dimensional operators via simple TOML-based model files.
-*   **Interoperability**: Exports symbolic amplitudes to **LaTeX** and theoretical models to the **Universal FeynRules Output (UFO)** format for integration with external tools.
-*   **High-Performance Core**: Built with a memory-safe, computationally efficient Rust kernel for scientific-grade precision and stability.
+A single unified data structure carries all three representations simultaneously, ensuring that no information is lost or desynchronised across the derivation chain. SPIRE provides a complete computational pipeline: Lagrangian parsing → vertex rule extraction → Feynman topology enumeration → symbolic amplitude construction → Dirac/Lorentz algebra simplification → Monte Carlo phase-space integration → histogram analysis → detector-level reconstruction — all within a single, memory-safe Rust kernel exposed through an interactive SvelteKit desktop application.
+
+All project source code, documentation, and data files are hosted at [github.com/Wartets/SPIRE](https://github.com/Wartets/SPIRE).
+
+---
+
+## Table of Contents
+
+- [Core Capabilities](#core-capabilities)
+- [System Architecture](#system-architecture)
+- [Getting Started](#getting-started)
+- [Usage Walkthrough](#usage-walkthrough)
+- [Repository Structure](#repository-structure)
+- [Theoretical Formalism](#theoretical-formalism)
+- [Roadmap & Philosophy](#roadmap--philosophy)
+- [Contributing](#contributing)
+- [License](#license)
+- [Citation](#citation)
+
+---
+
+## Core Capabilities
+
+### Deductive Physics Engine
+SPIRE derives physically valid reactions from fundamental axioms rather than enumerating them from a static database. Given an initial state and centre-of-mass energy $\sqrt{s}$, the engine:
+- Validates **all** conservation laws mandated by the active gauge symmetry: electric charge, baryon number, lepton family numbers ($L_e, L_\mu, L_\tau$), weak isospin $T_3$, hypercharge $Y$, and colour.
+- Enforces discrete symmetry selection rules ($C$, $P$, $T$) appropriate to the interaction type.
+- Reconstructs all kinematically and dynamically allowed final states.
+- Identifies mediating gauge bosons and determines the perturbative order.
+
+### Lagrangian Workbench & Automated Feynman Rule Derivation
+Physicists define theories at the Lagrangian level using a human-readable syntax:
+```
+e * psi_bar * gamma^mu * psi * A_mu
+```
+SPIRE parses this into a typed Abstract Syntax Tree (AST) with 12 node types (`FieldOp`, `GammaMat`, `CovariantDerivative`, `FieldStrength`, etc.), then:
+- **Derives vertex rules** via successive functional differentiation with respect to external fields, implementing the full Leibniz rule with Grassmann sign tracking for fermionic operators.
+- **Validates theoretical consistency**: Lorentz invariance (all spacetime indices contracted), gauge singlet (U(1) charge conservation, SU(N) $N$-ality), Hermiticity (fermion bilinear pairing), and renormalisability (operator mass dimension $\leq 4$).
+- **Computes RGE flows** via 4th-order Runge–Kutta integration of user-defined $\beta$-functions scripted in the embedded Rhai language.
+
+### Computer Algebra System (CAS) for Spacetime Algebra
+A dedicated symbolic engine handles the full Dirac–Lorentz algebra:
+- **Trace evaluation**: $\text{Tr}[\gamma^\mu \gamma^\nu \gamma^\rho \gamma^\sigma] = 4(g^{\mu\nu}g^{\rho\sigma} - g^{\mu\rho}g^{\nu\sigma} + g^{\mu\sigma}g^{\nu\rho})$ with $d$-dimensional extensions for loop calculations.
+- **Index contraction**: Automated Einstein summation across all Lorentz and gauge indices.
+- **Spinor algebra**: Dirac equation simplification ($\bar{u}\slashed{p} = \bar{u}m$), completeness relations, and spin-sum evaluations.
+- **Dimensional regularisation**: Full $d = 4 - 2\varepsilon$ algebra for one-loop calculations with Passarino–Veltman tensor reduction to scalar master integrals ($A_0$, $B_0$, $C_0$, $D_0$).
+
+### Monte Carlo Integration & Event Generation
+- **RAMBO algorithm**: Flat $N$-body Lorentz-Invariant Phase Space (LIPS) generation with exact energy-momentum conservation.
+- **Cross-section computation**: $\sigma = \frac{1}{2s} \int d\Phi_n \, |\mathcal{M}|^2$ via Monte Carlo sampling with variance estimation.
+- **Hadronic convolution**: Parton-level cross-sections folded with Parton Distribution Functions:
+
+$$\sigma_{pp} = \sum_{a,b} \int dx_1 \, dx_2 \; f_a(x_1, Q^2) \, f_b(x_2, Q^2) \; \hat{\sigma}_{ab}(\hat{s})$$
+
+- **Histogramming engine**: 1D and 2D histograms with bin-level variance estimation, underflow/overflow tracking, and statistical merging.
+- **Distributed compute grid**: Phase-space integration partitioned across Web Worker threads with fault-tolerant scheduling and $1/\sqrt{N}$ convergence monitoring.
+
+### Phenomenological Detector Simulation
+- **Parametric detector models**: Configurable efficiency maps, Gaussian energy smearing, and $\eta$-acceptance cuts.
+- **Anti-$k_t$ jet clustering**: E-scheme recombination with configurable jet radius $R$.
+- **Reconstructed event model**: Jets, isolated leptons ($e$, $\mu$), photons, and missing transverse energy $E_T^{\text{miss}}$.
+- **Three presets**: Perfect (unity efficiency), LHC-like (ATLAS/CMS parametrisation), ILC-like ($e^+e^-$ collider).
+
+### External Theory Bridge (SLHA & UFO)
+- **SLHA parser**: Full SUSY Les Houches Accord v1 ingestion — mass spectra (`BLOCK MASS`), mixing matrices (`BLOCK NMIX`, `BLOCK UMIX`), decay tables (`DECAY`), and running parameters with $Q$-scale tracking.
+- **UFO bridge**: Pure-Rust parser for Universal FeynRules Output models (WASM-compatible, no Python dependency). Reads `particles.py`, `vertices.py`, `couplings.py`, `parameters.py`, and `lorentz.py`, mapping them into SPIRE's ontology.
+- **NLO counterterm generator**: Automated multiplicative field renormalisation $\phi_0 = \sqrt{Z}\phi_R$ with extraction of all $\mathcal{O}(\delta)$ counterterm vertices and their Feynman rules.
+
+### Visualisation & Interactive Analysis
+- **Feynman diagram renderer**: Vector-graphic topology visualisation with channel ($s$, $t$, $u$) colour coding.
+- **Interactive diagram editor**: SVG-based drag-and-drop vertex manipulation with force-directed layout.
+- **Dalitz plots**: Phase-space boundary computation and point generation for three-body decays.
+- **3D event display**: Three.js-powered detector visualisation with energy-scaled jet cones, lepton tracks, photon lines, and $E_T^{\text{miss}}$ arrows, with event-by-event animation.
+- **GPU-accelerated heatmaps**: WebGL-based 2D correlation plots with Viridis colourmap.
+
+### Extensibility & Interoperability
+- **Custom model files**: TOML-based particle and vertex definitions with referential integrity validation.
+- **BSM / EFT support**: Arbitrary gauge groups ($SU(N)$, $SO(N)$, $U(1)'$), higher-dimensional operators (dimension-5, -6, -8), and variable spacetime dimensionality.
+- **LaTeX export**: Publication-quality amplitude expressions.
+- **UFO export**: Model export to the Universal FeynRules Output format for MadGraph5_aMC@NLO compatibility.
+- **LHE output**: Les Houches Event file generation for interfacing with shower Monte Carlo generators.
+- **Rhai scripting**: User-defined observable and kinematic cut functions evaluated at runtime.
+
+---
+
+## System Architecture
+
+SPIRE follows a strict three-layer architecture that enforces separation of concerns and enables multi-platform deployment:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                  SvelteKit Adaptive Workbench             │
+│   13 widget types · Chart.js · Three.js · WebGL          │
+│   Compute Grid Dashboard · Workspace persistence         │
+├──────────────────────────────────────────────────────────┤
+│              Tauri IPC / WASM Boundary Layer              │
+│   22 IPC commands · serde-wasm-bindgen · PyO3 bindings   │
+├──────────────────────────────────────────────────────────┤
+│                  Rust Physics Kernel                      │
+│   Ontology · S-Matrix · Graph · Algebra · Kinematics     │
+│   Analysis · PDF · Integration · Theory · Scripting      │
+│   ~15,000 lines · 764 tests · zero unsafe                │
+└──────────────────────────────────────────────────────────┘
+```
+
+### The Rust Kernel (`spire-kernel`)
+The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. Key modules:
+
+| Module | Responsibility |
+|--------|---------------|
+| `ontology` | Quantum field definitions, state vectors, Poincaré representations |
+| `groups` | Lie algebra engine, gauge symmetry validation, conservation laws |
+| `s_matrix` | Reaction construction, final-state reconstruction, cross-section integration |
+| `lagrangian` | Theoretical model assembly, vertex factors, propagators |
+| `graph` | Feynman topology generation, channel classification, symmetry factors |
+| `algebra` | CAS engine — Dirac algebra, trace evaluation, amplitude derivation |
+| `kinematics` | Mandelstam variables, RAMBO phase-space, Dalitz boundaries, Lorentz boosts |
+| `analysis` | Histogram engine, observable scripting, detector simulation, jet clustering |
+| `theory` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA/UFO parsers, NLO counterterms |
+| `integration` | Hadronic cross-section convolution, PDF providers |
+| `scripting` | Rhai script compilation and evaluation for user-defined observables |
+
+### The Bindings Layer (`spire-bindings`)
+Exposes the kernel through stable Foreign Function Interfaces:
+- **WebAssembly** (`wasm-bindgen`): Full kernel access in the browser via `serde-wasm-bindgen` for zero-copy JS object interchange.
+- **Python** (`PyO3`, feature-gated): Extension module for integration with NumPy, SciPy, and Jupyter.
+
+### The Desktop Application (`spire-desktop`)
+A **Tauri** + **SvelteKit** application providing a reactive scientific workbench:
+- **22 Tauri IPC commands** bridging the frontend to the Rust backend via JSON-serialised, stateless function calls.
+- **13 interactive widget types** arranged on a CSS-Grid canvas: Model Loader, Reaction Workspace, Diagram Visualiser, Amplitude Panel, Kinematics View, Dalitz Plotter, Analysis Widget, Event Display, Diagram Editor, Lagrangian Workbench, External Models, Compute Grid Dashboard, and Console.
+- **Workspace persistence**: Layouts serialisable to JSON with auto-save and LocalStorage restore.
+
+---
+
+## Getting Started
+
+### Prerequisites
+- **Rust** (edition 2021+) and Cargo — [rustup.rs](https://rustup.rs)
+- **Node.js** (LTS, ≥ 18) and npm
+- **System libraries** (Linux only): `build-essential`, `libwebkit2gtk-4.0-dev`, `libgtk-3-dev`, `libssl-dev`
+- **System libraries** (macOS): Xcode Command Line Tools
+
+### Build & Run
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Wartets/SPIRE.git
+cd SPIRE
+
+# 2. Install frontend dependencies
+npm install
+
+# 3. Run in development mode (with hot-reloading)
+npm run tauri dev
+
+# 4. Or build a release-optimised binary
+npm run tauri build
+# → Output: apps/spire-desktop/src-tauri/target/release/
+```
+
+### Running the Test Suite
+```bash
+# Run all 764+ kernel tests (unit, fuzz, property-based, doc-tests)
+cargo test --workspace
+
+# Run benchmarks (requires nightly for some features)
+cargo bench -p spire-kernel
+```
+
+---
+
+## Usage Walkthrough
+
+### 1. Defining a Lagrangian and Deriving Vertex Rules
+
+Open the **Lagrangian Workbench** widget. Define your field content (e.g., `psi` as Fermion, `A` as Vector), then type a Lagrangian interaction term:
+
+```
+e * psi_bar * gamma^mu * psi * A_mu
+```
+
+SPIRE will:
+- Parse the term into an AST and render its LaTeX form: $e\bar{\psi}\gamma^\mu\psi A_\mu$.
+- Display validation badges: **Lorentz ✓** (all indices contracted), **Gauge ✓** (charge-neutral), **Hermitian ✓**, **Renormalisable ✓** (dimension 4).
+- Derive the QED vertex rule: select external fields $\bar{\psi}$, $\psi$, $A^\mu$ and click "Derive Vertex Rule" to obtain $-ie\gamma^\mu$.
+
+### 2. Running a Monte Carlo Analysis with Custom Observables
+
+Open the **Analysis** widget. Configure:
+- **CMS Energy**: 91.2 GeV (Z-pole)
+- **Final masses**: [0.000511, 0.000511] (electron pair)
+- **Events**: 100,000
+
+Define a custom observable script (Rhai syntax):
+```rust
+// Invariant mass of the final-state pair
+let p1 = event.momenta[0];
+let p2 = event.momenta[1];
+let s = (p1.e + p2.e).powi(2) - (p1.px + p2.px).powi(2)
+      - (p1.py + p2.py).powi(2) - (p1.pz + p2.pz).powi(2);
+s.sqrt()
+```
+
+Click **Run Analysis** to generate events, fill histograms, and display the $m_{ee}$ distribution with cross-section diagnostics. For large-scale integrations (millions of events), route the computation through the **Compute Grid Dashboard** to distribute work across all available CPU cores via Web Workers.
+
+### 3. Importing a UFO Model
+
+Open the **External Models** widget → **UFO** tab. Upload the `.py` files from a FeynRules/SARAH UFO output directory (e.g., `particles.py`, `vertices.py`, `couplings.py`, `parameters.py`). SPIRE's pure-Rust parser reads the Python constructor calls, maps UFO spin conventions ($2S+1$) to SPIRE's $2S$ representation, converts colour codes, and assembles a complete `TheoreticalModel`. Click **Apply as Active Model** to use it in all subsequent calculations.
+
+### 4. Inspecting SLHA Spectra
+
+Open the **External Models** widget → **SLHA** tab. Upload or paste an SLHA file from SPheno, SoftSUSY, or any compatible spectrum generator. The block browser displays mass spectra (`BLOCK MASS`), mixing matrices (`BLOCK NMIX`), and Higgs sector parameters. Decay tables show branching ratios and daughter particles.
+
+### 5. NLO Counterterm Generation
+
+In the **External Models** widget → **NLO** tab, enter a tree-level term (e.g., `e * psi_bar * gamma^mu * psi * A_mu`), define the field content and external legs, then click **Derive Counterterms**. SPIRE performs multiplicative field renormalisation ($\phi \to \sqrt{Z}\phi$), coupling renormalisation ($g \to g + \delta g$), extracts all $\mathcal{O}(\delta)$ counterterm expressions, and derives their Feynman rules.
+
+### 6. Using the Compute Grid
+
+Open the **Compute Grid Dashboard** widget. Configure the total number of events and optional chunk size, then launch a distributed integration. The dashboard displays:
+- **Active nodes** (Web Workers) with real-time status indicators (Idle / Computing / Merging).
+- **Global progress bar** with events completed and estimated time remaining.
+- **Convergence plot** showing the cross-section uncertainty decreasing as $1/\sqrt{N}$.
+- **Merged result** with statistically combined histograms upon completion.
+
+---
+
+## Repository Structure
+
+```
+SPIRE/
+├── crates/
+│   ├── spire-kernel/          Rust physics engine (~15,000 lines)
+│   │   ├── src/
+│   │   │   ├── algebra.rs         CAS engine, Dirac algebra, amplitude derivation
+│   │   │   ├── analysis.rs        Histogramming, detector simulation, jet clustering
+│   │   │   ├── data_loader.rs     TOML model ingestion
+│   │   │   ├── graph.rs           Feynman topology generation
+│   │   │   ├── groups.rs          Lie algebra, gauge symmetries, conservation laws
+│   │   │   ├── integration.rs     Hadronic cross-section convolution
+│   │   │   ├── kinematics.rs      Phase space, Mandelstam, Dalitz, RAMBO
+│   │   │   ├── lagrangian.rs      TheoreticalModel, vertex factors, propagators
+│   │   │   ├── ontology.rs        Quantum fields, particles, state vectors
+│   │   │   ├── pdf.rs             Parton distribution functions
+│   │   │   ├── s_matrix.rs        Reactions, cross-sections, event generation
+│   │   │   ├── scripting.rs       Rhai observable/cut script engine
+│   │   │   └── theory/            Lagrangian AST, derivation, validation, RGE,
+│   │   │       ├── ast.rs             SLHA parser, UFO bridge, NLO counterterms
+│   │   │       ├── derivation.rs
+│   │   │       ├── renormalization.rs
+│   │   │       ├── rge.rs
+│   │   │       ├── slha.rs
+│   │   │       ├── ufo.rs
+│   │   │       └── validation.rs
+│   │   ├── tests/             Property-based & fuzz tests
+│   │   └── benches/           Criterion benchmarks
+│   └── spire-bindings/        WASM (wasm-bindgen) & Python (PyO3) FFI
+├── apps/
+│   └── spire-desktop/         Tauri + SvelteKit desktop application
+│       ├── src/
+│       │   ├── lib/
+│       │   │   ├── api.ts             Typed Tauri IPC wrappers
+│       │   │   ├── components/        13 interactive widget components
+│       │   │   ├── services/          Compute grid, workspace manager
+│       │   │   ├── stores/            Svelte stores (physics, notebook, inputs)
+│       │   │   ├── types/             TypeScript type definitions
+│       │   │   └── workers/           Web Worker compute nodes
+│       │   └── routes/
+│       └── src-tauri/
+│           └── src/main.rs    22 Tauri IPC commands
+├── data/                      Default SM model files (TOML)
+├── docs/                      MkDocs documentation source
+├── README.md                  This file
+├── roadmap.md                 Master development roadmap (34 phases)
+└── Cargo.toml                 Workspace manifest
+```
+
+---
 
 ## Theoretical Formalism
 
-The core architecture of SPIRE is grounded in S-Matrix theory, treating physical processes as transitions between asymptotic states in a Hilbert space. The system enforces theoretical consistency through three primary layers:
+SPIRE's computational architecture is grounded in the operator formalism of Quantum Field Theory and the LSZ reduction theorem. The central objects are:
 
-1.  **Isomorphic State Representation**: A physical process is represented by a single, unified data structure that maintains a strict isomorphism between its three manifestations: the symbolic reaction equation ($A+B \to C+D$), the topological graph (Feynman diagrams), and the analytical expression (invariant amplitude $\mathcal{M}$).
+### S-Matrix and Asymptotic States
+Physical processes are transitions between asymptotic in- and out-states in Fock space. A scattering amplitude is computed as:
 
-2.  **Quantum Ontology**: Fundamental particles are treated as irreducible representations of the Poincaré group and relevant internal gauge groups (e.g., $SU(3)_C \times SU(2)_L \times U(1)_Y$). Quantum state vectors are rigorously defined by their invariant mass, spin, and a complete set of quantum numbers.
+$$\langle f | S | i \rangle = \langle f | T \exp\!\left(-i \int d^4x \, \mathcal{H}_{\text{int}}(x)\right) | i \rangle$$
 
-3.  **Lagrangian Dynamics**: Interaction vertices are derived directly from a user-specified Lagrangian density. The system parses field theoretic terms to extract Feynman rules, ensuring that all generated topologies correspond to valid terms in the interaction Hamiltonian.
+where $\mathcal{H}_{\text{int}}$ is the interaction Hamiltonian density derived from the user-specified Lagrangian $\mathcal{L}_{\text{int}}$.
 
-4.  **Symmetry & Conservation Invariance**: Transition validity is determined by group-theoretic invariants, not arithmetic heuristics. The engine verifies the conservation of four-momentum, angular momentum, and internal quantum numbers, while enforcing selection rules (C, P, T symmetries) appropriate to the interaction type (strong, electromagnetic, or weak).
+### Quantum Ontology
+Particles are classified as irreducible representations of the Poincaré group $\text{ISO}(1,3)$ (mass $m$ and spin $s$) tensored with representations of internal gauge groups. Each field carries a complete set of quantum numbers validated against the Gell-Mann–Nishijima relation:
 
-## System Architecture and Capabilities
+$$Q = T_3 + \frac{Y}{2}$$
 
-### Symbolic Reaction Interface
-*   **Asymptotic State Definition**: Users define initial and final states as formal quantum state vectors, not simple text.
-*   **Conservation Validator**: Every proposed reaction is validated against the full set of conservation laws dictated by the active theoretical model. Forbidden processes are rejected with a precise diagnostic of the violated symmetry.
-*   **Reaction Reconstruction**: Given an initial state and center-of-mass energy, the engine can deduce and enumerate all kinematically and dynamically allowed two-body final states.
+### Lagrangian Dynamics
+Interaction vertices are extracted from $\mathcal{L}_{\text{int}}$ by functional differentiation:
 
-### Topological Construction & Feynman Calculus
-*   **Automated Topology Generation**: The system enumerates all topologically distinct Feynman diagrams for a given reaction at tree-level.
-*   **Channel Isolation**: Diagrams are algorithmically categorized by kinematic channels ($s, t, u$), allowing for the independent analysis of resonance structures and exchange forces.
-*   **Symmetry Factor Calculation**: Combinatorial factors arising from identical particles in the final state are computed automatically.
-*   **Graphical Visualization**: Topologies are rendered as vector graphics, providing a clear visual representation of the underlying mathematical structure.
+$$V_{\phi_1 \cdots \phi_n}(p_1, \ldots, p_n) = \frac{\delta^n \mathcal{L}}{\delta\phi_1(p_1) \cdots \delta\phi_n(p_n)}$$
 
-### Symbolic Amplitude Derivation
-*   **Feynman Rule Mapping**: For every valid topological graph, SPIRE constructs the invariant amplitude $\mathcal{M}$ by mapping graph nodes and edges to their corresponding symbolic expressions (Dirac spinors, polarization vectors, metric tensors, and propagators).
-*   **Algebraic Structuring**: The system correctly orders Dirac matrices and contracts Lorentz indices, producing a symbolic Abstract Syntax Tree (AST) of the amplitude.
-*   **LaTeX Export**: Symbolic expressions can be exported directly into publication-quality LaTeX source code for inclusion in scientific documents.
+with Fourier-convention $\partial_\mu \to -ip_\mu$ for external leg momentum replacement.
 
-### Kinematic & Phase Space Analysis
-*   **Threshold Calculation**: Determines the minimum center-of-mass energy required for particle production.
-*   **Mandelstam Variables**: Computes the kinematic invariants ($s, t, u$) and their physical boundaries, which are defined by the Källén function $\lambda(x, y, z)$.
-*   **Dalitz Plot Generation**: For three-body decays, the system generates the full phase space distribution ($m_{ab}^2$ vs $m_{bc}^2$) to visualize resonance bands and interference effects.
-*   **Lorentz Transformations**: The engine provides functions for boosting four-momenta between reference frames (e.g., Center-of-Mass to Laboratory frame).
+### Phase-Space Integration
+Total cross-sections are computed via Monte Carlo integration over Lorentz-Invariant Phase Space:
 
-### Extensibility: BSM & Effective Field Theory
-*   **Custom Lagrangians**: Users can define arbitrary theoretical models, including new particle spectra and interaction vertices, via human-readable TOML-based files. The engine performs strict referential integrity checks to ensure model consistency.
-*   **Effective Field Theory (EFT)**: The system supports the inclusion of higher-dimensional operators (e.g., dimension-6 four-fermion contact interactions) for model-independent analyses of new physics.
-*   **UFO Interoperability**: Theoretical models defined within SPIRE can be exported to a simplified Universal FeynRules Output (UFO) format, enabling integration with external Monte Carlo event generators such as MadGraph5_aMC@NLO.
+$$\sigma = \frac{1}{2s} \int d\Phi_n \, |\mathcal{M}|^2, \qquad d\Phi_n = (2\pi)^4 \delta^{(4)}\!\left(P - \sum_i p_i\right) \prod_{i=1}^{n} \frac{d^3 p_i}{(2\pi)^3 \, 2E_i}$$
 
-### Computational Core & API Design
-*   **Rust Kernel (`spire-kernel`)**: A headless, high-performance computational engine containing the complete physics logic. Its memory-safe and strongly-typed design guarantees numerical stability and correctness.
-*   **Decoupled Interface Layer**: A cross-platform desktop application provides a reactive environment for model building and analysis, communicating with the kernel via a stateless serialization protocol.
-*   **Multi-Language Bindings (`spire-bindings`)**: The kernel's core functionality is exposed via stable APIs for Python, WebAssembly, and other environments, facilitating integration into diverse scientific computing workflows.
+The RAMBO algorithm generates unweighted $n$-body phase-space points with exact four-momentum conservation.
 
-## Installation and Usage
+### Renormalisation
+NLO counterterms are generated via multiplicative field renormalisation:
 
-SPIRE requires the Rust toolchain, a Node.js environment, and standard system build tools.
+$$\phi_0 = \sqrt{Z_\phi}\,\phi_R \approx \left(1 + \tfrac{1}{2}\delta Z_\phi\right)\phi_R, \qquad g_0 = g_R + \delta g$$
 
-### Prerequisites
-*   Rust (edition 2021 or later) and Cargo
-*   Node.js (LTS version) and npm
-*   On Linux: `build-essential`, `libwebkit2gtk-4.0-dev`, `libgtk-3-dev`.
+and extraction of all terms linear in the renormalisation constants $\delta Z$, $\delta m$, $\delta g$.
 
-### Build Instructions
+---
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/Wartets/spire.git
-    cd spire
-    ```
+## Roadmap & Philosophy
 
-2.  **Install Frontend Dependencies**
-    ```bash
-    npm install
-    ```
+SPIRE is built on the principle of **modular universality**: every hardcoded physical assumption is eventually replaced by a configurable abstraction. The project has been developed across **34 phases** organised into **11 thematic parts**:
 
-3.  **Build and Run the Application**
-    *   To run in development mode (with hot-reloading):
-        ```bash
-        npm run tauri dev
-        ```
-    *   To build a release-optimized executable:
-        ```bash
-        npm run tauri build
-        ```
-        The application binary will be located in `apps/spire-desktop/src-tauri/target/release/`.
+| Part | Theme | Phases |
+|------|-------|--------|
+| I | The Foundation | 01–10: Core kernel, ontology, S-matrix, Feynman calculus, kinematics, frontend |
+| II | The Expansion | 11–13: BSM/EFT, Dalitz plots, LaTeX/UFO/LHE interop |
+| III | The Grand Unification | 14–16: Arbitrary gauge groups, loop calculus, CAS engine |
+| IV | The Multiverse Simulator | 17–19: Mutable spacetime, Monte Carlo, PDFs, composite dynamics |
+| V | Ubiquity | 20: WASM grid, Python integration, real-time collaboration |
+| VI | The Interface Paradigm | 21–22: Adaptive workbench, workspace persistence |
+| VII | Kernel Hardening | 23–24, 27: Property-based testing, SIMD optimisation, benchmarks |
+| VIII | Open Architecture | 25–26, 28–29: Plugin system, external bridges, analysis pipeline, detector sim |
+| IX | Visual Physics Engine | 30–31: 2D heatmaps, 3D event display, animation, diagram editor |
+| X | The Theoretical Studio | 32–33: Lagrangian workbench, SLHA/UFO ingestion, NLO counterterms |
+| XI | Distributed Discovery | 34: WASM Compute Grid, distributed Monte Carlo, convergence dashboard |
 
-### Running Tests
-To verify the physical correctness and computational integrity of the kernel:
-```bash
-cargo test --workspace
-```
+The ultimate vision — sometimes called the *Multiverse Simulator* ethos — is to provide absolute modular control to simulate, reconstruct, and analyse any theoretically consistent physical interaction, whether it exists in our universe, extends beyond the Standard Model, or operates under entirely custom axioms.
 
-## Documentation
-
-Comprehensive documentation regarding the theoretical formalism, API reference, and user guides is available in the [`docs/`](https://github.com/Wartets/spire/tree/main/docs) directory of this repository.
-
-*   **Theoretical Formalism**: [`docs/source/theory/formalism.md`](https://github.com/Wartets/spire/blob/main/docs/source/theory/formalism.md)
-*   **GUI Quickstart Guide**: [`docs/source/guide/quickstart.md`](https://github.com/Wartets/spire/blob/main/docs/source/guide/quickstart.md)
-*   **API Reference**: [`docs/source/api/reference.md`](https://github.com/Wartets/spire/blob/main/docs/source/api/reference.md)
-
-To build and serve the documentation locally using MkDocs:
-```bash
-# pip install mkdocs mkdocs-material
-mkdocs serve
-```
+---
 
 ## Contributing
 
-Contributions are welcome. Please refer to the project's issue tracker for areas of active development. For major changes, please open an issue first to discuss what you would like to change.
+Contributions are welcome. Please refer to the project's issue tracker for areas of active development. For major changes, please open an issue first to discuss the proposed modification. All submitted code should maintain the existing test coverage (currently 764+ tests) and compile without warnings.
+
+---
 
 ## License
 
-This project is licensed under the MIT License. See the [`LICENSE`](https://github.com/Wartets/spire/blob/main/LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](https://github.com/Wartets/SPIRE/blob/main/LICENSE) file for details.
+
+---
 
 ## Citation
 
-If you use SPIRE for research or educational purposes, please cite this repository:
-```
-Wartets, et al. "SPIRE: Structured Particle Interaction and Reaction Engine." GitHub, 2024, https://github.com/Wartets/spire.
+If you use SPIRE for research, education, or publication, please cite:
+
+```bibtex
+@software{spire2024,
+  author       = {Wartets},
+  title        = {{SPIRE}: Structured Particle Interaction and Reaction Engine},
+  year         = {2024},
+  url          = {https://github.com/Wartets/SPIRE},
+  note         = {High Energy Physics computational framework for automated
+                  Feynman diagram generation, symbolic amplitude derivation,
+                  and Monte Carlo phase-space integration.}
+}
 ```
