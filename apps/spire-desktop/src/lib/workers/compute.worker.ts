@@ -2,17 +2,19 @@
  * SPIRE — Compute Worker
  *
  * Web Worker script that receives ComputeTask messages from the
- * GridManager, invokes the Tauri backend's `run_analysis` IPC command,
+ * GridManager, invokes the backend's `run_analysis` command,
  * and posts back ComputeResult or error messages.
  *
  * ## Design Rationale
  *
- * In the Tauri context, the actual computation runs in the Rust backend
- * via IPC — the worker's role is to provide **concurrency isolation**
- * so that multiple IPC calls can proceed in parallel without blocking
- * the main thread's UI event loop.  For a future pure-WASM deployment,
- * the `executeTask` function can be swapped to call the WASM module
- * directly (spire-bindings `runAnalysis`).
+ * The worker uses an environment-aware backend resolution strategy:
+ *
+ * 1. Attempt to load Tauri IPC (`@tauri-apps/api/tauri`). If available,
+ *    analysis runs in the Rust backend process via IPC.
+ * 2. If Tauri is not available (standard browser), attempt to load the
+ *    WASM kernel module for in-browser computation.
+ * 3. If neither is available, return an error indicating no compute
+ *    backend is reachable from this worker context.
  *
  * ## Message Protocol
  *
@@ -49,17 +51,44 @@ let aborted = false;
 // ---------------------------------------------------------------------------
 
 /**
- * Execute a single analysis chunk by invoking the Tauri backend.
+ * Execute a single analysis chunk using the best available backend.
  *
- * In the Tauri context we use `@tauri-apps/api/tauri` invoke().
- * The import is dynamic so that this file can also be loaded in
- * environments where Tauri is not available (e.g., unit tests
- * with a mock, or future pure-WASM deployment).
+ * Resolution order:
+ *   1. Tauri IPC (if running inside the Tauri webview)
+ *   2. WASM kernel (if WebAssembly is available)
+ *   3. Error — no backend reachable from worker context
  */
 async function executeTask(task: ComputeTask): Promise<AnalysisResult> {
-  // Dynamic import — resolved at runtime within the Tauri webview.
-  const { invoke } = await import("@tauri-apps/api/tauri");
-  return invoke<AnalysisResult>("run_analysis", { config: task.config });
+  // --- Attempt 1: Tauri IPC ---
+  try {
+    const { invoke } = await import("@tauri-apps/api/tauri");
+    return await invoke<AnalysisResult>("run_analysis", { config: task.config });
+  } catch {
+    // Tauri not available — fall through to WASM.
+  }
+
+  // --- Attempt 2: WASM kernel ---
+  try {
+    // @ts-ignore — spire-kernel-wasm is an optional dependency built separately
+    const wasm = await import("spire-kernel-wasm");
+    if (typeof wasm.default === "function") {
+      await wasm.default(); // wasm-bindgen init
+    }
+    const fn = (wasm as Record<string, unknown>)["runAnalysis"];
+    if (typeof fn === "function") {
+      const resultJson = fn(JSON.stringify({ config: task.config }));
+      const resolved = resultJson instanceof Promise ? await resultJson : resultJson;
+      if (typeof resolved === "string") return JSON.parse(resolved) as AnalysisResult;
+      return resolved as AnalysisResult;
+    }
+  } catch {
+    // WASM not available either — fall through.
+  }
+
+  throw new Error(
+    "No computation backend available in this worker context. " +
+    "Neither Tauri IPC nor WASM kernel could be loaded.",
+  );
 }
 
 // ---------------------------------------------------------------------------

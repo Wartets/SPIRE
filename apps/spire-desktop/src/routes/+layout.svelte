@@ -12,6 +12,7 @@
     isModelLoaded,
     theoreticalModel,
   } from "$lib/stores/physicsStore";
+  import { backendKind, backendLabel } from "$lib/core/backend";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
@@ -47,6 +48,18 @@
         {:else}
           <span class="status-dot"></span> No model loaded
         {/if}
+      </span>
+
+      <!-- Backend Environment Indicator -->
+      <span
+        class="backend-indicator"
+        class:backend-native={$backendKind === "tauri"}
+        class:backend-wasm={$backendKind === "wasm"}
+        class:backend-mock={$backendKind === "mock"}
+        title="Execution environment: {$backendLabel}"
+      >
+        <span class="backend-dot"></span>
+        {$backendLabel}
       </span>
     </div>
   </nav>
@@ -170,6 +183,49 @@
   .model-status.loaded {
     color: var(--hl-success);
     border-color: var(--hl-success);
+  }
+
+  /* ── Backend Indicator ────────────────────────────────────── */
+  .backend-indicator {
+    font-size: 0.68rem;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-secondary);
+    white-space: nowrap;
+  }
+  .backend-dot {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    flex-shrink: 0;
+    background: var(--fg-secondary);
+  }
+  .backend-indicator.backend-native {
+    color: var(--hl-success);
+    border-color: var(--hl-success);
+  }
+  .backend-indicator.backend-native .backend-dot {
+    background: var(--hl-success);
+  }
+  .backend-indicator.backend-wasm {
+    color: var(--hl-symbol);
+    border-color: var(--hl-symbol);
+  }
+  .backend-indicator.backend-wasm .backend-dot {
+    background: var(--hl-symbol);
+  }
+  .backend-indicator.backend-mock {
+    color: var(--hl-value);
+    border-color: var(--hl-value);
+  }
+  .backend-indicator.backend-mock .backend-dot {
+    background: var(--hl-value);
   }
 
   /* ── Main Content ─────────────────────────────────────────── */

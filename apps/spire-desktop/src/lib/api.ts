@@ -1,10 +1,17 @@
 /**
  * SPIRE TypeScript API Client
  *
- * Typed wrapper functions around Tauri's `invoke()` IPC mechanism.
- * Each function corresponds to a `#[tauri::command]` in the Rust backend
- * (`src-tauri/src/main.rs`) and returns strongly-typed results matching
- * the interfaces in `./types/spire.ts`.
+ * Compatibility façade that delegates all backend calls through the
+ * environment-aware transport layer (`$lib/core/backend`).
+ *
+ * Prior to Phase 36 this module called `invoke()` from
+ * `@tauri-apps/api/tauri` directly — which crashed in any
+ * non-Tauri browser with:
+ *   `window.__TAURI_IPC__ is not a function`
+ *
+ * Now every function resolves the active `SpireBackend` singleton
+ * (Tauri, WASM, or Mock) and forwards the call.  Existing import
+ * paths (`from "$lib/api"`) continue to work unchanged.
  *
  * ## Usage
  *
@@ -17,7 +24,7 @@
  * ```
  */
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { getBackend } from "$lib/core/backend";
 
 import type {
   Reaction,
@@ -52,11 +59,7 @@ export async function loadModel(
   verticesToml: string,
   modelName?: string,
 ): Promise<TheoreticalModel> {
-  return invoke<TheoreticalModel>("load_theoretical_model", {
-    particlesToml,
-    verticesToml,
-    modelName: modelName ?? null,
-  });
+  return getBackend().loadModel(particlesToml, verticesToml, modelName);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,12 +81,7 @@ export async function constructReaction(
   cmsEnergy: number,
   model: TheoreticalModel,
 ): Promise<Reaction> {
-  return invoke<Reaction>("validate_and_reconstruct_reaction", {
-    initialIds,
-    cmsEnergy,
-    model,
-    finalIds,
-  });
+  return getBackend().constructReaction(initialIds, finalIds, cmsEnergy, model);
 }
 
 /**
@@ -100,15 +98,7 @@ export async function reconstructReaction(
   cmsEnergy: number,
   model: TheoreticalModel,
 ): Promise<ReconstructedFinalState[]> {
-  return invoke<ReconstructedFinalState[]>(
-    "validate_and_reconstruct_reaction",
-    {
-      initialIds,
-      cmsEnergy,
-      model,
-      finalIds: null,
-    },
-  );
+  return getBackend().reconstructReaction(initialIds, cmsEnergy, model);
 }
 
 // ---------------------------------------------------------------------------
@@ -128,11 +118,7 @@ export async function generateDiagrams(
   model: TheoreticalModel,
   maxLoopOrder: number = 0,
 ): Promise<TopologySet> {
-  return invoke<TopologySet>("generate_feynman_diagrams", {
-    reaction,
-    model,
-    maxLoopOrder: maxLoopOrder > 0 ? maxLoopOrder : null,
-  });
+  return getBackend().generateDiagrams(reaction, model, maxLoopOrder);
 }
 
 // ---------------------------------------------------------------------------
@@ -148,9 +134,7 @@ export async function generateDiagrams(
 export async function deriveAmplitude(
   diagram: FeynmanDiagram,
 ): Promise<AmplitudeResult> {
-  return invoke<AmplitudeResult>("derive_amplitude", {
-    diagram,
-  });
+  return getBackend().deriveAmplitude(diagram);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,12 +157,7 @@ export async function computeKinematics(
   targetMass?: number,
   externalMasses?: [number, number, number, number],
 ): Promise<KinematicsReport> {
-  return invoke<KinematicsReport>("compute_kinematics", {
-    finalMasses,
-    cmsEnergy,
-    targetMass: targetMass ?? null,
-    externalMasses: externalMasses ?? null,
-  });
+  return getBackend().computeKinematics(finalMasses, cmsEnergy, targetMass, externalMasses);
 }
 
 // ---------------------------------------------------------------------------
@@ -202,13 +181,7 @@ export async function computeDalitzData(
   mC: number,
   nPoints: number = 3000,
 ): Promise<DalitzPlotData> {
-  return invoke<DalitzPlotData>("compute_dalitz_data", {
-    motherMass,
-    mA,
-    mB,
-    mC,
-    nPoints,
-  });
+  return getBackend().computeDalitzData(motherMass, mA, mB, mC, nPoints);
 }
 
 // ---------------------------------------------------------------------------
@@ -224,9 +197,7 @@ export async function computeDalitzData(
 export async function exportAmplitudeLatex(
   diagram: FeynmanDiagram,
 ): Promise<string> {
-  return invoke<string>("export_amplitude_latex", {
-    diagram,
-  });
+  return getBackend().exportAmplitudeLatex(diagram);
 }
 
 // ---------------------------------------------------------------------------
@@ -246,10 +217,7 @@ export async function deriveAmplitudeSteps(
   diagram: FeynmanDiagram,
   dim?: SpacetimeDimension,
 ): Promise<DerivationStep[]> {
-  return invoke<DerivationStep[]>("derive_amplitude_steps", {
-    diagram,
-    dim: dim ?? { Fixed: 4 },
-  });
+  return getBackend().deriveAmplitudeSteps(diagram, dim);
 }
 
 /**
@@ -261,9 +229,7 @@ export async function deriveAmplitudeSteps(
 export async function exportModelUfo(
   model: TheoreticalModel,
 ): Promise<UfoExportResult> {
-  return invoke<UfoExportResult>("export_model_ufo", {
-    model,
-  });
+  return getBackend().exportModelUfo(model);
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +247,7 @@ export async function exportModelUfo(
 export async function runAnalysis(
   config: AnalysisConfig,
 ): Promise<AnalysisResult> {
-  return invoke<AnalysisResult>("run_analysis", { config });
+  return getBackend().runAnalysis(config);
 }
 
 // ---------------------------------------------------------------------------
@@ -295,7 +261,7 @@ export async function runAnalysis(
  * @returns Resolves if valid; rejects with an error message if invalid.
  */
 export async function validateScript(script: string): Promise<void> {
-  return invoke<void>("validate_script", { script });
+  return getBackend().validateScript(script);
 }
 
 /**
@@ -311,7 +277,7 @@ export async function validateScript(script: string): Promise<void> {
 export async function testObservableScript(
   script: string,
 ): Promise<number> {
-  return invoke<number>("test_observable_script", { script });
+  return getBackend().testObservableScript(script);
 }
 
 /**
@@ -323,7 +289,7 @@ export async function testObservableScript(
 export async function testCutScript(
   script: string,
 ): Promise<boolean> {
-  return invoke<boolean>("test_cut_script", { script });
+  return getBackend().testCutScript(script);
 }
 
 // ---------------------------------------------------------------------------
@@ -347,15 +313,7 @@ export async function generateDisplayEvent(
   detectorPreset: string,
   particleKinds?: string[] | null,
 ): Promise<import("$lib/types/spire").EventDisplayData> {
-  return invoke<import("$lib/types/spire").EventDisplayData>(
-    "generate_display_event",
-    {
-      cmsEnergy,
-      finalMasses,
-      detectorPreset,
-      particleKinds: particleKinds ?? null,
-    },
-  );
+  return getBackend().generateDisplayEvent(cmsEnergy, finalMasses, detectorPreset, particleKinds);
 }
 
 /**
@@ -374,16 +332,7 @@ export async function generateDisplayBatch(
   batchSize: number,
   particleKinds?: string[] | null,
 ): Promise<import("$lib/types/spire").EventDisplayData[]> {
-  return invoke<import("$lib/types/spire").EventDisplayData[]>(
-    "generate_display_batch",
-    {
-      cmsEnergy,
-      finalMasses,
-      detectorPreset,
-      particleKinds: particleKinds ?? null,
-      batchSize,
-    },
-  );
+  return getBackend().generateDisplayBatch(cmsEnergy, finalMasses, detectorPreset, batchSize, particleKinds);
 }
 
 // ---------------------------------------------------------------------------
@@ -397,10 +346,7 @@ export async function parseLagrangianTerm(
   input: string,
   knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
 ): Promise<import("$lib/types/spire").LagrangianExpr> {
-  return invoke<import("$lib/types/spire").LagrangianExpr>("parse_lagrangian_term", {
-    input,
-    knownFields,
-  });
+  return getBackend().parseLagrangianTerm(input, knownFields);
 }
 
 /**
@@ -411,11 +357,7 @@ export async function deriveVertexRuleFromAst(
   knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
   externalFields: import("$lib/types/spire").ExternalField[],
 ): Promise<import("$lib/types/spire").DerivedVertexRule> {
-  return invoke<import("$lib/types/spire").DerivedVertexRule>("derive_vertex_rule_from_ast", {
-    input,
-    knownFields,
-    externalFields,
-  });
+  return getBackend().deriveVertexRuleFromAst(input, knownFields, externalFields);
 }
 
 /**
@@ -427,12 +369,7 @@ export async function validateLagrangianTerm(
   gaugeSymmetry?: import("$lib/types/spire").GaugeSymmetry | null,
   fieldGaugeInfo?: Record<string, import("$lib/types/spire").FieldGaugeInfo>,
 ): Promise<import("$lib/types/spire").ValidationResult> {
-  return invoke<import("$lib/types/spire").ValidationResult>("validate_lagrangian_term", {
-    input,
-    knownFields,
-    gaugeSymmetry: gaugeSymmetry ?? null,
-    fieldGaugeInfo: fieldGaugeInfo ?? {},
-  });
+  return getBackend().validateLagrangianTerm(input, knownFields, gaugeSymmetry, fieldGaugeInfo);
 }
 
 /**
@@ -441,7 +378,7 @@ export async function validateLagrangianTerm(
 export async function runRgeFlow(
   config: import("$lib/types/spire").RgeFlowConfig,
 ): Promise<import("$lib/types/spire").RgeFlowResult> {
-  return invoke<import("$lib/types/spire").RgeFlowResult>("run_rge_flow", { config });
+  return getBackend().runRgeFlow(config);
 }
 
 // ---------------------------------------------------------------------------
@@ -457,9 +394,7 @@ export async function runRgeFlow(
 export async function importSlhaString(
   slhaText: string,
 ): Promise<import("$lib/types/spire").SlhaDocument> {
-  return invoke<import("$lib/types/spire").SlhaDocument>("import_slha_string", {
-    slhaText,
-  });
+  return getBackend().importSlhaString(slhaText);
 }
 
 /**
@@ -476,10 +411,7 @@ export async function importUfoModel(
   fileContents: import("$lib/types/spire").UfoFileContents,
   modelName: string,
 ): Promise<[import("$lib/types/spire").UfoModel, import("$lib/types/spire").TheoreticalModel]> {
-  return invoke<[import("$lib/types/spire").UfoModel, import("$lib/types/spire").TheoreticalModel]>(
-    "import_ufo_model",
-    { fileContents, modelName },
-  );
+  return getBackend().importUfoModel(fileContents, modelName);
 }
 
 /**
@@ -499,9 +431,5 @@ export async function deriveCounterterms(
   knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
   externalFields: import("$lib/types/spire").ExternalField[],
 ): Promise<import("$lib/types/spire").CountertermResult> {
-  return invoke<import("$lib/types/spire").CountertermResult>("derive_counterterms", {
-    input,
-    knownFields,
-    externalFields,
-  });
+  return getBackend().deriveCounterterms(input, knownFields, externalFields);
 }
