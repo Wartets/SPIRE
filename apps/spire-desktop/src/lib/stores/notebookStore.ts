@@ -28,6 +28,7 @@ export type WidgetType =
   | "diagram_editor"
   | "lagrangian_workbench"
   | "external_models"
+  | "compute_grid"
   | "log";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "event_display", label: "Event Display",        defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "lagrangian_workbench", label: "Lagrangian Workbench", defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "external_models",      label: "External Models",       defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "compute_grid",          label: "Compute Grid",          defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
 ];
 

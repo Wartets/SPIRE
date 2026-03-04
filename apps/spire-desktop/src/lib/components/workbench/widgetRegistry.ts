@@ -23,5 +23,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   diagram_editor: "Diagram Editor",
   lagrangian_workbench: "Lagrangian Workbench",
   external_models:      "External Models",
+  compute_grid:          "Compute Grid",
   log:           "Console",
 };

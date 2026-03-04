@@ -26,6 +26,7 @@
   import DiagramEditor from "$lib/components/DiagramEditor.svelte";
   import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
   import ExternalModels from "$lib/components/ExternalModels.svelte";
+  import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -60,6 +61,8 @@
     <LagrangianWorkbench />
   {:else if instance.type === "external_models"}
     <ExternalModels />
+  {:else if instance.type === "compute_grid"}
+    <ComputeGridWidget />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}
