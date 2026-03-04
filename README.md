@@ -117,17 +117,17 @@ SPIRE follows a strict three-layer architecture that enforces separation of conc
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  SvelteKit Adaptive Workbench             │
-│   13 widget types · Chart.js · Three.js · WebGL          │
-│   Compute Grid Dashboard · Workspace persistence         │
+│               SvelteKit Adaptive Workbench               │
+│      13 widget types · Chart.js · Three.js · WebGL       │
+│      Compute Grid Dashboard · Workspace persistence      │
 ├──────────────────────────────────────────────────────────┤
-│              Tauri IPC / WASM Boundary Layer              │
+│              Tauri IPC / WASM Boundary Layer             │
 │   22 IPC commands · serde-wasm-bindgen · PyO3 bindings   │
 ├──────────────────────────────────────────────────────────┤
-│                  Rust Physics Kernel                      │
-│   Ontology · S-Matrix · Graph · Algebra · Kinematics     │
-│   Analysis · PDF · Integration · Theory · Scripting      │
-│   ~15,000 lines · 764 tests · zero unsafe                │
+│                   Rust Physics Kernel                    │
+│    Ontology · S-Matrix · Graph · Algebra · Kinematics    │
+│    Analysis · PDF · Integration · Theory · Scripting     │
+│          ~15,000 lines · 764 tests · zero unsafe         │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -259,49 +259,49 @@ Open the **Compute Grid Dashboard** widget. Configure the total number of events
 ```
 SPIRE/
 ├── crates/
-│   ├── spire-kernel/          Rust physics engine (~15,000 lines)
+│   ├── spire-kernel/                   Rust physics engine
 │   │   ├── src/
-│   │   │   ├── algebra.rs         CAS engine, Dirac algebra, amplitude derivation
-│   │   │   ├── analysis.rs        Histogramming, detector simulation, jet clustering
-│   │   │   ├── data_loader.rs     TOML model ingestion
-│   │   │   ├── graph.rs           Feynman topology generation
-│   │   │   ├── groups.rs          Lie algebra, gauge symmetries, conservation laws
-│   │   │   ├── integration.rs     Hadronic cross-section convolution
-│   │   │   ├── kinematics.rs      Phase space, Mandelstam, Dalitz, RAMBO
-│   │   │   ├── lagrangian.rs      TheoreticalModel, vertex factors, propagators
-│   │   │   ├── ontology.rs        Quantum fields, particles, state vectors
-│   │   │   ├── pdf.rs             Parton distribution functions
-│   │   │   ├── s_matrix.rs        Reactions, cross-sections, event generation
-│   │   │   ├── scripting.rs       Rhai observable/cut script engine
-│   │   │   └── theory/            Lagrangian AST, derivation, validation, RGE,
-│   │   │       ├── ast.rs             SLHA parser, UFO bridge, NLO counterterms
+│   │   │   ├── algebra.rs              CAS engine, Dirac algebra, amplitude derivation
+│   │   │   ├── analysis.rs             Histogramming, detector simulation, jet clustering
+│   │   │   ├── data_loader.rs          TOML model ingestion
+│   │   │   ├── graph.rs                Feynman topology generation
+│   │   │   ├── groups.rs               Lie algebra, gauge symmetries, conservation laws
+│   │   │   ├── integration.rs          Hadronic cross-section convolution
+│   │   │   ├── kinematics.rs           Phase space, Mandelstam, Dalitz, RAMBO
+│   │   │   ├── lagrangian.rs           TheoreticalModel, vertex factors, propagators
+│   │   │   ├── ontology.rs             Quantum fields, particles, state vectors
+│   │   │   ├── pdf.rs                  Parton distribution functions
+│   │   │   ├── s_matrix.rs             Reactions, cross-sections, event generation
+│   │   │   ├── scripting.rs            Rhai observable/cut script engine
+│   │   │   └── theory/                 Lagrangian AST, derivation, validation, RGE,
+│   │   │       ├── ast.rs              SLHA parser, UFO bridge, NLO counterterms
 │   │   │       ├── derivation.rs
 │   │   │       ├── renormalization.rs
 │   │   │       ├── rge.rs
 │   │   │       ├── slha.rs
 │   │   │       ├── ufo.rs
 │   │   │       └── validation.rs
-│   │   ├── tests/             Property-based & fuzz tests
-│   │   └── benches/           Criterion benchmarks
-│   └── spire-bindings/        WASM (wasm-bindgen) & Python (PyO3) FFI
+│   │   ├── tests/                      Property-based & fuzz tests
+│   │   └── benches/                    Criterion benchmarks
+│   └── spire-bindings/                 WASM (wasm-bindgen) & Python (PyO3) FFI
 ├── apps/
-│   └── spire-desktop/         Tauri + SvelteKit desktop application
+│   └── spire-desktop/                  Tauri + SvelteKit desktop application
 │       ├── src/
 │       │   ├── lib/
-│       │   │   ├── api.ts             Typed Tauri IPC wrappers
-│       │   │   ├── components/        13 interactive widget components
-│       │   │   ├── services/          Compute grid, workspace manager
-│       │   │   ├── stores/            Svelte stores (physics, notebook, inputs)
-│       │   │   ├── types/             TypeScript type definitions
-│       │   │   └── workers/           Web Worker compute nodes
+│       │   │   ├── api.ts              Typed Tauri IPC wrappers
+│       │   │   ├── components/         13 interactive widget components
+│       │   │   ├── services/           Compute grid, workspace manager
+│       │   │   ├── stores/             Svelte stores (physics, notebook, inputs)
+│       │   │   ├── types/              TypeScript type definitions
+│       │   │   └── workers/            Web Worker compute nodes
 │       │   └── routes/
 │       └── src-tauri/
-│           └── src/main.rs    22 Tauri IPC commands
-├── data/                      Default SM model files (TOML)
-├── docs/                      MkDocs documentation source
-├── README.md                  This file
-├── roadmap.md                 Master development roadmap (34 phases)
-└── Cargo.toml                 Workspace manifest
+│           └── src/main.rs             22 Tauri IPC commands
+├── data/                               Default SM model files (TOML)
+├── docs/                               MkDocs documentation source
+├── README.md                           This file
+├── roadmap.md                          Master development roadmap (34 phases)
+└── Cargo.toml                          Workspace manifest
 ```
 
 ---
@@ -350,7 +350,7 @@ and extraction of all terms linear in the renormalisation constants $\delta Z$, 
 SPIRE is built on the principle of **modular universality**: every hardcoded physical assumption is eventually replaced by a configurable abstraction. The project has been developed across **34 phases** organised into **11 thematic parts**:
 
 | Part | Theme | Phases |
-|------|-------|--------|
+|:-:|:-|:-|
 | I | The Foundation | 01–10: Core kernel, ontology, S-matrix, Feynman calculus, kinematics, frontend |
 | II | The Expansion | 11–13: BSM/EFT, Dalitz plots, LaTeX/UFO/LHE interop |
 | III | The Grand Unification | 14–16: Arbitrary gauge groups, loop calculus, CAS engine |
@@ -376,21 +376,3 @@ Contributions are welcome. Please refer to the project's issue tracker for areas
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](https://github.com/Wartets/SPIRE/blob/main/LICENSE) file for details.
-
----
-
-## Citation
-
-If you use SPIRE for research, education, or publication, please cite:
-
-```bibtex
-@software{spire2024,
-  author       = {Wartets},
-  title        = {{SPIRE}: Structured Particle Interaction and Reaction Engine},
-  year         = {2024},
-  url          = {https://github.com/Wartets/SPIRE},
-  note         = {High Energy Physics computational framework for automated
-                  Feynman diagram generation, symbolic amplitude derivation,
-                  and Monte Carlo phase-space integration.}
-}
-```
