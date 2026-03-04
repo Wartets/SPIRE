@@ -2,23 +2,80 @@
   SPIRE Desktop — Root Layout
 
   Global application shell: navigation bar, framework selector,
-  model-status indicator.  Implements the "Typewriter" design
-  system — monospace typography, sharp corners, high-contrast
-  dark palette via CSS custom properties.
+  model-status indicator, global keybind manager, and Command Palette
+  overlay.  Implements the "Typewriter" design system — monospace
+  typography, sharp corners, high-contrast dark palette via CSS custom
+  properties.
 -->
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import {
     activeFramework,
     isModelLoaded,
     theoreticalModel,
   } from "$lib/stores/physicsStore";
   import { backendKind, backendLabel } from "$lib/core/backend";
+  import {
+    commands,
+    findCommandByShortcut,
+    paletteOpen,
+    togglePalette,
+    parseShortcut,
+    matchesShortcut,
+  } from "$lib/core/services/CommandRegistry";
+  import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
     const val = (e.target as HTMLSelectElement).value as TheoreticalFramework;
     activeFramework.set(val);
   }
+
+  // ── Global Keybind Handler ─────────────────────────────────
+  const paletteShortcut = parseShortcut("Mod+K");
+
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    // Ignore keystrokes when the user is typing in an input or textarea,
+    // UNLESS it is the palette trigger (Mod+K) or Escape.
+    const target = event.target as HTMLElement;
+    const isInput =
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.isContentEditable;
+
+    // Always handle palette toggle
+    if (matchesShortcut(event, paletteShortcut)) {
+      event.preventDefault();
+      togglePalette();
+      return;
+    }
+
+    // Always handle Escape to close palette
+    if (event.key === "Escape" && $paletteOpen) {
+      event.preventDefault();
+      paletteOpen.set(false);
+      return;
+    }
+
+    // Skip shortcut resolution when palette is open or user is in an input
+    if ($paletteOpen || isInput) return;
+
+    // Resolve registered command shortcuts
+    const cmd = findCommandByShortcut(event, $commands);
+    if (cmd) {
+      event.preventDefault();
+      cmd.execute();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", handleGlobalKeydown, { capture: true });
+  });
+
+  onDestroy(() => {
+    window.removeEventListener("keydown", handleGlobalKeydown, { capture: true });
+  });
 </script>
 
 <div class="app-shell">
@@ -61,8 +118,22 @@
         <span class="backend-dot"></span>
         {$backendLabel}
       </span>
+
+      <!-- Command Palette Shortcut Hint -->
+      <button
+        class="palette-hint"
+        on:click={() => togglePalette()}
+        title="Open Command Palette (Ctrl+K)"
+      >
+        Ctrl+K
+      </button>
     </div>
   </nav>
+
+  <!-- Command Palette Overlay -->
+  {#if $paletteOpen}
+    <CommandPalette />
+  {/if}
 
   <!-- Main Content Area -->
   <main class="main-content">
@@ -226,6 +297,23 @@
   }
   .backend-indicator.backend-mock .backend-dot {
     background: var(--hl-value);
+  }
+
+  /* ── Palette Hint ─────────────────────────────────────────── */
+  .palette-hint {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .palette-hint:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
   }
 
   /* ── Main Content ─────────────────────────────────────────── */

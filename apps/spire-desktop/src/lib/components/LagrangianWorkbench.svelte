@@ -22,6 +22,7 @@
     deriveVertexRuleFromAst,
     runRgeFlow,
   } from "$lib/api";
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type {
     FieldSpin,
     LagrangianExpr,
@@ -282,10 +283,38 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Lifecycle
+  // Lifecycle — Command Registration
   // ---------------------------------------------------------------------------
 
+  const LAGRANGIAN_CMD_IDS = [
+    "spire.lagrangian.parse",
+    "spire.lagrangian.derive_vertex",
+    "spire.lagrangian.run_rge",
+  ];
+
+  onMount(() => {
+    registerCommand({
+      id: "spire.lagrangian.parse",
+      title: "Parse Lagrangian Term",
+      category: "Lagrangian",
+      execute: () => parseAndValidate(),
+    });
+    registerCommand({
+      id: "spire.lagrangian.derive_vertex",
+      title: "Derive Vertex Rule",
+      category: "Lagrangian",
+      execute: () => deriveVertex(),
+    });
+    registerCommand({
+      id: "spire.lagrangian.run_rge",
+      title: "Compute RGE Flow",
+      category: "Lagrangian",
+      execute: () => computeRge(),
+    });
+  });
+
   onDestroy(() => {
+    for (const id of LAGRANGIAN_CMD_IDS) unregisterCommand(id);
     if (rgeChart) rgeChart.destroy();
   });
 </script>

@@ -22,9 +22,17 @@
     autoSave,
     debounce,
     hasAutoSave,
+    downloadWorkspace,
+    resetWorkspace,
   } from "$lib/services/workspaceManager";
+  import {
+    registerCommand,
+    unregisterCommand,
+    openPalette,
+  } from "$lib/core/services/CommandRegistry";
   import WidgetCell from "$lib/components/workbench/WidgetCell.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
+  import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
 
   let toolboxOpen = false;
   let workspaceControls: WorkspaceControls;
@@ -41,7 +49,117 @@
   let unsubInputs: (() => void) | null = null;
   let unsubFramework: (() => void) | null = null;
 
+  // ── Global Command IDs ──────────────────────────────────
+  const GLOBAL_CMD_IDS = [
+    "spire.ui.add_analysis",
+    "spire.ui.add_event_display",
+    "spire.ui.add_lagrangian",
+    "spire.ui.add_external_models",
+    "spire.ui.add_compute_grid",
+    "spire.ui.add_dalitz",
+    "spire.ui.add_diagram_editor",
+    "spire.ui.reset_layout",
+    "spire.ui.toggle_log",
+    "spire.workspace.save",
+    "spire.workspace.reset",
+    "spire.palette.open",
+  ];
+
+  function registerGlobalCommands(): void {
+    registerCommand({
+      id: "spire.palette.open",
+      title: "Open Command Palette",
+      category: "Navigation",
+      shortcut: "Mod+K",
+      execute: () => openPalette(),
+      pinned: false,
+    });
+    registerCommand({
+      id: "spire.ui.reset_layout",
+      title: "Reset Layout",
+      category: "View",
+      shortcut: "Mod+Shift+R",
+      execute: () => resetLayout(),
+      pinned: true,
+      icon: "R",
+    });
+    registerCommand({
+      id: "spire.ui.toggle_log",
+      title: "Toggle Console",
+      category: "View",
+      shortcut: "Mod+J",
+      execute: () => addWidget("log"),
+    });
+    registerCommand({
+      id: "spire.workspace.save",
+      title: "Save Workspace",
+      category: "File",
+      shortcut: "Mod+S",
+      execute: () => downloadWorkspace(),
+      pinned: true,
+      icon: "S",
+    });
+    registerCommand({
+      id: "spire.workspace.reset",
+      title: "Reset Workspace",
+      category: "File",
+      execute: () => resetWorkspace(),
+    });
+
+    // Widget spawning commands
+    registerCommand({
+      id: "spire.ui.add_analysis",
+      title: "Add Analysis Widget",
+      category: "View",
+      execute: () => addWidget("analysis"),
+    });
+    registerCommand({
+      id: "spire.ui.add_event_display",
+      title: "Add Event Display",
+      category: "View",
+      execute: () => addWidget("event_display"),
+    });
+    registerCommand({
+      id: "spire.ui.add_lagrangian",
+      title: "Add Lagrangian Workbench",
+      category: "View",
+      execute: () => addWidget("lagrangian_workbench"),
+    });
+    registerCommand({
+      id: "spire.ui.add_external_models",
+      title: "Add External Models Widget",
+      category: "View",
+      execute: () => addWidget("external_models"),
+    });
+    registerCommand({
+      id: "spire.ui.add_compute_grid",
+      title: "Add Compute Grid",
+      category: "View",
+      execute: () => addWidget("compute_grid"),
+    });
+    registerCommand({
+      id: "spire.ui.add_dalitz",
+      title: "Add Dalitz Plot",
+      category: "View",
+      execute: () => addWidget("dalitz"),
+    });
+    registerCommand({
+      id: "spire.ui.add_diagram_editor",
+      title: "Add Diagram Editor",
+      category: "View",
+      execute: () => addWidget("diagram_editor"),
+    });
+  }
+
+  function unregisterGlobalCommands(): void {
+    for (const id of GLOBAL_CMD_IDS) {
+      unregisterCommand(id);
+    }
+  }
+
   onMount(() => {
+    registerGlobalCommands();
+
     // Check for auto-save on mount
     workspaceControls?.checkAutoSave();
 
@@ -52,6 +170,7 @@
   });
 
   onDestroy(() => {
+    unregisterGlobalCommands();
     unsubWidgets?.();
     unsubInputs?.();
     unsubFramework?.();
@@ -79,6 +198,8 @@
         {/each}
       </div>
     {/if}
+
+    <QuickToolbar />
 
     <div class="toolbox-spacer"></div>
 

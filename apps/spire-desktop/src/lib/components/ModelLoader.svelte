@@ -8,9 +8,10 @@
   result to the theoreticalModel store.
 -->
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { theoreticalModel, appendLog, activeFramework } from "$lib/stores/physicsStore";
   import { loadModel, exportModelUfo } from "$lib/api";
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import {
     DEFAULT_PARTICLES_TOML,
     DEFAULT_VERTICES_TOML,
@@ -39,10 +40,35 @@
   // ---------------------------------------------------------------------------
   // Lifecycle: restore custom data from LocalStorage on mount
   // ---------------------------------------------------------------------------
+  const MODEL_CMD_IDS = [
+    "spire.model.load",
+    "spire.model.export_ufo",
+  ];
+
   onMount(() => {
+    registerCommand({
+      id: "spire.model.load",
+      title: "Load Theoretical Model",
+      category: "Model",
+      shortcut: "Mod+Shift+L",
+      execute: () => handleLoad(),
+      pinned: true,
+      icon: "M",
+    });
+    registerCommand({
+      id: "spire.model.export_ufo",
+      title: "Export Model (UFO)",
+      category: "Model",
+      execute: () => handleExportUfo(),
+    });
+
     if ($activeFramework === "Custom") {
       activateCustomMode();
     }
+  });
+
+  onDestroy(() => {
+    for (const id of MODEL_CMD_IDS) unregisterCommand(id);
   });
 
   // ---------------------------------------------------------------------------

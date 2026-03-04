@@ -7,12 +7,14 @@
   displayed in a prominent monospace block.
 -->
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import {
     amplitudeResults,
     activeAmplitude,
     generatedDiagrams,
   } from "$lib/stores/physicsStore";
   import { exportAmplitudeLatex, deriveAmplitudeSteps } from "$lib/api";
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
 
   /** Select an amplitude to view in detail. */
@@ -70,6 +72,33 @@
 
   $: results = $amplitudeResults;
   $: selected = $activeAmplitude;
+
+  // ---------------------------------------------------------------------------
+  // Command Registration
+  // ---------------------------------------------------------------------------
+  const AMP_CMD_IDS = [
+    "spire.amplitude.copy_latex",
+    "spire.amplitude.show_derivation",
+  ];
+
+  onMount(() => {
+    registerCommand({
+      id: "spire.amplitude.copy_latex",
+      title: "Copy Amplitude LaTeX",
+      category: "Amplitude",
+      execute: () => copyLatex(),
+    });
+    registerCommand({
+      id: "spire.amplitude.show_derivation",
+      title: "Show Derivation Steps",
+      category: "Amplitude",
+      execute: () => showDerivation(),
+    });
+  });
+
+  onDestroy(() => {
+    for (const id of AMP_CMD_IDS) unregisterCommand(id);
+  });
 </script>
 
 <div class="amplitude-panel">

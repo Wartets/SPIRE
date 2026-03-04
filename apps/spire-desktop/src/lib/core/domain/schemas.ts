@@ -1,5 +1,5 @@
 /**
- * Zod Runtime Validation Schemas — Phase 37
+ * Zod Runtime Validation Schemas
  *
  * Composable schemas for every data structure that crosses the Rust ↔ TS
  * boundary via Tauri IPC or WASM.  These guard against silent data‐shape

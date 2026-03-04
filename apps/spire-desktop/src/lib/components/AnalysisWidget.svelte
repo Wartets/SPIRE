@@ -12,6 +12,7 @@
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import WebglHeatmap from "./WebglHeatmap.svelte";
   import {
@@ -561,11 +562,25 @@
   // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
+  const ANALYSIS_CMD_IDS = [
+    "spire.analysis.run_mc",
+  ];
+
   onMount(() => {
     handleScriptInput();
+    registerCommand({
+      id: "spire.analysis.run_mc",
+      title: "Run Monte Carlo Integration",
+      category: "Analysis",
+      shortcut: "Mod+Shift+M",
+      execute: () => handleRun(),
+      pinned: true,
+      icon: "A",
+    });
   });
 
   onDestroy(() => {
+    for (const id of ANALYSIS_CMD_IDS) unregisterCommand(id);
     if (chart) {
       chart.destroy();
       chart = null;

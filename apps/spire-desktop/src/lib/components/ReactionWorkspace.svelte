@@ -6,6 +6,7 @@
   derivation through the Tauri IPC bridge.
 -->
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import {
     theoreticalModel,
     activeReaction,
@@ -42,6 +43,57 @@
     cmsEnergyInput,
     maxLoopOrderInput,
   } from "$lib/stores/workspaceInputsStore";
+
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+
+  // --- Command Registration ---
+  const REACTION_CMD_IDS = [
+    "spire.reaction.run_pipeline",
+    "spire.reaction.construct",
+    "spire.reaction.reconstruct",
+    "spire.reaction.generate_diagrams",
+    "spire.reaction.compute_kinematics",
+  ];
+
+  onMount(() => {
+    registerCommand({
+      id: "spire.reaction.run_pipeline",
+      title: "Run Full Pipeline",
+      category: "Reaction",
+      shortcut: "Mod+Enter",
+      execute: () => handleRunAll(),
+      pinned: true,
+      icon: "P",
+    });
+    registerCommand({
+      id: "spire.reaction.construct",
+      title: "Construct Reaction",
+      category: "Reaction",
+      execute: () => handleConstructReaction(),
+    });
+    registerCommand({
+      id: "spire.reaction.reconstruct",
+      title: "Reconstruct Final States",
+      category: "Reaction",
+      execute: () => handleReconstruct(),
+    });
+    registerCommand({
+      id: "spire.reaction.generate_diagrams",
+      title: "Generate Feynman Diagrams",
+      category: "Reaction",
+      execute: () => handleGenerateDiagrams(),
+    });
+    registerCommand({
+      id: "spire.reaction.compute_kinematics",
+      title: "Compute Kinematics",
+      category: "Reaction",
+      execute: () => handleComputeKinematics(),
+    });
+  });
+
+  onDestroy(() => {
+    for (const id of REACTION_CMD_IDS) unregisterCommand(id);
+  });
 
   // --- UI state ---
   let busy: boolean = false;
