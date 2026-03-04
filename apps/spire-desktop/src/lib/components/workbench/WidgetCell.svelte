@@ -25,6 +25,7 @@
   import EventDisplay from "$lib/components/EventDisplay.svelte";
   import DiagramEditor from "$lib/components/DiagramEditor.svelte";
   import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
+  import ExternalModels from "$lib/components/ExternalModels.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -57,6 +58,8 @@
     <DiagramEditor />
   {:else if instance.type === "lagrangian_workbench"}
     <LagrangianWorkbench />
+  {:else if instance.type === "external_models"}
+    <ExternalModels />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}

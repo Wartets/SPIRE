@@ -1071,3 +1071,187 @@ export interface RgeFlowResult {
   mu_values: number[];
   coupling_values: number[];
 }
+
+// ---------------------------------------------------------------------------
+// SLHA Spectrum Import (Phase 33)
+// ---------------------------------------------------------------------------
+
+/** A single numeric entry in an SLHA block. */
+export interface SlhaEntry {
+  /** Index/key within the block (e.g., [1] or [1, 2]). */
+  indices: number[];
+  /** The numeric value. */
+  value: number;
+  /** Optional inline comment from the SLHA file. */
+  comment: string | null;
+}
+
+/** An SLHA BLOCK containing related parameters. */
+export interface SlhaBlock {
+  /** Block name, e.g., "MASS", "HMIX", "NMIX". */
+  name: string;
+  /** Optional Q scale at which the block is evaluated. */
+  scale: number | null;
+  /** Entries keyed by their index tuple. */
+  entries: Record<string, number>;
+  /** Header comment lines for this block. */
+  comments: string[];
+}
+
+/** An SLHA DECAY table for a single particle. */
+export interface SlhaDecay {
+  /** PDG Monte Carlo ID of the decaying particle. */
+  pdg_id: number;
+  /** Total decay width in GeV. */
+  total_width: number;
+  /** Individual decay channels. */
+  channels: DecayChannel[];
+}
+
+/** A single decay channel with branching ratio and daughter particles. */
+export interface DecayChannel {
+  /** Branching ratio (0–1). */
+  branching_ratio: number;
+  /** Number of daughter particles. */
+  n_daughters: number;
+  /** PDG IDs of the daughter particles. */
+  daughter_pdg_ids: number[];
+}
+
+/** A complete parsed SLHA document. */
+export interface SlhaDocument {
+  /** All BLOCK sections (name → block). */
+  blocks: Record<string, SlhaBlock>;
+  /** All DECAY tables (PDG ID → decay info). */
+  decays: Record<number, SlhaDecay>;
+}
+
+/** Summary of an SLHA merge operation. */
+export interface SlhaMergeSummary {
+  masses_updated: number;
+  widths_updated: number;
+  unmatched_pdg_ids: number[];
+}
+
+// ---------------------------------------------------------------------------
+// UFO Model Import (Phase 33)
+// ---------------------------------------------------------------------------
+
+/** A particle definition from a UFO model. */
+export interface UfoParticle {
+  pdg_code: number;
+  name: string;
+  antiname: string;
+  spin: number;
+  color: number;
+  mass_name: string;
+  width_name: string;
+  charge: number;
+  extra: Record<string, string>;
+}
+
+/** A coupling definition from a UFO model. */
+export interface UfoCoupling {
+  name: string;
+  value: string;
+  order: Record<string, number>;
+}
+
+/** A Lorentz structure definition from a UFO model. */
+export interface UfoLorentz {
+  name: string;
+  spins: number[];
+  structure: string;
+}
+
+/** A vertex definition from a UFO model. */
+export interface UfoVertex {
+  name: string;
+  particles: string[];
+  color: string[];
+  lorentz: string[];
+  couplings: Record<string, string>;
+}
+
+/** A parameter definition from a UFO model. */
+export interface UfoParameter {
+  name: string;
+  nature: string;
+  param_type: string;
+  value: number | null;
+  expression: string | null;
+  texname: string;
+  lhablock: string | null;
+  lhacode: number[] | null;
+}
+
+/** Raw UFO file contents for parsing. */
+export interface UfoFileContents {
+  particles_py: string | null;
+  vertices_py: string | null;
+  couplings_py: string | null;
+  parameters_py: string | null;
+  lorentz_py: string | null;
+}
+
+/** A complete parsed UFO model. */
+export interface UfoModel {
+  particles: UfoParticle[];
+  vertices: UfoVertex[];
+  couplings: UfoCoupling[];
+  parameters: UfoParameter[];
+  lorentz_structures: UfoLorentz[];
+}
+
+// ---------------------------------------------------------------------------
+// NLO Counterterm Generation (Phase 33)
+// ---------------------------------------------------------------------------
+
+/** Type of renormalization constant. */
+export type CountertermKind = "FieldStrength" | "Mass" | "Coupling";
+
+/** A renormalization constant (counterterm parameter). */
+export interface RenormalizationConstant {
+  /** Name of the counterterm (e.g., "dZ_psi", "dm_e"). */
+  name: string;
+  /** The original parameter this is a counterterm for. */
+  original_parameter: string;
+  /** Type of renormalization constant. */
+  kind: CountertermKind;
+  /** Numerical value if known. */
+  value: number | null;
+}
+
+/** Renormalization scheme specification. */
+export interface RenormalizationScheme {
+  /** Field strength renormalization: field_id → counterterm name. */
+  field_renorm: Record<string, string>;
+  /** Coupling renormalization: coupling_name → counterterm name. */
+  coupling_renorm: Record<string, string>;
+  /** Mass renormalization: field_id → counterterm name. */
+  mass_renorm: Record<string, string>;
+}
+
+/** A generated counterterm expression. */
+export interface CountertermEntry {
+  /** The counterterm AST expression. */
+  expression: LagrangianExpr;
+  /** Renormalization constants involved. */
+  delta_parameters: string[];
+  /** Human-readable description. */
+  description: string;
+  /** LaTeX rendering. */
+  latex: string;
+}
+
+/** Result of the counterterm generation pipeline. */
+export interface CountertermResult {
+  /** The original tree-level expression. */
+  tree_level_expr: LagrangianExpr;
+  /** Generated counterterm entries. */
+  counterterms: CountertermEntry[];
+  /** Derived vertex rules for counterterm vertices. */
+  counterterm_rules: DerivedVertexRule[];
+  /** Renormalization constants involved. */
+  renorm_constants: RenormalizationConstant[];
+}

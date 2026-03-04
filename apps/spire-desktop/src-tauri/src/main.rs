@@ -499,6 +499,47 @@ fn run_rge_flow(
 }
 
 // ---------------------------------------------------------------------------
+// External Theory Bridge Commands (Phase 33)
+// ---------------------------------------------------------------------------
+
+/// Parse an SLHA spectrum string and return the parsed document.
+#[tauri::command]
+fn import_slha_string(
+    slha_text: String,
+) -> Result<theory::slha::SlhaDocument, String> {
+    theory::slha::parse_slha(&slha_text).map_err(|e| e.to_string())
+}
+
+/// Import a UFO model from its raw file contents.
+///
+/// The frontend sends a `UfoFileContents` struct with the string content
+/// of each `.py` file. The backend parses them and converts to a
+/// `TheoreticalModel`.
+#[tauri::command]
+fn import_ufo_model(
+    file_contents: theory::ufo::UfoFileContents,
+    model_name: String,
+) -> Result<(theory::ufo::UfoModel, TheoreticalModel), String> {
+    let ufo = theory::ufo::parse_ufo_model(&file_contents).map_err(|e| e.to_string())?;
+    let model = theory::ufo::ufo_to_theoretical_model(&ufo, &model_name).map_err(|e| e.to_string())?;
+    Ok((ufo, model))
+}
+
+/// Generate NLO counterterms from a Lagrangian expression string.
+#[tauri::command]
+fn derive_counterterms(
+    input: String,
+    known_fields: HashMap<String, theory::ast::FieldSpin>,
+    external_fields: Vec<theory::derivation::ExternalField>,
+) -> Result<theory::renormalization::CountertermResult, String> {
+    let expr =
+        theory::ast::parse_lagrangian_term(&input, &known_fields).map_err(|e| e.to_string())?;
+    let scheme = theory::renormalization::build_default_scheme(&expr);
+    theory::renormalization::generate_counterterms(&expr, &scheme, &external_fields)
+        .map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -524,6 +565,9 @@ fn main() {
             derive_vertex_rule_from_ast,
             validate_lagrangian_term,
             run_rge_flow,
+            import_slha_string,
+            import_ufo_model,
+            derive_counterterms,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

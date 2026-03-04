@@ -443,3 +443,65 @@ export async function runRgeFlow(
 ): Promise<import("$lib/types/spire").RgeFlowResult> {
   return invoke<import("$lib/types/spire").RgeFlowResult>("run_rge_flow", { config });
 }
+
+// ---------------------------------------------------------------------------
+// External Theory Bridge (Phase 33)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse an SLHA spectrum string and return the structured document.
+ *
+ * @param slhaText — Raw SLHA file content (blocks + decay tables).
+ * @returns Parsed `SlhaDocument` with blocks and decays.
+ */
+export async function importSlhaString(
+  slhaText: string,
+): Promise<import("$lib/types/spire").SlhaDocument> {
+  return invoke<import("$lib/types/spire").SlhaDocument>("import_slha_string", {
+    slhaText,
+  });
+}
+
+/**
+ * Import a UFO model from its raw Python file contents.
+ *
+ * Pass an object with the string content of each `.py` file
+ * (particles.py, vertices.py, etc.). Missing files can be set to `null`.
+ *
+ * @param fileContents — The UFO file contents.
+ * @param modelName — Human-readable model name (e.g., "MSSM").
+ * @returns A tuple of the raw `UfoModel` and the converted `TheoreticalModel`.
+ */
+export async function importUfoModel(
+  fileContents: import("$lib/types/spire").UfoFileContents,
+  modelName: string,
+): Promise<[import("$lib/types/spire").UfoModel, import("$lib/types/spire").TheoreticalModel]> {
+  return invoke<[import("$lib/types/spire").UfoModel, import("$lib/types/spire").TheoreticalModel]>(
+    "import_ufo_model",
+    { fileContents, modelName },
+  );
+}
+
+/**
+ * Generate NLO counterterms from a Lagrangian expression string.
+ *
+ * Automatically builds a default renormalization scheme from the
+ * expression's field and coupling content, then generates all
+ * linear-in-δ counterterm vertices.
+ *
+ * @param input — Lagrangian term string (e.g., "e * psi_bar * gamma_mu * psi * A^mu").
+ * @param knownFields — Field → spin mapping for the parser.
+ * @param externalFields — External legs for vertex derivation.
+ * @returns Full `CountertermResult` with counterterm ASTs and Feynman rules.
+ */
+export async function deriveCounterterms(
+  input: string,
+  knownFields: Record<string, import("$lib/types/spire").FieldSpin>,
+  externalFields: import("$lib/types/spire").ExternalField[],
+): Promise<import("$lib/types/spire").CountertermResult> {
+  return invoke<import("$lib/types/spire").CountertermResult>("derive_counterterms", {
+    input,
+    knownFields,
+    externalFields,
+  });
+}
