@@ -56,7 +56,7 @@ jobs:
 
       # ── MkDocs documentation ───────────────────────────────────
       - name: Install MkDocs Material
-        run: pip install mkdocs-material
+        run: pip install "mkdocs<2.0" mkdocs-material
 
       - name: Build MkDocs site
         working-directory: docs
