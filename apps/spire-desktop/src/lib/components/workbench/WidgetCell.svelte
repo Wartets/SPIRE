@@ -23,6 +23,7 @@
   import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
   import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
   import EventDisplay from "$lib/components/EventDisplay.svelte";
+  import DiagramEditor from "$lib/components/DiagramEditor.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -51,6 +52,8 @@
     <AnalysisWidget />
   {:else if instance.type === "event_display"}
     <EventDisplay />
+  {:else if instance.type === "diagram_editor"}
+    <DiagramEditor />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}

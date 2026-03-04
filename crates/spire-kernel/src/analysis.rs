@@ -719,6 +719,39 @@ pub fn generate_display_event(
     })
 }
 
+/// Generate a batch of event display data for animation playback.
+///
+/// Produces `batch_size` independent Monte-Carlo events, each processed
+/// through the detector simulation, and returns them as a vector of
+/// [`EventDisplayData`] suitable for sequential playback in the 3D viewer.
+///
+/// # Arguments
+///
+/// * `cms_energy` — Centre-of-mass energy (GeV).
+/// * `final_masses` — Final-state particle masses.
+/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds_str` — Optional particle kind labels per final-state leg.
+/// * `batch_size` — Number of events to generate (clamped to 1..=100).
+pub fn generate_display_batch(
+    cms_energy: f64,
+    final_masses: &[f64],
+    detector_preset: &str,
+    particle_kinds_str: Option<&[String]>,
+    batch_size: usize,
+) -> SpireResult<Vec<EventDisplayData>> {
+    let clamped = batch_size.clamp(1, 100);
+    let mut results = Vec::with_capacity(clamped);
+    for _ in 0..clamped {
+        results.push(generate_display_event(
+            cms_energy,
+            final_masses,
+            detector_preset,
+            particle_kinds_str,
+        )?);
+    }
+    Ok(results)
+}
+
 // ===========================================================================
 // Analysis Configuration & Result
 // ===========================================================================

@@ -25,6 +25,7 @@ export type WidgetType =
   | "dalitz"
   | "analysis"
   | "event_display"
+  | "diagram_editor"
   | "log";
 
 // ---------------------------------------------------------------------------

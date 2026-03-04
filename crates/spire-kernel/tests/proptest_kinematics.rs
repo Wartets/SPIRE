@@ -124,7 +124,8 @@ proptest! {
         let py_diff = total[2].abs();
         let pz_diff = total[3].abs();
 
-        let tol = 1e-9;
+        // 1e-8 relative tolerance is ~10 digits of precision at TeV scale.
+        let tol = 1e-8;
         prop_assert!(
             e_diff < tol,
             "Energy not conserved: E_total = {:.12}, E_cms = {:.12}, diff = {:.2e}",

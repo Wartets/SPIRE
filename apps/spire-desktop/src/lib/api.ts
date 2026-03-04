@@ -357,3 +357,31 @@ export async function generateDisplayEvent(
     },
   );
 }
+
+/**
+ * Generate a batch of Monte-Carlo events for animated 3D playback.
+ *
+ * @param cmsEnergy - Centre-of-mass energy (GeV).
+ * @param finalMasses - Final-state particle masses.
+ * @param detectorPreset - Detector preset name (e.g., "lhc_like").
+ * @param batchSize - Number of events to generate (clamped to 1..100).
+ * @param particleKinds - Optional particle kind labels per final-state leg.
+ */
+export async function generateDisplayBatch(
+  cmsEnergy: number,
+  finalMasses: number[],
+  detectorPreset: string,
+  batchSize: number,
+  particleKinds?: string[] | null,
+): Promise<import("$lib/types/spire").EventDisplayData[]> {
+  return invoke<import("$lib/types/spire").EventDisplayData[]>(
+    "generate_display_batch",
+    {
+      cmsEnergy,
+      finalMasses,
+      detectorPreset,
+      particleKinds: particleKinds ?? null,
+      batchSize,
+    },
+  );
+}

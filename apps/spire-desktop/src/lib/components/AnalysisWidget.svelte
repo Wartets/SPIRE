@@ -9,10 +9,11 @@
   Supports linear/logarithmic Y-axis scaling.
 -->
 <script lang="ts">
-  import { onMount, onDestroy, tick } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
+  import WebglHeatmap from "./WebglHeatmap.svelte";
   import {
     Chart,
     BarController,
@@ -250,8 +251,17 @@
   let activeHistogram2D: Histogram2DData | null = null;
 
   let canvasEl: HTMLCanvasElement;
-  let canvas2dEl: HTMLCanvasElement;
   let chart: Chart | null = null;
+
+  // WebGL heatmap reactive props
+  let heatmapData: Float32Array = new Float32Array(0);
+  let heatmapNx: number = 0;
+  let heatmapNy: number = 0;
+  let heatmapMax: number = 1;
+  let heatmapXEdges: number[] = [];
+  let heatmapYEdges: number[] = [];
+  let heatmapTitle: string = "";
+  let heatmapColorScale: "viridis" | "magma" = "viridis";
 
   // ---------------------------------------------------------------------------
   // Preset Selection
@@ -413,9 +423,15 @@
         renderChart(activeHistogram);
       } else if (analysisMode === '2d' && analysisResult.histograms_2d.length > 0) {
         activeHistogram2D = analysisResult.histograms_2d[0];
-        // Use tick() to ensure canvas is mounted before rendering.
-        await tick();
-        render2DHeatmap(activeHistogram2D);
+        // Feed data to the reactive WebGL heatmap component.
+        const h = activeHistogram2D;
+        heatmapData = new Float32Array(h.bin_contents);
+        heatmapNx = h.nx;
+        heatmapNy = h.ny;
+        heatmapMax = Math.max(...h.bin_contents, 1e-30);
+        heatmapXEdges = h.x_bin_edges;
+        heatmapYEdges = h.y_bin_edges;
+        heatmapTitle = h.name;
       }
 
       const xsecPb = analysisResult.cross_section * 0.3894e9;
@@ -530,120 +546,6 @@
         },
       },
     });
-  }
-
-  // ---------------------------------------------------------------------------
-  // 2D Heatmap Rendering (Canvas ImageData with Viridis palette)
-  // ---------------------------------------------------------------------------
-
-  /** Viridis-inspired colour scale: returns [r, g, b] for t in [0, 1]. */
-  function viridis(t: number): [number, number, number] {
-    // Simplified 5-stop Viridis approximation.
-    const stops: [number, number, number, number][] = [
-      [0.0, 68, 1, 84],
-      [0.25, 59, 82, 139],
-      [0.5, 33, 145, 140],
-      [0.75, 94, 201, 98],
-      [1.0, 253, 231, 37],
-    ];
-    const clamped = Math.max(0, Math.min(1, t));
-    let lo = stops[0], hi = stops[stops.length - 1];
-    for (let i = 0; i < stops.length - 1; i++) {
-      if (clamped >= stops[i][0] && clamped <= stops[i + 1][0]) {
-        lo = stops[i];
-        hi = stops[i + 1];
-        break;
-      }
-    }
-    const frac = hi[0] === lo[0] ? 0 : (clamped - lo[0]) / (hi[0] - lo[0]);
-    return [
-      Math.round(lo[1] + frac * (hi[1] - lo[1])),
-      Math.round(lo[2] + frac * (hi[2] - lo[2])),
-      Math.round(lo[3] + frac * (hi[3] - lo[3])),
-    ];
-  }
-
-  function render2DHeatmap(data: Histogram2DData): void {
-    if (!canvas2dEl) return;
-
-    const { nx, ny, bin_contents, x_bin_edges, y_bin_edges, name } = data;
-    const cellW = 16;
-    const cellH = 16;
-    const marginLeft = 60;
-    const marginBottom = 50;
-    const marginTop = 30;
-    const marginRight = 80; // room for colour bar
-    const width = marginLeft + nx * cellW + marginRight;
-    const height = marginTop + ny * cellH + marginBottom;
-
-    canvas2dEl.width = width;
-    canvas2dEl.height = height;
-    const ctx = canvas2dEl.getContext("2d");
-    if (!ctx) return;
-
-    ctx.fillStyle = "#1e1e1e";
-    ctx.fillRect(0, 0, width, height);
-
-    // Find max bin value for normalisation.
-    const maxVal = Math.max(...bin_contents, 1e-30);
-
-    // Draw heatmap cells (row-major: row i = y-bin i, col j = x-bin j).
-    for (let iy = 0; iy < ny; iy++) {
-      for (let ix = 0; ix < nx; ix++) {
-        const val = bin_contents[iy * nx + ix];
-        const t = maxVal > 0 ? val / maxVal : 0;
-        const [r, g, b] = viridis(t);
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-        // Y-axis is inverted (row 0 = top → largest y).
-        const px = marginLeft + ix * cellW;
-        const py = marginTop + (ny - 1 - iy) * cellH;
-        ctx.fillRect(px, py, cellW, cellH);
-      }
-    }
-
-    // X-axis labels.
-    ctx.fillStyle = "#999";
-    ctx.font = "10px JetBrains Mono, monospace";
-    ctx.textAlign = "center";
-    const xLabelCount = Math.min(nx + 1, 8);
-    const xStep = Math.max(1, Math.floor(nx / (xLabelCount - 1)));
-    for (let i = 0; i <= nx; i += xStep) {
-      const px = marginLeft + i * cellW;
-      const py = marginTop + ny * cellH + 15;
-      ctx.fillText(x_bin_edges[i].toFixed(1), px, py);
-    }
-
-    // Y-axis labels.
-    ctx.textAlign = "right";
-    const yLabelCount = Math.min(ny + 1, 8);
-    const yStep = Math.max(1, Math.floor(ny / (yLabelCount - 1)));
-    for (let i = 0; i <= ny; i += yStep) {
-      const px = marginLeft - 5;
-      const py = marginTop + (ny - i) * cellH + 4;
-      ctx.fillText(y_bin_edges[i].toFixed(1), px, py);
-    }
-
-    // Title.
-    ctx.fillStyle = "#e0e0e0";
-    ctx.font = "bold 12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(name, marginLeft + (nx * cellW) / 2, marginTop - 10);
-
-    // Colour bar.
-    const barX = marginLeft + nx * cellW + 15;
-    const barW = 15;
-    const barH = ny * cellH;
-    for (let i = 0; i < barH; i++) {
-      const t = i / barH;
-      const [r, g, b] = viridis(t);
-      ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      ctx.fillRect(barX, marginTop + barH - 1 - i, barW, 1);
-    }
-    ctx.fillStyle = "#999";
-    ctx.font = "9px JetBrains Mono, monospace";
-    ctx.textAlign = "left";
-    ctx.fillText("0", barX + barW + 4, marginTop + barH);
-    ctx.fillText(maxVal.toExponential(1), barX + barW + 4, marginTop + 8);
   }
 
   // ---------------------------------------------------------------------------
@@ -971,8 +873,18 @@
         </div>
       {/if}
     {:else}
-      <canvas bind:this={canvas2dEl} class="heatmap-canvas"></canvas>
-      {#if !activeHistogram2D && !loading}
+      {#if activeHistogram2D}
+        <WebglHeatmap
+          data={heatmapData}
+          nx={heatmapNx}
+          ny={heatmapNy}
+          maxVal={heatmapMax}
+          xEdges={heatmapXEdges}
+          yEdges={heatmapYEdges}
+          title={heatmapTitle}
+          colorScale={heatmapColorScale}
+        />
+      {:else if !loading}
         <div class="placeholder">
           Configure X/Y observables and click <strong>Run Analysis</strong> to generate a 2D heatmap.
         </div>

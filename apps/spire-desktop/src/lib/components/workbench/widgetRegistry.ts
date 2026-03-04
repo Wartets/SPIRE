@@ -20,5 +20,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   dalitz:     "Dalitz Plot",
   analysis:      "Analysis",
   event_display: "Event Display",
+  diagram_editor: "Diagram Editor",
   log:           "Console",
 };

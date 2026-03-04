@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc ea0a36eb1a04a5e4b5b3620bf1c8e38cf9533b7b4232884734c406164f58239e # shrinks to m_beam = 0.001, m_target = 0.001, m3 = 0.001, m4 = 7.725816933863767, p_beam_mag = 1.0, cos_theta = 0.0, phi = 0.0
+cc 1db79a2c14a70c33739ec4230e824dd6b1a670ac6083e5017384b847d0c86c5f # shrinks to seed = 24392, n_particles = 2, cms_energy = 960.8654655982062

@@ -417,6 +417,36 @@ fn generate_display_event(
     .map_err(|e| e.to_string())
 }
 
+/// Generates a batch of Monte-Carlo events for animated 3D playback.
+///
+/// Each event is independently generated via RAMBO, processed through the
+/// detector model, and returned as an `EventDisplayData` for sequential
+/// rendering in the Three.js time-of-flight animation loop.
+///
+/// # Arguments
+/// * `cms_energy` — Centre-of-mass energy (GeV).
+/// * `final_masses` — Final-state particle masses.
+/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds` — Optional particle kind labels per final-state leg.
+/// * `batch_size` — Number of events to generate (clamped to 1..=100).
+#[tauri::command]
+fn generate_display_batch(
+    cms_energy: f64,
+    final_masses: Vec<f64>,
+    detector_preset: String,
+    particle_kinds: Option<Vec<String>>,
+    batch_size: usize,
+) -> Result<Vec<EventDisplayData>, String> {
+    spire_kernel::analysis::generate_display_batch(
+        cms_energy,
+        &final_masses,
+        &detector_preset,
+        particle_kinds.as_deref(),
+        batch_size,
+    )
+    .map_err(|e| e.to_string())
+}
+
 // ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
@@ -438,6 +468,7 @@ fn main() {
             test_observable_script,
             test_cut_script,
             generate_display_event,
+            generate_display_batch,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");
