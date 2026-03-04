@@ -41,7 +41,10 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libsoup2.4-dev
+            libsoup2.4-dev \
+            libjavascriptcoregtk-4.0-dev
+
+      - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v4
         with:
           path: |
@@ -117,7 +120,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libsoup2.4-dev
+            libsoup2.4-dev \
+            libjavascriptcoregtk-4.0-dev
 
       - name: Build Rust documentation
         run: cargo doc --workspace --no-deps
@@ -148,7 +152,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libsoup2.4-dev
+            libsoup2.4-dev \
+            libjavascriptcoregtk-4.0-dev
 
       - name: Check Python bindings compilation
         run: cargo check -p spire-bindings --features python

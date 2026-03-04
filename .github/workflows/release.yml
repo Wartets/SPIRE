@@ -142,7 +142,8 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf \
-            libsoup2.4-dev
+            libsoup2.4-dev \
+            libjavascriptcoregtk-4.0-dev
 
       - name: Install frontend dependencies
         working-directory: apps/spire-desktop
