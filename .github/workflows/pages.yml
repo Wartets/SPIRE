@@ -1,0 +1,93 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Pages Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── System dependencies ────────────────────────────────────
+      - name: Install Tauri System Dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # ── Tool chains ────────────────────────────────────────────
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # ── Rust documentation (cargo doc) ─────────────────────────
+      - name: Build Rust API documentation
+        run: cargo doc --workspace --no-deps --document-private-items
+
+      # ── MkDocs documentation ───────────────────────────────────
+      - name: Install MkDocs Material
+        run: pip install mkdocs-material
+
+      - name: Build MkDocs site
+        working-directory: docs
+        run: mkdocs build -d ../mkdocs-site
+
+      # ── SvelteKit static site ──────────────────────────────────
+      - name: Install npm dependencies
+        run: npm ci || npm install
+
+      - name: Build SvelteKit static site
+        env:
+          BASE_PATH: /SPIRE
+        run: npm run build:web --workspace=spire-desktop
+
+      # ── Merge artifacts ────────────────────────────────────────
+      - name: Assemble Pages artifact
+        run: |
+          mkdir -p _site
+          # SvelteKit app → root
+          cp -r apps/spire-desktop/build/* _site/
+          # MkDocs → /docs
+          cp -r mkdocs-site _site/docs
+          # Rust API docs → /api
+          cp -r target/doc _site/api
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -6,6 +6,7 @@
   ],
   "scripts": {
     "desktop:dev": "npm run dev --workspace=spire-desktop",
-    "desktop:build": "npm run build --workspace=spire-desktop"
+    "desktop:build": "npm run build --workspace=spire-desktop",
+    "web:build": "npm run build:web --workspace=spire-desktop"
   }
 }

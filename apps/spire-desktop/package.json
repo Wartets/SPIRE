@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tauri dev",
     "build": "tauri build",
+    "build:web": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json && tsc"
   },
   "dependencies": {
@@ -15,7 +16,7 @@
     "three": "^0.183.2"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "next",
+    "@sveltejs/adapter-static": "next",
     "@sveltejs/kit": "next",
     "@tauri-apps/cli": "^1.5.0",
     "@types/three": "^0.183.1",
