@@ -16,6 +16,7 @@
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
+  import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import WebglHeatmap from "./WebglHeatmap.svelte";
   import {
     Chart,
@@ -420,6 +421,7 @@
       });
 
       result = analysisResult;
+      extractAndPushProfile(analysisResult, `Analysis: ${analysisResult.events_generated} events`);
 
       if (analysisMode === '1d' && analysisResult.histograms.length > 0) {
         activeHistogram = analysisResult.histograms[0];

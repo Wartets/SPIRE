@@ -28,6 +28,7 @@
   import ExternalModels from "$lib/components/ExternalModels.svelte";
   import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
   import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
+  import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
 
   export let instance: WidgetInstance;
@@ -66,6 +67,8 @@
     <ComputeGridWidget />
   {:else if instance.type === "references"}
     <ReferencesPanel />
+  {:else if instance.type === "telemetry"}
+    <TelemetryPanel />
   {:else if instance.type === "log"}
     <LogConsole />
   {:else}

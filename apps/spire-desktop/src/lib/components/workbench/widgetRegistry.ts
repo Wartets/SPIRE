@@ -25,5 +25,6 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   external_models:      "External Models",
   compute_grid:          "Compute Grid",
   references:             "References",
+  telemetry:              "Telemetry",
   log:           "Console",
 };

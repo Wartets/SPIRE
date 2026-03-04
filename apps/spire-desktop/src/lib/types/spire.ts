@@ -373,6 +373,8 @@ export interface TopologySet {
   max_loop_order: LoopOrder;
   diagrams: FeynmanDiagram[];
   count: number;
+  /** Optional performance profile from topology generation. */
+  profile?: ComputeProfile;
 }
 
 // ---------------------------------------------------------------------------
@@ -514,6 +516,8 @@ export interface AmplitudeResult {
   expression: string;
   couplings: string[];
   momenta_labels: string[];
+  /** Optional performance profile from amplitude derivation. */
+  profile?: ComputeProfile;
 }
 
 /**
@@ -616,6 +620,24 @@ export interface UfoExportResult {
 }
 
 // ---------------------------------------------------------------------------
+// Telemetry & Performance Profiling
+// ---------------------------------------------------------------------------
+
+/** Performance profile from a kernel computation pipeline. */
+export interface ComputeProfile {
+  /** Stage name → wall-clock milliseconds. Dynamic keys. */
+  stage_timings: Record<string, number>;
+  /** Total wall-clock time in milliseconds. */
+  total_time_ms: number;
+  /** Peak resident memory in megabytes. */
+  peak_memory_mb: number;
+  /** Number of threads used during computation. */
+  threads_used: number;
+  /** Convergence snapshots: [events_evaluated, relative_error]. */
+  convergence_data: [number, number][];
+}
+
+// ---------------------------------------------------------------------------
 // Cross-Section Calculation
 // ---------------------------------------------------------------------------
 
@@ -637,6 +659,8 @@ export interface CrossSectionResult {
   cms_energy: number;
   /** Description of the squared matrix element model used. */
   amplitude_model: string;
+  /** Optional performance profile. */
+  profile?: ComputeProfile;
 }
 
 // ---------------------------------------------------------------------------
@@ -866,6 +890,8 @@ export interface AnalysisResult {
   events_generated: number;
   /** Events passing all kinematic cuts. */
   events_passed: number;
+  /** Optional performance profile from the analysis pipeline. */
+  profile?: ComputeProfile;
 }
 
 // ---------------------------------------------------------------------------

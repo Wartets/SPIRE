@@ -281,6 +281,18 @@ export const LoopMomentumRoutingSchema = z.object({
   ),
 });
 
+// ===========================================================================
+// Telemetry & Performance Profiling
+// ===========================================================================
+
+export const ComputeProfileSchema = z.object({
+  stage_timings: z.record(z.string(), z.number()),
+  total_time_ms: z.number(),
+  peak_memory_mb: z.number(),
+  threads_used: z.number().int(),
+  convergence_data: z.array(z.tuple([z.number(), z.number()])),
+});
+
 export const FeynmanDiagramSchema = z.object({
   id: z.number(),
   nodes: z.array(FeynmanNodeSchema),
@@ -299,6 +311,7 @@ export const TopologySetSchema = z.object({
   max_loop_order: LoopOrderSchema,
   diagrams: z.array(FeynmanDiagramSchema),
   count: z.number(),
+  profile: ComputeProfileSchema.optional(),
 });
 
 // ===========================================================================
@@ -317,6 +330,7 @@ export const AmplitudeResultSchema = z.object({
   expression: z.string(),
   couplings: z.array(z.string()),
   momenta_labels: z.array(z.string()),
+  profile: ComputeProfileSchema.optional(),
 });
 
 // CasExpr is deeply recursive — validate structurally without full recursion
@@ -463,6 +477,7 @@ export const AnalysisResultSchema = z.object({
   cross_section_error: z.number(),
   events_generated: z.number(),
   events_passed: z.number(),
+  profile: ComputeProfileSchema.optional(),
 });
 
 // ===========================================================================
@@ -478,6 +493,7 @@ export const CrossSectionResultSchema = z.object({
   relative_error: z.number(),
   cms_energy: z.number(),
   amplitude_model: z.string(),
+  profile: ComputeProfileSchema.optional(),
 });
 
 // ===========================================================================

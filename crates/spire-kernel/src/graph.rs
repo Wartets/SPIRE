@@ -271,6 +271,9 @@ pub struct TopologySet {
     pub diagrams: Vec<FeynmanGraph>,
     /// Total number of diagrams found.
     pub count: usize,
+    /// Optional performance profile from topology generation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<crate::telemetry::ComputeProfile>,
 }
 
 // ---------------------------------------------------------------------------
@@ -819,6 +822,12 @@ pub fn generate_topologies(
     model: &TheoreticalModel,
     max_order: LoopOrder,
 ) -> SpireResult<TopologySet> {
+    use crate::telemetry::ComputeProfile;
+    use std::time::Instant;
+
+    let pipeline_start = Instant::now();
+    let mut profile = ComputeProfile::new();
+
     let initial = &reaction.initial.states;
     let final_st = &reaction.final_state.states;
     let n_in = initial.len();
@@ -842,6 +851,8 @@ pub fn generate_topologies(
     // Extract Particle references
     let in_particles: Vec<&Particle> = initial.iter().map(|s| &s.particle).collect();
     let out_particles: Vec<&Particle> = final_st.iter().map(|s| &s.particle).collect();
+
+    let tree_start = Instant::now();
 
     match (n_in, n_out) {
         // ---------------------------------------------------------------
@@ -1034,6 +1045,8 @@ pub fn generate_topologies(
         }
     }
 
+    profile.record_stage("Tree-Level Enumeration", tree_start.elapsed().as_secs_f64() * 1000.0);
+
     // -------------------------------------------------------------------
     // 1-Loop Topologies (if max_order >= OneLoop)
     // -------------------------------------------------------------------
@@ -1043,6 +1056,7 @@ pub fn generate_topologies(
     );
 
     if include_one_loop && !diagrams.is_empty() {
+        let loop_start = Instant::now();
         let tree_diagrams = diagrams.clone();
         for tree_diag in &tree_diagrams {
             // Generate self-energy (bubble) corrections on each internal propagator
@@ -1090,6 +1104,7 @@ pub fn generate_topologies(
                 diagrams.extend(loop_diagrams);
             }
         }
+        profile.record_stage("One-Loop Enumeration", loop_start.elapsed().as_secs_f64() * 1000.0);
     }
 
     // Determine the effective max loop order for the set
@@ -1099,11 +1114,15 @@ pub fn generate_topologies(
         LoopOrder::Tree
     };
 
+    profile.capture_memory();
+    profile.finalize(pipeline_start);
+
     Ok(TopologySet {
         reaction_id: reaction_label,
         max_loop_order: effective_max,
         count: diagrams.len(),
         diagrams,
+        profile: Some(profile),
     })
 }
 

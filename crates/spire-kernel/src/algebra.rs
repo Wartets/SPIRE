@@ -3175,6 +3175,9 @@ pub struct AmplitudeExpression {
     pub momenta_labels: Vec<String>,
     /// Human-readable summary expression string (e.g., LaTeX-style).
     pub expression: String,
+    /// Optional performance profile from amplitude derivation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<crate::telemetry::ComputeProfile>,
 }
 
 // ---------------------------------------------------------------------------
@@ -3576,6 +3579,12 @@ fn lorentz_index_label(counter: usize) -> String {
 /// # Arguments
 /// * `diagram` — The Feynman diagram to translate into an amplitude.
 pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpression> {
+    use crate::telemetry::ComputeProfile;
+    use std::time::Instant;
+
+    let start = Instant::now();
+    let mut profile = ComputeProfile::new();
+
     let mut terms = Vec::new();
     let mut couplings = Vec::new();
     let mut momenta_labels = Vec::new();
@@ -3763,12 +3772,17 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
         expression_parts.join(" × ")
     };
 
+    profile.record_stage("Amplitude Derivation", start.elapsed().as_secs_f64() * 1000.0);
+    profile.capture_memory();
+    profile.finalize(start);
+
     Ok(AmplitudeExpression {
         diagram_id: diagram.id,
         terms,
         couplings,
         momenta_labels,
         expression: full_expression,
+        profile: Some(profile),
     })
 }
 
@@ -5077,6 +5091,7 @@ mod tests {
             couplings: vec!["0.303".into()],
             momenta_labels: vec!["p1".into(), "p2".into()],
             expression: "V[-ie γ^μ]".into(),
+            profile: None,
         };
         let json = serde_json::to_string(&amp).unwrap();
         let amp2: AmplitudeExpression = serde_json::from_str(&json).unwrap();
@@ -5591,6 +5606,7 @@ mod tests {
             couplings: vec![],
             momenta_labels: vec![],
             expression: "ū(p3) (-ieγ^μ) u(p1) × Prop(q) × ū(p4) (-ieγ^ν) u(p2)".into(),
+            profile: None,
         };
 
         let result = contract_indices(&amp).unwrap();
@@ -5887,6 +5903,7 @@ mod tests {
             couplings: vec!["e".into()],
             momenta_labels: vec!["p1".into(), "p3".into()],
             expression: "test".into(),
+            profile: None,
         };
         let latex = amp.to_latex();
         assert!(latex.starts_with("i\\mathcal{M} = "), "got: {}", latex);
@@ -6003,6 +6020,7 @@ mod tests {
             couplings: vec![],
             momenta_labels: vec![],
             expression: "test_expr".into(),
+            profile: None,
         };
         let r = contract_indices_d(&amp, SpacetimeDimension::four()).unwrap();
         assert_eq!(r.result, "Contracted[test_expr]");
@@ -6016,6 +6034,7 @@ mod tests {
             couplings: vec![],
             momenta_labels: vec![],
             expression: "test_expr".into(),
+            profile: None,
         };
         let r = contract_indices_d(&amp, SpacetimeDimension::dim_reg_4()).unwrap();
         assert!(r.result.contains("d=4 - 2ε"), "got: {}", r.result);

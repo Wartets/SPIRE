@@ -46,6 +46,7 @@
 
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
+  import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
 
   // --- Command Registration ---
@@ -181,6 +182,7 @@
         $maxLoopOrderInput,
       );
       generatedDiagrams.set(topoSet);
+      extractAndPushProfile(topoSet, `Diagrams: ${topoSet.diagrams.length} topology(ies)`);
       addCitations(["hahn2001", "peskin1995"]);
       appendLog(`Generated ${topoSet.diagrams.length} Feynman diagram(s)`);
     } catch (e: unknown) {
@@ -204,6 +206,7 @@
       amplitudeResults.set(results);
       if (results.length > 0) {
         activeAmplitude.set(results[0].expression);
+        extractAndPushProfile(results[0], `Amplitude: ${results.length} expression(s)`);
       }
       addCitations(["peskin1995", "kennedy1982"]);
       appendLog(`Derived ${results.length} amplitude expression(s)`);

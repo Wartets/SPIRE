@@ -30,6 +30,7 @@ export type WidgetType =
   | "external_models"
   | "compute_grid"
   | "references"
+  | "telemetry"
   | "log";
 
 // ---------------------------------------------------------------------------
@@ -79,6 +80,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "external_models",      label: "External Models",       defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "compute_grid",          label: "Compute Grid",          defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "references",             label: "References",             defaultColSpan: 1, defaultRowSpan: 2 },
+  { type: "telemetry",              label: "Telemetry",              defaultColSpan: 2, defaultRowSpan: 2 },
   { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
 ];
 

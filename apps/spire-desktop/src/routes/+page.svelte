@@ -61,6 +61,7 @@
     "spire.ui.add_dalitz",
     "spire.ui.add_diagram_editor",
     "spire.ui.add_references",
+    "spire.ui.add_telemetry",
     "spire.ui.reset_layout",
     "spire.ui.toggle_log",
     "spire.workspace.save",
@@ -159,6 +160,12 @@
       title: "Add References Panel",
       category: "View",
       execute: () => addWidget("references"),
+    });
+    registerCommand({
+      id: "spire.ui.add_telemetry",
+      title: "Add Telemetry Dashboard",
+      category: "View",
+      execute: () => addWidget("telemetry"),
     });
     registerCommand({
       id: "spire.help.tutorial",

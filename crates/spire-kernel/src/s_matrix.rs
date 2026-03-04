@@ -451,6 +451,9 @@ pub struct CrossSectionResult {
     pub cms_energy: f64,
     /// The squared matrix element model used (description).
     pub amplitude_model: String,
+    /// Optional performance profile with stage timings and convergence data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<crate::telemetry::ComputeProfile>,
 }
 
 /// Calculate the total cross-section for a $2 \to N$ reaction using Monte
@@ -487,10 +490,17 @@ where
 {
     use crate::integration::{compute_cross_section, UniformIntegrator};
     use crate::kinematics::RamboGenerator;
+    use crate::telemetry::ComputeProfile;
+    use std::time::Instant;
+
+    let pipeline_start = Instant::now();
+    let mut profile = ComputeProfile::new();
+    profile.capture_threads();
 
     let integrator = UniformIntegrator::new();
     let mut generator = RamboGenerator::new();
 
+    let mc_start = Instant::now();
     let result = compute_cross_section(
         amplitude_sq_fn,
         &integrator,
@@ -499,8 +509,31 @@ where
         final_masses,
         num_events,
     )?;
+    profile.record_stage("Monte Carlo Integration", mc_start.elapsed().as_secs_f64() * 1000.0);
+
+    // Collect convergence snapshots from the integration result.
+    // The uniform integrator evaluates all events; we reconstruct
+    // approximate convergence at 10 logarithmically-spaced points.
+    let n_total = result.events_evaluated;
+    if n_total > 0 {
+        let n_snapshots = 10usize.min(n_total);
+        for i in 1..=n_snapshots {
+            let frac = i as f64 / n_snapshots as f64;
+            let n_at = ((n_total as f64) * frac) as usize;
+            // Error scales as 1/√N relative to final error
+            let estimated_error = if frac > 0.0 {
+                result.relative_error / frac.sqrt()
+            } else {
+                f64::INFINITY
+            };
+            profile.push_convergence(n_at, estimated_error);
+        }
+    }
 
     let pb_result = result.to_picobarns();
+
+    profile.capture_memory();
+    profile.finalize(pipeline_start);
 
     Ok(CrossSectionResult {
         cross_section: result.value,
@@ -511,6 +544,7 @@ where
         relative_error: result.relative_error,
         cms_energy,
         amplitude_model: "Constant |M|² = 1 (phase-space only)".into(),
+        profile: Some(profile),
     })
 }
 
@@ -1173,6 +1207,7 @@ mod tests {
             relative_error: 2.0e-8 / 1.5e-6,
             cms_energy: 91.2,
             amplitude_model: "Constant |M|^2 = 1".into(),
+            profile: None,
         };
         let json = serde_json::to_string(&result).unwrap();
         let restored: CrossSectionResult = serde_json::from_str(&json).unwrap();

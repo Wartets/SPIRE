@@ -64,7 +64,7 @@ use crate::{SpireError, SpireResult};
 pub struct Histogram1D {
     /// Weighted counts per bin.
     bins: Vec<f64>,
-    /// Sum of weightsÂ² per bin (for variance estimation).
+    /// Sum of weightsÃ‚Â² per bin (for variance estimation).
     bin_sq: Vec<f64>,
     /// Lower edge of the histogram range.
     min: f64,
@@ -148,7 +148,7 @@ impl Histogram1D {
         } else {
             // Compute bin index via multiplication (no division in hot path).
             let idx = ((value - self.min) * self.inv_bin_width) as usize;
-            // Guard against floating-point edge case where value â‰ˆ max.
+            // Guard against floating-point edge case where value Ã¢â€°Ë† max.
             let idx = idx.min(self.n_bins - 1);
             self.bins[idx] += weight;
             self.bin_sq[idx] += weight * weight;
@@ -532,7 +532,7 @@ pub struct Vec3 {
 pub struct DisplayJet {
     /// Jet momentum direction.
     pub direction: Vec3,
-    /// Jet energy (GeV) — used to scale the cone size.
+    /// Jet energy (GeV) â€” used to scale the cone size.
     pub energy: f64,
     /// Jet transverse momentum (GeV).
     pub pt: f64,
@@ -595,10 +595,10 @@ pub struct EventDisplayData {
 ///
 /// # Arguments
 ///
-/// * `cms_energy` — Centre-of-mass energy (GeV).
-/// * `final_masses` — Final-state particle masses.
-/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
-/// * `particle_kinds_str` — Optional particle kind labels per final-state leg.
+/// * `cms_energy` â€” Centre-of-mass energy (GeV).
+/// * `final_masses` â€” Final-state particle masses.
+/// * `detector_preset` â€” Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds_str` â€” Optional particle kind labels per final-state leg.
 pub fn generate_display_event(
     cms_energy: f64,
     final_masses: &[f64],
@@ -742,11 +742,11 @@ pub fn generate_display_event(
 ///
 /// # Arguments
 ///
-/// * `cms_energy` — Centre-of-mass energy (GeV).
-/// * `final_masses` — Final-state particle masses.
-/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
-/// * `particle_kinds_str` — Optional particle kind labels per final-state leg.
-/// * `batch_size` — Number of events to generate (clamped to 1..=100).
+/// * `cms_energy` â€” Centre-of-mass energy (GeV).
+/// * `final_masses` â€” Final-state particle masses.
+/// * `detector_preset` â€” Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds_str` â€” Optional particle kind labels per final-state leg.
+/// * `batch_size` â€” Number of events to generate (clamped to 1..=100).
 pub fn generate_display_batch(
     cms_energy: f64,
     final_masses: &[f64],
@@ -796,7 +796,7 @@ pub struct PlotDefinition {
 /// and the binning parameters for both axes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlotDefinition2D {
-    /// Human-readable name (e.g., "pT vs Î·").
+    /// Human-readable name (e.g., "pT vs ÃŽÂ·").
     pub name: String,
     /// Rhai script returning the X-axis observable value.
     pub x_observable_script: String,
@@ -874,7 +874,7 @@ pub struct AnalysisResult {
     /// Filled 2D histogram data for each requested 2D correlation plot.
     #[serde(default)]
     pub histograms_2d: Vec<Histogram2DData>,
-    /// Estimated total cross-section (GeVâ»Â²).
+    /// Estimated total cross-section (GeVÃ¢ÂÂ»Ã‚Â²).
     pub cross_section: f64,
     /// Statistical uncertainty on the cross-section.
     pub cross_section_error: f64,
@@ -882,6 +882,9 @@ pub struct AnalysisResult {
     pub events_generated: usize,
     /// Events passing all kinematic cuts.
     pub events_passed: usize,
+    /// Optional performance profile from the analysis pipeline.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile: Option<crate::telemetry::ComputeProfile>,
 }
 
 // ===========================================================================
@@ -977,7 +980,7 @@ where
         }
         n_passed += 1;
 
-        // Evaluate the integrand (|M|Â²).
+        // Evaluate the integrand (|M|Ã‚Â²).
         let f_val = integrand(&event);
         if !f_val.is_finite() || !event.weight.is_finite() {
             continue;
@@ -1040,6 +1043,7 @@ where
         cross_section_error,
         events_generated: n_generated,
         events_passed: n_passed,
+        profile: None,
     })
 }
 
@@ -1167,6 +1171,7 @@ where
         cross_section_error,
         events_generated: n_generated,
         events_passed: n_passed,
+        profile: None,
     })
 }
 
@@ -1316,7 +1321,7 @@ where
         }
         n_passed += 1;
 
-        // Evaluate the integrand (|M|Â²).
+        // Evaluate the integrand (|M|Ã‚Â²).
         let f_val = integrand(&event);
         if !f_val.is_finite() || !event.weight.is_finite() {
             continue;
@@ -1383,6 +1388,7 @@ where
         cross_section_error,
         events_generated: n_generated,
         events_passed: n_passed,
+        profile: None,
     })
 }
 
@@ -1424,7 +1430,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_in_range() {
         let mut h = Histogram1D::new(10, 0.0, 100.0);
-        // Fill value 15.0 â†’ bin 1 (covers [10, 20))
+        // Fill value 15.0 Ã¢â€ â€™ bin 1 (covers [10, 20))
         h.fill(15.0, 1.0);
         assert_eq!(h.entries(), 1);
         assert!((h.total_weight() - 1.0).abs() < 1e-12);
@@ -1444,7 +1450,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_overflow() {
         let mut h = Histogram1D::new(10, 0.0, 100.0);
-        h.fill(100.0, 3.0); // value == max â†’ overflow
+        h.fill(100.0, 3.0); // value == max Ã¢â€ â€™ overflow
         h.fill(150.0, 1.0);
         assert!((h.overflow() - 4.0).abs() < 1e-12);
         assert_eq!(h.entries(), 2);
@@ -1453,7 +1459,7 @@ mod tests {
     #[test]
     fn histogram1d_fill_weighted() {
         let mut h = Histogram1D::new(5, 0.0, 50.0);
-        // Bin width = 10. Value 5.0 â†’ bin 0.
+        // Bin width = 10. Value 5.0 Ã¢â€ â€™ bin 0.
         h.fill(5.0, 3.5);
         h.fill(5.0, 1.5);
         assert!((h.bin_contents()[0] - 5.0).abs() < 1e-12);
@@ -1531,7 +1537,7 @@ mod tests {
         for _ in 0..100 {
             h.fill(50.0, 1.0);
         }
-        assert!((h.mean() - 55.0).abs() < 1e-8); // bin centre at 55 since 50 â†’ bin 5 â†’ centre 55
+        assert!((h.mean() - 55.0).abs() < 1e-8); // bin centre at 55 since 50 Ã¢â€ â€™ bin 5 Ã¢â€ â€™ centre 55
     }
 
     #[test]
@@ -1583,7 +1589,7 @@ mod tests {
     #[test]
     fn histogram2d_fill() {
         let mut h = Histogram2D::new(10, 0.0, 100.0, 10, 0.0, 100.0);
-        h.fill(15.0, 15.0, 1.0); // ix=1, iy=1 â†’ index = 11
+        h.fill(15.0, 15.0, 1.0); // ix=1, iy=1 Ã¢â€ â€™ index = 11
         assert!((h.bin_contents()[11] - 1.0).abs() < 1e-12);
     }
 
@@ -1658,6 +1664,7 @@ mod tests {
             events_generated: 1000,
             events_passed: 800,
             histograms_2d: vec![],
+            profile: None,
         };
         let json = serde_json::to_string(&result).unwrap();
         let back: AnalysisResult = serde_json::from_str(&json).unwrap();
@@ -1838,7 +1845,7 @@ mod tests {
     fn run_analysis_invariant_mass_distribution() {
         use crate::kinematics::RamboGenerator;
 
-        // For 2â†’2 massless at âˆšs = 200 GeV, the invariant mass of the
+        // For 2Ã¢â€ â€™2 massless at Ã¢Ë†Å¡s = 200 GeV, the invariant mass of the
         // pair should always be exactly 200 GeV (total 4-momentum conservation).
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
@@ -1868,7 +1875,7 @@ mod tests {
 
         let h = &result.histograms[0];
         // The invariant mass should peak around 200 GeV (bin containing 200).
-        // Bin 10 covers [200, 205) â†’ the peak should be in bin 10.
+        // Bin 10 covers [200, 205) Ã¢â€ â€™ the peak should be in bin 10.
         let peak_bin = h
             .bin_contents
             .iter()
@@ -1890,9 +1897,9 @@ mod tests {
     fn run_analysis_pt_distribution_shape() {
         use crate::kinematics::RamboGenerator;
 
-        // For 2-body massless at âˆšs = 100 GeV, pT of each particle is
-        // (âˆšs / 2) * sin(Î¸) = 50 * sin(Î¸). Since Î¸ is isotropic in CM,
-        // the pT distribution should peak near pT â‰ˆ 50 GeV (Î¸ â‰ˆ Ï€/2).
+        // For 2-body massless at Ã¢Ë†Å¡s = 100 GeV, pT of each particle is
+        // (Ã¢Ë†Å¡s / 2) * sin(ÃŽÂ¸) = 50 * sin(ÃŽÂ¸). Since ÃŽÂ¸ is isotropic in CM,
+        // the pT distribution should peak near pT Ã¢â€°Ë† 50 GeV (ÃŽÂ¸ Ã¢â€°Ë† Ãâ‚¬/2).
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
                 name: "pT distribution".into(),
@@ -2077,7 +2084,7 @@ mod tests {
     #[test]
     fn run_reco_analysis_met_observable() {
         use crate::kinematics::RamboGenerator;
-        // One visible + one invisible particle â†’ MET from invisible.
+        // One visible + one invisible particle Ã¢â€ â€™ MET from invisible.
         let config = AnalysisConfig {
             plots: vec![PlotDefinition {
                 name: "MET".into(),
@@ -2296,8 +2303,8 @@ mod tests {
         let mut h = Histogram2D::new(5, 0.0, 50.0, 4, -2.0, 2.0);
         h.fill(10.0, 0.5, 1.0);
         h.fill(10.0, 0.5, 2.0);
-        let data = h.to_data_2d("pT vs η");
-        assert_eq!(data.name, "pT vs η");
+        let data = h.to_data_2d("pT vs Î·");
+        assert_eq!(data.name, "pT vs Î·");
         assert_eq!(data.nx, 5);
         assert_eq!(data.ny, 4);
         assert_eq!(data.x_bin_edges.len(), 6); // nx + 1
@@ -2350,7 +2357,7 @@ mod tests {
     #[test]
     fn plot_definition_2d_serde() {
         let plot = PlotDefinition2D {
-            name: "pT vs η".into(),
+            name: "pT vs Î·".into(),
             x_observable_script: "event.momenta[0].pt()".into(),
             y_observable_script: "event.momenta[0].eta()".into(),
             nx: 20,
@@ -2362,7 +2369,7 @@ mod tests {
         };
         let json = serde_json::to_string(&plot).unwrap();
         let back: PlotDefinition2D = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.name, "pT vs η");
+        assert_eq!(back.name, "pT vs Î·");
         assert_eq!(back.nx, 20);
         assert_eq!(back.ny, 25);
     }
@@ -2386,7 +2393,7 @@ mod tests {
             detector_preset: None,
             particle_kinds: None,
             plots_2d: Some(vec![PlotDefinition2D {
-                name: "pT vs η".into(),
+                name: "pT vs Î·".into(),
                 x_observable_script: "event.momenta[0].pt()".into(),
                 y_observable_script: "event.momenta[0].eta()".into(),
                 nx: 10,
@@ -2405,7 +2412,7 @@ mod tests {
         assert_eq!(result.histograms_2d.len(), 1);
 
         let h2 = &result.histograms_2d[0];
-        assert_eq!(h2.name, "pT vs η");
+        assert_eq!(h2.name, "pT vs Î·");
         assert_eq!(h2.nx, 10);
         assert_eq!(h2.ny, 10);
         assert_eq!(h2.bin_contents.len(), 100);
@@ -2431,7 +2438,7 @@ mod tests {
             detector_preset: Some("perfect".into()),
             particle_kinds: Some(vec!["hadron".into(), "hadron".into()]),
             plots_2d: Some(vec![PlotDefinition2D {
-                name: "pT vs η (reco)".into(),
+                name: "pT vs Î· (reco)".into(),
                 x_observable_script: "event.momenta[0].pt()".into(),
                 y_observable_script: "event.momenta[0].eta()".into(),
                 nx: 8,
@@ -2497,6 +2504,7 @@ mod tests {
             cross_section_error: 1.0e-8,
             events_generated: 100,
             events_passed: 100,
+            profile: None,
         };
         let json = serde_json::to_string(&result).unwrap();
         let back: AnalysisResult = serde_json::from_str(&json).unwrap();
