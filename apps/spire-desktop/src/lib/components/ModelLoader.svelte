@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Model Loader Component
+  SPIRE - Model Loader Component
 
   Loads a theoretical model from TOML definitions.
   Pre-populated with the Standard Model (particles + vertices).
@@ -61,7 +61,7 @@
     }
   }
 
-  /** Enter custom editing mode — restore from localStorage or start blank. */
+  /** Enter custom editing mode - restore from localStorage or start blank. */
   function activateCustomMode(): void {
     isCustom = true;
     showEditors = true;
@@ -80,7 +80,7 @@
     }
   }
 
-  /** Exit custom mode — restore SM defaults. */
+  /** Exit custom mode - restore SM defaults. */
   function deactivateCustomMode(): void {
     isCustom = false;
     $particlesTomlInput = DEFAULT_PARTICLES_TOML;
@@ -121,7 +121,7 @@
       theoreticalModel.set(model);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
-      appendLog(`Model "${model.name}" loaded — ${fieldCount} fields, ${vertexCount} vertices`);
+      appendLog(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errorMsg = msg;
@@ -153,7 +153,7 @@
         .join("\n\n");
       ufoExportContent = sections;
       showUfoModal = true;
-      appendLog(`UFO export generated — ${Object.keys(files).length} files`);
+      appendLog(`UFO export generated - ${Object.keys(files).length} files`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       appendLog(`ERROR exporting UFO: ${msg}`);
@@ -171,7 +171,7 @@
   // ---------------------------------------------------------------------------
   // Template TOML for custom models (minimal scaffold)
   // ---------------------------------------------------------------------------
-  const CUSTOM_TEMPLATE_PARTICLES = `# Custom Model — Particle Definitions
+  const CUSTOM_TEMPLATE_PARTICLES = `# Custom Model - Particle Definitions
 # Copy the Standard Model format or define your own particles.
 #
 # [[particle]]
@@ -193,7 +193,7 @@
 # interactions   = ["Electromagnetic"]
 `;
 
-  const CUSTOM_TEMPLATE_VERTICES = `# Custom Model — Vertex Definitions
+  const CUSTOM_TEMPLATE_VERTICES = `# Custom Model - Vertex Definitions
 # Define interaction vertices referencing particles defined above.
 #
 # [[vertex]]
@@ -282,7 +282,7 @@
 
   {#if $theoreticalModel}
     <div class="status-badge success">
-      {$theoreticalModel.name} — {fieldCount} fields, {vertexCount} vertices
+      {$theoreticalModel.name} - {fieldCount} fields, {vertexCount} vertices
     </div>
 
     <!-- UFO Export -->

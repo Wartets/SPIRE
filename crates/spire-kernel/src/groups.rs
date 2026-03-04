@@ -335,7 +335,7 @@ pub fn validate_gauge_invariance(
                 let na = compute_n_ality(n_val, &rep.dynkin_labels);
                 total_n_ality += na;
             }
-            Ok(total_n_ality % (n_val as u32) == 0)
+            Ok(total_n_ality.is_multiple_of(n_val as u32))
         }
         LieGroup::SO { n, .. } => {
             // For SO(N), representations are classified by a Z_2 grading:
@@ -354,7 +354,7 @@ pub fn validate_gauge_invariance(
                     spinor_count += 1;
                 }
             }
-            Ok(spinor_count % 2 == 0)
+            Ok(spinor_count.is_multiple_of(2))
         }
     }
 }
@@ -727,11 +727,7 @@ pub fn validate_poincare_invariance(
             let new_max = j_max + s;
             let new_min = if j_min > s {
                 j_min - s
-            } else if s > j_max {
-                s - j_max
-            } else {
-                0
-            };
+            } else { s.saturating_sub(j_max) };
             j_min = new_min;
             j_max = new_max;
         }

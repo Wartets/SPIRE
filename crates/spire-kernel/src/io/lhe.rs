@@ -231,6 +231,7 @@ impl From<std::io::Error> for SpireError {
 /// Initial-state momenta are constructed as back-to-back along the $z$-axis
 /// with the given beam energy. Final-state momenta come from the
 /// `PhaseSpacePoint`.
+#[allow(clippy::too_many_arguments)]
 pub fn event_record_from_phase_space(
     event: &crate::kinematics::PhaseSpacePoint,
     initial_pdg_ids: &[i32],

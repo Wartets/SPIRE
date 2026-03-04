@@ -310,7 +310,7 @@ fn parse_py_list(s: &str) -> Vec<String> {
 /// ```python
 /// foo = ClassName(key1=val1, key2=val2)
 /// ```
-fn find_constructor_calls<'a>(content: &'a str, class_name: &str) -> Vec<(String, String)> {
+fn find_constructor_calls(content: &str, class_name: &str) -> Vec<(String, String)> {
     let mut results = Vec::new();
     let pattern = format!("{}(", class_name);
 
@@ -900,7 +900,7 @@ pub fn ufo_to_theoretical_model(ufo: &UfoModel, model_name: &str) -> SpireResult
     let mut terms = Vec::new();
     let mut vertex_factors = Vec::new();
 
-    for (_idx, vtx) in ufo.vertices.iter().enumerate() {
+    for vtx in ufo.vertices.iter() {
         let term_id = format!("ufo_{}", vtx.name);
 
         // Determine coupling value from first coupling entry.
@@ -909,7 +909,7 @@ pub fn ufo_to_theoretical_model(ufo: &UfoModel, model_name: &str) -> SpireResult
             .couplings
             .iter()
             .find(|c| c.name == coupling_name)
-            .and_then(|_| None::<f64>); // Symbolic; no numeric value easily available.
+            .and(None::<f64>); // Symbolic; no numeric value easily available.
 
         let interaction_type = infer_interaction_type(&vtx.particles, &ufo.particles);
 

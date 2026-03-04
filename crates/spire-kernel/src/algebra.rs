@@ -1550,8 +1550,8 @@ impl CasExpr {
                         let s = t.to_cas_latex();
                         if i == 0 {
                             s
-                        } else if s.starts_with('-') {
-                            format!(" - {}", &s[1..])
+                        } else if let Some(rest) = s.strip_prefix('-') {
+                            format!(" - {}", rest)
                         } else {
                             format!(" + {}", s)
                         }
@@ -2538,7 +2538,7 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
     }
 
     // Case 3: Odd number of gammas (without γ^5) → 0
-    if n_gamma % 2 != 0 && !has_gamma5 {
+    if !n_gamma.is_multiple_of(2) && !has_gamma5 {
         return Ok(CasExpr::Scalar(0.0));
     }
 
@@ -2644,9 +2644,9 @@ pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResul
 pub fn contract_levi_civita(eps1: &[LorentzIndex; 4], eps2: &[LorentzIndex; 4]) -> CasExpr {
     // Find shared indices (contracted)
     let mut shared = Vec::new();
-    for i in 0..4 {
-        for j in 0..4 {
-            if eps1[i] == eps2[j] {
+    for (i, e1) in eps1.iter().enumerate() {
+        for (j, e2) in eps2.iter().enumerate() {
+            if e1 == e2 {
                 shared.push((i, j));
             }
         }
@@ -2996,7 +2996,7 @@ pub fn polarization_sum_rarita_schwinger(
 ///   = \frac{1}{2}(\tilde{g}^{\mu\rho}\tilde{g}^{\nu\sigma}
 ///     + \tilde{g}^{\mu\sigma}\tilde{g}^{\nu\rho})
 ///   - \frac{1}{3}\tilde{g}^{\mu\nu}\tilde{g}^{\rho\sigma}$$
-/// where $\tilde{g}^{\mu\nu} = -g^{\mu\nu} + k^\mu k^\nu / m^2$.
+///     where $\tilde{g}^{\mu\nu} = -g^{\mu\nu} + k^\mu k^\nu / m^2$.
 pub fn polarization_sum_spin2(
     mu: &LorentzIndex,
     nu: &LorentzIndex,
@@ -3411,10 +3411,7 @@ fn latex_vertex_expression(expr: &str) -> String {
     s = s.replace("γ^μ", "\\gamma^{\\mu}");
     s = s.replace("gamma^mu", "\\gamma^{\\mu}");
     s = s.replace("γ^5", "\\gamma^{5}");
-    s = s.replace("P_L", "P_L");
-    s = s.replace("P_R", "P_R");
     s = s.replace("Λ²", "\\Lambda^2");
-    s = s.replace("T^a", "T^a");
     // Wrap the coupling symbol: "-i e γ^μ" → "-ie\\gamma^{\\mu}"
     // If there's a leading `-i `, convert to `-i`
     if s.starts_with("-i ") {
@@ -3840,7 +3837,7 @@ pub fn evaluate_trace_d(
         // independent of d). We follow the 't Hooft-Veltman convention:
         // Tr[I] = 4 always.
         "4".into()
-    } else if gamma_indices.len() % 2 != 0 && !include_gamma5 {
+    } else if !gamma_indices.len().is_multiple_of(2) && !include_gamma5 {
         // Tr of odd number of gamma matrices = 0 in any dimension.
         "0".into()
     } else if gamma_indices.len() == 2 {
@@ -3877,13 +3874,10 @@ pub fn evaluate_trace_d(
 
     let mut steps = vec![input.clone()];
     // Record the d-dimensional identity used.
-    match dim {
-        SpacetimeDimension::DimReg { .. } => {
-            steps.push(format!("Applied d-dimensional algebra with d = {}", d_str));
-            steps.push(format!("g_μ^μ = {}", dim.metric_trace()));
-            steps.push(format!("γ^μ γ_μ = {}", dim.gamma_contraction()));
-        }
-        _ => {}
+    if let SpacetimeDimension::DimReg { .. } = dim {
+        steps.push(format!("Applied d-dimensional algebra with d = {}", d_str));
+        steps.push(format!("g_μ^μ = {}", dim.metric_trace()));
+        steps.push(format!("γ^μ γ_μ = {}", dim.gamma_contraction()));
     }
     steps.push(result.clone());
 
@@ -4019,8 +4013,7 @@ pub fn classify_loop_integral(
 
     let routing = graph.momentum_routing.as_ref();
     let loop_label = routing
-        .and_then(|r| r.loop_momenta.first())
-        .map(|s| s.clone())
+        .and_then(|r| r.loop_momenta.first()).cloned()
         .unwrap_or_else(|| "l".into());
 
     // Collect external momentum labels from the graph.
@@ -4465,7 +4458,7 @@ impl CasExpr {
             CasExpr::Add(terms) => {
                 let mut sum = Complex::zero();
                 for t in terms {
-                    sum = sum + t.evaluate_numerically(ctx)?;
+                    sum += t.evaluate_numerically(ctx)?;
                 }
                 Ok(sum)
             }
@@ -4510,7 +4503,7 @@ impl CasExpr {
             CasExpr::LeviCivita { indices } => {
                 // ε^{μνρσ} with numeric indices
                 let idx: Result<Vec<usize>, String> =
-                    indices.iter().map(|i| resolve_numeric_index(i)).collect();
+                    indices.iter().map(resolve_numeric_index).collect();
                 let idx = idx?;
                 if idx.len() != 4 {
                     return Err("Levi-Civita requires exactly 4 indices".into());

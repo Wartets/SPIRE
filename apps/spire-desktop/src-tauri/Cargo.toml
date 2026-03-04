@@ -3,6 +3,9 @@ name = "spire-desktop-backend"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 

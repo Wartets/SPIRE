@@ -45,6 +45,29 @@ import type {
   CountertermResult,
 } from "$lib/types/spire";
 
+import { z } from "zod";
+import {
+  TheoreticalModelSchema,
+  ReactionSchema,
+  ReconstructedFinalStateSchema,
+  TopologySetSchema,
+  AmplitudeResultSchema,
+  KinematicsReportSchema,
+  DalitzPlotDataSchema,
+  DerivationStepSchema,
+  UfoExportResultSchema,
+  AnalysisResultSchema,
+  EventDisplayDataSchema,
+  LagrangianExprSchema,
+  DerivedVertexRuleSchema,
+  ValidationResultSchema,
+  RgeFlowResultSchema,
+  SlhaDocumentSchema,
+  UfoModelSchema,
+  CountertermResultSchema,
+  validateResponse,
+} from "$lib/core/domain/schemas";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -90,6 +113,25 @@ async function tauriInvoke<T>(command: string, args?: Record<string, unknown>): 
   }
 }
 
+/**
+ * Invoke a Tauri command **and** validate the response shape with a Zod schema.
+ *
+ * Catches data-shape mismatches early at the IPC boundary rather than
+ * letting them propagate as cryptic runtime errors deep in UI code.
+ *
+ * The generic parameter `T` is the declared TS return type; the schema
+ * performs the runtime validation, then we cast to `T` because recursive
+ * Zod schemas (CasExpr, LagrangianExpr) infer as `unknown`.
+ */
+async function tauriInvokeValidated<T>(
+  command: string,
+  schema: z.ZodTypeAny,
+  args?: Record<string, unknown>,
+): Promise<T> {
+  const raw = await tauriInvoke<unknown>(command, args);
+  return validateResponse(schema, raw, command) as T;
+}
+
 // ---------------------------------------------------------------------------
 // TauriBackend
 // ---------------------------------------------------------------------------
@@ -102,7 +144,7 @@ export class TauriBackend implements SpireBackend {
     verticesToml: string,
     modelName?: string,
   ): Promise<TheoreticalModel> {
-    return tauriInvoke<TheoreticalModel>("load_theoretical_model", {
+    return tauriInvokeValidated("load_theoretical_model", TheoreticalModelSchema, {
       particlesToml,
       verticesToml,
       modelName: modelName ?? null,
@@ -115,7 +157,7 @@ export class TauriBackend implements SpireBackend {
     cmsEnergy: number,
     model: TheoreticalModel,
   ): Promise<Reaction> {
-    return tauriInvoke<Reaction>("validate_and_reconstruct_reaction", {
+    return tauriInvokeValidated("validate_and_reconstruct_reaction", ReactionSchema, {
       initialIds,
       cmsEnergy,
       model,
@@ -128,12 +170,16 @@ export class TauriBackend implements SpireBackend {
     cmsEnergy: number,
     model: TheoreticalModel,
   ): Promise<ReconstructedFinalState[]> {
-    return tauriInvoke<ReconstructedFinalState[]>("validate_and_reconstruct_reaction", {
-      initialIds,
-      cmsEnergy,
-      model,
-      finalIds: null,
-    });
+    return tauriInvokeValidated(
+      "validate_and_reconstruct_reaction",
+      z.array(ReconstructedFinalStateSchema),
+      {
+        initialIds,
+        cmsEnergy,
+        model,
+        finalIds: null,
+      },
+    );
   }
 
   async generateDiagrams(
@@ -141,7 +187,7 @@ export class TauriBackend implements SpireBackend {
     model: TheoreticalModel,
     maxLoopOrder: number = 0,
   ): Promise<TopologySet> {
-    return tauriInvoke<TopologySet>("generate_feynman_diagrams", {
+    return tauriInvokeValidated("generate_feynman_diagrams", TopologySetSchema, {
       reaction,
       model,
       maxLoopOrder: maxLoopOrder > 0 ? maxLoopOrder : null,
@@ -149,17 +195,21 @@ export class TauriBackend implements SpireBackend {
   }
 
   async deriveAmplitude(diagram: FeynmanDiagram): Promise<AmplitudeResult> {
-    return tauriInvoke<AmplitudeResult>("derive_amplitude", { diagram });
+    return tauriInvokeValidated("derive_amplitude", AmplitudeResultSchema, { diagram });
   }
 
   async deriveAmplitudeSteps(
     diagram: FeynmanDiagram,
     dim?: SpacetimeDimension,
   ): Promise<DerivationStep[]> {
-    return tauriInvoke<DerivationStep[]>("derive_amplitude_steps", {
-      diagram,
-      dim: dim ?? { Fixed: 4 },
-    });
+    return tauriInvokeValidated(
+      "derive_amplitude_steps",
+      z.array(DerivationStepSchema),
+      {
+        diagram,
+        dim: dim ?? { Fixed: 4 },
+      },
+    );
   }
 
   async exportAmplitudeLatex(diagram: FeynmanDiagram): Promise<string> {
@@ -172,7 +222,7 @@ export class TauriBackend implements SpireBackend {
     targetMass?: number,
     externalMasses?: [number, number, number, number],
   ): Promise<KinematicsReport> {
-    return tauriInvoke<KinematicsReport>("compute_kinematics", {
+    return tauriInvokeValidated("compute_kinematics", KinematicsReportSchema, {
       finalMasses,
       cmsEnergy,
       targetMass: targetMass ?? null,
@@ -187,7 +237,7 @@ export class TauriBackend implements SpireBackend {
     mC: number,
     nPoints: number = 3000,
   ): Promise<DalitzPlotData> {
-    return tauriInvoke<DalitzPlotData>("compute_dalitz_data", {
+    return tauriInvokeValidated("compute_dalitz_data", DalitzPlotDataSchema, {
       motherMass,
       mA,
       mB,
@@ -197,11 +247,11 @@ export class TauriBackend implements SpireBackend {
   }
 
   async exportModelUfo(model: TheoreticalModel): Promise<UfoExportResult> {
-    return tauriInvoke<UfoExportResult>("export_model_ufo", { model });
+    return tauriInvokeValidated("export_model_ufo", UfoExportResultSchema, { model });
   }
 
   async runAnalysis(config: AnalysisConfig): Promise<AnalysisResult> {
-    return tauriInvoke<AnalysisResult>("run_analysis", { config });
+    return tauriInvokeValidated("run_analysis", AnalysisResultSchema, { config });
   }
 
   async validateScript(script: string): Promise<void> {
@@ -222,7 +272,7 @@ export class TauriBackend implements SpireBackend {
     detectorPreset: string,
     particleKinds?: string[] | null,
   ): Promise<EventDisplayData> {
-    return tauriInvoke<EventDisplayData>("generate_display_event", {
+    return tauriInvokeValidated("generate_display_event", EventDisplayDataSchema, {
       cmsEnergy,
       finalMasses,
       detectorPreset,
@@ -237,20 +287,24 @@ export class TauriBackend implements SpireBackend {
     batchSize: number,
     particleKinds?: string[] | null,
   ): Promise<EventDisplayData[]> {
-    return tauriInvoke<EventDisplayData[]>("generate_display_batch", {
-      cmsEnergy,
-      finalMasses,
-      detectorPreset,
-      particleKinds: particleKinds ?? null,
-      batchSize,
-    });
+    return tauriInvokeValidated(
+      "generate_display_batch",
+      z.array(EventDisplayDataSchema),
+      {
+        cmsEnergy,
+        finalMasses,
+        detectorPreset,
+        particleKinds: particleKinds ?? null,
+        batchSize,
+      },
+    );
   }
 
   async parseLagrangianTerm(
     input: string,
     knownFields: Record<string, FieldSpin>,
   ): Promise<LagrangianExpr> {
-    return tauriInvoke<LagrangianExpr>("parse_lagrangian_term", {
+    return tauriInvokeValidated("parse_lagrangian_term", LagrangianExprSchema, {
       input,
       knownFields,
     });
@@ -261,7 +315,7 @@ export class TauriBackend implements SpireBackend {
     knownFields: Record<string, FieldSpin>,
     externalFields: ExternalField[],
   ): Promise<DerivedVertexRule> {
-    return tauriInvoke<DerivedVertexRule>("derive_vertex_rule_from_ast", {
+    return tauriInvokeValidated("derive_vertex_rule_from_ast", DerivedVertexRuleSchema, {
       input,
       knownFields,
       externalFields,
@@ -274,7 +328,7 @@ export class TauriBackend implements SpireBackend {
     gaugeSymmetry?: GaugeSymmetry | null,
     fieldGaugeInfo?: Record<string, FieldGaugeInfo>,
   ): Promise<ValidationResult> {
-    return tauriInvoke<ValidationResult>("validate_lagrangian_term", {
+    return tauriInvokeValidated("validate_lagrangian_term", ValidationResultSchema, {
       input,
       knownFields,
       gaugeSymmetry: gaugeSymmetry ?? null,
@@ -283,21 +337,25 @@ export class TauriBackend implements SpireBackend {
   }
 
   async runRgeFlow(config: RgeFlowConfig): Promise<RgeFlowResult> {
-    return tauriInvoke<RgeFlowResult>("run_rge_flow", { config });
+    return tauriInvokeValidated("run_rge_flow", RgeFlowResultSchema, { config });
   }
 
   async importSlhaString(slhaText: string): Promise<SlhaDocument> {
-    return tauriInvoke<SlhaDocument>("import_slha_string", { slhaText });
+    return tauriInvokeValidated("import_slha_string", SlhaDocumentSchema, { slhaText });
   }
 
   async importUfoModel(
     fileContents: UfoFileContents,
     modelName: string,
   ): Promise<[UfoModel, TheoreticalModel]> {
-    return tauriInvoke<[UfoModel, TheoreticalModel]>("import_ufo_model", {
-      fileContents,
-      modelName,
-    });
+    return tauriInvokeValidated(
+      "import_ufo_model",
+      z.tuple([UfoModelSchema, TheoreticalModelSchema]),
+      {
+        fileContents,
+        modelName,
+      },
+    );
   }
 
   async deriveCounterterms(
@@ -305,7 +363,7 @@ export class TauriBackend implements SpireBackend {
     knownFields: Record<string, FieldSpin>,
     externalFields: ExternalField[],
   ): Promise<CountertermResult> {
-    return tauriInvoke<CountertermResult>("derive_counterterms", {
+    return tauriInvokeValidated("derive_counterterms", CountertermResultSchema, {
       input,
       knownFields,
       externalFields,

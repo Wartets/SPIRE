@@ -366,7 +366,7 @@ impl SlhaDocument {
     pub fn get_block_entry(&self, block_name: &str, indices: &[i32]) -> Option<f64> {
         self.blocks
             .get(&block_name.to_uppercase())
-            .and_then(|b| b.entries.get(&indices.to_vec()).copied())
+            .and_then(|b| b.entries.get(indices).copied())
     }
 
     /// Retrieve a row of a mixing matrix block (e.g., row 1 of `NMIX`).

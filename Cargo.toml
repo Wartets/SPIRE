@@ -13,3 +13,20 @@ authors = ["SPIRE Team"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Wartets/SPIRE"
 description = "Structured Particle Interaction & Reaction Engine"
+
+# ── Workspace-wide lints (Phase 37) ──────────────────────────────
+[workspace.lints.rust]
+warnings = "deny"
+
+[workspace.lints.clippy]
+# Deny standard clippy lints so CI fails on regressions.
+all = { level = "deny", priority = -1 }
+# Selected pedantic lints that improve code quality without being
+# overly noisy for a physics codebase with many numeric casts.
+manual_strip = "deny"
+redundant_field_names = "deny"
+needless_range_loop = "deny"
+redundant_closure = "deny"
+no_effect_replace = "deny"
+doc_lazy_continuation = "deny"
+unnecessary_to_owned = "deny"

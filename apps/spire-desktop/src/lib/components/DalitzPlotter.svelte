@@ -93,8 +93,8 @@
         `(M=${motherMass}, grid=${plotData.n_grid})`
       );
       renderChart();
-    } catch (e: any) {
-      errorMsg = String(e);
+    } catch (e: unknown) {
+      errorMsg = e instanceof Error ? e.message : String(e);
       appendLog(`Dalitz error: ${errorMsg}`);
     } finally {
       loading = false;

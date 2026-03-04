@@ -874,7 +874,7 @@ impl PhaseSpaceGenerator for RamboGenerator {
         let metric = MetricSignature::minkowski_4d();
         let q_sq = metric
             .inner_product(&q_total, &q_total)
-            .map_err(|e| crate::SpireError::InternalError(e))?;
+            .map_err(crate::SpireError::InternalError)?;
         let m_q = q_sq.sqrt();
 
         if m_q < 1e-15 {
@@ -1108,7 +1108,7 @@ fn rambo_mass_weight_factor(
     let mut product = 1.0;
     let mut sum_p_sq_over_e = 0.0;
 
-    for (_i, p) in massive_momenta.iter().enumerate() {
+    for p in massive_momenta.iter() {
         let e_i = p[0];
         let p_spatial_sq: f64 = p.components()[1..].iter().map(|c| c * c).sum();
         let p_mag = p_spatial_sq.sqrt();

@@ -256,7 +256,7 @@ fn check_gauge_singlet(
                         }
                     }
                 }
-                if nality_sum % (*n as usize) != 0 {
+                if !nality_sum.is_multiple_of(*n as usize) {
                     messages.push(ValidationMessage {
                         severity: "error".to_string(),
                         check: "gauge".to_string(),
@@ -484,13 +484,13 @@ fn compute_half_mass_dimension(expr: &LagrangianExpr) -> u32 {
         LagrangianExpr::FieldStrength { .. } => 4, // F ~ ∂A, dimension 2
         LagrangianExpr::Product(children) => children
             .iter()
-            .map(|c| compute_half_mass_dimension(c))
+            .map(compute_half_mass_dimension)
             .sum(),
         LagrangianExpr::Sum(children) => {
             // All terms in a sum should have the same dimension; take the max.
             children
                 .iter()
-                .map(|c| compute_half_mass_dimension(c))
+                .map(compute_half_mass_dimension)
                 .max()
                 .unwrap_or(0)
         }

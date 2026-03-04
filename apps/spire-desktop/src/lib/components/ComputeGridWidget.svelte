@@ -282,7 +282,7 @@
 <div class="grid-widget">
   <!-- ── Configuration Panel ──────────────────────────────────────────── -->
   <div class="config-panel">
-    <h3 class="section-title">⚡ Compute Grid</h3>
+    <h3 class="section-title">Compute Grid</h3>
 
     <div class="field-row">
       <div class="field compact">

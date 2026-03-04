@@ -12,8 +12,11 @@
  *    `window.__TAURI_INTERNALS__`.  If either exists, the app is running
  *    inside the native Tauri webview → use `TauriBackend`.
  *
- * 2. **WebAssembly** — Check `typeof WebAssembly !== "undefined"`.  If
- *    available and the WASM worker can be instantiated → use `WasmBackend`.
+ * 2. **WebAssembly (explicit opt-in)** — The WASM backend requires the
+ *    `spire-kernel-wasm` module to be built and deployed alongside the
+ *    frontend.  A bootstrap script must set `window.__SPIRE_WASM_READY__`
+ *    to signal availability.  Without it, the bare-specifier import
+ *    crashes the browser module loader.
  *
  * 3. **Mock (Simulation Mode)** — Fallback → use `MockBackend`.
  *
@@ -54,7 +57,19 @@ function detectEnvironment(): BackendKind {
   }
 
   try {
-    if (typeof WebAssembly !== "undefined") {
+    // WASM backend requires explicit opt-in.  The `spire-kernel-wasm`
+    // package must be built (via `wasm-pack`) and a bootstrap script
+    // must set `window.__SPIRE_WASM_READY__ = true` before the app
+    // loads.  Without this guard, every modern browser (which always
+    // supports WebAssembly) would attempt to import the bare specifier
+    // "spire-kernel-wasm", causing:
+    //   "bare specifier was not remapped" (Firefox/Safari)
+    //   "Failed to resolve module specifier" (Chrome)
+    if (
+      typeof window !== "undefined" &&
+      typeof WebAssembly !== "undefined" &&
+      (window as unknown as Record<string, unknown>).__SPIRE_WASM_READY__ === true
+    ) {
       return "wasm";
     }
   } catch {

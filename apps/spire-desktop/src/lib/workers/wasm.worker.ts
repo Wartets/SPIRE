@@ -57,7 +57,7 @@ async function ensureWasmLoaded(): Promise<void> {
   wasmLoadAttempted = true;
 
   try {
-    // @ts-ignore — spire-kernel-wasm is an optional dependency built separately
+    // @ts-expect-error — spire-kernel-wasm is an optional dependency built separately
     const mod = await import(/* @vite-ignore */ "spire-kernel-wasm");
     if (typeof mod.default === "function") {
       await mod.default(); // init() for wasm-bindgen

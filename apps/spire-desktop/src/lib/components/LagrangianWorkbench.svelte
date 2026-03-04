@@ -146,8 +146,8 @@
     try {
       parsedExpr = await parseLagrangianTerm(termInput, fields);
       appendLog(`✓ Parsed: ${termInput}`);
-    } catch (e: any) {
-      parseError = String(e);
+    } catch (e: unknown) {
+      parseError = e instanceof Error ? e.message : String(e);
       appendLog(`✗ Parse error: ${parseError}`);
       return;
     }
@@ -157,8 +157,8 @@
       appendLog(
         `Validation: Lorentz=${validation.is_lorentz_scalar} Gauge=${validation.is_gauge_singlet} Hermitian=${validation.is_hermitian} Dim=${validation.mass_dimension}`,
       );
-    } catch (e: any) {
-      appendLog(`✗ Validation error: ${e}`);
+    } catch (e: unknown) {
+      appendLog(`✗ Validation error: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -180,8 +180,8 @@
     try {
       derivedRule = await deriveVertexRuleFromAst(termInput, fields, externals);
       appendLog(`✓ Derived vertex: ${derivedRule.latex}`);
-    } catch (e: any) {
-      deriveError = String(e);
+    } catch (e: unknown) {
+      deriveError = e instanceof Error ? e.message : String(e);
       appendLog(`✗ Derivation error: ${deriveError}`);
     }
   }
@@ -219,8 +219,8 @@
       rgeResult = await runRgeFlow(config);
       appendLog(`✓ RGE flow computed: ${rgeResult.coupling_name}, ${rgeResult.mu_values.length} points`);
       plotRge();
-    } catch (e: any) {
-      rgeError = String(e);
+    } catch (e: unknown) {
+      rgeError = e instanceof Error ? e.message : String(e);
       appendLog(`✗ RGE error: ${rgeError}`);
     }
   }

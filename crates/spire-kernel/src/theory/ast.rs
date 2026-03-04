@@ -303,8 +303,8 @@ pub fn validate_index_contraction(expr: &LagrangianExpr) -> SpireResult<()> {
             ));
             continue;
         }
-        let has_upper = positions.iter().any(|p| *p == IndexPosition::Upper);
-        let has_lower = positions.iter().any(|p| *p == IndexPosition::Lower);
+        let has_upper = positions.contains(&IndexPosition::Upper);
+        let has_lower = positions.contains(&IndexPosition::Lower);
         if !has_upper || !has_lower {
             errors.push(format!(
                 "Index '{}' ({}) does not have both upper and lower positions",
@@ -458,8 +458,7 @@ fn parse_token(
     }
 
     // Adjoint field: psibar, ebar, etc.
-    if token.ends_with("bar") {
-        let base = &token[..token.len() - 3];
+    if let Some(base) = token.strip_suffix("bar") {
         let spin = known_fields
             .get(base)
             .copied()
@@ -725,11 +724,11 @@ pub fn expr_to_latex(expr: &LagrangianExpr) -> String {
             }
         }
         LagrangianExpr::Product(children) => {
-            let parts: Vec<String> = children.iter().map(|c| expr_to_latex(c)).collect();
+            let parts: Vec<String> = children.iter().map(expr_to_latex).collect();
             parts.join(" \\, ")
         }
         LagrangianExpr::Sum(children) => {
-            let parts: Vec<String> = children.iter().map(|c| expr_to_latex(c)).collect();
+            let parts: Vec<String> = children.iter().map(expr_to_latex).collect();
             parts.join(" + ")
         }
         LagrangianExpr::Scaled { factor, inner } => {

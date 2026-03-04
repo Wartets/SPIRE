@@ -556,6 +556,7 @@ pub fn calculate_phase_space_cross_section(
 /// # Returns
 ///
 /// A [`HadronicCrossSectionResult`](crate::pdf::HadronicCrossSectionResult).
+#[allow(clippy::too_many_arguments)]
 pub fn calculate_hadronic_cross_section<F>(
     pdf1: &dyn crate::pdf::PdfProvider,
     pdf2: &dyn crate::pdf::PdfProvider,

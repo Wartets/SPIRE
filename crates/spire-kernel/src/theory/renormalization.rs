@@ -156,8 +156,8 @@ pub fn apply_field_renormalization(
 
             let mut terms = vec![LagrangianExpr::Product(factors.clone())]; // tree-level
 
-            for i in 0..factors.len() {
-                if let Some(delta_part) = extract_delta_part(&shifted_factors[i]) {
+            for (i, shifted) in shifted_factors.iter().enumerate().take(factors.len()) {
+                if let Some(delta_part) = extract_delta_part(shifted) {
                     let mut ct_factors = Vec::with_capacity(factors.len());
                     for (j, f) in factors.iter().enumerate() {
                         if j == i {

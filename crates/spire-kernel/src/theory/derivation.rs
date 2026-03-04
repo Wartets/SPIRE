@@ -145,7 +145,7 @@ fn differentiate_product(
         if let Some((diff_i, _sign_i)) = functional_derivative(&factors[i], field_id, is_adjoint) {
             // Build the remaining product: factors[0..i] ++ [diff_i] ++ factors[i+1..n]
             let mut remaining: Vec<LagrangianExpr> = Vec::new();
-            for j in 0..n {
+            for (j, factor) in factors.iter().enumerate() {
                 if j == i {
                     // Only include the differentiated factor if it's not just 1.0
                     if !matches!(&diff_i, LagrangianExpr::RealConstant(v) if (*v - 1.0).abs() < 1e-12)
@@ -153,7 +153,7 @@ fn differentiate_product(
                         remaining.push(diff_i.clone());
                     }
                 } else {
-                    remaining.push(factors[j].clone());
+                    remaining.push(factor.clone());
                 }
             }
 
@@ -283,13 +283,13 @@ fn replace_derivatives_with_momenta(expr: &LagrangianExpr) -> LagrangianExpr {
         LagrangianExpr::Product(children) => LagrangianExpr::Product(
             children
                 .iter()
-                .map(|c| replace_derivatives_with_momenta(c))
+                .map(replace_derivatives_with_momenta)
                 .collect(),
         ),
         LagrangianExpr::Sum(children) => LagrangianExpr::Sum(
             children
                 .iter()
-                .map(|c| replace_derivatives_with_momenta(c))
+                .map(replace_derivatives_with_momenta)
                 .collect(),
         ),
         LagrangianExpr::Scaled { factor, inner } => LagrangianExpr::Scaled {

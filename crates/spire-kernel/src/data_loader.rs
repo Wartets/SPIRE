@@ -155,7 +155,7 @@ pub fn raw_particle_to_field(raw: &RawParticle) -> SpireResult<Field> {
         spin: Spin(raw.spin),
         parity,
         charge_conjugation: charge_conj,
-        color: color.clone(),
+        color,
         weak_multiplet: weak_mult,
         representations: legacy_sm_to_representations(color, weak_mult, raw.hypercharge),
     };

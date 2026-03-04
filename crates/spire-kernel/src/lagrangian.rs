@@ -441,6 +441,13 @@ impl TheoreticalModel {
             let charge_str = format!("{}/{}", charge_thirds, 3);
 
             let var_name = ufo_variable_name(&field.id);
+            let mass_str = format!("M{}", var_name.to_uppercase());
+            let width_str = if field.width > 0.0 {
+                format!("W{}", var_name.to_uppercase())
+            } else {
+                "ZERO".into()
+            };
+
             lines.push(format!(
                 "{var_name} = Particle(pdg_code={pdg}, name='{name}', antiname='{anti}', \
                  spin={spin}, color={color}, mass='{mass}', width='{width}', \
@@ -448,12 +455,8 @@ impl TheoreticalModel {
                 name = field.id,
                 anti = ufo_antiname(&field.id),
                 spin = spin_2j_plus_1,
-                mass = format!("M{}", var_name.to_uppercase()),
-                width = if field.width > 0.0 {
-                    format!("W{}", var_name.to_uppercase())
-                } else {
-                    "ZERO".into()
-                },
+                mass = mass_str,
+                width = width_str,
                 charge = charge_str,
             ));
             lines.push(String::new());
@@ -581,21 +584,20 @@ fn ufo_color_code(field: &Field) -> i32 {
 fn ufo_variable_name(id: &str) -> String {
     id.replace('-', "m")
         .replace('+', "p")
-        .replace('_', "_")
-        .replace(' ', "_")
+        .replace(['_', ' '], "_")
 }
 
 /// Generate an antiparticle name from the field ID.
 fn ufo_antiname(id: &str) -> String {
     // Common patterns
-    if id.ends_with('-') {
-        return format!("{}+", &id[..id.len() - 1]);
+    if let Some(rest) = id.strip_suffix('-') {
+        return format!("{}+", rest);
     }
-    if id.ends_with('+') {
-        return format!("{}-", &id[..id.len() - 1]);
+    if let Some(rest) = id.strip_suffix('+') {
+        return format!("{}-", rest);
     }
-    if id.starts_with("anti_") {
-        return id[5..].to_string();
+    if let Some(rest) = id.strip_prefix("anti_") {
+        return rest.to_string();
     }
     format!("anti_{}", id)
 }
@@ -615,10 +617,12 @@ fn ufo_antiname(id: &str) -> String {
 /// - Electromagnetic form factor of the proton: `Dipole { lambda_sq: 0.71 }` (GeV²).
 /// - Exponential suppression at high-$Q^2$ vertices: `Exponential { lambda_sq: 1.0 }`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum FormFactor {
     /// No form factor — the interaction is treated as point-like.
     ///
     /// $F(Q^2) = 1$.
+    #[default]
     PointLike,
 
     /// Monopole form factor.
@@ -724,11 +728,6 @@ impl FormFactor {
     }
 }
 
-impl Default for FormFactor {
-    fn default() -> Self {
-        FormFactor::PointLike
-    }
-}
 
 #[cfg(test)]
 mod tests {

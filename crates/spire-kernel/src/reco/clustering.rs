@@ -285,8 +285,8 @@ pub fn cluster_jets(inputs: &[SpacetimeVector], algorithm: JetAlgorithm, radius:
         let mut min_j: Option<usize> = None; // None means beam distance.
 
         // Compute beam distances d_{iB}.
-        for i in 0..n {
-            let pt_i = pseudo_jets[i].pt;
+        for (i, jet) in pseudo_jets.iter().enumerate().take(n) {
+            let pt_i = jet.pt;
             let d_ib = if pt_i > 1e-300 {
                 pt_i.powf(two_p)
             } else {
@@ -310,24 +310,20 @@ pub fn cluster_jets(inputs: &[SpacetimeVector], algorithm: JetAlgorithm, radius:
             let pt_i = pseudo_jets[i].pt;
             let kti_2p = if pt_i > 1e-300 {
                 pt_i.powf(two_p)
+            } else if p < 0.0 {
+                f64::INFINITY
             } else {
-                if p < 0.0 {
-                    f64::INFINITY
-                } else {
-                    0.0
-                }
+                0.0
             };
 
             for j in (i + 1)..n {
                 let pt_j = pseudo_jets[j].pt;
                 let ktj_2p = if pt_j > 1e-300 {
                     pt_j.powf(two_p)
+                } else if p < 0.0 {
+                    f64::INFINITY
                 } else {
-                    if p < 0.0 {
-                        f64::INFINITY
-                    } else {
-                        0.0
-                    }
+                    0.0
                 };
 
                 let min_kt = kti_2p.min(ktj_2p);

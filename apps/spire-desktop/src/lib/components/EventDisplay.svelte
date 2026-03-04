@@ -495,9 +495,9 @@
     <div class="run-row">
       <button class="run-btn" on:click={handleGenerateBatch} disabled={loading}>
         {#if loading}
-          ⏳ Generating…
+          Generating…
         {:else}
-          🔬 Generate Batch
+          Generate Batch
         {/if}
       </button>
     </div>

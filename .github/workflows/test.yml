@@ -64,7 +64,6 @@ jobs:
 
       - name: Run clippy lints
         run: cargo clippy --workspace -- -D warnings
-        continue-on-error: true
 
   frontend-check:
     name: Frontend Type Check
@@ -88,6 +87,10 @@ jobs:
       - name: Run svelte-check and TypeScript compiler
         working-directory: apps/spire-desktop
         run: npm run check
+
+      - name: Strict TypeScript type check
+        working-directory: apps/spire-desktop
+        run: npx tsc --noEmit
 
   documentation:
     name: Documentation Build

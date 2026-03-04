@@ -170,8 +170,8 @@ impl MomentumExpression {
             // Join with " + ", cleaning up leading minus signs
             let mut result = parts[0].clone();
             for p in &parts[1..] {
-                if p.starts_with('-') {
-                    result.push_str(&format!(" - {}", &p[1..]));
+                if let Some(rest) = p.strip_prefix('-') {
+                    result.push_str(&format!(" - {}", rest));
                 } else {
                     result.push_str(&format!(" + {}", p));
                 }
@@ -389,6 +389,7 @@ fn find_exchange_mediators<'a>(
 ///   [In1] ──→ (V1) ──propagator──→ (V2) ──→ [Out1]
 ///   [In2] ──→ (V1)                 (V2) ──→ [Out2]
 /// ```
+#[allow(clippy::too_many_arguments)]
 fn build_s_channel_graph(
     diagram_id: usize,
     in1: &Particle,
@@ -528,6 +529,7 @@ fn build_s_channel_graph(
 ///                |
 ///   [In2] ──→ (V2) ──→ [Out2]
 /// ```
+#[allow(clippy::too_many_arguments)]
 fn build_exchange_graph(
     diagram_id: usize,
     in1: &Particle,
@@ -858,7 +860,7 @@ pub fn generate_topologies(
                     out_particles.iter().map(|p| (*p).clone()).collect();
                 let mut fg = build_single_vertex_graph(next_id, &incoming_ps, &outgoing_ps, vf);
                 fg.symmetry_factor = compute_final_state_symmetry_factor(
-                    &out_particles.iter().copied().collect::<Vec<_>>(),
+                    &out_particles.to_vec(),
                 );
                 diagrams.push(fg);
             }
@@ -894,7 +896,7 @@ pub fn generate_topologies(
             let id_out2 = base_field_id(out_particles[1]);
 
             let sym_factor = compute_final_state_symmetry_factor(
-                &out_particles.iter().copied().collect::<Vec<_>>(),
+                &out_particles.to_vec(),
             );
 
             // --- s-channel ---
@@ -1113,10 +1115,10 @@ pub fn generate_topologies(
 /// # Arguments
 /// * `topologies` — The full set of generated topologies.
 /// * `channel`    — The Mandelstam channel to isolate.
-pub fn isolate_channels<'a>(
-    topologies: &'a TopologySet,
+pub fn isolate_channels(
+    topologies: &TopologySet,
     channel: Channel,
-) -> SpireResult<Vec<&'a FeynmanGraph>> {
+) -> SpireResult<Vec<&FeynmanGraph>> {
     let filtered: Vec<&FeynmanGraph> = topologies
         .diagrams
         .iter()
