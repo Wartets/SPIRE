@@ -12,6 +12,7 @@
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { runAnalysis, validateScript } from "$lib/api";
+  import { configureNlo, configureShower } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
@@ -233,6 +234,17 @@
   let detectorPreset: DetectorPreset | '' = '';
   let particleKinds: ParticleKind[] = [];
 
+  // NLO corrections state (Phase 46)
+  let nloEnabled: boolean = false;
+  let nloScheme: "CataniSeymour" | "FKS" | "Antenna" = "CataniSeymour";
+  let nloAlpha: number = 1.0;
+
+  // Parton shower state (Phase 46)
+  let showerEnabled: boolean = false;
+  let showerProvider: "pythia8" | "herwig7" | "sherpa" | "custom" = "pythia8";
+  let showerHadronisation: boolean = true;
+  let showerMPI: boolean = false;
+
   // Keep particle_kinds array in sync with final-state count.
   $: {
     if (particleKinds.length !== nFinalState) {
@@ -408,6 +420,32 @@
       appendLog(
         `Running ${analysisMode.toUpperCase()} analysis: ${modeLabel}, ${numEvents} events at √s = ${cmsEnergy} GeV`,
       );
+
+      // Send NLO configuration if enabled (Phase 46).
+      if (nloEnabled) {
+        await configureNlo({
+          enabled: true,
+          subtraction_scheme: nloScheme,
+          y_min: 0.0,
+          y_max: 1.0,
+          alpha: nloAlpha,
+        });
+        appendLog(`NLO corrections enabled — scheme: ${nloScheme}, α = ${nloAlpha}`);
+      }
+
+      // Send shower configuration if enabled (Phase 46).
+      if (showerEnabled) {
+        await configureShower({
+          enabled: true,
+          provider: showerProvider,
+          executable_path: "",
+          hadronisation: showerHadronisation,
+          qed_radiation: false,
+          mpi: showerMPI,
+          seed: 42,
+        });
+        appendLog(`Parton shower enabled — provider: ${showerProvider}`);
+      }
 
       const analysisResult = await runAnalysis({
         plots: plots1D,
@@ -816,6 +854,59 @@
       </div>
     {/if}
 
+    <!-- NLO Corrections (Phase 46) -->
+    <div class="field nlo-toggle">
+      <label class="toggle-row">
+        <input type="checkbox" bind:checked={nloEnabled} />
+        <span>NLO Corrections</span>
+      </label>
+      {#if nloEnabled}
+        <div class="sub-options">
+          <div class="sub-field">
+            <label for="nlo-scheme">Subtraction Scheme:</label>
+            <select id="nlo-scheme" bind:value={nloScheme}>
+              <option value="CataniSeymour">Catani–Seymour</option>
+              <option value="FKS">FKS</option>
+              <option value="Antenna">Antenna</option>
+            </select>
+          </div>
+          <div class="sub-field">
+            <label for="nlo-alpha">α parameter:</label>
+            <input id="nlo-alpha" type="number" step="0.1" min="0" max="2" bind:value={nloAlpha} />
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <!-- Parton Shower (Phase 46) -->
+    <div class="field shower-toggle">
+      <label class="toggle-row">
+        <input type="checkbox" bind:checked={showerEnabled} />
+        <span>Parton Shower</span>
+      </label>
+      {#if showerEnabled}
+        <div class="sub-options">
+          <div class="sub-field">
+            <label for="shower-provider">Provider:</label>
+            <select id="shower-provider" bind:value={showerProvider}>
+              <option value="pythia8">Pythia 8</option>
+              <option value="herwig7">Herwig 7</option>
+              <option value="sherpa">Sherpa</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <label class="toggle-row sub-toggle">
+            <input type="checkbox" bind:checked={showerHadronisation} />
+            <span>Hadronisation</span>
+          </label>
+          <label class="toggle-row sub-toggle">
+            <input type="checkbox" bind:checked={showerMPI} />
+            <span>Multi-Parton Interactions</span>
+          </label>
+        </div>
+      {/if}
+    </div>
+
     <!-- Run Button -->
     <div class="run-row">
       <button
@@ -1214,5 +1305,67 @@
     display: block;
     margin: 0 auto;
     max-width: 100%;
+  }
+
+  /* --- NLO & Shower Toggles (Phase 46) --- */
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--fg-primary, #e8e8e8);
+  }
+
+  .toggle-row input[type="checkbox"] {
+    accent-color: #8ab4f8;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+
+  .sub-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.4rem 0 0 1.4rem;
+    border-left: 2px solid rgba(138, 180, 248, 0.15);
+    margin-top: 0.3rem;
+  }
+
+  .sub-field {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.78rem;
+  }
+
+  .sub-field label {
+    color: #aaa;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .sub-field select,
+  .sub-field input[type="number"] {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.3rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    color: var(--fg-primary, #e8e8e8);
+  }
+
+  .sub-toggle {
+    font-size: 0.78rem;
+    color: #aaa;
+  }
+
+  .nlo-toggle,
+  .shower-toggle {
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 0.5rem;
+    margin-top: 0.25rem;
   }
 </style>

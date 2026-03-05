@@ -76,6 +76,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
   }
   .widget-header-extra {
     flex: 1;

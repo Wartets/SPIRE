@@ -48,6 +48,8 @@ import type {
   ScanConfig2D,
   ScanResult2D,
   CalcDecayTable,
+  NloConfig,
+  ShowerToggleConfig,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -400,5 +402,13 @@ export class TauriBackend implements SpireBackend {
       pdg_code: pdgCode,
     });
     return raw as string;
+  }
+
+  async configureNlo(config: NloConfig): Promise<void> {
+    await tauriInvoke("configure_nlo", { config });
+  }
+
+  async configureShower(config: ShowerToggleConfig): Promise<void> {
+    await tauriInvoke("configure_shower", { config });
   }
 }

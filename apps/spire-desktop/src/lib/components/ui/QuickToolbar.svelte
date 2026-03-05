@@ -57,9 +57,15 @@
     padding: 0.2rem 0.4rem;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
     overflow-x: auto;
+    flex-wrap: wrap;
+    max-height: 3.2rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .quick-toolbar::-webkit-scrollbar { display: none; }
 
   .qt-button {
     display: flex;
@@ -103,5 +109,17 @@
   }
   .qt-palette-btn:hover {
     border-color: var(--hl-symbol);
+  }
+
+  /* ── Responsive: collapse labels, keep icons ─────────────── */
+  @media (max-width: 768px) {
+    .quick-toolbar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      max-height: none;
+    }
+    .qt-label { display: none; }
+    .qt-button { padding: 0.2rem 0.3rem; }
+    .qt-palette-btn .qt-label { display: inline; }
   }
 </style>

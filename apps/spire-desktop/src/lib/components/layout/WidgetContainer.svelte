@@ -203,4 +203,12 @@
     min-height: 0;
     min-width: 0;
   }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .wc-header { padding: 0.1rem 0.25rem; gap: 0.15rem; }
+    .wc-title { font-size: 0.6rem; }
+    .wc-btn { font-size: 0.62rem; padding: 0 0.1rem; }
+    .wc-body { padding: 0.25rem; }
+  }
 </style>

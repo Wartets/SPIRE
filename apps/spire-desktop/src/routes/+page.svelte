@@ -294,6 +294,8 @@
     flex-direction: column;
     height: 100%;
     gap: 0;
+    overflow: hidden;
+    max-width: 100vw;
   }
 
   /* ── Toolbox Bar ──────────────────────────────────────────── */
@@ -306,6 +308,9 @@
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     position: relative;
+    flex-wrap: wrap;
+    overflow: hidden;
+    min-width: 0;
   }
   .toolbox-toggle {
     background: var(--bg-surface);

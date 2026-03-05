@@ -54,6 +54,8 @@ import type {
   ScanConfig2D,
   ScanResult2D,
   CalcDecayTable,
+  NloConfig,
+  ShowerToggleConfig,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -384,5 +386,13 @@ export class WasmBackend implements SpireBackend {
 
   async exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
     return this.call<string>("export_decay_slha", { model, particle_id: particleId, pdg_code: pdgCode });
+  }
+
+  async configureNlo(config: NloConfig): Promise<void> {
+    await this.call<void>("configure_nlo", { config });
+  }
+
+  async configureShower(config: ShowerToggleConfig): Promise<void> {
+    await this.call<void>("configure_shower", { config });
   }
 }

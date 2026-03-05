@@ -490,3 +490,33 @@ export async function exportDecaySlha(
 ): Promise<string> {
   return getBackend().exportDecaySlha(model, particleId, pdgCode);
 }
+
+// ── NLO Configuration ───────────────────────────────────────────────────────
+
+/**
+ * Configure the NLO dipole-subtraction scheme.
+ *
+ * Sends the given NLO configuration to the backend so that
+ * subsequent cross-section calculations can include next-to-leading-order
+ * corrections via the Catani–Seymour (or other) subtraction scheme.
+ */
+export async function configureNlo(
+  config: import("$lib/types/spire").NloConfig,
+): Promise<void> {
+  return getBackend().configureNlo(config);
+}
+
+// ── Parton Shower Configuration ─────────────────────────────────────────────
+
+/**
+ * Configure the external parton shower provider.
+ *
+ * Stores the user's shower settings (provider executable, hadronisation
+ * toggle, etc.) so that downstream event generation can optionally pipe
+ * partonic events through an external shower program.
+ */
+export async function configureShower(
+  config: import("$lib/types/spire").ShowerToggleConfig,
+): Promise<void> {
+  return getBackend().configureShower(config);
+}

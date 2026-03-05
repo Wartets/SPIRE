@@ -58,6 +58,8 @@ import type {
   ScanConfig2D,
   ScanResult2D,
   CalcDecayTable,
+  NloConfig,
+  ShowerToggleConfig,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -576,5 +578,15 @@ export class MockBackend implements SpireBackend {
   async exportDecaySlha(_model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
     await simulateLatency();
     return `DECAY ${pdgCode} 2.4952E+00 # ${particleId}\n#  BR         NDA  ID1  ID2\n   3.363E-02  2    11   -11  # e- e+\n   3.366E-02  2    13   -13  # mu- mu+\n`;
+  }
+
+  async configureNlo(_config: NloConfig): Promise<void> {
+    await simulateLatency();
+    // Mock: NLO configuration accepted (no-op in simulation mode)
+  }
+
+  async configureShower(_config: ShowerToggleConfig): Promise<void> {
+    await simulateLatency();
+    // Mock: Shower configuration accepted (no-op in simulation mode)
   }
 }

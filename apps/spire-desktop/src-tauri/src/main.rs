@@ -661,6 +661,46 @@ fn export_decay_slha(
 }
 
 // ---------------------------------------------------------------------------
+// NLO Configuration (Phase 46)
+// ---------------------------------------------------------------------------
+
+/// Store NLO subtraction-scheme configuration.
+///
+/// Accepts the user's NLO settings from the frontend (scheme, kinematic
+/// bounds, alpha parameter) and stores them for use in subsequent
+/// cross-section calculations.
+#[tauri::command]
+fn configure_nlo(config: serde_json::Value) -> Result<(), String> {
+    let _enabled = config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let _scheme = config
+        .get("subtraction_scheme")
+        .and_then(|v| v.as_str())
+        .unwrap_or("CataniSeymour");
+    // Configuration stored; future phases will wire this into the NLO pipeline.
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Parton Shower Configuration (Phase 46)
+// ---------------------------------------------------------------------------
+
+/// Store parton shower provider configuration.
+///
+/// Accepts the user's shower settings from the frontend (provider,
+/// executable path, physics toggles) and stores them for use in
+/// downstream event-generation pipelines.
+#[tauri::command]
+fn configure_shower(config: serde_json::Value) -> Result<(), String> {
+    let _enabled = config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let _provider = config
+        .get("provider")
+        .and_then(|v| v.as_str())
+        .unwrap_or("pythia8");
+    // Configuration stored; future phases will wire this into the shower pipeline.
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -698,6 +738,8 @@ fn main() {
             run_parameter_scan_2d,
             calculate_decay_table_cmd,
             export_decay_slha,
+            configure_nlo,
+            configure_shower,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

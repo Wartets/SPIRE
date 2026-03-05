@@ -52,6 +52,7 @@ pub mod interface;
 pub mod io;
 pub mod kinematics;
 pub mod lagrangian;
+pub mod nlo;
 pub mod nwa;
 pub mod ontology;
 pub mod pdf;
@@ -60,6 +61,7 @@ pub mod s_matrix;
 pub mod scanner;
 pub mod scripting;
 pub mod session;
+pub mod shower;
 pub mod telemetry;
 pub mod theory;
 

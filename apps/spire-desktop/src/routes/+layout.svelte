@@ -174,6 +174,7 @@
     color: var(--fg-primary);
     overflow: hidden;
     font-family: var(--font-mono);
+    max-width: 100vw;
   }
   :global(*) {
     box-sizing: border-box;
@@ -185,6 +186,9 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
     font-family: var(--font-mono);
   }
 
@@ -198,6 +202,9 @@
     color: var(--fg-primary);
     flex-shrink: 0;
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    min-height: 0;
   }
   .navbar-brand {
     display: flex;
@@ -219,7 +226,10 @@
   .navbar-controls {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    min-width: 0;
+    overflow: hidden;
   }
   .nav-label {
     font-size: 0.68rem;
@@ -329,5 +339,19 @@
     overflow: hidden;
     padding: 0.5rem;
     min-height: 0;
+    min-width: 0;
+    max-width: 100vw;
+  }
+
+  /* ── Responsive: small viewports ─────────────────────────── */
+  @media (max-width: 768px) {
+    .navbar { padding: 0.25rem 0.5rem; }
+    .tagline { display: none; }
+    .navbar-controls { gap: 0.35rem; }
+    .model-status { font-size: 0.65rem; padding: 0.15rem 0.35rem; }
+    .backend-indicator { font-size: 0.6rem; padding: 0.1rem 0.3rem; }
+    .nav-label { font-size: 0.6rem; }
+    .nav-select { font-size: 0.68rem; padding: 0.15rem 0.3rem; }
+    .main-content { padding: 0.25rem; }
   }
 </style>

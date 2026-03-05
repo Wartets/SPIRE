@@ -1362,3 +1362,37 @@ export interface CalcDecayTable {
   lifetime_seconds: number;
   channels: CalcDecayChannel[];
 }
+
+// ---------------------------------------------------------------------------
+// NLO Dipole Subtraction Configuration (Phase 46)
+// ---------------------------------------------------------------------------
+
+/** Subtraction scheme selection. */
+export type SubtractionScheme = "CataniSeymour" | "FKS" | "Antenna";
+
+/** Configuration for NLO corrections in the analysis pipeline. */
+export interface NloConfig {
+  enabled: boolean;
+  subtraction_scheme: SubtractionScheme;
+  y_min: number;
+  y_max: number;
+  alpha: number;
+}
+
+// ---------------------------------------------------------------------------
+// Parton Shower Configuration (Phase 46)
+// ---------------------------------------------------------------------------
+
+/** Shower provider selection. */
+export type ShowerProvider = "pythia8" | "herwig7" | "sherpa" | "custom";
+
+/** Configuration for the external parton shower toggle. */
+export interface ShowerToggleConfig {
+  enabled: boolean;
+  provider: ShowerProvider;
+  executable_path: string;
+  hadronisation: boolean;
+  qed_radiation: boolean;
+  mpi: boolean;
+  seed: number;
+}

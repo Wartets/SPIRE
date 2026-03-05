@@ -51,6 +51,8 @@ import type {
   ScanConfig2D,
   ScanResult2D,
   CalcDecayTable,
+  NloConfig,
+  ShowerToggleConfig,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -252,4 +254,7 @@ export interface SpireBackend {
   // ── Decay Calculator ──────────────────────────────────────────────────
   calculateDecayTable(model: TheoreticalModel, particleId: string): Promise<CalcDecayTable>;
   exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string>;
+
+  configureNlo(config: NloConfig): Promise<void>;
+  configureShower(config: ShowerToggleConfig): Promise<void>;
 }

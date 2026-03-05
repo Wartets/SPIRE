@@ -899,3 +899,31 @@ export const CalcDecayTableSchema = z.object({
   lifetime_seconds: z.number(),
   channels: z.array(CalcDecayChannelSchema),
 });
+
+// ===========================================================================
+// NLO Dipole Subtraction Configuration (Phase 46)
+// ===========================================================================
+
+export const NloConfigSchema = z.object({
+  enabled: z.boolean(),
+  subtraction_scheme: z.enum(["CataniSeymour", "FKS", "Antenna"]),
+  y_min: z.number(),
+  y_max: z.number(),
+  alpha: z.number(),
+});
+export type NloConfig = z.infer<typeof NloConfigSchema>;
+
+// ===========================================================================
+// Parton Shower Configuration (Phase 46)
+// ===========================================================================
+
+export const ShowerToggleConfigSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.enum(["pythia8", "herwig7", "sherpa", "custom"]),
+  executable_path: z.string(),
+  hadronisation: z.boolean(),
+  qed_radiation: z.boolean(),
+  mpi: z.boolean(),
+  seed: z.number().int(),
+});
+export type ShowerToggleConfig = z.infer<typeof ShowerToggleConfigSchema>;
