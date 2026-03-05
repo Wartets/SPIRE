@@ -264,4 +264,17 @@ export interface SpireBackend {
     processLabel: string,
     dim: SpacetimeDimension,
   ): Promise<string>;
+
+  // ── Data Provenance ───────────────────────────────────────────────────
+  computeProvenanceHash(
+    model: TheoreticalModel,
+    reaction: Reaction | null,
+    cmsEnergy: number,
+    numEvents: number,
+    seed: number,
+  ): Promise<{ sha256: string; payload: string }>;
+
+  loadProvenanceState(
+    payload: string,
+  ): Promise<Record<string, unknown>>;
 }

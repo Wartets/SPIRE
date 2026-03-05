@@ -148,7 +148,7 @@ pub struct Propagator {
 ///
 /// The `constants` field holds the fundamental physical constants. Defaults
 /// to natural units ($c = \hbar = 1$).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TheoreticalModel {
     /// Name of the model (e.g., `"Standard Model"`, `"MSSM"`).
     pub name: String,

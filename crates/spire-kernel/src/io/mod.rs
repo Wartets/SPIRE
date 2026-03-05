@@ -26,6 +26,7 @@
 
 pub mod latex;
 pub mod lhe;
+pub mod provenance;
 
 use crate::SpireResult;
 

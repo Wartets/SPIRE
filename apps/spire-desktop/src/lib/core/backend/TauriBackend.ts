@@ -423,4 +423,26 @@ export class TauriBackend implements SpireBackend {
       dim,
     });
   }
+
+  async computeProvenanceHash(
+    model: TheoreticalModel,
+    reaction: Reaction | null,
+    cmsEnergy: number,
+    numEvents: number,
+    seed: number,
+  ): Promise<{ sha256: string; payload: string }> {
+    return tauriInvoke("compute_provenance_hash", {
+      model,
+      reaction,
+      cms_energy: cmsEnergy,
+      num_events: numEvents,
+      seed,
+    });
+  }
+
+  async loadProvenanceState(
+    payload: string,
+  ): Promise<Record<string, unknown>> {
+    return tauriInvoke("load_provenance_state", { payload });
+  }
 }

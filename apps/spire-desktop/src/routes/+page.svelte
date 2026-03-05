@@ -42,7 +42,7 @@
   } from "$lib/core/services/CommandRegistry";
   import { startTutorial } from "$lib/core/services/TutorialService";
   import { clearCitations } from "$lib/core/services/CitationRegistry";
-  import { generateMathematicalProof } from "$lib/api";
+  import { generateMathematicalProof, loadProvenanceState } from "$lib/api";
   import LayoutRenderer from "$lib/components/layout/LayoutRenderer.svelte";
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
@@ -81,6 +81,34 @@
     URL.revokeObjectURL(url);
   }
 
+  /** Load a provenance state from the clipboard or a prompt. */
+  async function loadProvenanceFromClipboard(): Promise<void> {
+    let json = "";
+    try {
+      json = await navigator.clipboard.readText();
+    } catch {
+      // Clipboard API may not be available; fall back to prompt.
+      const input = window.prompt(
+        "Paste the SPIRE Provenance Record JSON:",
+      );
+      if (!input) return;
+      json = input;
+    }
+    if (!json.trim()) return;
+    try {
+      const state = await loadProvenanceState(json);
+      console.log("[SPIRE] Provenance state restored:", state);
+      // The returned state contains model, reaction, kinematics, seed.
+      // Future phases will dispatch these to the appropriate stores.
+      window.alert(
+        `Provenance state loaded successfully.\nSeed: ${(state as Record<string,unknown>).seed ?? "unknown"}\nVersion: ${(state as Record<string,unknown>).version ?? "unknown"}`,
+      );
+    } catch (err) {
+      console.error("[SPIRE] Provenance load failed:", err);
+      window.alert(`Failed to load provenance: ${err}`);
+    }
+  }
+
   // --- Debounced auto-save (2 s) ---
   const debouncedAutoSave = debounce(autoSave, 2000);
 
@@ -108,6 +136,7 @@
     "spire.help.tutorial",
     "spire.references.clear_all",
     "spire.export.proof_latex",
+    "spire.provenance.load",
   ];
 
   function registerGlobalCommands(): void {
@@ -232,6 +261,12 @@
       title: "Export Proof (LaTeX)",
       category: "Export",
       execute: () => exportProofLatex(),
+    });
+    registerCommand({
+      id: "spire.provenance.load",
+      title: "Load Provenance State",
+      category: "File",
+      execute: () => loadProvenanceFromClipboard(),
     });
   }
 

@@ -36,6 +36,7 @@
 
 use std::io::{BufWriter, Write};
 
+use crate::io::provenance::{format_provenance_block, ProvenanceRecord};
 use crate::io::{EventRecord, EventWriter, InitConfig};
 use crate::{SpireError, SpireResult};
 
@@ -48,6 +49,13 @@ use crate::{SpireError, SpireResult};
 /// # Type Parameter
 ///
 /// `W` — any `std::io::Write` target (file, `Vec<u8>`, stdout, etc.).
+///
+/// # Provenance
+///
+/// Call [`LheWriter::set_provenance`] before [`EventWriter::write_header`]
+/// to embed a cryptographic provenance record in the LHE `<header>` block.
+/// This includes the SHA-256 hash and full JSON state, enabling
+/// bit-for-bit reproducibility.
 ///
 /// # Usage
 ///
@@ -81,6 +89,8 @@ use crate::{SpireError, SpireResult};
 pub struct LheWriter<W: Write> {
     /// Buffered output stream.
     buf: BufWriter<W>,
+    /// Optional provenance record to embed in the `<header>` block.
+    provenance: Option<ProvenanceRecord>,
 }
 
 impl<W: Write> LheWriter<W> {
@@ -91,6 +101,7 @@ impl<W: Write> LheWriter<W> {
     pub fn new(writer: W) -> Self {
         Self {
             buf: BufWriter::new(writer),
+            provenance: None,
         }
     }
 
@@ -98,7 +109,17 @@ impl<W: Write> LheWriter<W> {
     pub fn with_capacity(capacity: usize, writer: W) -> Self {
         Self {
             buf: BufWriter::with_capacity(capacity, writer),
+            provenance: None,
         }
+    }
+
+    /// Attach a provenance record to be embedded in the LHE `<header>`.
+    ///
+    /// Must be called **before** [`EventWriter::write_header`]. The record
+    /// includes the SHA-256 hash and the full serialized computation state
+    /// as XML comments, enabling independent reproducibility verification.
+    pub fn set_provenance(&mut self, record: ProvenanceRecord) {
+        self.provenance = Some(record);
     }
 
     /// Get a reference to the underlying writer (inside the BufWriter).
@@ -114,9 +135,13 @@ impl<W: Write + Send> EventWriter for LheWriter<W> {
         // XML preamble.
         writeln!(buf, "<LesHouchesEvents version=\"3.0\">")?;
 
-        // Header block with generator information.
+        // Header block with generator information and provenance.
         writeln!(buf, "<header>")?;
         writeln!(buf, "<!-- Generator: {} -->", config.generator)?;
+        if let Some(ref prov) = self.provenance {
+            let block = format_provenance_block(prov, "<!--", " -->");
+            write!(buf, "{}", block)?;
+        }
         writeln!(buf, "</header>")?;
 
         // Init block: beam parameters + process cross-sections.
@@ -653,6 +678,40 @@ mod tests {
         let event_body = &output[event_start..];
         let first_line = event_body.lines().nth(1).unwrap();
         assert!(first_line.trim().starts_with("4"));
+    }
+
+    #[test]
+    fn lhe_header_contains_provenance_when_set() {
+        use crate::io::provenance::{compute_provenance, ProvenanceState};
+        use crate::lagrangian::TheoreticalModel;
+
+        let state = ProvenanceState::new(TheoreticalModel::default(), None, None, 42);
+        let record = compute_provenance(&state);
+
+        let mut buf = Vec::new();
+        {
+            let mut writer = LheWriter::new(&mut buf);
+            writer.set_provenance(record.clone());
+            writer.write_header(&sample_init_config()).unwrap();
+            writer.finish().unwrap();
+        }
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("SPIRE PROVENANCE HASH:"));
+        assert!(output.contains(&record.sha256));
+        assert!(output.contains("BEGIN PROVENANCE PAYLOAD"));
+        assert!(output.contains("END PROVENANCE PAYLOAD"));
+    }
+
+    #[test]
+    fn lhe_header_no_provenance_by_default() {
+        let mut buf = Vec::new();
+        {
+            let mut writer = LheWriter::new(&mut buf);
+            writer.write_header(&sample_init_config()).unwrap();
+            writer.finish().unwrap();
+        }
+        let output = String::from_utf8(buf).unwrap();
+        assert!(!output.contains("PROVENANCE HASH"));
     }
 
     #[test]

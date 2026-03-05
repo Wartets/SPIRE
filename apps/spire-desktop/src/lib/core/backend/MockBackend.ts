@@ -607,4 +607,25 @@ This is a mock proof document for ${processLabel}.
 \\end{document}
 `;
   }
+
+  async computeProvenanceHash(
+    _model: TheoreticalModel,
+    _reaction: Reaction | null,
+    _cmsEnergy: number,
+    _numEvents: number,
+    _seed: number,
+  ): Promise<{ sha256: string; payload: string }> {
+    await simulateLatency();
+    return {
+      sha256: "0".repeat(64),
+      payload: JSON.stringify({ mock: true, version: "0.1.0" }),
+    };
+  }
+
+  async loadProvenanceState(
+    payload: string,
+  ): Promise<Record<string, unknown>> {
+    await simulateLatency();
+    return JSON.parse(payload);
+  }
 }

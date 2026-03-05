@@ -544,3 +544,35 @@ export async function generateMathematicalProof(
 ): Promise<string> {
   return getBackend().generateMathematicalProof(diagram, processLabel, dim);
 }
+
+// ── Data Provenance ─────────────────────────────────────────────────────────
+
+/**
+ * Compute a SHA-256 provenance hash for the current computational state.
+ *
+ * Serializes the model, reaction, kinematic configuration, and random
+ * seed into a canonical JSON form and returns the hex-encoded digest
+ * alongside the full serialized payload.
+ */
+export async function computeProvenanceHash(
+  model: import("$lib/types/spire").TheoreticalModel,
+  reaction: import("$lib/types/spire").Reaction | null,
+  cmsEnergy: number,
+  numEvents: number,
+  seed: number,
+): Promise<{ sha256: string; payload: string }> {
+  return getBackend().computeProvenanceHash(model, reaction, cmsEnergy, numEvents, seed);
+}
+
+/**
+ * Load and verify a provenance payload, restoring the full computational
+ * state. Recomputes the SHA-256 hash to verify data integrity before
+ * returning the deserialized state.
+ *
+ * @param payload - JSON string of a serialized ProvenanceRecord.
+ */
+export async function loadProvenanceState(
+  payload: string,
+): Promise<Record<string, unknown>> {
+  return getBackend().loadProvenanceState(payload);
+}

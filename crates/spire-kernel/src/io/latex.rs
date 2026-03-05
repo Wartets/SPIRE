@@ -38,6 +38,7 @@
 //! ```
 
 use crate::algebra::{ProofDocument, ProofStep};
+use crate::io::provenance::ProvenanceRecord;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -107,6 +108,29 @@ pub fn compile_proof_to_latex(doc: &ProofDocument) -> String {
     // --- End ---
     out.push_str("\\end{document}\n");
 
+    out
+}
+
+/// Compile a proof document to LaTeX with an embedded provenance hash.
+///
+/// Identical to [`compile_proof_to_latex`] but prepends a LaTeX comment
+/// block containing the SHA-256 provenance hash and the full serialized
+/// computation state. This enables independent verification that the
+/// document was generated from a specific theoretical configuration.
+pub fn compile_proof_to_latex_with_provenance(
+    doc: &ProofDocument,
+    provenance: &ProvenanceRecord,
+) -> String {
+    let mut out = String::with_capacity(4096 + provenance.payload.len());
+
+    // Provenance block as LaTeX comments (before \documentclass)
+    out.push_str(&crate::io::provenance::format_provenance_block(
+        provenance, "%", "",
+    ));
+    out.push('\n');
+
+    // Delegate to the standard compiler for the document body.
+    out.push_str(&compile_proof_to_latex(doc));
     out
 }
 
@@ -318,5 +342,29 @@ mod tests {
         let tex = compile_proof_to_latex(&doc);
         // The title should not contain raw special chars
         assert!(tex.contains(r"\title{sigma(e+e- -> mu+mu-)}"));
+    }
+
+    #[test]
+    fn compile_with_provenance_includes_hash() {
+        use crate::io::provenance::{compute_provenance, ProvenanceState};
+        use crate::lagrangian::TheoreticalModel;
+
+        let state = ProvenanceState::new(TheoreticalModel::default(), None, None, 42);
+        let record = compute_provenance(&state);
+
+        let doc = ProofDocument {
+            title: "Provenance Test".into(),
+            abstract_text: "With provenance.".into(),
+            process: "e+ e- -> gamma".into(),
+            steps: vec![],
+        };
+        let tex = compile_proof_to_latex_with_provenance(&doc, &record);
+        assert!(tex.contains("% SPIRE PROVENANCE HASH:"));
+        assert!(tex.contains(&record.sha256));
+        assert!(tex.contains("% BEGIN PROVENANCE PAYLOAD"));
+        assert!(tex.contains("% END PROVENANCE PAYLOAD"));
+        // The actual document content should still be present after the provenance block.
+        assert!(tex.contains(r"\documentclass"));
+        assert!(tex.contains(r"\end{document}"));
     }
 }

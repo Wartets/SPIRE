@@ -31,6 +31,7 @@ use spire_kernel::data_loader;
 use spire_kernel::decay;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::io::latex as latex_compiler;
+use spire_kernel::io::provenance as provenance_engine;
 use spire_kernel::kinematics::{
     self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
 };
@@ -710,7 +711,7 @@ fn configure_shower(config: serde_json::Value) -> Result<(), String> {
 /// Generate a complete mathematical proof document for a Feynman diagram.
 ///
 /// Drives the algebraic proof tracker through the amplitude derivation
-/// pipeline and compiles the resulting [`ProofDocument`] into a standalone
+/// pipeline and compiles the resulting proof document into a standalone
 /// LaTeX source string using the `revtex4-2` document class.
 ///
 /// # Arguments
@@ -729,6 +730,70 @@ fn generate_mathematical_proof(
     let proof_doc = algebra::generate_proof_document(&diagram, &process_label, dim)
         .map_err(|e| e.to_string())?;
     Ok(latex_compiler::compile_proof_to_latex(&proof_doc))
+}
+
+// ---------------------------------------------------------------------------
+// Data Provenance
+// ---------------------------------------------------------------------------
+
+/// Compute a SHA-256 provenance hash for the current computational state.
+///
+/// Serializes the model, reaction, kinematic configuration, and random
+/// seed into a canonical JSON form and returns the hex-encoded SHA-256
+/// digest alongside the full serialized payload. The result enables
+/// bit-for-bit reproducibility verification.
+///
+/// # Arguments
+/// * `model` — The full theoretical model.
+/// * `reaction` — The configured scattering reaction (if any).
+/// * `cms_energy` — Centre-of-mass energy in GeV (0.0 if not set).
+/// * `num_events` — Number of Monte Carlo events.
+/// * `seed` — Random number generator seed.
+#[tauri::command]
+fn compute_provenance_hash(
+    model: TheoreticalModel,
+    reaction: Option<Reaction>,
+    cms_energy: f64,
+    num_events: usize,
+    seed: u64,
+) -> Result<provenance_engine::ProvenanceRecord, String> {
+    let kin = if cms_energy > 0.0 {
+        Some(provenance_engine::KinematicConfig {
+            cms_energy,
+            num_events,
+        })
+    } else {
+        None
+    };
+    let state = provenance_engine::ProvenanceState::new(model, reaction, kin, seed);
+    Ok(provenance_engine::compute_provenance(&state))
+}
+
+/// Load and verify a provenance payload, restoring the full computational
+/// state.
+///
+/// Accepts a JSON string containing a serialized provenance record
+/// (with `sha256` and `payload` fields). Recomputes the hash to verify
+/// data integrity, then deserializes the inner state and returns it to
+/// the frontend for workspace restoration.
+///
+/// # Arguments
+/// * `payload` — JSON string of a serialized `ProvenanceRecord`.
+///
+/// # Returns
+/// The deserialized `ProvenanceState` on success. Returns an error if the
+/// hash does not match (data corruption) or if deserialization fails.
+#[tauri::command]
+fn load_provenance_state(payload: String) -> Result<provenance_engine::ProvenanceState, String> {
+    let record: provenance_engine::ProvenanceRecord =
+        serde_json::from_str(&payload).map_err(|e| {
+            format!(
+                "Failed to parse provenance record: {}. \
+                 Expected JSON with 'sha256' and 'payload' fields.",
+                e
+            )
+        })?;
+    provenance_engine::load_provenance(&record).map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -772,6 +837,8 @@ fn main() {
             configure_nlo,
             configure_shower,
             generate_mathematical_proof,
+            compute_provenance_hash,
+            load_provenance_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");
