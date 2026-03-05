@@ -589,4 +589,22 @@ export class MockBackend implements SpireBackend {
     await simulateLatency();
     // Mock: Shower configuration accepted (no-op in simulation mode)
   }
+
+  async generateMathematicalProof(
+    _diagram: FeynmanDiagram,
+    processLabel: string,
+    _dim: SpacetimeDimension,
+  ): Promise<string> {
+    await simulateLatency();
+    return `\\documentclass[aps,prd,twocolumn,superscriptaddress]{revtex4-2}
+\\usepackage{amsmath}
+\\begin{document}
+\\title{Mock Proof: ${processLabel}}
+\\author{SPIRE}
+\\maketitle
+\\section{Placeholder}
+This is a mock proof document for ${processLabel}.
+\\end{document}
+`;
+  }
 }

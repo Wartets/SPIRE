@@ -42,6 +42,7 @@
   } from "$lib/core/services/CommandRegistry";
   import { startTutorial } from "$lib/core/services/TutorialService";
   import { clearCitations } from "$lib/core/services/CitationRegistry";
+  import { generateMathematicalProof } from "$lib/api";
   import LayoutRenderer from "$lib/components/layout/LayoutRenderer.svelte";
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
@@ -58,6 +59,26 @@
       addWidgetToLayout(type);
     }
     toolboxOpen = false;
+  }
+
+  /** Download a proof document as a LaTeX .tex file. */
+  function exportProofLatex(): void {
+    // Proof generation is context-dependent; this stub triggers a download
+    // of a placeholder proof. Widget-level context menus will supply
+    // specific diagram data via generateMathematicalProof directly.
+    const placeholder = `% SPIRE Proof Export\n% Select a diagram and use the context menu to generate a full proof.\n`;
+    downloadAsText(placeholder, "spire_proof.tex");
+  }
+
+  /** Trigger a text file download in the browser. */
+  function downloadAsText(content: string, filename: string): void {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // --- Debounced auto-save (2 s) ---
@@ -86,6 +107,7 @@
     "spire.palette.open",
     "spire.help.tutorial",
     "spire.references.clear_all",
+    "spire.export.proof_latex",
   ];
 
   function registerGlobalCommands(): void {
@@ -204,6 +226,12 @@
       title: "Clear All Citations",
       category: "References",
       execute: () => clearCitations(),
+    });
+    registerCommand({
+      id: "spire.export.proof_latex",
+      title: "Export Proof (LaTeX)",
+      category: "Export",
+      execute: () => exportProofLatex(),
     });
   }
 

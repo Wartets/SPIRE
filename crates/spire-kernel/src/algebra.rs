@@ -4666,6 +4666,303 @@ pub fn spin_averaged_amplitude_sq(
 }
 
 // ===========================================================================
+// Algebraic Proof Generation
+// ===========================================================================
+
+/// A single node in a hierarchical mathematical proof tree.
+///
+/// Each step records one mathematical operation (e.g., "Apply Feynman rules",
+/// "Evaluate Dirac trace", "Contract Lorentz indices") together with the
+/// LaTeX rendering of the expression at that stage. Steps may contain child
+/// steps, enabling nested derivations (e.g., a trace evaluation step can
+/// contain sub-steps for each gamma-matrix identity applied).
+///
+/// # Example
+///
+/// ```
+/// use spire_kernel::algebra::ProofStep;
+///
+/// let step = ProofStep {
+///     title: "Feynman Rules".into(),
+///     description: "Apply Feynman rules to the s-channel diagram.".into(),
+///     latex_math: r"\mathcal{M} = (-ie\gamma^\mu) \frac{-ig_{\mu\nu}}{q^2} (-ie\gamma^\nu)".into(),
+///     children: vec![],
+/// };
+/// assert!(step.is_leaf());
+/// assert_eq!(step.depth(), 0);
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProofStep {
+    /// Short label for this derivation step.
+    pub title: String,
+    /// Human-readable explanation of the mathematical operation performed.
+    pub description: String,
+    /// LaTeX math-mode content representing the expression at this stage.
+    /// Should be valid inside `\begin{equation}...\end{equation}`.
+    pub latex_math: String,
+    /// Optional sub-steps providing finer-grained detail.
+    pub children: Vec<ProofStep>,
+}
+
+impl ProofStep {
+    /// Create a leaf step with no children.
+    pub fn leaf(
+        title: impl Into<String>,
+        description: impl Into<String>,
+        latex: impl Into<String>,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            description: description.into(),
+            latex_math: latex.into(),
+            children: vec![],
+        }
+    }
+
+    /// Create a step with child sub-steps.
+    pub fn with_children(
+        title: impl Into<String>,
+        description: impl Into<String>,
+        latex: impl Into<String>,
+        children: Vec<ProofStep>,
+    ) -> Self {
+        Self {
+            title: title.into(),
+            description: description.into(),
+            latex_math: latex.into(),
+            children,
+        }
+    }
+
+    /// Returns `true` if this step has no children.
+    pub fn is_leaf(&self) -> bool {
+        self.children.is_empty()
+    }
+
+    /// The maximum nesting depth below this step (0 for a leaf).
+    pub fn depth(&self) -> usize {
+        if self.children.is_empty() {
+            0
+        } else {
+            1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
+        }
+    }
+
+    /// Total number of steps in this sub-tree (including self).
+    pub fn count(&self) -> usize {
+        1 + self.children.iter().map(|c| c.count()).sum::<usize>()
+    }
+}
+
+/// A complete mathematical proof document.
+///
+/// Aggregates a title, abstract description, and an ordered sequence of
+/// top-level [`ProofStep`]s that together constitute a rigorous derivation
+/// of a computed quantity (cross-section, decay width, etc.).
+///
+/// This is the serialisable payload that the LaTeX compiler
+/// ([`crate::io::latex`]) transforms into a publication-ready `.tex` file.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ProofDocument {
+    /// Document title (e.g., "Derivation of σ(e⁺e⁻ → μ⁺μ⁻)").
+    pub title: String,
+    /// Brief abstract summarising the computation.
+    pub abstract_text: String,
+    /// The process string (e.g., "e+ e- → mu+ mu-").
+    pub process: String,
+    /// Ordered top-level derivation steps.
+    pub steps: Vec<ProofStep>,
+}
+
+impl ProofDocument {
+    /// Total number of proof steps (recursively, across all top-level steps).
+    pub fn total_steps(&self) -> usize {
+        self.steps.iter().map(|s| s.count()).sum()
+    }
+
+    /// Maximum nesting depth across all top-level steps.
+    pub fn max_depth(&self) -> usize {
+        self.steps.iter().map(|s| s.depth()).max().unwrap_or(0)
+    }
+}
+
+/// An accumulator that records proof steps during a computation.
+///
+/// Functions in the CAS and amplitude pipeline accept an
+/// `Option<&mut ProofTracker>` parameter. When `Some`, each mathematical
+/// operation appends a [`ProofStep`] to the tracker. When `None`, no
+/// recording overhead is incurred (zero-cost opt-out).
+///
+/// After the computation completes, call [`ProofTracker::into_document`]
+/// to assemble a [`ProofDocument`].
+///
+/// # Example
+///
+/// ```
+/// use spire_kernel::algebra::{ProofTracker, ProofStep};
+///
+/// let mut tracker = ProofTracker::new("Cross-Section Derivation", "e+ e- -> mu+ mu-");
+/// tracker.record(ProofStep::leaf(
+///     "Feynman Rules",
+///     "Apply Feynman rules to the s-channel diagram.",
+///     r"\mathcal{M} = \bar{v}(p_2)(-ie\gamma^\mu)u(p_1) \frac{-ig_{\mu\nu}}{q^2} \bar{u}(p_3)(-ie\gamma^\nu)v(p_4)",
+/// ));
+/// tracker.record(ProofStep::leaf(
+///     "Squared Amplitude",
+///     "Compute |M|^2 with spin averaging.",
+///     r"\overline{|\mathcal{M}|^2} = \frac{e^4}{4s^2} L_{\mu\nu}^{(i)} L^{(f)\mu\nu}",
+/// ));
+///
+/// let doc = tracker.into_document("Analytic cross-section for QED pair production.");
+/// assert_eq!(doc.total_steps(), 2);
+/// assert_eq!(doc.process, "e+ e- -> mu+ mu-");
+/// ```
+#[derive(Debug, Clone)]
+pub struct ProofTracker {
+    /// Document title.
+    title: String,
+    /// Process label.
+    process: String,
+    /// Accumulated top-level steps.
+    steps: Vec<ProofStep>,
+    /// Stack of parent step indices for nested recording.
+    /// When non-empty, new steps are added as children of the last
+    /// step at the index on top of the stack.
+    nesting_stack: Vec<usize>,
+}
+
+impl ProofTracker {
+    /// Create a new empty proof tracker.
+    pub fn new(title: impl Into<String>, process: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            process: process.into(),
+            steps: Vec::new(),
+            nesting_stack: Vec::new(),
+        }
+    }
+
+    /// Record a proof step at the current nesting level.
+    pub fn record(&mut self, step: ProofStep) {
+        if self.nesting_stack.is_empty() {
+            self.steps.push(step);
+        } else {
+            // Navigate to the current parent via the nesting stack.
+            let target = self.resolve_parent_mut();
+            target.children.push(step);
+        }
+    }
+
+    /// Begin a nested section. The next `record` calls will be children
+    /// of a new group step with the given title.
+    pub fn begin_section(
+        &mut self,
+        title: impl Into<String>,
+        description: impl Into<String>,
+        latex: impl Into<String>,
+    ) {
+        let section = ProofStep {
+            title: title.into(),
+            description: description.into(),
+            latex_math: latex.into(),
+            children: Vec::new(),
+        };
+
+        if self.nesting_stack.is_empty() {
+            let idx = self.steps.len();
+            self.steps.push(section);
+            self.nesting_stack.push(idx);
+        } else {
+            let parent = self.resolve_parent_mut();
+            let idx = parent.children.len();
+            parent.children.push(section);
+            self.nesting_stack.push(idx);
+        }
+    }
+
+    /// End the current nested section, returning to the parent level.
+    pub fn end_section(&mut self) {
+        self.nesting_stack.pop();
+    }
+
+    /// The number of top-level steps recorded so far.
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    /// Consume the tracker and produce a [`ProofDocument`].
+    pub fn into_document(self, abstract_text: impl Into<String>) -> ProofDocument {
+        ProofDocument {
+            title: self.title,
+            abstract_text: abstract_text.into(),
+            process: self.process,
+            steps: self.steps,
+        }
+    }
+
+    /// Resolve the mutable reference to the current parent step
+    /// using the nesting stack.
+    fn resolve_parent_mut(&mut self) -> &mut ProofStep {
+        let mut current = &mut self.steps[self.nesting_stack[0]];
+        for &idx in &self.nesting_stack[1..] {
+            current = &mut current.children[idx];
+        }
+        current
+    }
+}
+
+/// Convenience function: record a step if a tracker is present.
+///
+/// This is the idiomatic way to instrument CAS functions:
+/// ```ignore
+/// proof_record(&mut tracker, ProofStep::leaf("Title", "Desc", r"\latex"));
+/// ```
+pub fn proof_record(tracker: &mut Option<&mut ProofTracker>, step: ProofStep) {
+    if let Some(ref mut t) = tracker {
+        t.record(step);
+    }
+}
+
+/// Generate a complete [`ProofDocument`] for the amplitude derivation
+/// of a Feynman diagram.
+///
+/// This drives `derive_amplitude_steps` and wraps the result in the
+/// proof-tracker hierarchy, producing a document suitable for LaTeX export.
+pub fn generate_proof_document(
+    diagram: &FeynmanGraph,
+    process_label: &str,
+    dim: SpacetimeDimension,
+) -> SpireResult<ProofDocument> {
+    let derivation_steps = derive_amplitude_steps(diagram, dim)?;
+
+    let mut tracker = ProofTracker::new(
+        format!("Amplitude Derivation: {}", process_label),
+        process_label.to_string(),
+    );
+
+    tracker.begin_section(
+        "Amplitude Construction",
+        "Construct the invariant amplitude from Feynman rules and simplify.",
+        "",
+    );
+
+    for ds in &derivation_steps {
+        tracker.record(ProofStep::leaf(
+            ds.label.clone(),
+            ds.description.clone(),
+            ds.latex.clone(),
+        ));
+    }
+
+    tracker.end_section();
+
+    Ok(tracker.into_document(format!(
+        "Step-by-step derivation of the invariant amplitude for the process {}.",
+        process_label
+    )))
+}
+
+// ===========================================================================
 // Unit Tests
 // ===========================================================================
 
@@ -7853,5 +8150,124 @@ mod tests {
         // After clearing, coupling should pass through unchanged.
         let result = ctx.apply_form_factor(Complex::real(1.0), 100.0);
         assert!((result.re - 1.0).abs() < 1e-15);
+    }
+
+    // -----------------------------------------------------------------------
+    // Proof Tracker Tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn proof_step_leaf_creation() {
+        let step = ProofStep::leaf("Test", "A test step", r"\alpha");
+        assert!(step.is_leaf());
+        assert_eq!(step.depth(), 0);
+        assert_eq!(step.count(), 1);
+    }
+
+    #[test]
+    fn proof_step_with_children() {
+        let child1 = ProofStep::leaf("Child 1", "First child", r"\beta");
+        let child2 = ProofStep::leaf("Child 2", "Second child", r"\gamma");
+        let parent =
+            ProofStep::with_children("Parent", "Parent step", r"\alpha", vec![child1, child2]);
+        assert!(!parent.is_leaf());
+        assert_eq!(parent.depth(), 1);
+        assert_eq!(parent.count(), 3);
+    }
+
+    #[test]
+    fn proof_step_nested_depth() {
+        let grandchild = ProofStep::leaf("GC", "Grandchild", "x");
+        let child = ProofStep::with_children("C", "Child", "y", vec![grandchild]);
+        let root = ProofStep::with_children("R", "Root", "z", vec![child]);
+        assert_eq!(root.depth(), 2);
+        assert_eq!(root.count(), 3);
+    }
+
+    #[test]
+    fn proof_tracker_basic_recording() {
+        let mut tracker = ProofTracker::new("Test Proof", "e+ e- -> gamma");
+        tracker.record(ProofStep::leaf("Step 1", "First step", r"\alpha"));
+        tracker.record(ProofStep::leaf("Step 2", "Second step", r"\beta"));
+        assert_eq!(tracker.step_count(), 2);
+
+        let doc = tracker.into_document("A test derivation.");
+        assert_eq!(doc.total_steps(), 2);
+        assert_eq!(doc.title, "Test Proof");
+        assert_eq!(doc.process, "e+ e- -> gamma");
+        assert_eq!(doc.abstract_text, "A test derivation.");
+    }
+
+    #[test]
+    fn proof_tracker_nested_sections() {
+        let mut tracker = ProofTracker::new("Nested Proof", "A -> B C");
+
+        tracker.begin_section("Section 1", "Outer section", "");
+        tracker.record(ProofStep::leaf("S1.1", "Sub-step", r"\alpha"));
+        tracker.record(ProofStep::leaf("S1.2", "Sub-step", r"\beta"));
+        tracker.end_section();
+
+        tracker.record(ProofStep::leaf("Step 2", "Top-level again", r"\gamma"));
+
+        let doc = tracker.into_document("Nested test.");
+        assert_eq!(doc.steps.len(), 2); // Section 1 + Step 2
+        assert_eq!(doc.steps[0].children.len(), 2); // S1.1 + S1.2
+                                                    // Section 1: count() = 1 + 2 children = 3, Step 2: count() = 1 => total = 4
+        assert_eq!(doc.total_steps(), 4);
+    }
+
+    #[test]
+    fn proof_tracker_double_nesting() {
+        let mut tracker = ProofTracker::new("Deep Proof", "X -> Y Z");
+
+        tracker.begin_section("L1", "Level 1", "");
+        tracker.begin_section("L2", "Level 2", "");
+        tracker.record(ProofStep::leaf("Leaf", "Deep leaf", r"\delta"));
+        tracker.end_section();
+        tracker.end_section();
+
+        let doc = tracker.into_document("Double nesting test.");
+        assert_eq!(doc.steps.len(), 1);
+        assert_eq!(doc.steps[0].children.len(), 1); // L2
+        assert_eq!(doc.steps[0].children[0].children.len(), 1); // Leaf
+        assert_eq!(doc.max_depth(), 2);
+    }
+
+    #[test]
+    fn proof_record_convenience_none() {
+        let mut tracker: Option<&mut ProofTracker> = None;
+        // Should not panic when tracker is None.
+        proof_record(&mut tracker, ProofStep::leaf("X", "Y", "Z"));
+    }
+
+    #[test]
+    fn proof_record_convenience_some() {
+        let mut pt = ProofTracker::new("T", "P");
+        {
+            let mut tracker: Option<&mut ProofTracker> = Some(&mut pt);
+            proof_record(&mut tracker, ProofStep::leaf("X", "Y", "Z"));
+        }
+        assert_eq!(pt.step_count(), 1);
+    }
+
+    #[test]
+    fn proof_document_serialization_roundtrip() {
+        let doc = ProofDocument {
+            title: "Test".into(),
+            abstract_text: "Abstract".into(),
+            process: "e+ e- -> mu+ mu-".into(),
+            steps: vec![
+                ProofStep::leaf("Step 1", "Desc 1", r"\alpha"),
+                ProofStep::with_children(
+                    "Step 2",
+                    "Desc 2",
+                    r"\beta",
+                    vec![ProofStep::leaf("Step 2.1", "Sub", r"\gamma")],
+                ),
+            ],
+        };
+        let json = serde_json::to_string(&doc).unwrap();
+        let deserialized: ProofDocument = serde_json::from_str(&json).unwrap();
+        assert_eq!(doc, deserialized);
     }
 }

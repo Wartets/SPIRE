@@ -411,4 +411,16 @@ export class TauriBackend implements SpireBackend {
   async configureShower(config: ShowerToggleConfig): Promise<void> {
     await tauriInvoke("configure_shower", { config });
   }
+
+  async generateMathematicalProof(
+    diagram: FeynmanDiagram,
+    processLabel: string,
+    dim: SpacetimeDimension,
+  ): Promise<string> {
+    return tauriInvoke("generate_mathematical_proof", {
+      diagram,
+      processLabel,
+      dim,
+    });
+  }
 }

@@ -24,6 +24,7 @@
 //! Writers are parameterised over `std::io::Write`, so they work equally
 //! well with files, in-memory buffers, and network streams.
 
+pub mod latex;
 pub mod lhe;
 
 use crate::SpireResult;

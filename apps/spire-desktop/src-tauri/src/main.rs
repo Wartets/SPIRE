@@ -30,6 +30,7 @@ use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::data_loader;
 use spire_kernel::decay;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
+use spire_kernel::io::latex as latex_compiler;
 use spire_kernel::kinematics::{
     self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
 };
@@ -703,6 +704,34 @@ fn configure_shower(config: serde_json::Value) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
+// Proof Generation
+// ---------------------------------------------------------------------------
+
+/// Generate a complete mathematical proof document for a Feynman diagram.
+///
+/// Drives the algebraic proof tracker through the amplitude derivation
+/// pipeline and compiles the resulting [`ProofDocument`] into a standalone
+/// LaTeX source string using the `revtex4-2` document class.
+///
+/// # Arguments
+/// * `diagram` — A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
+/// * `process_label` — Human-readable process label (e.g., "e⁺e⁻ → μ⁺μ⁻").
+/// * `dim` — Spacetime dimension configuration.
+///
+/// # Returns
+/// The complete `.tex` source as a string, ready for `pdflatex` compilation.
+#[tauri::command]
+fn generate_mathematical_proof(
+    diagram: FeynmanGraph,
+    process_label: String,
+    dim: algebra::SpacetimeDimension,
+) -> Result<String, String> {
+    let proof_doc = algebra::generate_proof_document(&diagram, &process_label, dim)
+        .map_err(|e| e.to_string())?;
+    Ok(latex_compiler::compile_proof_to_latex(&proof_doc))
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -742,6 +771,7 @@ fn main() {
             export_decay_slha,
             configure_nlo,
             configure_shower,
+            generate_mathematical_proof,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

@@ -520,3 +520,27 @@ export async function configureShower(
 ): Promise<void> {
   return getBackend().configureShower(config);
 }
+
+// ── Proof Generation ────────────────────────────────────────────────────────
+
+/**
+ * Generate a complete mathematical proof document for a Feynman diagram.
+ *
+ * Drives the algebraic proof tracker through the amplitude derivation
+ * pipeline and compiles the result into a standalone LaTeX source string
+ * using the `revtex4-2` document class.
+ *
+ * The returned string is a complete `.tex` file ready for `pdflatex`.
+ *
+ * @param diagram - A `FeynmanDiagram` from a prior `generateDiagrams` call.
+ * @param processLabel - Human-readable process label (e.g., "e⁺e⁻ → μ⁺μ⁻").
+ * @param dim - Spacetime dimension configuration.
+ * @returns The complete LaTeX source as a string.
+ */
+export async function generateMathematicalProof(
+  diagram: import("$lib/types/spire").FeynmanDiagram,
+  processLabel: string,
+  dim: import("$lib/types/spire").SpacetimeDimension,
+): Promise<string> {
+  return getBackend().generateMathematicalProof(diagram, processLabel, dim);
+}

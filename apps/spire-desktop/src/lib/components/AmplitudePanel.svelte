@@ -13,7 +13,7 @@
     activeAmplitude,
     generatedDiagrams,
   } from "$lib/stores/physicsStore";
-  import { exportAmplitudeLatex, deriveAmplitudeSteps } from "$lib/api";
+  import { exportAmplitudeLatex, deriveAmplitudeSteps, generateMathematicalProof } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
 
@@ -69,6 +69,36 @@
   let derivationOpen: boolean = false;
   let derivationLoading: boolean = false;
   let derivationError: string = "";
+  let proofStatus: string = "";
+
+  /** Generate and download a full LaTeX proof document for the selected diagram. */
+  async function exportProof(): Promise<void> {
+    if (!$generatedDiagrams || selectedDiagramId === null) return;
+    const diagram = $generatedDiagrams.diagrams.find(
+      (d) => d.id === selectedDiagramId
+    );
+    if (!diagram) return;
+    proofStatus = "Generating…";
+    try {
+      const tex = await generateMathematicalProof(
+        diagram,
+        "Scattering Process",
+        { Fixed: 4 },
+      );
+      const blob = new Blob([tex], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "spire_proof.tex";
+      a.click();
+      URL.revokeObjectURL(url);
+      proofStatus = "Downloaded";
+      setTimeout(() => { proofStatus = ""; }, 2000);
+    } catch (e: unknown) {
+      proofStatus = e instanceof Error ? e.message : String(e);
+      setTimeout(() => { proofStatus = ""; }, 3000);
+    }
+  }
 
   $: results = $amplitudeResults;
   $: selected = $activeAmplitude;
@@ -79,6 +109,7 @@
   const AMP_CMD_IDS = [
     "spire.amplitude.copy_latex",
     "spire.amplitude.show_derivation",
+    "spire.amplitude.export_proof",
   ];
 
   onMount(() => {
@@ -93,6 +124,12 @@
       title: "Show Derivation Steps",
       category: "Amplitude",
       execute: () => showDerivation(),
+    });
+    registerCommand({
+      id: "spire.amplitude.export_proof",
+      title: "Export Proof (LaTeX)",
+      category: "Amplitude",
+      execute: () => exportProof(),
     });
   });
 

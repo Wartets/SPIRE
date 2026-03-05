@@ -257,4 +257,11 @@ export interface SpireBackend {
 
   configureNlo(config: NloConfig): Promise<void>;
   configureShower(config: ShowerToggleConfig): Promise<void>;
+
+  // ── Proof Generation ──────────────────────────────────────────────────
+  generateMathematicalProof(
+    diagram: FeynmanDiagram,
+    processLabel: string,
+    dim: SpacetimeDimension,
+  ): Promise<string>;
 }

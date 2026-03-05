@@ -395,4 +395,16 @@ export class WasmBackend implements SpireBackend {
   async configureShower(config: ShowerToggleConfig): Promise<void> {
     await this.call<void>("configure_shower", { config });
   }
+
+  async generateMathematicalProof(
+    diagram: FeynmanDiagram,
+    processLabel: string,
+    dim: SpacetimeDimension,
+  ): Promise<string> {
+    return this.call<string>("generate_mathematical_proof", {
+      diagram,
+      processLabel,
+      dim,
+    });
+  }
 }
