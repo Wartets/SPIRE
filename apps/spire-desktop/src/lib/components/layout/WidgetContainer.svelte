@@ -34,6 +34,7 @@
   import LogConsole from "$lib/components/LogConsole.svelte";
   import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
   import ParameterScanner from "$lib/components/ParameterScanner.svelte";
+  import DecayCalculator from "$lib/components/DecayCalculator.svelte";
 
   export let node: WidgetLeaf;
 
@@ -122,6 +123,8 @@
       <NotebookWidget />
     {:else if node.widgetType === "parameter_scanner"}
       <ParameterScanner />
+    {:else if node.widgetType === "decay_calculator"}
+      <DecayCalculator />
     {:else}
       <p style="color: var(--hl-error);">Unknown widget: {node.widgetType}</p>
     {/if}

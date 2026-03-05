@@ -44,6 +44,7 @@
 pub mod algebra;
 pub mod analysis;
 pub mod data_loader;
+pub mod decay;
 pub mod graph;
 pub mod groups;
 pub mod integration;
@@ -51,6 +52,7 @@ pub mod interface;
 pub mod io;
 pub mod kinematics;
 pub mod lagrangian;
+pub mod nwa;
 pub mod ontology;
 pub mod pdf;
 pub mod reco;

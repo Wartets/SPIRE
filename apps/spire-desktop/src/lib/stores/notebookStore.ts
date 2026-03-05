@@ -33,7 +33,8 @@ export type WidgetType =
   | "telemetry"
   | "log"
   | "notebook"
-  | "parameter_scanner";
+  | "parameter_scanner"
+  | "decay_calculator";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -86,6 +87,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
   { type: "notebook",        label: "Notebook",            defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "parameter_scanner", label: "Parameter Scanner",  defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "decay_calculator",  label: "Decay Calculator",   defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------

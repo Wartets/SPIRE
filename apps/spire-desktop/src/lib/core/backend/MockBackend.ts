@@ -57,6 +57,7 @@ import type {
   ScanResult1D,
   ScanConfig2D,
   ScanResult2D,
+  CalcDecayTable,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -543,5 +544,37 @@ export class MockBackend implements SpireBackend {
       z_values: zs,
       z_errors: zs.map((z) => z * 0.1),
     };
+  }
+
+  async calculateDecayTable(_model: TheoreticalModel, particleId: string): Promise<CalcDecayTable> {
+    await simulateLatency();
+    return {
+      parent_id: particleId,
+      parent_name: particleId === "Z0" ? "Z boson" : particleId,
+      parent_mass: particleId === "Z0" ? 91.1876 : 125.1,
+      total_width: particleId === "Z0" ? 2.4952 : 0.00407,
+      lifetime_seconds: particleId === "Z0" ? 2.6379e-25 : 1.617e-22,
+      channels: [
+        {
+          final_state: ["e-", "e-"],
+          final_state_names: ["electron", "electron"],
+          partial_width: 0.08391,
+          branching_ratio: 0.03363,
+          vertex_id: "nc_eez",
+        },
+        {
+          final_state: ["mu-", "mu-"],
+          final_state_names: ["muon", "muon"],
+          partial_width: 0.08391,
+          branching_ratio: 0.03366,
+          vertex_id: "nc_mmz",
+        },
+      ],
+    };
+  }
+
+  async exportDecaySlha(_model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
+    await simulateLatency();
+    return `DECAY ${pdgCode} 2.4952E+00 # ${particleId}\n#  BR         NDA  ID1  ID2\n   3.363E-02  2    11   -11  # e- e+\n   3.366E-02  2    13   -13  # mu- mu+\n`;
   }
 }

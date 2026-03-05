@@ -1339,3 +1339,26 @@ export interface ScanResult2D {
   z_values: number[];
   z_errors: number[];
 }
+
+// ===========================================================================
+// Decay Calculator
+// ===========================================================================
+
+/** A single decay channel with partial width and branching ratio. */
+export interface CalcDecayChannel {
+  final_state: string[];
+  final_state_names: string[];
+  partial_width: number;
+  branching_ratio: number;
+  vertex_id: string;
+}
+
+/** Full decay table for a particle: all channels, total width, lifetime. */
+export interface CalcDecayTable {
+  parent_id: string;
+  parent_name: string;
+  parent_mass: number;
+  total_width: number;
+  lifetime_seconds: number;
+  channels: CalcDecayChannel[];
+}

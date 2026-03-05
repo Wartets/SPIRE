@@ -30,6 +30,8 @@
   import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
+  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
+  import DecayCalculator from "$lib/components/DecayCalculator.svelte";
 
   export let instance: WidgetInstance;
 
@@ -71,6 +73,10 @@
     <TelemetryPanel />
   {:else if instance.type === "log"}
     <LogConsole />
+  {:else if instance.type === "parameter_scanner"}
+    <ParameterScanner />
+  {:else if instance.type === "decay_calculator"}
+    <DecayCalculator />
   {:else}
     <p style="color: var(--hl-error);">Unknown widget type: {instance.type}</p>
   {/if}

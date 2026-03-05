@@ -38,6 +38,7 @@ use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
 use spire_kernel::scanner;
 use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
+use spire_kernel::decay;
 
 // ---------------------------------------------------------------------------
 // KinematicsReport — aggregate return type
@@ -617,6 +618,49 @@ fn run_parameter_scan_2d(
 }
 
 // ---------------------------------------------------------------------------
+// Decay Calculator Commands (Phase 45)
+// ---------------------------------------------------------------------------
+
+/// Calculate the complete decay table for a particle in the model.
+///
+/// Discovers all kinematically allowed 2-body decay channels, computes
+/// partial widths from spin-averaged matrix elements over phase space,
+/// and assembles branching ratios into a serialisable decay table.
+///
+/// # Arguments
+/// * `model` — The theoretical model containing fields and vertices.
+/// * `particle_id` — The identifier of the decaying particle.
+///
+/// # Returns
+/// A `DecayTable` with channels, partial widths, BRs, and total width.
+#[tauri::command]
+fn calculate_decay_table_cmd(
+    model: TheoreticalModel,
+    particle_id: String,
+) -> Result<decay::DecayTable, String> {
+    decay::calculate_decay_table(&model, &particle_id).map_err(|e| e.to_string())
+}
+
+/// Format a decay table as an SLHA DECAY block string.
+///
+/// # Arguments
+/// * `model` — The theoretical model.
+/// * `particle_id` — The identifier of the decaying particle.
+/// * `pdg_code` — The PDG Monte Carlo particle numbering code.
+///
+/// # Returns
+/// The formatted SLHA DECAY block as a string.
+#[tauri::command]
+fn export_decay_slha(
+    model: TheoreticalModel,
+    particle_id: String,
+    pdg_code: i32,
+) -> Result<String, String> {
+    let table = decay::calculate_decay_table(&model, &particle_id).map_err(|e| e.to_string())?;
+    Ok(table.to_slha_string(pdg_code))
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -652,6 +696,8 @@ fn main() {
             session_destroy,
             run_parameter_scan_1d,
             run_parameter_scan_2d,
+            calculate_decay_table_cmd,
+            export_decay_slha,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

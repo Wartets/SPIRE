@@ -47,6 +47,7 @@ import type {
   ScanResult1D,
   ScanConfig2D,
   ScanResult2D,
+  CalcDecayTable,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -71,6 +72,7 @@ import {
   CountertermResultSchema,
   ScanResult1DSchema,
   ScanResult2DSchema,
+  CalcDecayTableSchema,
   validateResponse,
 } from "$lib/core/domain/schemas";
 
@@ -382,5 +384,21 @@ export class TauriBackend implements SpireBackend {
 
   async runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D> {
     return tauriInvokeValidated("run_parameter_scan_2d", ScanResult2DSchema, { config });
+  }
+
+  async calculateDecayTable(model: TheoreticalModel, particleId: string): Promise<CalcDecayTable> {
+    return tauriInvokeValidated("calculate_decay_table_cmd", CalcDecayTableSchema, {
+      model,
+      particle_id: particleId,
+    });
+  }
+
+  async exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
+    const raw = await tauriInvoke("export_decay_slha", {
+      model,
+      particle_id: particleId,
+      pdg_code: pdgCode,
+    });
+    return raw as string;
   }
 }

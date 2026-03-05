@@ -461,3 +461,32 @@ export async function runParameterScan2D(
 ): Promise<import("$lib/types/spire").ScanResult2D> {
   return getBackend().runParameterScan2D(config);
 }
+
+// ── Decay Calculator ────────────────────────────────────────────────────────
+
+/**
+ * Calculate the full decay table for a particle within a theoretical model.
+ *
+ * Discovers all kinematically allowed decay channels and computes
+ * partial widths and branching ratios.
+ */
+export async function calculateDecayTable(
+  model: import("$lib/types/spire").TheoreticalModel,
+  particleId: string,
+): Promise<import("$lib/types/spire").CalcDecayTable> {
+  return getBackend().calculateDecayTable(model, particleId);
+}
+
+/**
+ * Export a particle's decay table in SLHA format.
+ *
+ * Returns the SLHA DECAY block as a string, ready for writing to file
+ * or pasting into external tools.
+ */
+export async function exportDecaySlha(
+  model: import("$lib/types/spire").TheoreticalModel,
+  particleId: string,
+  pdgCode: number,
+): Promise<string> {
+  return getBackend().exportDecaySlha(model, particleId, pdgCode);
+}

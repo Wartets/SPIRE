@@ -878,3 +878,24 @@ export function validateResponse<T>(
     `[SPIRE] Response validation failed for "${context}":\n${issues}`,
   );
 }
+
+// ===========================================================================
+// Decay Calculator
+// ===========================================================================
+
+export const CalcDecayChannelSchema = z.object({
+  final_state: z.array(z.string()),
+  final_state_names: z.array(z.string()),
+  partial_width: z.number(),
+  branching_ratio: z.number(),
+  vertex_id: z.string(),
+});
+
+export const CalcDecayTableSchema = z.object({
+  parent_id: z.string(),
+  parent_name: z.string(),
+  parent_mass: z.number(),
+  total_width: z.number(),
+  lifetime_seconds: z.number(),
+  channels: z.array(CalcDecayChannelSchema),
+});

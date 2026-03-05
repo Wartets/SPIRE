@@ -1,0 +1,636 @@
+<!--
+  SPIRE — Decay Calculator Widget (Phase 45)
+
+  Interactive branching-ratio and partial-width calculator.  The user
+  selects a massive particle from the loaded model, triggers the decay
+  table computation, and views the results as a Chart.js doughnut chart
+  plus a sortable data table.  An SLHA export button copies or downloads
+  the DECAY block in standard SLHA format.
+-->
+<script lang="ts">
+  import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
+  import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
+  import { calculateDecayTable, exportDecaySlha } from "$lib/api";
+  import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import HoverDef from "$lib/components/ui/HoverDef.svelte";
+  import type { TheoreticalModel, CalcDecayTable, CalcDecayChannel } from "$lib/types/spire";
+  import {
+    Chart,
+    DoughnutController,
+    ArcElement,
+    Tooltip,
+    Title,
+    Legend,
+  } from "chart.js";
+
+  // Register Chart.js components (tree-shakeable).
+  Chart.register(DoughnutController, ArcElement, Tooltip, Title, Legend);
+
+  // -------------------------------------------------------------------------
+  // Colour palette for pie slices
+  // -------------------------------------------------------------------------
+
+  const PALETTE = [
+    "#00d4ff", "#ff6b6b", "#51cf66", "#fcc419", "#cc5de8",
+    "#ff922b", "#20c997", "#748ffc", "#f06595", "#ffe066",
+    "#69db7c", "#4dabf7", "#e599f7", "#ffa94d", "#63e6be",
+    "#91a7ff", "#ffd43b", "#ff8787", "#38d9a9", "#da77f2",
+  ];
+
+  // -------------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------------
+
+  let model: TheoreticalModel | null = null;
+  let massiveParticles: { id: string; name: string; mass: number; pdgCode: number }[] = [];
+  let selectedIdx = 0;
+
+  let computing = false;
+  let errorMsg = "";
+  let decayTable: CalcDecayTable | null = null;
+
+  let chartCanvas: HTMLCanvasElement;
+  let chartInstance: Chart | null = null;
+
+  // -------------------------------------------------------------------------
+  // Model subscription
+  // -------------------------------------------------------------------------
+
+  const unsubModel = theoreticalModel.subscribe((m) => {
+    model = m;
+    buildParticleList(m);
+  });
+
+  /** Rebuild the list of massive particles when the model changes. */
+  function buildParticleList(m: TheoreticalModel | null): void {
+    if (!m) {
+      massiveParticles = [];
+      return;
+    }
+
+    // Deduplicate by keeping only particles with mass > 0 and width ≥ 0.
+    // Assign PDG-like codes based on position (placeholder — real PDG codes
+    // would come from the model metadata).
+    const seen = new Set<string>();
+    const result: typeof massiveParticles = [];
+    for (let i = 0; i < m.fields.length; i++) {
+      const f = m.fields[i];
+      if (f.mass > 0 && !seen.has(f.id)) {
+        seen.add(f.id);
+        result.push({
+          id: f.id,
+          name: f.name || f.id,
+          mass: f.mass,
+          pdgCode: i + 1,      // placeholder
+        });
+      }
+    }
+    massiveParticles = result;
+  }
+
+  // -------------------------------------------------------------------------
+  // Core logic
+  // -------------------------------------------------------------------------
+
+  async function computeDecay(): Promise<void> {
+    const m = model;
+    if (!m || massiveParticles.length === 0) {
+      errorMsg = "Load a theoretical model first.";
+      return;
+    }
+
+    const target = massiveParticles[selectedIdx];
+    if (!target) return;
+
+    computing = true;
+    errorMsg = "";
+    decayTable = null;
+
+    try {
+      appendLog(`[DecayCalc] Computing decay table for ${target.name} (${target.id})…`);
+      const table = await calculateDecayTable(m, target.id);
+      decayTable = table;
+      appendLog(
+        `[DecayCalc] ${target.name}: Γ_total = ${table.total_width.toExponential(4)} GeV, ` +
+        `${table.channels.length} channel(s), τ = ${table.lifetime_seconds.toExponential(3)} s`,
+      );
+
+      // Render chart after DOM update.
+      await tick();
+      renderChart(table);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errorMsg = msg;
+      appendLog(`[DecayCalc] Error: ${msg}`);
+    } finally {
+      computing = false;
+    }
+  }
+
+  /** Svelte tick — wait for DOM update. */
+  function tick(): Promise<void> {
+    return new Promise((r) => setTimeout(r, 0));
+  }
+
+  // -------------------------------------------------------------------------
+  // Chart rendering
+  // -------------------------------------------------------------------------
+
+  function renderChart(table: CalcDecayTable): void {
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    if (!chartCanvas || table.channels.length === 0) return;
+
+    const labels = table.channels.map((ch) => ch.final_state_names.join(" + "));
+    const data = table.channels.map((ch) => ch.branching_ratio * 100);
+    const colours = table.channels.map((_, i) => PALETTE[i % PALETTE.length]);
+
+    chartInstance = new Chart(chartCanvas, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [
+          {
+            data,
+            backgroundColor: colours,
+            borderColor: "rgba(0,0,0,0.6)",
+            borderWidth: 1,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: `${table.parent_name} Branching Ratios`,
+            color: "#e0e0e0",
+            font: { size: 13, weight: "bold" },
+          },
+          legend: {
+            position: "right",
+            labels: {
+              color: "#bbb",
+              font: { size: 11, family: "'JetBrains Mono', 'Fira Code', monospace" },
+              boxWidth: 12,
+              padding: 6,
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const ch = table.channels[ctx.dataIndex];
+                return ` BR = ${(ch.branching_ratio * 100).toFixed(4)}%  |  Γ = ${ch.partial_width.toExponential(4)} GeV`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // SLHA Export
+  // -------------------------------------------------------------------------
+
+  async function copySlha(): Promise<void> {
+    const m = model;
+    if (!m || !decayTable) return;
+    const target = massiveParticles[selectedIdx];
+    if (!target) return;
+
+    try {
+      const slha = await exportDecaySlha(m, target.id, target.pdgCode);
+      await navigator.clipboard.writeText(slha);
+      appendLog("[DecayCalc] SLHA DECAY block copied to clipboard.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`[DecayCalc] SLHA copy failed: ${msg}`);
+    }
+  }
+
+  async function downloadSlha(): Promise<void> {
+    const m = model;
+    if (!m || !decayTable) return;
+    const target = massiveParticles[selectedIdx];
+    if (!target) return;
+
+    try {
+      const slha = await exportDecaySlha(m, target.id, target.pdgCode);
+      const blob = new Blob([slha], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${target.id}_decay.slha`;
+      a.click();
+      URL.revokeObjectURL(url);
+      appendLog(`[DecayCalc] SLHA file downloaded: ${target.id}_decay.slha`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`[DecayCalc] SLHA download failed: ${msg}`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Formatting helpers
+  // -------------------------------------------------------------------------
+
+  function fmtWidth(w: number): string {
+    if (w === 0) return "0";
+    if (w < 1e-6 || w >= 1e4) return w.toExponential(4);
+    return w.toPrecision(5);
+  }
+
+  function fmtBR(br: number): string {
+    return (br * 100).toFixed(4) + "%";
+  }
+
+  function fmtLifetime(t: number): string {
+    if (t <= 0) return "stable";
+    if (t < 1e-20) return t.toExponential(3) + " s";
+    if (t < 1e-6) return (t * 1e9).toFixed(2) + " ns";
+    if (t < 1) return (t * 1e6).toFixed(2) + " µs";
+    return t.toFixed(4) + " s";
+  }
+
+  // -------------------------------------------------------------------------
+  // Lifecycle
+  // -------------------------------------------------------------------------
+
+  onMount(() => {
+    registerCommand({
+      id: "spire.calculateDecayTable",
+      title: "Calculate Decay Table",
+      category: "Decay",
+      execute: computeDecay,
+    });
+  });
+
+  onDestroy(() => {
+    unsubModel();
+    unregisterCommand("spire.calculateDecayTable");
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+  });
+</script>
+
+<div class="decay-widget">
+  <h3 class="widget-title">
+    <HoverDef term="decay_table">Decay Calculator</HoverDef>
+  </h3>
+
+  <!-- Configuration -->
+  <div class="config-panel">
+    <div class="field">
+      <label for="decay-particle">
+        <HoverDef term="parent_particle">Parent Particle</HoverDef>
+      </label>
+      <select id="decay-particle" bind:value={selectedIdx} disabled={computing}>
+        {#each massiveParticles as p, i}
+          <option value={i}>{p.name} ({p.id}) — {p.mass.toPrecision(4)} GeV</option>
+        {/each}
+        {#if massiveParticles.length === 0}
+          <option value={0} disabled>Load a model first</option>
+        {/if}
+      </select>
+    </div>
+
+    <button class="run-btn" on:click={computeDecay} disabled={computing || massiveParticles.length === 0}>
+      {#if computing}
+        <span class="spinner"></span> Computing…
+      {:else}
+        ▶ Compute Decays
+      {/if}
+    </button>
+
+    {#if errorMsg}
+      <div class="error-msg">{errorMsg}</div>
+    {/if}
+  </div>
+
+  <!-- Results -->
+  <div class="results-area">
+    {#if decayTable}
+      <!-- Summary banner -->
+      <div class="summary-banner">
+        <span class="summary-item">
+          <strong>Γ_total</strong> = {fmtWidth(decayTable.total_width)} GeV
+        </span>
+        <span class="summary-item">
+          <strong>τ</strong> = {fmtLifetime(decayTable.lifetime_seconds)}
+        </span>
+        <span class="summary-item">
+          <strong>Channels</strong>: {decayTable.channels.length}
+        </span>
+      </div>
+
+      <!-- Doughnut Chart -->
+      {#if decayTable.channels.length > 0}
+        <div class="chart-container">
+          <canvas bind:this={chartCanvas}></canvas>
+        </div>
+      {/if}
+
+      <!-- Data Table -->
+      <div class="data-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="left">Channel</th>
+              <th>Γ_partial (GeV)</th>
+              <th>BR</th>
+              <th>Vertex</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each decayTable.channels as ch, i}
+              <tr>
+                <td class="left">
+                  <span class="colour-dot" style="background:{PALETTE[i % PALETTE.length]}"></span>
+                  {ch.final_state_names.join(" + ")}
+                </td>
+                <td>{fmtWidth(ch.partial_width)}</td>
+                <td>{fmtBR(ch.branching_ratio)}</td>
+                <td class="mono">{ch.vertex_id}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- SLHA Export -->
+      <div class="export-row">
+        <button class="export-btn" on:click={copySlha} title="Copy SLHA DECAY block to clipboard">
+          📋 Copy SLHA
+        </button>
+        <button class="export-btn" on:click={downloadSlha} title="Download SLHA DECAY block as .slha file">
+          💾 Download .slha
+        </button>
+      </div>
+
+    {:else if !computing}
+      <div class="empty-state">
+        <p>Select a parent particle above, then press <strong>▶ Compute Decays</strong>.</p>
+        <p class="hint">The engine discovers all kinematically allowed 2-body channels from the loaded model.</p>
+      </div>
+    {/if}
+  </div>
+</div>
+
+<style>
+  .decay-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 100%;
+    overflow-y: auto;
+    padding: 0.75rem;
+    font-size: 0.8rem;
+    color: #ccc;
+  }
+
+  .widget-title {
+    margin: 0 0 0.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e0e0e0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.35rem;
+  }
+
+  .config-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .field label {
+    color: #aaa;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    color: #ddd;
+    padding: 0.3rem 0.45rem;
+    font-size: 0.78rem;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
+  }
+
+  .run-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    background: linear-gradient(135deg, #00d4ff, #0090ff);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .run-btn:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .run-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .error-msg {
+    color: #ff6b6b;
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+    background: rgba(255, 107, 107, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid #ff6b6b;
+  }
+
+  /* ── Summary Banner ───────────────────────────────────────────── */
+
+  .summary-banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(0, 212, 255, 0.06);
+    border: 1px solid rgba(0, 212, 255, 0.15);
+    border-radius: 4px;
+    font-size: 0.76rem;
+  }
+
+  .summary-item strong {
+    color: #00d4ff;
+  }
+
+  /* ── Chart ─────────────────────────────────────────────────────── */
+
+  .results-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+  }
+
+  .chart-container {
+    position: relative;
+    height: 240px;
+    min-height: 180px;
+  }
+
+  .chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* ── Data Table ────────────────────────────────────────────────── */
+
+  .data-table-wrap {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.72rem;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
+  th {
+    text-align: right;
+    padding: 0.3rem 0.5rem;
+    color: #aaa;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-weight: 500;
+  }
+
+  th.left,
+  td.left {
+    text-align: left;
+  }
+
+  td {
+    text-align: right;
+    padding: 0.25rem 0.5rem;
+    color: #ccc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  td.mono {
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 0.68rem;
+    color: #999;
+  }
+
+  .colour-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+  }
+
+  tr:hover td {
+    background: rgba(0, 212, 255, 0.05);
+  }
+
+  /* ── Export ─────────────────────────────────────────────────────── */
+
+  .export-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .export-btn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #bbb;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .export-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(0, 212, 255, 0.3);
+    color: #eee;
+  }
+
+  /* ── Empty State ───────────────────────────────────────────────── */
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 200px;
+    color: #666;
+    text-align: center;
+  }
+
+  .empty-state p {
+    margin: 0;
+  }
+
+  .hint {
+    font-size: 0.68rem;
+    color: #666;
+    font-style: italic;
+  }
+</style>

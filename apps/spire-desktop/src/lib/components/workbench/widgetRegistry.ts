@@ -29,4 +29,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   log:           "Console",
   notebook:       "Notebook",
   parameter_scanner: "Parameter Scanner",
+  decay_calculator:  "Decay Calculator",
 };

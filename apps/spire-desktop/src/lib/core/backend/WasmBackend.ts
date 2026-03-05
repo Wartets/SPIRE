@@ -53,6 +53,7 @@ import type {
   ScanResult1D,
   ScanConfig2D,
   ScanResult2D,
+  CalcDecayTable,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -375,5 +376,13 @@ export class WasmBackend implements SpireBackend {
 
   async runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D> {
     return this.call<ScanResult2D>("run_parameter_scan_2d", { config });
+  }
+
+  async calculateDecayTable(model: TheoreticalModel, particleId: string): Promise<CalcDecayTable> {
+    return this.call<CalcDecayTable>("calculate_decay_table", { model, particle_id: particleId });
+  }
+
+  async exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
+    return this.call<string>("export_decay_slha", { model, particle_id: particleId, pdg_code: pdgCode });
   }
 }

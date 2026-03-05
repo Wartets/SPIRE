@@ -50,6 +50,7 @@ import type {
   ScanResult1D,
   ScanConfig2D,
   ScanResult2D,
+  CalcDecayTable,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -247,4 +248,8 @@ export interface SpireBackend {
   // ── Parameter Scanner ──────────────────────────────────────────────────
   runParameterScan1D(config: ScanConfig1D): Promise<ScanResult1D>;
   runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D>;
+
+  // ── Decay Calculator ──────────────────────────────────────────────────
+  calculateDecayTable(model: TheoreticalModel, particleId: string): Promise<CalcDecayTable>;
+  exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string>;
 }
