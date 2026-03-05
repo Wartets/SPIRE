@@ -13,7 +13,7 @@ tauri-build = { version = "1.5", features = [] }
 spire-kernel = { path = "../../../crates/spire-kernel" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "1.5", features = ["shell-open"] }
+tauri = { version = "1.5", features = ["shell-open", "window-all"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

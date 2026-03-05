@@ -8,10 +8,14 @@
  * from the stored inputs via the computation pipeline.
  *
  * File convention: `*.spire.json`
- * Current schema version: "1.0"
+ * Current schema version: "2.0"
+ *
+ * v2.0  — Recursive docking tree + canvas items replace flat grid.
+ * v1.0  — Flat CSS grid with SerializedWidget[] (legacy).
  */
 
 import type { WidgetType } from "$lib/stores/notebookStore";
+import type { LayoutNode, CanvasItem } from "$lib/stores/layoutStore";
 import type { TheoreticalFramework } from "./spire";
 
 // ---------------------------------------------------------------------------
@@ -19,7 +23,7 @@ import type { TheoreticalFramework } from "./spire";
 // ---------------------------------------------------------------------------
 
 /** The current workspace schema version. */
-export const WORKSPACE_SCHEMA_VERSION = "1.0" as const;
+export const WORKSPACE_SCHEMA_VERSION = "2.0" as const;
 
 // ---------------------------------------------------------------------------
 // Metadata
@@ -40,10 +44,7 @@ export interface WorkspaceMetadata {
 // ---------------------------------------------------------------------------
 
 /**
- * A serialised widget.
- *
- * Widget IDs are **not** persisted — they are regenerated on import.
- * This avoids collisions across workspaces and simplifies merging.
+ * A serialised widget (v1.0 legacy format — kept for backward-compat import).
  */
 export interface SerializedWidget {
   /** Which component this widget renders. */
@@ -60,12 +61,24 @@ export interface SerializedWidget {
   data: Record<string, unknown>;
 }
 
-/** Complete grid layout of the workbench. */
+/**
+ * Complete layout of the workbench (v2.0).
+ *
+ * The `layoutTree` is the recursive docking structure serialised as
+ * plain JSON (LayoutNode).  `canvasItems` stores widgets that were
+ * placed in whiteboard / infinite-canvas mode.
+ */
 export interface WorkspaceLayout {
-  /** Ordered list of widget placements. */
-  widgets: SerializedWidget[];
-  /** Number of grid columns (for forward-compatibility). */
-  gridColumns: number;
+  /** Recursive docking tree (row / col / stack / widget). */
+  layoutTree: LayoutNode;
+  /** Widgets placed on the infinite canvas. */
+  canvasItems: CanvasItem[];
+
+  // Legacy compat (optional — only present in v1.0 imports)
+  /** @deprecated — v1.0 flat widget list; unused in v2.0 exports. */
+  widgets?: SerializedWidget[];
+  /** @deprecated — v1.0 grid column count. */
+  gridColumns?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +123,7 @@ export interface WorkspacePhysics {
  */
 export interface SpireWorkspace {
   /** Schema version for forward-compatible parsing. */
-  version: typeof WORKSPACE_SCHEMA_VERSION;
+  version: string;
   /** Descriptive metadata. */
   metadata: WorkspaceMetadata;
   /** Widget grid layout. */

@@ -1,21 +1,29 @@
 <!--
   SPIRE Desktop — Adaptive Workbench Page
 
-  Dynamic grid canvas driven by the notebook store.
-  Widgets are placed on a CSS Grid whose column / row
-  positions come from each WidgetInstance.  A compact
-  Toolbox bar lets the user spawn new widgets.
+  Dual-mode workspace: recursive docking panels (default) or infinite
+  whiteboard canvas.  The layout tree is driven by layoutStore.
+  A compact Toolbox bar lets the user spawn new widgets and toggle
+  between view modes.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import {
-    widgets,
-    addWidget,
-    resetLayout,
     WIDGET_DEFINITIONS,
-    GRID_COLUMNS,
   } from "$lib/stores/notebookStore";
   import type { WidgetType } from "$lib/stores/notebookStore";
+  import {
+    layoutRoot,
+    viewMode,
+    dockingWidgetCount,
+    canvasWidgetCount,
+    totalWidgetCount,
+    addWidgetToLayout,
+    addCanvasItem,
+    resetDockingLayout,
+    clearCanvas,
+    toggleViewMode,
+  } from "$lib/stores/layoutStore";
   import { workspaceInputsSnapshot } from "$lib/stores/workspaceInputsStore";
   import { activeFramework } from "$lib/stores/physicsStore";
   import {
@@ -32,7 +40,8 @@
   } from "$lib/core/services/CommandRegistry";
   import { startTutorial } from "$lib/core/services/TutorialService";
   import { clearCitations } from "$lib/core/services/CitationRegistry";
-  import WidgetCell from "$lib/components/workbench/WidgetCell.svelte";
+  import LayoutRenderer from "$lib/components/layout/LayoutRenderer.svelte";
+  import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
   import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
 
@@ -40,7 +49,11 @@
   let workspaceControls: WorkspaceControls;
 
   function spawnWidget(type: WidgetType): void {
-    addWidget(type);
+    if ($viewMode === "canvas") {
+      addCanvasItem(type);
+    } else {
+      addWidgetToLayout(type);
+    }
     toolboxOpen = false;
   }
 
@@ -64,6 +77,7 @@
     "spire.ui.add_telemetry",
     "spire.ui.reset_layout",
     "spire.ui.toggle_log",
+    "spire.view.toggle_canvas_mode",
     "spire.workspace.save",
     "spire.workspace.reset",
     "spire.palette.open",
@@ -85,7 +99,7 @@
       title: "Reset Layout",
       category: "View",
       shortcut: "Mod+Shift+R",
-      execute: () => resetLayout(),
+      execute: () => { resetDockingLayout(); clearCanvas(); },
       pinned: true,
       icon: "R",
     });
@@ -94,7 +108,14 @@
       title: "Toggle Console",
       category: "View",
       shortcut: "Mod+J",
-      execute: () => addWidget("log"),
+      execute: () => spawnWidget("log"),
+    });
+    registerCommand({
+      id: "spire.view.toggle_canvas_mode",
+      title: "Toggle Canvas / Docking Mode",
+      category: "View",
+      shortcut: "Mod+Shift+C",
+      execute: () => toggleViewMode(),
     });
     registerCommand({
       id: "spire.workspace.save",
@@ -117,55 +138,55 @@
       id: "spire.ui.add_analysis",
       title: "Add Analysis Widget",
       category: "View",
-      execute: () => addWidget("analysis"),
+      execute: () => spawnWidget("analysis"),
     });
     registerCommand({
       id: "spire.ui.add_event_display",
       title: "Add Event Display",
       category: "View",
-      execute: () => addWidget("event_display"),
+      execute: () => spawnWidget("event_display"),
     });
     registerCommand({
       id: "spire.ui.add_lagrangian",
       title: "Add Lagrangian Workbench",
       category: "View",
-      execute: () => addWidget("lagrangian_workbench"),
+      execute: () => spawnWidget("lagrangian_workbench"),
     });
     registerCommand({
       id: "spire.ui.add_external_models",
       title: "Add External Models Widget",
       category: "View",
-      execute: () => addWidget("external_models"),
+      execute: () => spawnWidget("external_models"),
     });
     registerCommand({
       id: "spire.ui.add_compute_grid",
       title: "Add Compute Grid",
       category: "View",
-      execute: () => addWidget("compute_grid"),
+      execute: () => spawnWidget("compute_grid"),
     });
     registerCommand({
       id: "spire.ui.add_dalitz",
       title: "Add Dalitz Plot",
       category: "View",
-      execute: () => addWidget("dalitz"),
+      execute: () => spawnWidget("dalitz"),
     });
     registerCommand({
       id: "spire.ui.add_diagram_editor",
       title: "Add Diagram Editor",
       category: "View",
-      execute: () => addWidget("diagram_editor"),
+      execute: () => spawnWidget("diagram_editor"),
     });
     registerCommand({
       id: "spire.ui.add_references",
       title: "Add References Panel",
       category: "View",
-      execute: () => addWidget("references"),
+      execute: () => spawnWidget("references"),
     });
     registerCommand({
       id: "spire.ui.add_telemetry",
       title: "Add Telemetry Dashboard",
       category: "View",
-      execute: () => addWidget("telemetry"),
+      execute: () => spawnWidget("telemetry"),
     });
     registerCommand({
       id: "spire.help.tutorial",
@@ -196,7 +217,7 @@
     workspaceControls?.checkAutoSave();
 
     // Subscribe to all state sources for auto-save
-    unsubWidgets = widgets.subscribe(() => debouncedAutoSave());
+    unsubWidgets = layoutRoot.subscribe(() => debouncedAutoSave());
     unsubInputs = workspaceInputsSnapshot.subscribe(() => debouncedAutoSave());
     unsubFramework = activeFramework.subscribe(() => debouncedAutoSave());
   });
@@ -225,7 +246,6 @@
         {#each WIDGET_DEFINITIONS as def}
           <button class="toolbox-item" on:click={() => spawnWidget(def.type)}>
             {def.label}
-            <span class="toolbox-size">{def.defaultColSpan}&times;{def.defaultRowSpan}</span>
           </button>
         {/each}
       </div>
@@ -233,34 +253,39 @@
 
     <QuickToolbar />
 
+    <button
+      class="toolbox-mode-toggle"
+      on:click={toggleViewMode}
+      title="Toggle Canvas / Docking (Ctrl+Shift+C)"
+    >
+      {$viewMode === "docking" ? "⊞ Docking" : "◎ Canvas"}
+    </button>
+
     <div class="toolbox-spacer"></div>
 
     <WorkspaceControls bind:this={workspaceControls} />
 
-    <span class="widget-count">{$widgets.length} widget{$widgets.length !== 1 ? "s" : ""}</span>
+    <span class="widget-count"
+      >{$totalWidgetCount} widget{$totalWidgetCount !== 1 ? "s" : ""}</span
+    >
 
-    <button class="toolbox-reset" on:click={resetLayout} title="Reset to default layout">
+    <button
+      class="toolbox-reset"
+      on:click={() => { resetDockingLayout(); clearCanvas(); }}
+      title="Reset to default layout"
+    >
       Reset Layout
     </button>
   </div>
 
-  <!-- ─── Grid Canvas ─── -->
-  <div
-    class="grid-canvas"
-    style="grid-template-columns: repeat({GRID_COLUMNS}, 1fr);"
-  >
-    {#each $widgets as instance (instance.id)}
-      <div
-        class="grid-cell"
-        style="
-          grid-column: {instance.col} / span {instance.colSpan};
-          grid-row: {instance.row} / span {instance.rowSpan};
-        "
-      >
-        <WidgetCell {instance} />
-      </div>
-    {/each}
-  </div>
+  <!-- ─── Workspace Canvas ─── -->
+  {#if $viewMode === "docking"}
+    <div class="docking-canvas">
+      <LayoutRenderer node={$layoutRoot} />
+    </div>
+  {:else}
+    <InfiniteCanvas />
+  {/if}
 </div>
 
 <style>
@@ -328,12 +353,22 @@
     background: var(--bg-surface);
     color: var(--fg-accent);
   }
-  .toolbox-size {
-    font-size: 0.62rem;
-    color: var(--fg-secondary);
-  }
   .toolbox-spacer {
     flex: 1;
+  }
+  .toolbox-mode-toggle {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-accent);
+    padding: 0.2rem 0.6rem;
+    font-size: 0.68rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .toolbox-mode-toggle:hover {
+    border-color: var(--border-focus);
   }
   .widget-count {
     font-size: 0.68rem;
@@ -353,29 +388,11 @@
     border-color: var(--hl-error);
   }
 
-  /* ── Grid Canvas ──────────────────────────────────────────── */
-  .grid-canvas {
+  /* ── Docking Canvas ───────────────────────────────────────── */
+  .docking-canvas {
     flex: 1;
-    display: grid;
-    gap: 0.35rem;
-    padding: 0.35rem;
-    grid-auto-rows: minmax(160px, 1fr);
     min-height: 0;
-    overflow: auto;
-  }
-  .grid-cell {
-    min-width: 0;
-    min-height: 0;
-  }
-
-  /* ── Responsive ───────────────────────────────────────────── */
-  @media (max-width: 900px) {
-    .grid-canvas {
-      grid-template-columns: 1fr !important;
-    }
-    .grid-cell {
-      grid-column: 1 !important;
-      grid-row: auto !important;
-    }
+    overflow: hidden;
+    display: flex;
   }
 </style>

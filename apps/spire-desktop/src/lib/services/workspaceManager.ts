@@ -9,11 +9,22 @@
  *   - **Auto-save**: `localStorage` key `spire_autosave` (debounced)
  *   - **Export**: `.spire.json` file downloaded via the Web File API
  *   - **Import**: `.spire.json` file parsed and hydrated into stores
+ *
+ * v2.0 — Layout serialised as a recursive LayoutNode tree + canvas items.
+ * v1.0 — Legacy flat CSS grid (auto-migrated on import).
  */
 
 import { get } from "svelte/store";
-import { widgets, GRID_COLUMNS, resetLayout } from "$lib/stores/notebookStore";
-import type { WidgetInstance, WidgetType } from "$lib/stores/notebookStore";
+import type { WidgetType } from "$lib/stores/notebookStore";
+import {
+  layoutRoot,
+  canvasItems,
+  setLayoutRoot,
+  resetDockingLayout,
+  clearCanvas,
+  getDefaultLayout,
+} from "$lib/stores/layoutStore";
+import type { LayoutNode, CanvasItem } from "$lib/stores/layoutStore";
 import { activeFramework, appendLog } from "$lib/stores/physicsStore";
 import {
   particlesTomlInput,
@@ -49,6 +60,15 @@ const KNOWN_WIDGET_TYPES: ReadonlySet<string> = new Set<string>([
   "kinematics",
   "dalitz",
   "log",
+  "analysis",
+  "event_display",
+  "lagrangian_workbench",
+  "external_models",
+  "compute_grid",
+  "diagram_editor",
+  "references",
+  "scripting",
+  "telemetry",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -62,16 +82,6 @@ const KNOWN_WIDGET_TYPES: ReadonlySet<string> = new Set<string>([
  */
 export function exportWorkspace(name?: string): SpireWorkspace {
   const now = new Date().toISOString();
-  const currentWidgets = get(widgets);
-
-  const serializedWidgets: SerializedWidget[] = currentWidgets.map((w) => ({
-    type: w.type,
-    col: w.col,
-    row: w.row,
-    colSpan: w.colSpan,
-    rowSpan: w.rowSpan,
-    data: { ...w.data },
-  }));
 
   return {
     version: WORKSPACE_SCHEMA_VERSION,
@@ -81,8 +91,8 @@ export function exportWorkspace(name?: string): SpireWorkspace {
       updatedAt: now,
     },
     layout: {
-      widgets: serializedWidgets,
-      gridColumns: GRID_COLUMNS,
+      layoutTree: JSON.parse(JSON.stringify(get(layoutRoot))) as LayoutNode,
+      canvasItems: JSON.parse(JSON.stringify(get(canvasItems))) as CanvasItem[],
     },
     physics: {
       framework: get(activeFramework),
@@ -111,7 +121,7 @@ export function exportWorkspaceJson(name?: string): string {
 /**
  * Validate an unknown JSON blob against the workspace schema.
  *
- * Returns a structured result with errors and warnings.
+ * Accepts both v1.0 (flat grid) and v2.0 (layout tree) formats.
  * Unknown widget types are flagged as warnings (they will be filtered
  * during import rather than rejecting the entire workspace).
  */
@@ -129,10 +139,10 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
   // Version
   if (!("version" in obj) || typeof obj.version !== "string") {
     errors.push("Missing or invalid 'version' field.");
-  } else if (obj.version !== WORKSPACE_SCHEMA_VERSION) {
+  } else if (obj.version !== "1.0" && obj.version !== "2.0") {
     errors.push(
       `Unsupported schema version "${obj.version}". ` +
-        `Expected "${WORKSPACE_SCHEMA_VERSION}".`,
+        `Expected "1.0" or "2.0".`,
     );
   }
 
@@ -146,29 +156,41 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
     }
   }
 
-  // Layout
+  // Layout — accept either v1.0 (widgets array) or v2.0 (layoutTree)
   if (!("layout" in obj) || typeof obj.layout !== "object" || obj.layout === null) {
     errors.push("Missing or invalid 'layout' field.");
   } else {
     const layout = obj.layout as Record<string, unknown>;
-    if (!Array.isArray(layout.widgets)) {
-      errors.push("layout.widgets must be an array.");
+    const version = (obj as Record<string, unknown>).version;
+
+    if (version === "1.0") {
+      // v1.0 flat grid validation
+      if (!Array.isArray(layout.widgets)) {
+        errors.push("layout.widgets must be an array.");
+      } else {
+        for (let i = 0; i < layout.widgets.length; i++) {
+          const w = layout.widgets[i] as Record<string, unknown>;
+          if (typeof w.type !== "string") {
+            errors.push(`layout.widgets[${i}].type must be a string.`);
+          } else if (!KNOWN_WIDGET_TYPES.has(w.type)) {
+            warnings.push(
+              `layout.widgets[${i}].type "${w.type}" is unknown and will be skipped.`,
+            );
+          }
+        }
+      }
     } else {
-      for (let i = 0; i < layout.widgets.length; i++) {
-        const w = layout.widgets[i] as Record<string, unknown>;
-        if (typeof w.type !== "string") {
-          errors.push(`layout.widgets[${i}].type must be a string.`);
-        } else if (!KNOWN_WIDGET_TYPES.has(w.type)) {
-          warnings.push(
-            `layout.widgets[${i}].type "${w.type}" is unknown and will be skipped.`,
-          );
+      // v2.0 layout tree validation
+      if (!("layoutTree" in layout) || typeof layout.layoutTree !== "object" || layout.layoutTree === null) {
+        errors.push("layout.layoutTree must be a valid layout node object.");
+      } else {
+        const tree = layout.layoutTree as Record<string, unknown>;
+        if (!["row", "col", "stack", "widget"].includes(tree.type as string)) {
+          errors.push(`layout.layoutTree.type "${tree.type}" is not a valid node type.`);
         }
-        if (typeof w.col !== "number" || typeof w.row !== "number") {
-          errors.push(`layout.widgets[${i}] has invalid col/row.`);
-        }
-        if (typeof w.colSpan !== "number" || typeof w.rowSpan !== "number") {
-          errors.push(`layout.widgets[${i}] has invalid colSpan/rowSpan.`);
-        }
+      }
+      if ("canvasItems" in layout && !Array.isArray(layout.canvasItems)) {
+        errors.push("layout.canvasItems must be an array.");
       }
     }
   }
@@ -212,23 +234,45 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
 }
 
 // ---------------------------------------------------------------------------
-// Import (JSON → Stores)
+// v1.0 → v2.0 Migration
 // ---------------------------------------------------------------------------
 
-/** Counter for regenerating unique widget IDs on import. */
-let _importCounter = 0;
+/**
+ * Convert a v1.0 flat widget list into a v2.0 column layout tree.
+ * Each widget becomes a leaf in a single top-level column.
+ */
+function migrateV1Widgets(serialized: SerializedWidget[]): LayoutNode {
+  const validWidgets = serialized.filter((w) => KNOWN_WIDGET_TYPES.has(w.type));
+  if (validWidgets.length === 0) {
+    return getDefaultLayout();
+  }
 
-function makeImportId(): string {
-  _importCounter += 1;
-  return `w-i${_importCounter}-${Date.now().toString(36)}`;
+  const children: LayoutNode[] = validWidgets.map((w, i) => ({
+    type: "widget" as const,
+    id: `migrated-${i}-${Date.now().toString(36)}`,
+    widgetType: w.type as WidgetType,
+    widgetData: w.data ?? {},
+  }));
+
+  return {
+    type: "col",
+    id: `migrated-root-${Date.now().toString(36)}`,
+    children,
+    sizes: children.map(() => 1),
+  };
 }
+
+// ---------------------------------------------------------------------------
+// Import (JSON → Stores)
+// ---------------------------------------------------------------------------
 
 /**
  * Import a workspace from a parsed JSON object.
  *
- * Validates the data, hydrates all stores, filters unknown widget types,
- * and logs a summary.  Does NOT trigger any computation — the user must
- * explicitly Load Model / Construct Reaction.
+ * Validates the data, hydrates all stores, and logs a summary.
+ * Supports both v1.0 (flat grid → auto-migrated) and v2.0 (layout tree).
+ * Does NOT trigger any computation — the user must explicitly
+ * Load Model / Construct Reaction.
  *
  * @returns `true` if import succeeded, `false` if validation failed.
  */
@@ -260,26 +304,30 @@ export function importWorkspace(data: unknown): boolean {
     maxLoopOrder: workspace.physics.maxLoopOrder,
   });
 
-  // --- Hydrate layout (regenerate IDs, filter unknown types) ---
-  const hydratedWidgets: WidgetInstance[] = workspace.layout.widgets
-    .filter((w) => KNOWN_WIDGET_TYPES.has(w.type))
-    .map((w) => ({
-      id: makeImportId(),
-      type: w.type as WidgetType,
-      col: w.col,
-      row: w.row,
-      colSpan: w.colSpan,
-      rowSpan: w.rowSpan,
-      data: w.data ?? {},
-    }));
-
-  widgets.set(hydratedWidgets);
-
-  appendLog(
-    `Workspace "${workspace.metadata.name}" imported — ` +
-      `${hydratedWidgets.length} widgets, ` +
-      `framework: ${workspace.physics.framework}`,
-  );
+  // --- Hydrate layout ---
+  if (workspace.version === "1.0") {
+    // Legacy v1.0 flat grid → migrate to tree
+    const layout = workspace.layout as unknown as { widgets?: SerializedWidget[] };
+    const tree = migrateV1Widgets(layout.widgets ?? []);
+    setLayoutRoot(tree);
+    clearCanvas();
+    appendLog(
+      `Workspace "${workspace.metadata.name}" imported (v1.0 → v2.0 migration) — ` +
+        `framework: ${workspace.physics.framework}`,
+    );
+  } else {
+    // v2.0 layout tree
+    setLayoutRoot(workspace.layout.layoutTree);
+    if (Array.isArray(workspace.layout.canvasItems)) {
+      canvasItems.set(workspace.layout.canvasItems);
+    } else {
+      clearCanvas();
+    }
+    appendLog(
+      `Workspace "${workspace.metadata.name}" imported — ` +
+        `framework: ${workspace.physics.framework}`,
+    );
+  }
 
   return true;
 }
@@ -391,12 +439,13 @@ export async function importFromFile(file: File): Promise<boolean> {
 /**
  * Reset the entire workspace to factory defaults.
  *
- * Clears physics inputs, resets the widget layout, clears auto-save,
- * and resets the framework to StandardModel.
+ * Clears physics inputs, resets the docking layout tree and canvas,
+ * clears auto-save, and resets the framework to StandardModel.
  */
 export function resetWorkspace(): void {
   resetAllInputs();
-  resetLayout();
+  resetDockingLayout();
+  clearCanvas();
   activeFramework.set("StandardModel");
   clearAutoSave();
   appendLog("Workspace reset to defaults.");
