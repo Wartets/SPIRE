@@ -870,9 +870,7 @@ pub fn generate_topologies(
                 let outgoing_ps: Vec<Particle> =
                     out_particles.iter().map(|p| (*p).clone()).collect();
                 let mut fg = build_single_vertex_graph(next_id, &incoming_ps, &outgoing_ps, vf);
-                fg.symmetry_factor = compute_final_state_symmetry_factor(
-                    &out_particles.to_vec(),
-                );
+                fg.symmetry_factor = compute_final_state_symmetry_factor(&out_particles.to_vec());
                 diagrams.push(fg);
             }
         }
@@ -906,9 +904,7 @@ pub fn generate_topologies(
             let id_out1 = base_field_id(out_particles[0]);
             let id_out2 = base_field_id(out_particles[1]);
 
-            let sym_factor = compute_final_state_symmetry_factor(
-                &out_particles.to_vec(),
-            );
+            let sym_factor = compute_final_state_symmetry_factor(&out_particles.to_vec());
 
             // --- s-channel ---
             // (In1 + In2) → X → (Out1 + Out2)
@@ -1045,7 +1041,10 @@ pub fn generate_topologies(
         }
     }
 
-    profile.record_stage("Tree-Level Enumeration", tree_start.elapsed().as_secs_f64() * 1000.0);
+    profile.record_stage(
+        "Tree-Level Enumeration",
+        tree_start.elapsed().as_secs_f64() * 1000.0,
+    );
 
     // -------------------------------------------------------------------
     // 1-Loop Topologies (if max_order >= OneLoop)
@@ -1104,7 +1103,10 @@ pub fn generate_topologies(
                 diagrams.extend(loop_diagrams);
             }
         }
-        profile.record_stage("One-Loop Enumeration", loop_start.elapsed().as_secs_f64() * 1000.0);
+        profile.record_stage(
+            "One-Loop Enumeration",
+            loop_start.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 
     // Determine the effective max loop order for the set

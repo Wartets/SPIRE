@@ -482,10 +482,7 @@ fn compute_half_mass_dimension(expr: &LagrangianExpr) -> u32 {
         LagrangianExpr::CovariantDerivative { .. } => 2,
         LagrangianExpr::Metric { .. } => 0,
         LagrangianExpr::FieldStrength { .. } => 4, // F ~ ∂A, dimension 2
-        LagrangianExpr::Product(children) => children
-            .iter()
-            .map(compute_half_mass_dimension)
-            .sum(),
+        LagrangianExpr::Product(children) => children.iter().map(compute_half_mass_dimension).sum(),
         LagrangianExpr::Sum(children) => {
             // All terms in a sum should have the same dimension; take the max.
             children

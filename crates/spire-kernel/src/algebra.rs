@@ -3772,7 +3772,10 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
         expression_parts.join(" × ")
     };
 
-    profile.record_stage("Amplitude Derivation", start.elapsed().as_secs_f64() * 1000.0);
+    profile.record_stage(
+        "Amplitude Derivation",
+        start.elapsed().as_secs_f64() * 1000.0,
+    );
     profile.capture_memory();
     profile.finalize(start);
 
@@ -4027,7 +4030,8 @@ pub fn classify_loop_integral(
 
     let routing = graph.momentum_routing.as_ref();
     let loop_label = routing
-        .and_then(|r| r.loop_momenta.first()).cloned()
+        .and_then(|r| r.loop_momenta.first())
+        .cloned()
         .unwrap_or_else(|| "l".into());
 
     // Collect external momentum labels from the graph.

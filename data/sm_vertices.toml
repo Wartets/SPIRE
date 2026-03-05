@@ -115,7 +115,7 @@ n_legs            = 3
 id                = "nc_eez"
 description       = "Weak NC vertex: electron-Z coupling"
 field_ids         = ["e-", "e-", "Z0"]
-coupling_symbol   = "g_z"
+coupling_symbol   = "g_z_e"
 coupling_value    = 0.7397
 lorentz_structure = "gamma_mu"
 interaction_type  = "WeakNC"
@@ -124,15 +124,75 @@ expression        = "-i (g_z) \\gamma^{\\mu} (g_V^e - g_A^e \\gamma^5)"
 n_legs            = 3
 
 [[vertex]]
+id                = "nc_mmz"
+description       = "Weak NC vertex: muon-Z coupling"
+field_ids         = ["mu-", "mu-", "Z0"]
+coupling_symbol   = "g_z_mu"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z) \\gamma^{\\mu} (g_V^\\mu - g_A^\\mu \\gamma^5)"
+n_legs            = 3
+
+[[vertex]]
+id                = "nc_ttz"
+description       = "Weak NC vertex: tau-Z coupling"
+field_ids         = ["tau-", "tau-", "Z0"]
+coupling_symbol   = "g_z_tau"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z) \\gamma^{\\mu} (g_V^\\tau - g_A^\\tau \\gamma^5)"
+n_legs            = 3
+
+[[vertex]]
 id                = "nc_nnz"
-description       = "Weak NC vertex: neutrino-Z coupling"
+description       = "Weak NC vertex: electron neutrino-Z coupling"
 field_ids         = ["nu_e", "nu_e", "Z0"]
-coupling_symbol   = "g_z"
+coupling_symbol   = "g_z_nue"
 coupling_value    = 0.7397
 lorentz_structure = "gamma_mu"
 interaction_type  = "WeakNC"
 term_kind         = "Interaction"
 expression        = "-i (g_z / 2) \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+[[vertex]]
+id                = "nc_nmnmz"
+description       = "Weak NC vertex: muon neutrino-Z coupling"
+field_ids         = ["nu_mu", "nu_mu", "Z0"]
+coupling_symbol   = "g_z_numu"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z / 2) \\gamma^{\\mu} P_L"
+n_legs            = 3
+
+[[vertex]]
+id                = "nc_uuz"
+description       = "Weak NC vertex: up quark-Z coupling"
+field_ids         = ["u", "u", "Z0"]
+coupling_symbol   = "g_z_u"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z) \\gamma^{\\mu} (g_V^u - g_A^u \\gamma^5)"
+n_legs            = 3
+
+[[vertex]]
+id                = "nc_ddz"
+description       = "Weak NC vertex: down quark-Z coupling"
+field_ids         = ["d", "d", "Z0"]
+coupling_symbol   = "g_z_d"
+coupling_value    = 0.7397
+lorentz_structure = "gamma_mu"
+interaction_type  = "WeakNC"
+term_kind         = "Interaction"
+expression        = "-i (g_z) \\gamma^{\\mu} (g_V^d - g_A^d \\gamma^5)"
 n_legs            = 3
 
 # ============================================================================

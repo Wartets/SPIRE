@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::data_loader;
+use spire_kernel::decay;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::kinematics::{
     self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
@@ -38,7 +39,6 @@ use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
 use spire_kernel::scanner;
 use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
-use spire_kernel::decay;
 
 // ---------------------------------------------------------------------------
 // KinematicsReport — aggregate return type
@@ -596,9 +596,7 @@ fn session_destroy(session_id: String) -> bool {
 /// # Returns
 /// A `ScanResult1D` with parameter values, cross-sections (pb), and errors.
 #[tauri::command]
-fn run_parameter_scan_1d(
-    config: scanner::ScanConfig1D,
-) -> Result<scanner::ScanResult1D, String> {
+fn run_parameter_scan_1d(config: scanner::ScanConfig1D) -> Result<scanner::ScanResult1D, String> {
     scanner::run_scan_1d(&config).map_err(|e| e.to_string())
 }
 
@@ -611,9 +609,7 @@ fn run_parameter_scan_1d(
 /// # Returns
 /// A `ScanResult2D` with axis values, cross-section matrix (pb), and errors.
 #[tauri::command]
-fn run_parameter_scan_2d(
-    config: scanner::ScanConfig2D,
-) -> Result<scanner::ScanResult2D, String> {
+fn run_parameter_scan_2d(config: scanner::ScanConfig2D) -> Result<scanner::ScanResult2D, String> {
     scanner::run_scan_2d(&config).map_err(|e| e.to_string())
 }
 
@@ -671,7 +667,10 @@ fn export_decay_slha(
 /// cross-section calculations.
 #[tauri::command]
 fn configure_nlo(config: serde_json::Value) -> Result<(), String> {
-    let _enabled = config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let _enabled = config
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let _scheme = config
         .get("subtraction_scheme")
         .and_then(|v| v.as_str())
@@ -691,7 +690,10 @@ fn configure_nlo(config: serde_json::Value) -> Result<(), String> {
 /// downstream event-generation pipelines.
 #[tauri::command]
 fn configure_shower(config: serde_json::Value) -> Result<(), String> {
-    let _enabled = config.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    let _enabled = config
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let _provider = config
         .get("provider")
         .and_then(|v| v.as_str())

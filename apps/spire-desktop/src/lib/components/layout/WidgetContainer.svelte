@@ -10,7 +10,6 @@
     node — The WidgetLeaf from the layout tree.
 -->
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import type { WidgetLeaf } from "$lib/stores/layoutStore";
   import { closeNode, splitNode, moveNode } from "$lib/stores/layoutStore";
   import type { DropPosition } from "$lib/stores/layoutStore";

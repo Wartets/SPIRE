@@ -182,11 +182,7 @@ pub fn generate_scan_points(var: &ScanVariable) -> SpireResult<Vec<f64>> {
 /// | `field.<id>.width`              | Sets `Field.width` and `Propagator.width`         |
 /// | `vertex.<term_id>.coupling`     | Sets `VertexFactor.coupling_value`                |
 /// | `cms_energy`                    | No-op on the model (handled externally)           |
-pub fn apply_parameter(
-    model: &mut TheoreticalModel,
-    target: &str,
-    value: f64,
-) -> SpireResult<()> {
+pub fn apply_parameter(model: &mut TheoreticalModel, target: &str, value: f64) -> SpireResult<()> {
     let parts: Vec<&str> = target.split('.').collect();
 
     match parts.as_slice() {
@@ -364,9 +360,7 @@ pub fn run_scan_2d(config: &ScanConfig2D) -> SpireResult<ScanResult2D> {
     let ny = y_values.len();
 
     // Build all (i, j) index pairs for the 2D grid.
-    let pairs: Vec<(usize, usize)> = (0..nx)
-        .flat_map(|i| (0..ny).map(move |j| (i, j)))
-        .collect();
+    let pairs: Vec<(usize, usize)> = (0..nx).flat_map(|i| (0..ny).map(move |j| (i, j))).collect();
 
     let results: Vec<SpireResult<(usize, IntegrationResult)>> = pairs
         .par_iter()
@@ -483,8 +477,7 @@ mod tests {
             spin: Spin(2), // spin-1
             mass: 91.1876,
             width: 2.4952,
-            expression: "i(-g_{mu nu} + p_mu p_nu / m_Z^2) / (p^2 - m_Z^2 + i m_Z Gamma_Z)"
-                .into(),
+            expression: "i(-g_{mu nu} + p_mu p_nu / m_Z^2) / (p^2 - m_Z^2 + i m_Z Gamma_Z)".into(),
             gauge_parameter: None,
             form: PropagatorForm::MassiveVector,
         };
@@ -548,11 +541,7 @@ mod tests {
         assert!((pts[0] - 1.0).abs() < 1e-10);
         assert!((pts[3] - 1000.0).abs() < 1e-6);
         // Logarithmic spacing: intermediate points should be ~10 and ~100.
-        assert!(
-            (pts[1] - 10.0).abs() < 0.01,
-            "Expected ~10, got {}",
-            pts[1]
-        );
+        assert!((pts[1] - 10.0).abs() < 0.01, "Expected ~10, got {}", pts[1]);
         assert!(
             (pts[2] - 100.0).abs() < 0.1,
             "Expected ~100, got {}",
@@ -607,7 +596,11 @@ mod tests {
         let z = model.fields.iter().find(|f| f.id == "Z").unwrap();
         assert!((z.mass - 200.0).abs() < 1e-10);
         // Propagator should also be updated.
-        let prop = model.propagators.iter().find(|p| p.field_id == "Z").unwrap();
+        let prop = model
+            .propagators
+            .iter()
+            .find(|p| p.field_id == "Z")
+            .unwrap();
         assert!((prop.mass - 200.0).abs() < 1e-10);
     }
 
@@ -617,7 +610,11 @@ mod tests {
         apply_parameter(&mut model, "field.Z.width", 5.0).unwrap();
         let z = model.fields.iter().find(|f| f.id == "Z").unwrap();
         assert!((z.width - 5.0).abs() < 1e-10);
-        let prop = model.propagators.iter().find(|p| p.field_id == "Z").unwrap();
+        let prop = model
+            .propagators
+            .iter()
+            .find(|p| p.field_id == "Z")
+            .unwrap();
         assert!((prop.width - 5.0).abs() < 1e-10);
     }
 

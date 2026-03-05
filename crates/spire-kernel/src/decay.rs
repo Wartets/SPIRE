@@ -284,8 +284,8 @@ fn compute_m_squared_2body(
     if is_vector(parent_form) && is_fermion(d0_form) && is_fermion(d1_form) {
         // Spin-summed then averaged over 3 parent polarisations:
         // |M|² = g² · (1/3) · (2 m_A² + m_B² + m_C² - (m_B² - m_C²)²/m_A²)
-        let kinematic = 2.0 * m_a_sq + m_b_sq + m_c_sq
-            - (m_b_sq - m_c_sq) * (m_b_sq - m_c_sq) / m_a_sq;
+        let kinematic =
+            2.0 * m_a_sq + m_b_sq + m_c_sq - (m_b_sq - m_c_sq) * (m_b_sq - m_c_sq) / m_a_sq;
         return g_sq * kinematic / 3.0;
     }
 
@@ -302,18 +302,16 @@ fn compute_m_squared_2body(
     if is_fermion(parent_form) && is_fermion(d0_form) && is_vector(d1_form) {
         // |M|² = g² · (1/2) · ((m_A² - m_B²)²/m_C² + m_A² + m_B² - 2 m_C²)
         if m_c_sq > 0.0 {
-            let kinematic = (m_a_sq - m_b_sq) * (m_a_sq - m_b_sq) / m_c_sq + m_a_sq + m_b_sq
-                - 2.0 * m_c_sq;
+            let kinematic =
+                (m_a_sq - m_b_sq) * (m_a_sq - m_b_sq) / m_c_sq + m_a_sq + m_b_sq - 2.0 * m_c_sq;
             return g_sq * kinematic / 2.0;
         }
     }
 
     // Case 3b: Fermion → fermion + massive vector (swapped daughter order)
-    if is_fermion(parent_form) && is_vector(d0_form) && is_fermion(d1_form)
-        && m_b_sq > 0.0
-    {
-        let kinematic = (m_a_sq - m_c_sq) * (m_a_sq - m_c_sq) / m_b_sq + m_a_sq + m_c_sq
-            - 2.0 * m_b_sq;
+    if is_fermion(parent_form) && is_vector(d0_form) && is_fermion(d1_form) && m_b_sq > 0.0 {
+        let kinematic =
+            (m_a_sq - m_c_sq) * (m_a_sq - m_c_sq) / m_b_sq + m_a_sq + m_c_sq - 2.0 * m_b_sq;
         return g_sq * kinematic / 2.0;
     }
 
@@ -406,10 +404,7 @@ fn compute_partial_width_2body(
 ///
 /// # Returns
 /// A [`DecayTable`] with all channels, partial widths, and BRs.
-pub fn calculate_decay_table(
-    model: &TheoreticalModel,
-    parent_id: &str,
-) -> SpireResult<DecayTable> {
+pub fn calculate_decay_table(model: &TheoreticalModel, parent_id: &str) -> SpireResult<DecayTable> {
     let parent = model
         .fields
         .iter()
@@ -431,12 +426,8 @@ pub fn calculate_decay_table(
             continue;
         }
 
-        let partial_width = compute_partial_width_2body(
-            model,
-            parent,
-            &candidate.daughter_ids,
-            &candidate.vertex,
-        );
+        let partial_width =
+            compute_partial_width_2body(model, parent, &candidate.daughter_ids, &candidate.vertex);
 
         if partial_width <= 0.0 {
             continue;
@@ -626,10 +617,7 @@ mod tests {
         let model = load_sm_model();
         let table = calculate_decay_table(&model, "H").unwrap();
         // Higgs should decay to at least e+e- (Yukawa coupling exists).
-        assert!(
-            table.total_width > 0.0,
-            "Higgs should have positive width"
-        );
+        assert!(table.total_width > 0.0, "Higgs should have positive width");
     }
 
     #[test]

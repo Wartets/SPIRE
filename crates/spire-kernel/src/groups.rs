@@ -727,7 +727,9 @@ pub fn validate_poincare_invariance(
             let new_max = j_max + s;
             let new_min = if j_min > s {
                 j_min - s
-            } else { s.saturating_sub(j_max) };
+            } else {
+                s.saturating_sub(j_max)
+            };
             j_min = new_min;
             j_max = new_max;
         }

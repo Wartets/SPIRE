@@ -755,9 +755,7 @@ mod tests {
         let scheme = CataniSeymourScheme;
         let config = SubtractionConfig::default();
 
-        let result = scheme
-            .compute_subtraction(&momenta, &ids, &config)
-            .unwrap();
+        let result = scheme.compute_subtraction(&momenta, &ids, &config).unwrap();
 
         // Three gluons: 3 choices for emitter, 2 for emitted, 1 for spectator = 6 dipoles
         assert_eq!(
@@ -789,9 +787,7 @@ mod tests {
         let scheme = CataniSeymourScheme;
         let config = SubtractionConfig::default();
 
-        let result = scheme
-            .compute_subtraction(&momenta, &ids, &config)
-            .unwrap();
+        let result = scheme.compute_subtraction(&momenta, &ids, &config).unwrap();
 
         // Expected dipoles:
         // (i=u, j=g, k=ū) → q→qg  ✓

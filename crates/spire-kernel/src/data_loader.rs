@@ -295,8 +295,42 @@ pub fn build_model(
         .map(raw_vertex_to_factor)
         .collect::<SpireResult<Vec<_>>>()?;
 
-    // Propagators are derived from kinetic/mass terms later.
-    let propagators = Vec::new();
+    // Derive propagators from field spin and mass.
+    let propagators: Vec<crate::lagrangian::Propagator> = fields
+        .iter()
+        .map(|f| {
+            let spin_2j = f.quantum_numbers.spin.0;
+            let form = match spin_2j {
+                0 => crate::lagrangian::PropagatorForm::Scalar,
+                1 => crate::lagrangian::PropagatorForm::DiracFermion,
+                2 => {
+                    if f.mass > 0.0 {
+                        crate::lagrangian::PropagatorForm::MassiveVector
+                    } else {
+                        crate::lagrangian::PropagatorForm::MasslessVector
+                    }
+                }
+                3 => crate::lagrangian::PropagatorForm::RaritaSchwinger,
+                4 => {
+                    if f.mass > 0.0 {
+                        crate::lagrangian::PropagatorForm::MassiveSpin2
+                    } else {
+                        crate::lagrangian::PropagatorForm::MasslessSpin2
+                    }
+                }
+                _ => crate::lagrangian::PropagatorForm::Scalar, // fallback
+            };
+            crate::lagrangian::Propagator {
+                field_id: f.id.clone(),
+                spin: f.quantum_numbers.spin,
+                mass: f.mass,
+                width: f.width,
+                expression: String::new(),
+                gauge_parameter: None,
+                form,
+            }
+        })
+        .collect();
 
     Ok(TheoreticalModel {
         name: model_name.to_string(),
@@ -835,7 +869,8 @@ n_legs            = 3
         assert_eq!(model.fields.len(), 2);
         assert_eq!(model.terms.len(), 1);
         assert_eq!(model.vertex_factors.len(), 1);
-        assert!(model.propagators.is_empty());
+        // Propagators are now auto-derived from field spin — one per field.
+        assert_eq!(model.propagators.len(), model.fields.len());
     }
 
     #[test]

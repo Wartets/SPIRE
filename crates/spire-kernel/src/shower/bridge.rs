@@ -225,10 +225,7 @@ impl PythiaCLIProvider {
 
         // Beam configuration (LHE mode)
         card.push_str("Beams:frameType = 4\n");
-        card.push_str(&format!(
-            "Beams:LHEF = {}\n",
-            lhe_path.display()
-        ));
+        card.push_str(&format!("Beams:LHEF = {}\n", lhe_path.display()));
 
         // Event limit
         if let Some(max) = config.max_events {
@@ -288,9 +285,8 @@ impl PartonShowerProvider for PythiaCLIProvider {
         let start = std::time::Instant::now();
 
         // 1. Ensure work directory exists
-        std::fs::create_dir_all(&config.work_dir).map_err(|e| {
-            SpireError::InternalError(format!("Cannot create work dir: {}", e))
-        })?;
+        std::fs::create_dir_all(&config.work_dir)
+            .map_err(|e| SpireError::InternalError(format!("Cannot create work dir: {}", e)))?;
 
         let lhe_path = config.work_dir.join("spire_input.lhe");
         let hepmc_path = config.work_dir.join("spire_showered.hepmc");
@@ -301,9 +297,8 @@ impl PartonShowerProvider for PythiaCLIProvider {
 
         // 3. Write command card
         let card = self.generate_command_card(&lhe_path, &hepmc_path, config);
-        std::fs::write(&cmnd_path, &card).map_err(|e| {
-            SpireError::InternalError(format!("Cannot write command card: {}", e))
-        })?;
+        std::fs::write(&cmnd_path, &card)
+            .map_err(|e| SpireError::InternalError(format!("Cannot write command card: {}", e)))?;
 
         // 4. Invoke Pythia
         let output = Command::new(&config.executable)
@@ -323,7 +318,10 @@ impl PartonShowerProvider for PythiaCLIProvider {
             let stderr = String::from_utf8_lossy(&output.stderr);
             diagnostics.push(format!("Shower exit code: {}", output.status));
             if !stderr.is_empty() {
-                diagnostics.push(format!("stderr: {}", stderr.chars().take(2000).collect::<String>()));
+                diagnostics.push(format!(
+                    "stderr: {}",
+                    stderr.chars().take(2000).collect::<String>()
+                ));
             }
         }
 
@@ -357,16 +355,11 @@ impl PartonShowerProvider for PythiaCLIProvider {
 /// This is a simplified writer that produces a valid LHE v1.0 file
 /// sufficient for Pythia/Herwig to read. For full-featured LHE output,
 /// use `crate::io::lhe::LheWriter`.
-fn write_minimal_lhe(
-    path: &Path,
-    events: &[EventRecord],
-    cms_energy: f64,
-) -> SpireResult<()> {
+fn write_minimal_lhe(path: &Path, events: &[EventRecord], cms_energy: f64) -> SpireResult<()> {
     use std::io::Write;
 
-    let file = std::fs::File::create(path).map_err(|e| {
-        SpireError::InternalError(format!("Cannot create LHE file: {}", e))
-    })?;
+    let file = std::fs::File::create(path)
+        .map_err(|e| SpireError::InternalError(format!("Cannot create LHE file: {}", e)))?;
     let mut w = std::io::BufWriter::new(file);
 
     // Header
@@ -376,12 +369,7 @@ fn write_minimal_lhe(
     // Init block (minimal)
     let beam_e = cms_energy / 2.0;
     writeln!(w, "<init>").map_err(write_err)?;
-    writeln!(
-        w,
-        "  2212 2212 {0:.6E} {0:.6E} 0 0 0 0 1 1",
-        beam_e
-    )
-    .map_err(write_err)?;
+    writeln!(w, "  2212 2212 {0:.6E} {0:.6E} 0 0 0 0 1 1", beam_e).map_err(write_err)?;
     writeln!(w, "  1.0000E+00 0.0000E+00 1.0000E+00 1").map_err(write_err)?;
     writeln!(w, "</init>").map_err(write_err)?;
 
@@ -449,7 +437,11 @@ fn write_err(e: std::io::Error) -> SpireError {
 /// <https://gitlab.cern.ch/hepmc/HepMC3>
 pub fn parse_hepmc3_events(path: &Path) -> SpireResult<Vec<ShoweredEvent>> {
     let file = std::fs::File::open(path).map_err(|e| {
-        SpireError::InternalError(format!("Cannot open HepMC file '{}': {}", path.display(), e))
+        SpireError::InternalError(format!(
+            "Cannot open HepMC file '{}': {}",
+            path.display(),
+            e
+        ))
     })?;
 
     let reader = BufReader::new(file);
@@ -457,9 +449,8 @@ pub fn parse_hepmc3_events(path: &Path) -> SpireResult<Vec<ShoweredEvent>> {
     let mut current_event: Option<ShoweredEvent> = None;
 
     for line_result in reader.lines() {
-        let line = line_result.map_err(|e| {
-            SpireError::InternalError(format!("HepMC read error: {}", e))
-        })?;
+        let line = line_result
+            .map_err(|e| SpireError::InternalError(format!("HepMC read error: {}", e)))?;
 
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -592,16 +583,12 @@ mod tests {
     fn pythia_command_card_extra_settings() {
         let provider = PythiaCLIProvider;
         let mut config = ShowerConfig::default();
-        config.extra.insert(
-            "TimeShower:alphaSvalue".into(),
-            "0.118".into(),
-        );
+        config
+            .extra
+            .insert("TimeShower:alphaSvalue".into(), "0.118".into());
 
-        let card = provider.generate_command_card(
-            Path::new("in.lhe"),
-            Path::new("out.hepmc"),
-            &config,
-        );
+        let card =
+            provider.generate_command_card(Path::new("in.lhe"), Path::new("out.hepmc"), &config);
 
         assert!(card.contains("TimeShower:alphaSvalue = 0.118"));
     }

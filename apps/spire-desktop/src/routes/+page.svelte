@@ -15,8 +15,6 @@
   import {
     layoutRoot,
     viewMode,
-    dockingWidgetCount,
-    canvasWidgetCount,
     totalWidgetCount,
     addWidgetToLayout,
     addCanvasItem,
@@ -34,7 +32,6 @@
   import {
     autoSave,
     debounce,
-    hasAutoSave,
     downloadWorkspace,
     resetWorkspace,
   } from "$lib/services/workspaceManager";
@@ -49,8 +46,7 @@
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
   import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
-  import { showContextMenu } from "$lib/stores/contextMenuStore";
-  import { canvasExportMenuItems } from "$lib/utils/export";
+
 
   let toolboxOpen = false;
   let workspaceControls: WorkspaceControls;
@@ -241,11 +237,15 @@
   <!-- ─── Workspace Tab Bar ─── -->
   <div class="workspace-tabs">
     {#each $workspaces as ws (ws.id)}
-      <button
+      <div
         class="ws-tab"
         class:active={ws.id === $activeWorkspaceId}
         on:click={() => switchWorkspace(ws.id)}
+        on:keydown={(e) => e.key === 'Enter' && switchWorkspace(ws.id)}
         title={ws.name}
+        role="tab"
+        tabindex="0"
+        aria-selected={ws.id === $activeWorkspaceId}
       >
         <span class="ws-tab-label">{ws.name}</span>
         {#if $workspaces.length > 1}
@@ -255,7 +255,7 @@
             aria-label="Close workspace"
           >&times;</button>
         {/if}
-      </button>
+      </div>
     {/each}
     <button
       class="ws-tab ws-tab-add"

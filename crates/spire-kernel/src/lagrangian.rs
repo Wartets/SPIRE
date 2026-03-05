@@ -616,8 +616,7 @@ fn ufo_antiname(id: &str) -> String {
 ///
 /// - Electromagnetic form factor of the proton: `Dipole { lambda_sq: 0.71 }` (GeV²).
 /// - Exponential suppression at high-$Q^2$ vertices: `Exponential { lambda_sq: 1.0 }`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum FormFactor {
     /// No form factor — the interaction is treated as point-like.
     ///
@@ -727,7 +726,6 @@ impl FormFactor {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

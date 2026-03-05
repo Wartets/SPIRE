@@ -509,7 +509,10 @@ where
         final_masses,
         num_events,
     )?;
-    profile.record_stage("Monte Carlo Integration", mc_start.elapsed().as_secs_f64() * 1000.0);
+    profile.record_stage(
+        "Monte Carlo Integration",
+        mc_start.elapsed().as_secs_f64() * 1000.0,
+    );
 
     // Collect convergence snapshots from the integration result.
     // The uniform integrator evaluates all events; we reconstruct

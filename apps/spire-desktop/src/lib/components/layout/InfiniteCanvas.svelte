@@ -19,12 +19,11 @@
     canvasViewport,
     updateCanvasItem,
     removeCanvasItem,
+    addCanvasItem,
   } from "$lib/stores/layoutStore";
   import type { CanvasItem } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
-  import { addCanvasItem } from "$lib/stores/layoutStore";
-  import type { WidgetType } from "$lib/stores/notebookStore";
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
 
   // ── Inner Components ──

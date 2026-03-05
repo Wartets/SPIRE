@@ -38,7 +38,6 @@ use crate::lagrangian::TheoreticalModel;
 use crate::s_matrix::Reaction;
 use crate::scripting::SpireScriptEngine;
 
-
 // ---------------------------------------------------------------------------
 // Execution Result
 // ---------------------------------------------------------------------------
@@ -154,14 +153,12 @@ impl NotebookSession {
             "-",
             |a: &mut SpacetimeVector, b: SpacetimeVector| -> SpacetimeVector { a.clone() - b },
         );
-        engine.register_fn(
-            "*",
-            |v: &mut SpacetimeVector, f: f64| -> SpacetimeVector { v.scale(f) },
-        );
-        engine.register_fn(
-            "to_string",
-            |v: &mut SpacetimeVector| -> String { format!("{}", v) },
-        );
+        engine.register_fn("*", |v: &mut SpacetimeVector, f: f64| -> SpacetimeVector {
+            v.scale(f)
+        });
+        engine.register_fn("to_string", |v: &mut SpacetimeVector| -> String {
+            format!("{}", v)
+        });
         engine.register_fn("vec4", |e: f64, px: f64, py: f64, pz: f64| {
             SpacetimeVector::new_4d(e, px, py, pz)
         });
@@ -174,9 +171,7 @@ impl NotebookSession {
                 .map(|v| Dynamic::from(v.clone()))
                 .collect()
         });
-        engine.register_get("weight", |psp: &mut PhaseSpacePoint| -> f64 {
-            psp.weight
-        });
+        engine.register_get("weight", |psp: &mut PhaseSpacePoint| -> f64 { psp.weight });
 
         // --- Session-specific: math helpers ---
         engine.register_fn("sqrt", |x: f64| -> f64 { x.sqrt() });
@@ -228,8 +223,7 @@ impl NotebookSession {
 
         // Inject current model metadata into scope if available
         if let Some(ref model) = self.model {
-            self.scope
-                .set_or_push("model_name", model.name.clone());
+            self.scope.set_or_push("model_name", model.name.clone());
             self.scope
                 .set_or_push("n_fields", model.fields.len() as i64);
             self.scope
@@ -283,7 +277,9 @@ impl NotebookSession {
         }
 
         let start = Instant::now();
-        let result = self.engine.eval_with_scope::<Dynamic>(&mut self.scope, script);
+        let result = self
+            .engine
+            .eval_with_scope::<Dynamic>(&mut self.scope, script);
         let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
 
         // Collect captured print output
@@ -299,9 +295,7 @@ impl NotebookSession {
                 let return_value = dynamic_to_json(&value);
                 ExecutionResult::ok(output, duration_ms, return_value)
             }
-            Err(err) => {
-                ExecutionResult::err(format!("{}", err), output, duration_ms)
-            }
+            Err(err) => ExecutionResult::err(format!("{}", err), output, duration_ms),
         }
     }
 
@@ -530,10 +524,7 @@ impl SessionManager {
 
     /// Get the number of active sessions.
     pub fn session_count(&self) -> usize {
-        self.sessions
-            .read()
-            .map(|s| s.len())
-            .unwrap_or(0)
+        self.sessions.read().map(|s| s.len()).unwrap_or(0)
     }
 }
 
@@ -585,10 +576,7 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
     }
     if value.is_array() {
         if let Ok(arr) = value.clone().into_typed_array::<Dynamic>() {
-            let json_arr: Vec<serde_json::Value> = arr
-                .iter()
-                .filter_map(dynamic_to_json)
-                .collect();
+            let json_arr: Vec<serde_json::Value> = arr.iter().filter_map(dynamic_to_json).collect();
             return Some(serde_json::json!(json_arr));
         }
     }
@@ -664,10 +652,12 @@ mod tests {
     #[test]
     fn session_vec4_construction() {
         let mut session = NotebookSession::new();
-        let result = session.execute_script(r#"
+        let result = session.execute_script(
+            r#"
             let p = vec4(100.0, 30.0, 40.0, 0.0);
             p.e()
-        "#);
+        "#,
+        );
         assert!(result.success);
         assert_eq!(result.return_value, Some(serde_json::json!(100.0)));
     }
