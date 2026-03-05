@@ -1,18 +1,18 @@
-<p align="center">
+﻿<p align="center">
   <strong>S P I R E</strong><br>
   <em>Structured Particle Interaction and Reaction Engine</em>
 </p>
 
 <p align="center">
-  A rigorous computational framework for High Energy Physics and Quantum Field Theory, <br>
+  A full-stack computational phenomenology framework for High Energy Physics,<br>
   from Lagrangian densities to publication-ready cross-sections, entirely from first principles.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Wartets/SPIRE">Repository</a> ·
-  <a href="#getting-started">Getting Started</a> ·
-  <a href="#usage-walkthrough">Usage</a> ·
-  <a href="#theoretical-formalism">Formalism</a> ·
+  <a href="https://github.com/Wartets/SPIRE">Repository</a> 
+  <a href="#getting-started">Getting Started</a> 
+  <a href="#usage-walkthrough">Usage</a> 
+  <a href="#theoretical-formalism">Formalism</a> 
   <a href="#roadmap--philosophy">Roadmap</a>
 </p>
 
@@ -43,7 +43,6 @@ All project source code, documentation, and data files are hosted at [github.com
 - [Roadmap & Philosophy](#roadmap--philosophy)
 - [Contributing](#contributing)
 - [License](#license)
-- [Citation](#citation)
 
 ---
 
@@ -164,9 +163,9 @@ A **Tauri** + **SvelteKit** application providing a reactive scientific workbenc
 ## Getting Started
 
 ### Prerequisites
-- **Rust** (edition 2021+) and Cargo,  [rustup.rs](https://rustup.rs)
-- **Node.js** (LTS, ≥ 18) and npm
-- **System libraries** (Linux only): `build-essential`, `libwebkit2gtk-4.0-dev`, `libgtk-3-dev`, `libssl-dev`
+- **Rust** (edition 2021+) and Cargo -- [rustup.rs](https://rustup.rs)
+- **Node.js** (LTS, >= 18) and npm
+- **System libraries** (Linux): build-essential, libwebkit2gtk-4.0-dev, libgtk-3-dev, libssl-dev
 - **System libraries** (macOS): Xcode Command Line Tools
 
 ### Build & Run
@@ -177,6 +176,7 @@ git clone https://github.com/Wartets/SPIRE.git
 cd SPIRE
 
 # 2. Install frontend dependencies
+cd apps/spire-desktop
 npm install
 
 # 3. Run in development mode (with hot-reloading)
@@ -189,7 +189,7 @@ npm run tauri build
 
 ### Running the Test Suite
 ```bash
-# Run all 764+ kernel tests (unit, fuzz, property-based, doc-tests)
+# Run all 866 kernel tests
 cargo test --workspace
 
 # Run benchmarks (requires nightly for some features)
