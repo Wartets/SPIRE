@@ -28,7 +28,7 @@
 
 A single unified data structure carries all three representations simultaneously, ensuring that no information is lost or desynchronised across the derivation chain. SPIRE provides a complete computational pipeline: Lagrangian parsing → vertex rule extraction → Feynman topology enumeration → symbolic amplitude construction → Dirac/Lorentz algebra simplification → Monte Carlo phase-space integration → histogram analysis → detector-level reconstruction — all within a single, memory-safe Rust kernel exposed through an interactive SvelteKit desktop application.
 
-The kernel consists of **23 modules** totalling approximately **36,000 lines** of pure Rust (zero `unsafe`), validated by a comprehensive test suite of **900+ tests** (unit, property-based, fuzz, integration, and doc-tests). The desktop application exposes **36 Tauri IPC commands** driving **18 interactive widget types** on a dockable/infinite-canvas workspace with recursive split panes and multi-workspace tab management.
+The kernel consists of **25 modules** totalling approximately **37,000 lines** of pure Rust (zero `unsafe`), validated by a comprehensive test suite of **940+ tests** (unit, property-based, fuzz, integration, and doc-tests). The desktop application exposes **37 Tauri IPC commands** driving **19 interactive widget types** on a dockable/infinite-canvas workspace with recursive split panes and multi-workspace tab management.
 
 All project source code, documentation, and data files are hosted at [github.com/Wartets/SPIRE](https://github.com/Wartets/SPIRE).
 
@@ -144,6 +144,24 @@ $$\sigma_{pp} = \sum_{a,b} \int dx_1 \, dx_2 \; f_a(x_1, Q^2) \, f_b(x_2, Q^2) \
 - **LHE output**: Les Houches Event file generation for interfacing with shower Monte Carlo generators, with optional embedded provenance metadata for reproducibility.
 - **Rhai scripting**: User-defined observable and kinematic cut functions evaluated at runtime, with full access to event kinematics and phase-space variables.
 
+### 15. Cosmological Relic Density Calculator
+SPIRE computes the present-day dark matter relic abundance $\Omega h^2$ by solving the Boltzmann equation through the thermal freeze-out epoch:
+
+$$\frac{dY}{dx} = -\sqrt{\frac{\pi}{45}}\; M_{\text{Pl}}\; m_\chi\; \frac{g_{*s}}{\sqrt{g_*}}\; \frac{\langle\sigma v\rangle}{x^2}\; \left(Y^2 - Y_{\text{eq}}^2\right)$$
+
+Key features:
+- **Semi-analytic freeze-out method** (Kolb & Turner): Iterative $x_f$ determination via the condition $n_{\text{eq}} \langle\sigma v\rangle = H$, with analytic post-freeze-out solution.
+- **Velocity expansion**: $\langle\sigma v\rangle = a + 6b/x$ supporting both $s$-wave and $p$-wave annihilation channels.
+- **Numerical post-freeze-out integration**: Optional Dormand-Prince 4(5) adaptive solver for detailed evolution curves beyond the analytic approximation.
+- **Planck comparison**: Automatic classification against the Planck satellite measurement ($\Omega_c h^2 = 0.120 \pm 0.001$) as "under-abundant", "compatible", or "over-closes".
+- **Interactive dashboard**: Cosmology Panel widget with configurable DM mass, cross-section, and degrees of freedom, plus Chart.js log-log freeze-out evolution plot.
+
+### 16. Generic ODE Solver Infrastructure
+The `math::ode` module provides reusable numerical solvers for ordinary differential equations:
+- **Runge-Kutta 4**: Classical fourth-order fixed-step method with both scalar and coupled-system support.
+- **Dormand-Prince 4(5)**: Adaptive step-size control with embedded error estimation, configurable absolute/relative tolerances, and safety-factor step scaling.
+- **Convenience API**: `solve_ode_rk4()` and `solve_ode_adaptive()` one-liner functions for quick integration.
+
 ---
 
 ## System Architecture
@@ -153,22 +171,23 @@ SPIRE follows a strict three-layer architecture that enforces separation of conc
 ```
 +--------------------------------------------------------------+
 |                 SvelteKit Adaptive Workbench                 |
-|         18 widget types . Chart.js . Three.js . WebGL        |
+|         19 widget types . Chart.js . Three.js . WebGL        |
 |    Compute Grid . Workspace Persistence . CommandRegistry    |
 +--------------------------------------------------------------+
 |               Tauri IPC / WASM Boundary Layer                |
-|     36 IPC commands . serde-wasm-bindgen . PyO3 bindings     |
+|     37 IPC commands . serde-wasm-bindgen . PyO3 bindings     |
 +--------------------------------------------------------------+
 |                      Rust Physics Kernel                     |
 |      Ontology . S-Matrix . Graph . Algebra . Kinematics      |
 |       Analysis . PDF . Integration . Theory . Scripting      |
 |    Decay . NLO . Shower . NWA . Scanner . IO . Provenance    |
-|           ~36,000 lines . 900+ tests . zero unsafe           |
+|        Math (ODE) . Cosmology (Relic) . Telemetry            |
+|           ~37,000 lines . 940+ tests . zero unsafe           |
 +--------------------------------------------------------------+
 ```
 
 ### The Rust Kernel (`spire-kernel`)
-The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. All 23 modules:
+The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. All 25 modules:
 
 | Module | Responsibility | Approx. LOC |
 |--------|---------------|-------------|
@@ -195,6 +214,8 @@ The headless computational core contains all physics logic. It is a pure Rust li
 | `shower` | External parton shower bridge (Pythia/Herwig/Sherpa) | ~600 |
 | `telemetry` | Computation profiling, timing, resource tracking | ~200 |
 | `theory/` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA parser, UFO bridge, NLO counterterms | ~3,800 |
+| `math` | Generic ODE solvers: Runge-Kutta 4 (fixed-step), Dormand-Prince 4(5) (adaptive) | ~400 |
+| `cosmology` | Relic density calculator: Boltzmann freeze-out, thermal cross-sections, $\Omega h^2$ | ~500 |
 
 ### The Bindings Layer (`spire-bindings`)
 Exposes the kernel through stable Foreign Function Interfaces:
@@ -203,8 +224,8 @@ Exposes the kernel through stable Foreign Function Interfaces:
 
 ### The Desktop Application (`spire-desktop`)
 A **Tauri** + **SvelteKit** application providing a reactive scientific workbench:
-- **36 Tauri IPC commands** bridging the frontend to the Rust backend via JSON-serialised, stateless function calls.
-- **18 interactive widget types**: Model Loader, Reaction Workspace, Diagram Visualiser, Amplitude Panel, Kinematics View, Dalitz Plotter, Analysis Widget, Event Display, Diagram Editor, Lagrangian Workbench, External Models, Compute Grid Dashboard, Console, References, Telemetry, Particle Table, Decay Table, and Notebook.
+- **37 Tauri IPC commands** bridging the frontend to the Rust backend via JSON-serialised, stateless function calls.
+- **19 interactive widget types**: Model Loader, Reaction Workspace, Diagram Visualiser, Amplitude Panel, Kinematics View, Dalitz Plotter, Analysis Widget, Event Display, Diagram Editor, Lagrangian Workbench, External Models, Compute Grid Dashboard, Console, References, Telemetry, Particle Table, Decay Table, Notebook, and Cosmology Dashboard.
 - **Dual layout modes**: Recursive split-pane docking (with drag-and-drop reorganisation) and infinite-canvas mode (dot-grid, spacebar panning, scroll zoom, magnetic snapping).
 - **Multi-workspace tabs**: Named workspaces with independent layout state, canvas viewports, and widget configurations. Tab bar with add/remove/rename.
 - **Command Registry**: 20+ dot-namespaced commands (`spire.ui.*`, `spire.view.*`, `spire.export.*`, `spire.provenance.*`) accessible via a command palette (Mod+K).
@@ -306,7 +327,7 @@ npm run tauri build
 ### Running the Test Suite
 
 ```bash
-# Run all kernel tests (900+ tests)
+# Run all kernel tests (940+ tests)
 cargo test --workspace
 
 # Run only the physics kernel unit tests
@@ -447,7 +468,7 @@ const state = await loadProvenanceState(jsonRecordString);
 ```
 SPIRE/
 +-- crates/
-|   +-- spire-kernel/                   Rust physics engine (~36,000 LOC)
+|   +-- spire-kernel/                   Rust physics engine (~37,000 LOC)
 |   |   +-- src/
 |   |   |   +-- algebra.rs              CAS engine, Dirac algebra, proof tracking
 |   |   |   +-- analysis.rs             Histogramming, detector sim, jet clustering
@@ -491,7 +512,7 @@ SPIRE/
 |       +-- src/
 |       |   +-- lib/
 |       |   |   +-- api.ts              Typed backend API facade (30+ functions)
-|       |   |   +-- components/         18 interactive widget components
+|       |   |   +-- components/         19 interactive widget components
 |       |   |   +-- core/
 |       |   |   |   +-- backend/        Backend abstraction (Tauri/WASM/Mock)
 |       |   |   |   +-- services/       CommandRegistry, Pipeline, Tutorial, Citation
@@ -501,7 +522,7 @@ SPIRE/
 |       |   |   +-- workers/            Web Worker compute nodes
 |       |   +-- routes/
 |       +-- src-tauri/
-|           +-- src/main.rs             36 Tauri IPC commands
+|           +-- src/main.rs             37 Tauri IPC commands
 +-- data/                               Default SM model files (TOML)
 +-- docs/                               MkDocs documentation source
 +-- agent_notes/                        Development notes and knowledge base
@@ -559,7 +580,7 @@ Reproducibility is guaranteed by the provenance engine, which computes a SHA-256
 ## Contributing
 
 Contributions are welcome. Please refer to the project's issue tracker for areas of active development. For major changes, please open an issue first to discuss the proposed modification. All submitted code should:
-- Maintain the existing test coverage (currently 900+ tests)
+- Maintain the existing test coverage (currently 940+ tests)
 - Compile without warnings under `cargo clippy --workspace`
 - Pass `cargo fmt --all -- --check` formatting checks
 - Pass `npx svelte-check` with zero errors in the frontend

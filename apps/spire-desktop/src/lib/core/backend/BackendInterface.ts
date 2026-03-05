@@ -53,6 +53,8 @@ import type {
   CalcDecayTable,
   NloConfig,
   ShowerToggleConfig,
+  RelicConfig,
+  RelicDensityReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -277,4 +279,7 @@ export interface SpireBackend {
   loadProvenanceState(
     payload: string,
   ): Promise<Record<string, unknown>>;
+
+  // ── Cosmological Relic Density ────────────────────────────────────────
+  calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport>;
 }

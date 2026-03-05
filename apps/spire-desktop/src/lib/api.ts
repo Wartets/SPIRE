@@ -576,3 +576,19 @@ export async function loadProvenanceState(
 ): Promise<Record<string, unknown>> {
   return getBackend().loadProvenanceState(payload);
 }
+
+// ---------------------------------------------------------------------------
+// Cosmological Relic Density
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the cosmological relic density for a dark matter candidate.
+ *
+ * Integrates the Boltzmann equation through the thermal freeze-out epoch.
+ * Returns Ω h², freeze-out temperature, and evolution curve for log-log plotting.
+ */
+export async function calculateRelicDensity(
+  config: import("$lib/types/spire").RelicConfig,
+): Promise<import("$lib/types/spire").RelicDensityReport> {
+  return getBackend().calculateRelicDensity(config);
+}

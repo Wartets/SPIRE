@@ -27,6 +27,7 @@ use std::collections::HashMap;
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
+use spire_kernel::cosmology::relic as relic_engine;
 use spire_kernel::data_loader;
 use spire_kernel::decay;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
@@ -797,6 +798,31 @@ fn load_provenance_state(payload: String) -> Result<provenance_engine::Provenanc
 }
 
 // ---------------------------------------------------------------------------
+// Cosmological Relic Density
+// ---------------------------------------------------------------------------
+
+/// Compute the cosmological relic density for a dark matter candidate.
+///
+/// Integrates the Boltzmann equation through the thermal freeze-out epoch
+/// using the semi-analytic method (Kolb & Turner). Returns the present-day
+/// abundance $\Omega h^2$, freeze-out temperature, and the full evolution
+/// curve for log-log plotting.
+///
+/// # Arguments
+/// * `config` — [`RelicConfig`](relic_engine::RelicConfig) with DM mass,
+///   annihilation cross-section, and d.o.f.
+///
+/// # Returns
+/// A [`RelicDensityReport`](relic_engine::RelicDensityReport) with
+/// $\Omega h^2$, comparison to the Planck observation, and evolution data.
+#[tauri::command]
+fn calculate_relic_density(
+    config: relic_engine::RelicConfig,
+) -> Result<relic_engine::RelicDensityReport, String> {
+    Ok(relic_engine::compute_relic_density(&config))
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -839,6 +865,7 @@ fn main() {
             generate_mathematical_proof,
             compute_provenance_hash,
             load_provenance_state,
+            calculate_relic_density,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

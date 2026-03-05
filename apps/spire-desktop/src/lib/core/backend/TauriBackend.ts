@@ -50,6 +50,8 @@ import type {
   CalcDecayTable,
   NloConfig,
   ShowerToggleConfig,
+  RelicConfig,
+  RelicDensityReport,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -444,5 +446,9 @@ export class TauriBackend implements SpireBackend {
     payload: string,
   ): Promise<Record<string, unknown>> {
     return tauriInvoke("load_provenance_state", { payload });
+  }
+
+  async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
+    return tauriInvoke("calculate_relic_density", { config });
   }
 }

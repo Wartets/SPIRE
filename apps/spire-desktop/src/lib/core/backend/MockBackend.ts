@@ -60,6 +60,8 @@ import type {
   CalcDecayTable,
   NloConfig,
   ShowerToggleConfig,
+  RelicConfig,
+  RelicDensityReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -627,5 +629,26 @@ This is a mock proof document for ${processLabel}.
   ): Promise<Record<string, unknown>> {
     await simulateLatency();
     return JSON.parse(payload);
+  }
+
+  async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
+    await simulateLatency();
+    const evolution = [];
+    for (let i = 0; i < 100; i++) {
+      const x = Math.exp(Math.log(config.x_start || 1) + (i / 99) * (Math.log(config.x_end || 1000) - Math.log(config.x_start || 1)));
+      const y_eq = 0.003 * Math.exp(-x);
+      const y = x < 22 ? y_eq : 4e-11;
+      evolution.push({ x, y, y_eq });
+    }
+    return {
+      omega_h2: 0.118,
+      x_freeze_out: 22.0,
+      y_infinity: 4e-11,
+      evolution,
+      planck_omega_h2: 0.120,
+      classification: "compatible",
+      dm_mass: config.dm_mass,
+      sigma_v: config.sigma_v_a,
+    };
   }
 }

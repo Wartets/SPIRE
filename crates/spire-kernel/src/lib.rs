@@ -41,8 +41,15 @@
 //!   Anti-$k_t$ jet clustering, configurable energy smearing and efficiency
 //!   maps, missing transverse energy computation, and `ReconstructedEvent`
 //!   objects for experimentally comparable observables.
+//! - [`math`] — Generic mathematical solvers. ODE integration via
+//!   Runge-Kutta 4 (fixed-step) and Dormand-Prince 4(5) (adaptive)
+//!   methods. Designed as reusable infrastructure for any numerical problem.
+//! - [`cosmology`] — Cosmological relic density calculator. Boltzmann
+//!   equation integration for dark matter freeze-out, thermal cross-section
+//!   averaging, and $\Omega h^2$ computation with Planck comparison.
 pub mod algebra;
 pub mod analysis;
+pub mod cosmology;
 pub mod data_loader;
 pub mod decay;
 pub mod graph;
@@ -52,6 +59,7 @@ pub mod interface;
 pub mod io;
 pub mod kinematics;
 pub mod lagrangian;
+pub mod math;
 pub mod nlo;
 pub mod nwa;
 pub mod ontology;

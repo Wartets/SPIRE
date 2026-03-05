@@ -45,6 +45,7 @@
   import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
   import ParameterScanner from "$lib/components/ParameterScanner.svelte";
   import DecayCalculator from "$lib/components/DecayCalculator.svelte";
+  import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -378,6 +379,8 @@
             <ParameterScanner />
           {:else if item.widgetType === "decay_calculator"}
             <DecayCalculator />
+          {:else if item.widgetType === "cosmology"}
+            <CosmologyPanel />
           {:else}
             <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
           {/if}

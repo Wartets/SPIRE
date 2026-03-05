@@ -30,4 +30,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   notebook:       "Notebook",
   parameter_scanner: "Parameter Scanner",
   decay_calculator:  "Decay Calculator",
+  cosmology:         "Cosmology",
 };

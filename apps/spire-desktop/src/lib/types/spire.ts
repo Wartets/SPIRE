@@ -987,7 +987,7 @@ export interface EventDisplayData {
 }
 
 // ---------------------------------------------------------------------------
-// Lagrangian Workbench (Phase 32)
+// Lagrangian Workbench
 // ---------------------------------------------------------------------------
 
 /** Classification of a tensor index. */
@@ -1099,7 +1099,7 @@ export interface RgeFlowResult {
 }
 
 // ---------------------------------------------------------------------------
-// SLHA Spectrum Import (Phase 33)
+// SLHA Spectrum Import
 // ---------------------------------------------------------------------------
 
 /** A single numeric entry in an SLHA block. */
@@ -1160,7 +1160,7 @@ export interface SlhaMergeSummary {
 }
 
 // ---------------------------------------------------------------------------
-// UFO Model Import (Phase 33)
+// UFO Model Import
 // ---------------------------------------------------------------------------
 
 /** A particle definition from a UFO model. */
@@ -1230,7 +1230,7 @@ export interface UfoModel {
 }
 
 // ---------------------------------------------------------------------------
-// NLO Counterterm Generation (Phase 33)
+// NLO Counterterm Generation
 // ---------------------------------------------------------------------------
 
 /** Type of renormalization constant. */
@@ -1283,7 +1283,7 @@ export interface CountertermResult {
 }
 
 // ---------------------------------------------------------------------------
-// Parameter Scanner (Phase 44)
+// Parameter Scanner
 // ---------------------------------------------------------------------------
 
 /** Linear or logarithmic spacing for scan points. */
@@ -1364,7 +1364,7 @@ export interface CalcDecayTable {
 }
 
 // ---------------------------------------------------------------------------
-// NLO Dipole Subtraction Configuration (Phase 46)
+// NLO Dipole Subtraction Configuration
 // ---------------------------------------------------------------------------
 
 /** Subtraction scheme selection. */
@@ -1380,7 +1380,7 @@ export interface NloConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Parton Shower Configuration (Phase 46)
+// Parton Shower Configuration
 // ---------------------------------------------------------------------------
 
 /** Shower provider selection. */
@@ -1395,4 +1395,55 @@ export interface ShowerToggleConfig {
   qed_radiation: boolean;
   mpi: boolean;
   seed: number;
+}
+
+// ---------------------------------------------------------------------------
+// Cosmological Relic Density
+// ---------------------------------------------------------------------------
+
+/** Configuration for a relic density computation. */
+export interface RelicConfig {
+  /** Mass of the dark matter candidate in GeV. */
+  dm_mass: number;
+  /** s-wave annihilation coefficient a in cm³/s. */
+  sigma_v_a: number;
+  /** p-wave annihilation coefficient b in cm³/s. */
+  sigma_v_b: number;
+  /** Internal degrees of freedom of the DM particle. */
+  g_dm: number;
+  /** Effective relativistic d.o.f. g_* (energy density). */
+  g_star: number;
+  /** Effective entropic d.o.f. g_*s. */
+  g_star_s: number;
+  /** Plot start x = m/T. */
+  x_start: number;
+  /** Plot end x = m/T. */
+  x_end: number;
+}
+
+/** A single data point on the freeze-out evolution curve. */
+export interface FreezeOutPoint {
+  x: number;
+  y: number;
+  y_eq: number;
+}
+
+/** Complete report from a relic density computation. */
+export interface RelicDensityReport {
+  /** Present-day relic abundance Ω h². */
+  omega_h2: number;
+  /** Freeze-out temperature parameter x_f = m/T_f. */
+  x_freeze_out: number;
+  /** Final asymptotic yield Y_∞. */
+  y_infinity: number;
+  /** Evolution curve for plotting. */
+  evolution: FreezeOutPoint[];
+  /** Planck satellite measurement for comparison. */
+  planck_omega_h2: number;
+  /** Classification: "under-abundant", "compatible", or "over-closes". */
+  classification: string;
+  /** DM candidate mass used (GeV). */
+  dm_mass: number;
+  /** Thermally averaged cross-section at freeze-out (cm³/s). */
+  sigma_v: number;
 }

@@ -56,6 +56,8 @@ import type {
   CalcDecayTable,
   NloConfig,
   ShowerToggleConfig,
+  RelicConfig,
+  RelicDensityReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -428,5 +430,9 @@ export class WasmBackend implements SpireBackend {
     payload: string,
   ): Promise<Record<string, unknown>> {
     return this.call<Record<string, unknown>>("load_provenance_state", { payload });
+  }
+
+  async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
+    return this.call<RelicDensityReport>("calculate_relic_density", { config });
   }
 }
