@@ -35,6 +35,7 @@ use spire_kernel::kinematics::{
 use spire_kernel::lagrangian::TheoreticalModel;
 use spire_kernel::ontology;
 use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
+use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 
 // ---------------------------------------------------------------------------
@@ -535,6 +536,52 @@ fn derive_counterterms(
 }
 
 // ---------------------------------------------------------------------------
+// Notebook Session Commands (Phase 43)
+// ---------------------------------------------------------------------------
+
+/// Create a new persistent notebook session.
+///
+/// Returns a unique session ID that the frontend uses to identify
+/// subsequent execution requests.
+#[tauri::command]
+fn session_create() -> String {
+    session::global_session_manager().create_session()
+}
+
+/// Execute a Rhai script cell within a persistent notebook session.
+///
+/// Variables and state from previous cell executions are preserved in
+/// the session's scope.
+#[tauri::command]
+fn session_execute_script(session_id: String, script: String) -> Result<SessionResult, String> {
+    session::global_session_manager().execute_script(&session_id, &script)
+}
+
+/// Execute a TOML config cell to load a theoretical model into a session.
+///
+/// The model becomes available to subsequent script cells via injected
+/// variables (`model_name`, `field_names`, `field_masses`, etc.).
+#[tauri::command]
+fn session_execute_config(
+    session_id: String,
+    toml_content: String,
+) -> Result<SessionResult, String> {
+    session::global_session_manager().execute_config(&session_id, &toml_content)
+}
+
+/// Reset a notebook session, clearing all variables and loaded models.
+#[tauri::command]
+fn session_reset(session_id: String) -> Result<(), String> {
+    session::global_session_manager().reset_session(&session_id)
+}
+
+/// Destroy a notebook session and free its resources.
+#[tauri::command]
+fn session_destroy(session_id: String) -> bool {
+    session::global_session_manager().destroy_session(&session_id)
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -563,6 +610,11 @@ fn main() {
             import_slha_string,
             import_ufo_model,
             derive_counterterms,
+            session_create,
+            session_execute_script,
+            session_execute_config,
+            session_reset,
+            session_destroy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

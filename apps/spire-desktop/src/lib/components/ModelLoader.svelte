@@ -326,11 +326,12 @@
 
   <!-- UFO Export Modal -->
   {#if showUfoModal}
-    <button
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <div
       class="ufo-modal-overlay"
-      type="button"
       on:click={() => (showUfoModal = false)}
-      aria-label="Close UFO export modal"
+      role="presentation"
     >
       <!-- svelte-ignore a11y-click-events-have-key-events -->
       <!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -359,7 +360,7 @@
           >Copy to Clipboard</button>
         </div>
       </div>
-    </button>
+    </div>
   {/if}
 </div>
 

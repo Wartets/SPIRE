@@ -39,6 +39,7 @@
   import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
+  import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -271,6 +272,8 @@
             <TelemetryPanel />
           {:else if item.widgetType === "log"}
             <LogConsole />
+          {:else if item.widgetType === "notebook"}
+            <NotebookWidget />
           {:else}
             <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
           {/if}

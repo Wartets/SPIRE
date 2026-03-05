@@ -31,6 +31,7 @@
   import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
+  import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
 
   let widgetType: WidgetType | null = null;
   let nodeId: string = "";
@@ -104,6 +105,8 @@
       <TelemetryPanel />
     {:else if widgetType === "log"}
       <LogConsole />
+    {:else if widgetType === "notebook"}
+      <NotebookWidget />
     {:else}
       <div class="tearoff-error">
         <p>No widget type specified.</p>

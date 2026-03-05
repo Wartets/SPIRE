@@ -27,4 +27,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   references:             "References",
   telemetry:              "Telemetry",
   log:           "Console",
+  notebook:       "Notebook",
 };

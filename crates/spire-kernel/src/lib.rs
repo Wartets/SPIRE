@@ -56,6 +56,7 @@ pub mod pdf;
 pub mod reco;
 pub mod s_matrix;
 pub mod scripting;
+pub mod session;
 pub mod telemetry;
 pub mod theory;
 

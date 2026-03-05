@@ -31,7 +31,8 @@ export type WidgetType =
   | "compute_grid"
   | "references"
   | "telemetry"
-  | "log";
+  | "log"
+  | "notebook";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -82,6 +83,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "references",             label: "References",             defaultColSpan: 1, defaultRowSpan: 2 },
   { type: "telemetry",              label: "Telemetry",              defaultColSpan: 2, defaultRowSpan: 2 },
   { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
+  { type: "notebook",        label: "Notebook",            defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------
