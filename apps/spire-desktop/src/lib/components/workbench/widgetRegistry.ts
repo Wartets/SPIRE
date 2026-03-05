@@ -28,4 +28,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   telemetry:              "Telemetry",
   log:           "Console",
   notebook:       "Notebook",
+  parameter_scanner: "Parameter Scanner",
 };

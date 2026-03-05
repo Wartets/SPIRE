@@ -49,6 +49,10 @@ import type {
   UfoFileContents,
   UfoModel,
   CountertermResult,
+  ScanConfig1D,
+  ScanResult1D,
+  ScanConfig2D,
+  ScanResult2D,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -363,5 +367,13 @@ export class WasmBackend implements SpireBackend {
       knownFields,
       externalFields,
     });
+  }
+
+  async runParameterScan1D(config: ScanConfig1D): Promise<ScanResult1D> {
+    return this.call<ScanResult1D>("run_parameter_scan_1d", { config });
+  }
+
+  async runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D> {
+    return this.call<ScanResult2D>("run_parameter_scan_2d", { config });
   }
 }

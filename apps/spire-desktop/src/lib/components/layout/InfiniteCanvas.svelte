@@ -40,6 +40,7 @@
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
   import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
+  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -274,6 +275,8 @@
             <LogConsole />
           {:else if item.widgetType === "notebook"}
             <NotebookWidget />
+          {:else if item.widgetType === "parameter_scanner"}
+            <ParameterScanner />
           {:else}
             <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
           {/if}

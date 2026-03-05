@@ -782,6 +782,70 @@ export const TheoreticalModelSchema = z.object({
 });
 
 // ===========================================================================
+// Parameter Scanner (Phase 44)
+// ===========================================================================
+
+/** Linear or logarithmic spacing for scan points. */
+export const ScanScaleSchema = z.enum(["Linear", "Logarithmic"]);
+export type ScanScale = z.infer<typeof ScanScaleSchema>;
+
+/** A single parameter to be swept. */
+export const ScanVariableSchema = z.object({
+  /** Dot-separated path, e.g. "field.Z.mass", "vertex.eeZ.coupling", "cms_energy". */
+  target: z.string(),
+  /** Lower bound. */
+  min: z.number(),
+  /** Upper bound. */
+  max: z.number(),
+  /** Number of evaluation points (≥ 2). */
+  steps: z.number().int().min(2),
+  /** Linear or logarithmic spacing. */
+  scale: ScanScaleSchema,
+});
+export type ScanVariable = z.infer<typeof ScanVariableSchema>;
+
+/** Configuration for a 1D parameter scan. */
+export const ScanConfig1DSchema = z.object({
+  variable: ScanVariableSchema,
+  model: TheoreticalModelSchema,
+  final_masses: z.array(z.number()),
+  cms_energy: z.number(),
+  events_per_point: z.number().int().min(1),
+});
+export type ScanConfig1D = z.infer<typeof ScanConfig1DSchema>;
+
+/** Result of a 1D parameter scan. */
+export const ScanResult1DSchema = z.object({
+  variable: ScanVariableSchema,
+  x_values: z.array(z.number()),
+  y_values: z.array(z.number()),
+  y_errors: z.array(z.number()),
+});
+export type ScanResult1D = z.infer<typeof ScanResult1DSchema>;
+
+/** Configuration for a 2D parameter scan. */
+export const ScanConfig2DSchema = z.object({
+  variable_x: ScanVariableSchema,
+  variable_y: ScanVariableSchema,
+  model: TheoreticalModelSchema,
+  final_masses: z.array(z.number()),
+  cms_energy: z.number(),
+  events_per_point: z.number().int().min(1),
+});
+export type ScanConfig2D = z.infer<typeof ScanConfig2DSchema>;
+
+/** Result of a 2D parameter scan. */
+export const ScanResult2DSchema = z.object({
+  variable_x: ScanVariableSchema,
+  variable_y: ScanVariableSchema,
+  x_values: z.array(z.number()),
+  y_values: z.array(z.number()),
+  z_values: z.array(z.number()),
+  z_errors: z.array(z.number()),
+});
+export type ScanResult2D = z.infer<typeof ScanResult2DSchema>;
+
+// ===========================================================================
 // IPC Response Envelope
 // ===========================================================================
 

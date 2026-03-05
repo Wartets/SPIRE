@@ -32,7 +32,8 @@ export type WidgetType =
   | "references"
   | "telemetry"
   | "log"
-  | "notebook";
+  | "notebook"
+  | "parameter_scanner";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -84,6 +85,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "telemetry",              label: "Telemetry",              defaultColSpan: 2, defaultRowSpan: 2 },
   { type: "log",            label: "Console",             defaultColSpan: 4, defaultRowSpan: 1 },
   { type: "notebook",        label: "Notebook",            defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "parameter_scanner", label: "Parameter Scanner",  defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------

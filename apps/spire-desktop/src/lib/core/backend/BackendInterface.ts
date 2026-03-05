@@ -46,6 +46,10 @@ import type {
   UfoFileContents,
   UfoModel,
   CountertermResult,
+  ScanConfig1D,
+  ScanResult1D,
+  ScanConfig2D,
+  ScanResult2D,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -239,4 +243,8 @@ export interface SpireBackend {
     knownFields: Record<string, FieldSpin>,
     externalFields: ExternalField[],
   ): Promise<CountertermResult>;
+
+  // ── Parameter Scanner ──────────────────────────────────────────────────
+  runParameterScan1D(config: ScanConfig1D): Promise<ScanResult1D>;
+  runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D>;
 }

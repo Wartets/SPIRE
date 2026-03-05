@@ -53,6 +53,10 @@ import type {
   UfoFileContents,
   UfoModel,
   CountertermResult,
+  ScanConfig1D,
+  ScanResult1D,
+  ScanConfig2D,
+  ScanResult2D,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -503,6 +507,41 @@ export class MockBackend implements SpireBackend {
       counterterms: [],
       counterterm_rules: [],
       renorm_constants: [],
+    };
+  }
+
+  async runParameterScan1D(config: ScanConfig1D): Promise<ScanResult1D> {
+    await simulateLatency();
+    const n = config.variable.steps;
+    const xs = Array.from({ length: n }, (_, i) =>
+      config.variable.min + (i / (n - 1)) * (config.variable.max - config.variable.min),
+    );
+    return {
+      variable: config.variable,
+      x_values: xs,
+      y_values: xs.map((x) => 100.0 / (x * x)),
+      y_errors: xs.map((x) => 10.0 / (x * x)),
+    };
+  }
+
+  async runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D> {
+    await simulateLatency();
+    const nx = config.variable_x.steps;
+    const ny = config.variable_y.steps;
+    const xs = Array.from({ length: nx }, (_, i) =>
+      config.variable_x.min + (i / (nx - 1)) * (config.variable_x.max - config.variable_x.min),
+    );
+    const ys = Array.from({ length: ny }, (_, j) =>
+      config.variable_y.min + (j / (ny - 1)) * (config.variable_y.max - config.variable_y.min),
+    );
+    const zs = xs.flatMap((x) => ys.map((y) => 100.0 / (x + y)));
+    return {
+      variable_x: config.variable_x,
+      variable_y: config.variable_y,
+      x_values: xs,
+      y_values: ys,
+      z_values: zs,
+      z_errors: zs.map((z) => z * 0.1),
     };
   }
 }

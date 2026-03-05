@@ -433,3 +433,31 @@ export async function deriveCounterterms(
 ): Promise<import("$lib/types/spire").CountertermResult> {
   return getBackend().deriveCounterterms(input, knownFields, externalFields);
 }
+
+// ---------------------------------------------------------------------------
+// Parameter Scanner (Phase 44)
+// ---------------------------------------------------------------------------
+
+/**
+ * Run a 1D parameter scan.
+ *
+ * Sweeps a single parameter (field mass, width, coupling, or CMS energy)
+ * across a range and evaluates the cross-section at each point.
+ */
+export async function runParameterScan1D(
+  config: import("$lib/types/spire").ScanConfig1D,
+): Promise<import("$lib/types/spire").ScanResult1D> {
+  return getBackend().runParameterScan1D(config);
+}
+
+/**
+ * Run a 2D parameter scan.
+ *
+ * Sweeps two parameters across a grid and evaluates the cross-section
+ * at each point.
+ */
+export async function runParameterScan2D(
+  config: import("$lib/types/spire").ScanConfig2D,
+): Promise<import("$lib/types/spire").ScanResult2D> {
+  return getBackend().runParameterScan2D(config);
+}

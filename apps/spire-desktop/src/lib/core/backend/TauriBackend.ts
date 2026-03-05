@@ -43,6 +43,10 @@ import type {
   UfoFileContents,
   UfoModel,
   CountertermResult,
+  ScanConfig1D,
+  ScanResult1D,
+  ScanConfig2D,
+  ScanResult2D,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -65,6 +69,8 @@ import {
   SlhaDocumentSchema,
   UfoModelSchema,
   CountertermResultSchema,
+  ScanResult1DSchema,
+  ScanResult2DSchema,
   validateResponse,
 } from "$lib/core/domain/schemas";
 
@@ -368,5 +374,13 @@ export class TauriBackend implements SpireBackend {
       knownFields,
       externalFields,
     });
+  }
+
+  async runParameterScan1D(config: ScanConfig1D): Promise<ScanResult1D> {
+    return tauriInvokeValidated("run_parameter_scan_1d", ScanResult1DSchema, { config });
+  }
+
+  async runParameterScan2D(config: ScanConfig2D): Promise<ScanResult2D> {
+    return tauriInvokeValidated("run_parameter_scan_2d", ScanResult2DSchema, { config });
   }
 }

@@ -32,6 +32,7 @@
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
   import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
+  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
 
   let widgetType: WidgetType | null = null;
   let nodeId: string = "";
@@ -107,6 +108,8 @@
       <LogConsole />
     {:else if widgetType === "notebook"}
       <NotebookWidget />
+    {:else if widgetType === "parameter_scanner"}
+      <ParameterScanner />
     {:else}
       <div class="tearoff-error">
         <p>No widget type specified.</p>

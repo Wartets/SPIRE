@@ -35,6 +35,7 @@ use spire_kernel::kinematics::{
 use spire_kernel::lagrangian::TheoreticalModel;
 use spire_kernel::ontology;
 use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
+use spire_kernel::scanner;
 use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 
@@ -582,6 +583,40 @@ fn session_destroy(session_id: String) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Parameter Scanner Commands (Phase 44)
+// ---------------------------------------------------------------------------
+
+/// Run a 1D parameter scan over a single variable.
+///
+/// Sweeps the target parameter (field mass, decay width, coupling constant,
+/// or centre-of-mass energy) across the configured range and evaluates the
+/// cross-section at each point using parallel Monte Carlo integration.
+///
+/// # Returns
+/// A `ScanResult1D` with parameter values, cross-sections (pb), and errors.
+#[tauri::command]
+fn run_parameter_scan_1d(
+    config: scanner::ScanConfig1D,
+) -> Result<scanner::ScanResult1D, String> {
+    scanner::run_scan_1d(&config).map_err(|e| e.to_string())
+}
+
+/// Run a 2D parameter scan over two variables.
+///
+/// Sweeps two target parameters across their configured ranges and evaluates
+/// the cross-section at each grid point. Returns a row-major matrix of
+/// results for heatmap visualisation.
+///
+/// # Returns
+/// A `ScanResult2D` with axis values, cross-section matrix (pb), and errors.
+#[tauri::command]
+fn run_parameter_scan_2d(
+    config: scanner::ScanConfig2D,
+) -> Result<scanner::ScanResult2D, String> {
+    scanner::run_scan_2d(&config).map_err(|e| e.to_string())
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -615,6 +650,8 @@ fn main() {
             session_execute_config,
             session_reset,
             session_destroy,
+            run_parameter_scan_1d,
+            run_parameter_scan_2d,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

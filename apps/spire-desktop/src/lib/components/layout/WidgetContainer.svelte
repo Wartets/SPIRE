@@ -33,6 +33,7 @@
   import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
   import LogConsole from "$lib/components/LogConsole.svelte";
   import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
+  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
 
   export let node: WidgetLeaf;
 
@@ -119,6 +120,8 @@
       <LogConsole />
     {:else if node.widgetType === "notebook"}
       <NotebookWidget />
+    {:else if node.widgetType === "parameter_scanner"}
+      <ParameterScanner />
     {:else}
       <p style="color: var(--hl-error);">Unknown widget: {node.widgetType}</p>
     {/if}

@@ -1281,3 +1281,61 @@ export interface CountertermResult {
   /** Renormalization constants involved. */
   renorm_constants: RenormalizationConstant[];
 }
+
+// ---------------------------------------------------------------------------
+// Parameter Scanner (Phase 44)
+// ---------------------------------------------------------------------------
+
+/** Linear or logarithmic spacing for scan points. */
+export type ScanScale = "Linear" | "Logarithmic";
+
+/** A single parameter to be swept. */
+export interface ScanVariable {
+  /** Dot-separated path, e.g. "field.Z.mass", "vertex.eeZ.coupling", "cms_energy". */
+  target: string;
+  /** Lower bound. */
+  min: number;
+  /** Upper bound. */
+  max: number;
+  /** Number of evaluation points (≥ 2). */
+  steps: number;
+  /** Linear or logarithmic spacing. */
+  scale: ScanScale;
+}
+
+/** Configuration for a 1D parameter scan. */
+export interface ScanConfig1D {
+  variable: ScanVariable;
+  model: TheoreticalModel;
+  final_masses: number[];
+  cms_energy: number;
+  events_per_point: number;
+}
+
+/** Result of a 1D parameter scan. */
+export interface ScanResult1D {
+  variable: ScanVariable;
+  x_values: number[];
+  y_values: number[];
+  y_errors: number[];
+}
+
+/** Configuration for a 2D parameter scan. */
+export interface ScanConfig2D {
+  variable_x: ScanVariable;
+  variable_y: ScanVariable;
+  model: TheoreticalModel;
+  final_masses: number[];
+  cms_energy: number;
+  events_per_point: number;
+}
+
+/** Result of a 2D parameter scan. */
+export interface ScanResult2D {
+  variable_x: ScanVariable;
+  variable_y: ScanVariable;
+  x_values: number[];
+  y_values: number[];
+  z_values: number[];
+  z_errors: number[];
+}

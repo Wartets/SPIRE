@@ -55,6 +55,7 @@ pub mod ontology;
 pub mod pdf;
 pub mod reco;
 pub mod s_matrix;
+pub mod scanner;
 pub mod scripting;
 pub mod session;
 pub mod telemetry;
