@@ -66,27 +66,25 @@
     canvasViewport.set({ panX, panY, zoom });
   }
 
-  // ── Multi-Level Grid ──
-  // Minor grid (20px) fades when zoomed out; major grid (100px) persists.
+  // ── Multi-Level Dot Grid ──
+  // Minor dots (20px spacing) fade when zoomed out; major dots (100px) persist.
   const MINOR_GRID = 20;
   const MAJOR_GRID = 100;
 
   $: minorSize = MINOR_GRID * zoom;
   $: majorSize = MAJOR_GRID * zoom;
   $: minorOpacity = Math.min(1, Math.max(0, (zoom - 0.3) / 0.4));
+  $: minorDotR = Math.max(0.5, 0.8 * zoom);
+  $: majorDotR = Math.max(1, 1.4 * zoom);
 
   $: gridStyle = `
     background-position: ${panX}px ${panY}px;
     background-size:
       ${minorSize}px ${minorSize}px,
-      ${minorSize}px ${minorSize}px,
-      ${majorSize}px ${majorSize}px,
       ${majorSize}px ${majorSize}px;
     background-image:
-      linear-gradient(rgba(51,51,51,${minorOpacity * 0.35}) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(51,51,51,${minorOpacity * 0.35}) 1px, transparent 1px),
-      linear-gradient(rgba(85,85,85,0.4) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(85,85,85,0.4) 1px, transparent 1px);
+      radial-gradient(circle, rgba(136,136,136,${minorOpacity * 0.45}) ${minorDotR}px, transparent ${minorDotR}px),
+      radial-gradient(circle, rgba(170,170,170,0.55) ${majorDotR}px, transparent ${majorDotR}px);
   `;
 
   // ── Magnetic Snapping ──
@@ -204,6 +202,14 @@
     commitViewport();
   }
 
+  // ── Widget Selection & Z-Index ──
+
+  let selectedWidgetId: string | null = null;
+
+  function selectWidget(item: CanvasItem): void {
+    selectedWidgetId = item.id;
+  }
+
   // ── Widget Drag (left-click on header) ──
 
   let isDragging = false;
@@ -216,6 +222,7 @@
   function handleWidgetDragStart(event: MouseEvent, item: CanvasItem): void {
     if (event.button !== 0) return;
     event.stopPropagation();
+    selectWidget(item);
     isDragging = true;
     dragItem = item;
     dragStartX = event.clientX;
@@ -297,7 +304,7 @@
   role="application"
   aria-label="Infinite Canvas Workspace"
 >
-  <!-- Multi-level grid (minor 20px + major 100px) -->
+  <!-- Multi-level dot grid (minor 20px + major 100px) -->
   <div class="canvas-grid" style={gridStyle}></div>
 
   <!-- Transform layer -->
@@ -308,12 +315,15 @@
     {#each $canvasItems as item (item.id)}
       <div
         class="canvas-widget"
+        class:cw-selected={item.id === selectedWidgetId}
         style="
           left: {item.x}px;
           top: {item.y}px;
           width: {item.width}px;
           height: {item.height}px;
+          z-index: {item.id === selectedWidgetId ? 50 : 1};
         "
+        on:mousedown={() => selectWidget(item)}
       >
         <!-- Widget header (draggable) -->
         <header
@@ -432,6 +442,12 @@
     overflow: hidden;
     pointer-events: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: box-shadow 0.12s, border-color 0.12s;
+  }
+
+  .canvas-widget.cw-selected {
+    border-color: var(--hl-symbol);
+    box-shadow: 0 4px 16px rgba(94, 184, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .cw-header {

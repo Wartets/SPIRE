@@ -505,6 +505,112 @@ export function setLayoutRoot(root: LayoutNode): void {
   layoutRoot.set(root);
 }
 
+// ===========================================================================
+// Docking Drag-and-Drop: moveNode Reducer
+// ===========================================================================
+
+/**
+ * Position relative to the drop target.
+ * - "before" / "after" — split the parent container
+ * - "left" / "right" / "top" / "bottom" — split the target into a new container
+ * - "center" — replace the target (tab-stack, future use)
+ */
+export type DropPosition = "left" | "right" | "top" | "bottom" | "center";
+
+/**
+ * Move a widget node from its current position in the layout tree
+ * to a new position relative to a target node.
+ *
+ * This is the core reducer for docking drag-and-drop reorganisation.
+ * It operates in three phases:
+ *   1. Extract the source node from the tree (pruning empty containers).
+ *   2. Locate the target node in the (now smaller) tree.
+ *   3. Wrap the target in a new row/col container with the source node
+ *      placed according to `position`.
+ *
+ * @param sourceId  — ID of the widget leaf to move.
+ * @param targetId  — ID of the node to drop onto.
+ * @param position  — Where relative to the target to place the source.
+ */
+export function moveNode(
+  sourceId: string,
+  targetId: string,
+  position: DropPosition,
+): void {
+  if (sourceId === targetId) return;
+
+  layoutRoot.update((root) => {
+    const tree = cloneTree(root);
+
+    // Phase 1: Extract the source node
+    const sourceFound = findNode(tree, sourceId);
+    if (!sourceFound) return tree;
+
+    // Deep-clone the source node before removal
+    const sourceNode = cloneTree(sourceFound.node);
+
+    // Remove source from tree
+    let pruned: LayoutNode | null;
+    if (tree.id === sourceId) {
+      // Cannot move the root itself
+      return tree;
+    }
+    pruned = removeNode(tree, sourceId);
+    if (!pruned) return tree;
+
+    // Phase 2: Locate the target in the pruned tree
+    if (pruned.id === targetId) {
+      // Target is the new root — wrap it
+      const direction: "row" | "col" =
+        position === "left" || position === "right" ? "row" : "col";
+      const children =
+        position === "left" || position === "top"
+          ? [sourceNode, pruned]
+          : position === "center"
+            ? [pruned] // center: no-op for now
+            : [pruned, sourceNode];
+
+      if (position === "center") return pruned;
+
+      return {
+        id: makeLayoutId(),
+        type: direction,
+        sizes: Array(children.length).fill(1),
+        children,
+      } as RowNode | ColNode;
+    }
+
+    const targetFound = findNode(pruned, targetId);
+    if (!targetFound || !targetFound.parent) return pruned;
+
+    // Phase 3: Insert source relative to target
+    if (position === "center") {
+      // Replace the target with the source (swap)
+      targetFound.parent.children[targetFound.index] = sourceNode;
+      return pruned;
+    }
+
+    const direction: "row" | "col" =
+      position === "left" || position === "right" ? "row" : "col";
+    const children =
+      position === "left" || position === "top"
+        ? [sourceNode, targetFound.node]
+        : [targetFound.node, sourceNode];
+
+    const newContainer: RowNode | ColNode = {
+      id: makeLayoutId(),
+      type: direction,
+      sizes: [1, 1],
+      children,
+    } as RowNode | ColNode;
+
+    targetFound.parent.children[targetFound.index] = newContainer;
+    // sizes array length doesn't change; the slot is reused.
+
+    return pruned;
+  });
+}
+
 /** Reset the docking layout to the default arrangement. */
 export function resetDockingLayout(): void {
   layoutRoot.set(createDefaultLayout());
@@ -515,16 +621,27 @@ export function resetDockingLayout(): void {
 // ===========================================================================
 
 /**
- * Add a widget to the infinite canvas at the given position.
+ * Add a widget to the infinite canvas.
+ *
+ * When x/y are not supplied, the widget is placed at the center
+ * of the current viewport (accounting for pan and zoom).
  */
 export function addCanvasItem(
   widgetType: WidgetType,
-  x = 100,
-  y = 100,
+  x?: number,
+  y?: number,
 ): void {
   const def = WIDGET_DEFINITIONS.find((d) => d.type === widgetType);
   const w = (def?.defaultColSpan ?? 2) * 200;
   const h = (def?.defaultRowSpan ?? 2) * 160;
+
+  // Default to viewport center if no coordinates specified
+  if (x === undefined || y === undefined) {
+    const vp = get(canvasViewport);
+    // Assume a ~900×600 visible area (reasonable default)
+    x = x ?? (-vp.panX + 450) / (vp.zoom || 1) - w / 2;
+    y = y ?? (-vp.panY + 300) / (vp.zoom || 1) - h / 2;
+  }
 
   canvasItems.update((items) => [
     ...items,
@@ -565,9 +682,75 @@ export function clearCanvas(): void {
 // View Mode Toggle
 // ===========================================================================
 
-/** Toggle between docking and canvas view modes. */
+/** Toggle between docking and canvas view modes.
+ *
+ * When switching paradigms, synchronise the widget set:
+ * - Docking → Canvas: populate canvas items from the docking tree leaves
+ *   (if canvas is currently empty), preserving widgetType and widgetData.
+ * - Canvas → Docking: rebuild a docking tree from the canvas items
+ *   (if the docking tree contains only the default layout).
+ *
+ * This ensures the researcher never loses widgets when changing views.
+ */
 export function toggleViewMode(): void {
-  viewMode.update((m) => (m === "docking" ? "canvas" : "docking"));
+  const current = get(viewMode);
+
+  if (current === "docking") {
+    // Switching to Canvas — sync docking widgets into canvas
+    const currentCanvas = get(canvasItems);
+    if (currentCanvas.length === 0) {
+      const leaves = collectWidgetLeaves(get(layoutRoot));
+      const vp = get(canvasViewport);
+      // Arrange in a grid around the viewport center
+      const centerX = (-vp.panX + 400) / (vp.zoom || 1);
+      const centerY = (-vp.panY + 300) / (vp.zoom || 1);
+      const cols = Math.max(2, Math.ceil(Math.sqrt(leaves.length)));
+      const spacingX = 420;
+      const spacingY = 360;
+
+      const newItems: CanvasItem[] = leaves.map((leaf, i) => {
+        const def = WIDGET_DEFINITIONS.find((d) => d.type === leaf.widgetType);
+        const w = (def?.defaultColSpan ?? 2) * 200;
+        const h = (def?.defaultRowSpan ?? 2) * 160;
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        return {
+          id: leaf.id,
+          widgetType: leaf.widgetType,
+          widgetData: { ...leaf.widgetData },
+          x: centerX + col * spacingX,
+          y: centerY + row * spacingY,
+          width: w,
+          height: h,
+        };
+      });
+      canvasItems.set(newItems);
+    }
+  } else {
+    // Switching to Docking — sync canvas widgets into docking tree
+    const currentCanvas = get(canvasItems);
+    if (currentCanvas.length > 0) {
+      // Rebuild docking tree: single column of all canvas widget types
+      const leaves = currentCanvas.map((ci) =>
+        createWidgetLeaf(ci.widgetType, { ...ci.widgetData }),
+      );
+
+      if (leaves.length === 1) {
+        layoutRoot.set(leaves[0]);
+      } else {
+        // Build a balanced column layout
+        const root: ColNode = {
+          id: makeLayoutId(),
+          type: "col",
+          sizes: leaves.map(() => 1),
+          children: leaves,
+        };
+        layoutRoot.set(root);
+      }
+    }
+  }
+
+  viewMode.set(current === "docking" ? "canvas" : "docking");
 }
 
 // ===========================================================================

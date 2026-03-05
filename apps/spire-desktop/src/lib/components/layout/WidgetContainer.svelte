@@ -12,7 +12,8 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { WidgetLeaf } from "$lib/stores/layoutStore";
-  import { closeNode, splitNode } from "$lib/stores/layoutStore";
+  import { closeNode, splitNode, moveNode } from "$lib/stores/layoutStore";
+  import type { DropPosition } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { tearOffWidget } from "$lib/core/services/WindowManager";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
@@ -72,10 +73,71 @@
       { id: "close", label: "Close Widget", action: handleClose },
     ]);
   }
+
+  // ── Docking Drag-and-Drop ──
+
+  let dropZone: DropPosition | null = null;
+
+  function handleDragStart(e: DragEvent): void {
+    if (!e.dataTransfer) return;
+    e.dataTransfer.setData("text/plain", node.id);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDragOver(e: DragEvent): void {
+    e.preventDefault();
+    if (!e.dataTransfer) return;
+    e.dataTransfer.dropEffect = "move";
+
+    // Compute drop zone from cursor position within the container
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+
+    const edgeThreshold = 0.25;
+    if (relX < edgeThreshold) dropZone = "left";
+    else if (relX > 1 - edgeThreshold) dropZone = "right";
+    else if (relY < edgeThreshold) dropZone = "top";
+    else if (relY > 1 - edgeThreshold) dropZone = "bottom";
+    else dropZone = "center";
+  }
+
+  function handleDragLeave(): void {
+    dropZone = null;
+  }
+
+  function handleDrop(e: DragEvent): void {
+    e.preventDefault();
+    const sourceId = e.dataTransfer?.getData("text/plain");
+    if (sourceId && sourceId !== node.id && dropZone) {
+      moveNode(sourceId, node.id, dropZone);
+    }
+    dropZone = null;
+  }
 </script>
 
-<div class="widget-container">
+<div
+  class="widget-container"
+  class:drop-left={dropZone === "left"}
+  class:drop-right={dropZone === "right"}
+  class:drop-top={dropZone === "top"}
+  class:drop-bottom={dropZone === "bottom"}
+  class:drop-center={dropZone === "center"}
+  on:dragover={handleDragOver}
+  on:dragleave={handleDragLeave}
+  on:drop={handleDrop}
+  role="group"
+>
   <header class="wc-header" on:contextmenu={handleHeaderContext}>
+    <span
+      class="wc-drag-handle"
+      draggable="true"
+      on:dragstart={handleDragStart}
+      title="Drag to reorganise"
+      role="button"
+      tabindex="-1"
+      aria-label="Drag handle"
+    >⠿</span>
     <span class="wc-title">{label}</span>
     {#if linked}
       <span class="wc-link-badge" title="Connected via pipeline">⟷</span>
@@ -222,6 +284,35 @@
     opacity: 0.8;
     flex-shrink: 0;
   }
+
+  /* ── Drag Handle ──────────────────────────────────────────── */
+  .wc-drag-handle {
+    cursor: grab;
+    color: var(--fg-secondary);
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0 0.1rem;
+    flex-shrink: 0;
+    user-select: none;
+    opacity: 0.5;
+    transition: opacity 0.1s;
+  }
+
+  .wc-drag-handle:hover {
+    opacity: 1;
+    color: var(--fg-accent);
+  }
+
+  .wc-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  /* ── Drop Zone Indicators ─────────────────────────────────── */
+  .widget-container.drop-left   { border-left:   3px solid var(--hl-symbol); }
+  .widget-container.drop-right  { border-right:  3px solid var(--hl-symbol); }
+  .widget-container.drop-top    { border-top:    3px solid var(--hl-symbol); }
+  .widget-container.drop-bottom { border-bottom: 3px solid var(--hl-symbol); }
+  .widget-container.drop-center { outline: 2px dashed var(--hl-symbol); outline-offset: -2px; }
 
   .wc-body {
     flex: 1;
