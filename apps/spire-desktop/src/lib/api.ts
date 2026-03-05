@@ -592,3 +592,42 @@ export async function calculateRelicDensity(
 ): Promise<import("$lib/types/spire").RelicDensityReport> {
   return getBackend().calculateRelicDensity(config);
 }
+
+// ---------------------------------------------------------------------------
+// Flavor Physics — Lattice QCD & EFT
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute neutral B-meson mixing mass differences ΔMd and ΔMs.
+ *
+ * Uses Lattice QCD inputs (decay constants, bag parameters) combined
+ * with the Inami–Lim function for the top-quark box diagram.
+ */
+export async function calculateBMixing(
+  lattice: import("$lib/types/spire").LatticeInputs,
+): Promise<import("$lib/types/spire").BMixingResult> {
+  return getBackend().calculateBMixing(lattice);
+}
+
+/**
+ * Compute the full flavor observable report for B → K ℓ⁺ℓ⁻.
+ *
+ * Integrates the differential decay rate over a q² window,
+ * evaluates B-meson mixing, and returns the differential spectrum
+ * for plotting.
+ *
+ * @param q2Min — Lower bound of the q² integration window in GeV².
+ * @param q2Max — Upper bound of the q² integration window in GeV².
+ * @param wilsonCoeffs — Wilson coefficients (SM + BSM shifts).
+ * @param lattice — Lattice QCD inputs.
+ * @param nPoints — Number of evaluation points for the spectrum.
+ */
+export async function calculateBToKll(
+  q2Min: number,
+  q2Max: number,
+  wilsonCoeffs: import("$lib/types/spire").WilsonCoefficients,
+  lattice: import("$lib/types/spire").LatticeInputs,
+  nPoints?: number,
+): Promise<import("$lib/types/spire").FlavorObservableReport> {
+  return getBackend().calculateBToKll(q2Min, q2Max, wilsonCoeffs, lattice, nPoints);
+}

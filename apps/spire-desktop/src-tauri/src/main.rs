@@ -30,6 +30,8 @@ use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::cosmology::relic as relic_engine;
 use spire_kernel::data_loader;
 use spire_kernel::decay;
+use spire_kernel::flavor::eft as flavor_eft;
+use spire_kernel::flavor::lattice as flavor_lattice;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
 use spire_kernel::io::latex as latex_compiler;
 use spire_kernel::io::provenance as provenance_engine;
@@ -823,6 +825,67 @@ fn calculate_relic_density(
 }
 
 // ---------------------------------------------------------------------------
+// Flavor Physics — Lattice QCD & EFT Observables
+// ---------------------------------------------------------------------------
+
+/// Compute neutral B-meson mixing mass differences.
+///
+/// Returns $\Delta M_d$ and $\Delta M_s$ in ps$^{-1}$ using the provided
+/// Lattice QCD inputs (decay constants and bag parameters).
+///
+/// # Arguments
+/// * `lattice` — [`LatticeInputs`](flavor_lattice::LatticeInputs) with
+///   decay constants, bag parameters, and form factors.
+///
+/// # Returns
+/// A JSON object with `delta_m_d` and `delta_m_s` fields.
+#[tauri::command]
+fn calculate_b_mixing(
+    lattice: flavor_lattice::LatticeInputs,
+) -> Result<serde_json::Value, String> {
+    let dm_d = flavor_eft::compute_delta_m_d(&lattice);
+    let dm_s = flavor_eft::compute_delta_m_s(&lattice);
+    Ok(serde_json::json!({
+        "delta_m_d": dm_d,
+        "delta_m_s": dm_s,
+        "exp_delta_m_d": flavor_eft::EXP_DELTA_M_D,
+        "exp_delta_m_s": flavor_eft::EXP_DELTA_M_S,
+    }))
+}
+
+/// Compute the full flavor observable report for $B \to K \ell^+ \ell^-$.
+///
+/// Integrates the differential decay rate, evaluates B-meson mixing,
+/// and returns the differential $d\Gamma/dq^2$ spectrum for plotting.
+///
+/// # Arguments
+/// * `q2_min` — Lower bound of the $q^2$ window in GeV².
+/// * `q2_max` — Upper bound of the $q^2$ window in GeV².
+/// * `wilson_coeffs` — Wilson coefficients (SM + BSM shifts).
+/// * `lattice` — Lattice QCD inputs.
+/// * `n_points` — Number of evaluation points for the spectrum.
+///
+/// # Returns
+/// A [`FlavorObservableReport`](flavor_eft::FlavorObservableReport).
+#[tauri::command]
+fn calculate_b_to_k_ll(
+    q2_min: f64,
+    q2_max: f64,
+    wilson_coeffs: flavor_eft::WilsonCoefficients,
+    lattice: flavor_lattice::LatticeInputs,
+    n_points: Option<usize>,
+) -> Result<flavor_eft::FlavorObservableReport, String> {
+    let n = n_points.unwrap_or(100);
+    Ok(flavor_eft::compute_flavor_observables(
+        &lattice,
+        &wilson_coeffs,
+        q2_min,
+        q2_max,
+        n,
+    ))
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -866,6 +929,8 @@ fn main() {
             compute_provenance_hash,
             load_provenance_state,
             calculate_relic_density,
+            calculate_b_mixing,
+            calculate_b_to_k_ll,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

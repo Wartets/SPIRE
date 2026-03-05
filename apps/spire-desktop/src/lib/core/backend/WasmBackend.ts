@@ -58,6 +58,10 @@ import type {
   ShowerToggleConfig,
   RelicConfig,
   RelicDensityReport,
+  LatticeInputs,
+  WilsonCoefficients,
+  BMixingResult,
+  FlavorObservableReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -434,5 +438,25 @@ export class WasmBackend implements SpireBackend {
 
   async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
     return this.call<RelicDensityReport>("calculate_relic_density", { config });
+  }
+
+  async calculateBMixing(lattice: LatticeInputs): Promise<BMixingResult> {
+    return this.call<BMixingResult>("calculate_b_mixing", { lattice });
+  }
+
+  async calculateBToKll(
+    q2Min: number,
+    q2Max: number,
+    wilsonCoeffs: WilsonCoefficients,
+    lattice: LatticeInputs,
+    nPoints?: number,
+  ): Promise<FlavorObservableReport> {
+    return this.call<FlavorObservableReport>("calculate_b_to_k_ll", {
+      q2_min: q2Min,
+      q2_max: q2Max,
+      wilson_coeffs: wilsonCoeffs,
+      lattice,
+      n_points: nPoints ?? 100,
+    });
   }
 }

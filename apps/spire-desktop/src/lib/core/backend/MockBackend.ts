@@ -62,6 +62,10 @@ import type {
   ShowerToggleConfig,
   RelicConfig,
   RelicDensityReport,
+  LatticeInputs,
+  WilsonCoefficients,
+  BMixingResult,
+  FlavorObservableReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -649,6 +653,44 @@ This is a mock proof document for ${processLabel}.
       classification: "compatible",
       dm_mass: config.dm_mass,
       sigma_v: config.sigma_v_a,
+    };
+  }
+
+  async calculateBMixing(_lattice: LatticeInputs): Promise<BMixingResult> {
+    await simulateLatency();
+    return {
+      delta_m_d: 0.51,
+      delta_m_s: 17.8,
+      exp_delta_m_d: 0.5065,
+      exp_delta_m_s: 17.765,
+    };
+  }
+
+  async calculateBToKll(
+    q2Min: number,
+    q2Max: number,
+    _wilsonCoeffs: WilsonCoefficients,
+    _lattice: LatticeInputs,
+    nPoints?: number,
+  ): Promise<FlavorObservableReport> {
+    await simulateLatency();
+    const n = nPoints ?? 100;
+    const spectrum = [];
+    for (let i = 0; i < n; i++) {
+      const q2 = q2Min + (i / (n - 1)) * (q2Max - q2Min);
+      // Mock: bell-shaped curve peaking around q² ≈ 4 GeV²
+      const dgamma = 1e-19 * Math.exp(-0.1 * (q2 - 4) * (q2 - 4));
+      spectrum.push({ q2, dgamma_dq2: dgamma });
+    }
+    return {
+      delta_m_d: 0.51,
+      delta_m_s: 17.8,
+      branching_ratio: 4.7e-7,
+      differential_spectrum: spectrum,
+      q2_min: q2Min,
+      q2_max: q2Max,
+      exp_delta_m_d: 0.5065,
+      exp_delta_m_s: 17.765,
     };
   }
 }

@@ -1447,3 +1447,121 @@ export interface RelicDensityReport {
   /** Thermally averaged cross-section at freeze-out (cm³/s). */
   sigma_v: number;
 }
+
+// ---------------------------------------------------------------------------
+// Flavor Physics — Lattice QCD & EFT Observables
+// ---------------------------------------------------------------------------
+
+/** A hadronic decay constant from Lattice QCD. */
+export interface DecayConstant {
+  /** Central value in GeV. */
+  value: number;
+  /** Combined uncertainty (1σ) in GeV. */
+  error: number;
+  /** Renormalization scale μ in GeV. */
+  scale_mu: number;
+}
+
+/** Bag parameter for neutral meson mixing. */
+export interface BagParameter {
+  /** Central value (dimensionless, RG-invariant). */
+  value: number;
+  /** Combined uncertainty (1σ). */
+  error: number;
+}
+
+/** BCL z-expansion parameterization for a single form factor. */
+export interface FormFactorZExpansion {
+  /** BCL expansion coefficients [a0, a1, a2, ...]. */
+  coefficients: number[];
+  /** Pole mass in GeV. */
+  m_pole: number;
+  /** Production threshold t+ in GeV². */
+  t_plus: number;
+  /** Optimal expansion point t0 in GeV². */
+  t_0: number;
+}
+
+/** Complete set of B → K transition form factors. */
+export interface BToKFormFactors {
+  /** Vector form factor f+(q²). */
+  f_plus: FormFactorZExpansion;
+  /** Scalar form factor f0(q²). */
+  f_zero: FormFactorZExpansion;
+  /** Tensor form factor fT(q²). */
+  f_tensor: FormFactorZExpansion;
+}
+
+/** Complete Lattice QCD input configuration. */
+export interface LatticeInputs {
+  /** B-meson decay constant f_B. */
+  f_b: DecayConstant;
+  /** Bs-meson decay constant f_Bs. */
+  f_bs: DecayConstant;
+  /** Kaon decay constant f_K. */
+  f_k: DecayConstant;
+  /** Bag parameter B̂_d. */
+  b_hat_d: BagParameter;
+  /** Bag parameter B̂_s. */
+  b_hat_s: BagParameter;
+  /** B → K transition form factors. */
+  b_to_k: BToKFormFactors;
+}
+
+/** Wilson coefficients for b → sℓℓ transitions. */
+export interface WilsonCoefficients {
+  /** Electromagnetic dipole C7_eff. */
+  c7_eff: number;
+  /** Chirality-flipped C7'. */
+  c7_prime: number;
+  /** Vector semileptonic C9_eff. */
+  c9_eff: number;
+  /** Chirality-flipped C9'. */
+  c9_prime: number;
+  /** Axial semileptonic C10. */
+  c10: number;
+  /** Chirality-flipped C10'. */
+  c10_prime: number;
+  /** Renormalization scale μ in GeV. */
+  scale_mu: number;
+}
+
+/** B-meson mixing result. */
+export interface BMixingResult {
+  /** ΔMd in ps⁻¹. */
+  delta_m_d: number;
+  /** ΔMs in ps⁻¹. */
+  delta_m_s: number;
+  /** Experimental ΔMd for comparison. */
+  exp_delta_m_d: number;
+  /** Experimental ΔMs for comparison. */
+  exp_delta_m_s: number;
+}
+
+/** A single point on the dΓ/dq² distribution. */
+export interface DifferentialPoint {
+  /** Dilepton invariant mass squared q² in GeV². */
+  q2: number;
+  /** Differential decay rate dΓ/dq² in GeV⁻¹. */
+  dgamma_dq2: number;
+}
+
+/** Complete flavor observable report. */
+export interface FlavorObservableReport {
+  /** ΔMd in ps⁻¹. */
+  delta_m_d: number;
+  /** ΔMs in ps⁻¹. */
+  delta_m_s: number;
+  /** Integrated branching ratio in the q² window. */
+  branching_ratio: number;
+  /** Differential decay rate spectrum. */
+  differential_spectrum: DifferentialPoint[];
+  /** q² window lower bound in GeV². */
+  q2_min: number;
+  /** q² window upper bound in GeV². */
+  q2_max: number;
+  /** Experimental ΔMd for comparison (ps⁻¹). */
+  exp_delta_m_d: number;
+  /** Experimental ΔMs for comparison (ps⁻¹). */
+  exp_delta_m_s: number;
+}

@@ -52,6 +52,10 @@ import type {
   ShowerToggleConfig,
   RelicConfig,
   RelicDensityReport,
+  LatticeInputs,
+  WilsonCoefficients,
+  BMixingResult,
+  FlavorObservableReport,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -450,5 +454,25 @@ export class TauriBackend implements SpireBackend {
 
   async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
     return tauriInvoke("calculate_relic_density", { config });
+  }
+
+  async calculateBMixing(lattice: LatticeInputs): Promise<BMixingResult> {
+    return tauriInvoke("calculate_b_mixing", { lattice });
+  }
+
+  async calculateBToKll(
+    q2Min: number,
+    q2Max: number,
+    wilsonCoeffs: WilsonCoefficients,
+    lattice: LatticeInputs,
+    nPoints?: number,
+  ): Promise<FlavorObservableReport> {
+    return tauriInvoke("calculate_b_to_k_ll", {
+      q2_min: q2Min,
+      q2_max: q2Max,
+      wilson_coeffs: wilsonCoeffs,
+      lattice,
+      n_points: nPoints ?? 100,
+    });
   }
 }

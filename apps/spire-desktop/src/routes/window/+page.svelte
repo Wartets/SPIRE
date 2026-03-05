@@ -35,6 +35,7 @@
   import ParameterScanner from "$lib/components/ParameterScanner.svelte";
   import DecayCalculator from "$lib/components/DecayCalculator.svelte";
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
+  import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
 
   let widgetType: WidgetType | null = null;
   let nodeId: string = "";
@@ -116,6 +117,8 @@
       <DecayCalculator />
     {:else if widgetType === "cosmology"}
       <CosmologyPanel />
+    {:else if widgetType === "flavor_workbench"}
+      <FlavorWorkbench />
     {:else}
       <div class="tearoff-error">
         <p>No widget type specified.</p>

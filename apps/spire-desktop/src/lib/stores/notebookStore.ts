@@ -35,7 +35,8 @@ export type WidgetType =
   | "notebook"
   | "parameter_scanner"
   | "decay_calculator"
-  | "cosmology";
+  | "cosmology"
+  | "flavor_workbench";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -90,6 +91,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "parameter_scanner", label: "Parameter Scanner",  defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "decay_calculator",  label: "Decay Calculator",   defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "cosmology",          label: "Cosmology",           defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "flavor_workbench",    label: "Flavor Workbench",     defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------

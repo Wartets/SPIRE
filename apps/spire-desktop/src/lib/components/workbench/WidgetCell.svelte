@@ -33,6 +33,7 @@
   import ParameterScanner from "$lib/components/ParameterScanner.svelte";
   import DecayCalculator from "$lib/components/DecayCalculator.svelte";
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
+  import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
 
   export let instance: WidgetInstance;
 
@@ -80,6 +81,8 @@
     <DecayCalculator />
   {:else if instance.type === "cosmology"}
     <CosmologyPanel />
+  {:else if instance.type === "flavor_workbench"}
+    <FlavorWorkbench />
   {:else}
     <p style="color: var(--hl-error);">Unknown widget type: {instance.type}</p>
   {/if}

@@ -31,4 +31,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   parameter_scanner: "Parameter Scanner",
   decay_calculator:  "Decay Calculator",
   cosmology:         "Cosmology",
+  flavor_workbench:  "Flavor Workbench",
 };

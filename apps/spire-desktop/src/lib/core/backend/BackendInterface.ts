@@ -55,6 +55,10 @@ import type {
   ShowerToggleConfig,
   RelicConfig,
   RelicDensityReport,
+  LatticeInputs,
+  WilsonCoefficients,
+  BMixingResult,
+  FlavorObservableReport,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -282,4 +286,15 @@ export interface SpireBackend {
 
   // ── Cosmological Relic Density ────────────────────────────────────────
   calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport>;
+
+  // ── Flavor Physics ──────────────────────────────────────────────────
+  calculateBMixing(lattice: LatticeInputs): Promise<BMixingResult>;
+
+  calculateBToKll(
+    q2Min: number,
+    q2Max: number,
+    wilsonCoeffs: WilsonCoefficients,
+    lattice: LatticeInputs,
+    nPoints?: number,
+  ): Promise<FlavorObservableReport>;
 }

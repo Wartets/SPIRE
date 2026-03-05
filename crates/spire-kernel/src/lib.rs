@@ -47,11 +47,16 @@
 //! - [`cosmology`] — Cosmological relic density calculator. Boltzmann
 //!   equation integration for dark matter freeze-out, thermal cross-section
 //!   averaging, and $\Omega h^2$ computation with Planck comparison.
+//! - [`flavor`] — Lattice QCD data integration and Flavor EFT engine.
+//!   BCL $z$-expansion form factor parameterization, hadronic decay
+//!   constants, Wilson coefficient registry, $B$-meson mixing ($\Delta M_q$),
+//!   and rare semi-leptonic decay rates ($B \to K \ell^+ \ell^-$).
 pub mod algebra;
 pub mod analysis;
 pub mod cosmology;
 pub mod data_loader;
 pub mod decay;
+pub mod flavor;
 pub mod graph;
 pub mod groups;
 pub mod integration;
