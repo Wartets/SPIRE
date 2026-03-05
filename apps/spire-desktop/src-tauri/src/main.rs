@@ -840,9 +840,7 @@ fn calculate_relic_density(
 /// # Returns
 /// A JSON object with `delta_m_d` and `delta_m_s` fields.
 #[tauri::command]
-fn calculate_b_mixing(
-    lattice: flavor_lattice::LatticeInputs,
-) -> Result<serde_json::Value, String> {
+fn calculate_b_mixing(lattice: flavor_lattice::LatticeInputs) -> Result<serde_json::Value, String> {
     let dm_d = flavor_eft::compute_delta_m_d(&lattice);
     let dm_s = flavor_eft::compute_delta_m_s(&lattice);
     Ok(serde_json::json!({

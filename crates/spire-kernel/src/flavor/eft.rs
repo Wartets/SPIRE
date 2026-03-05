@@ -355,8 +355,7 @@ pub fn differential_decay_rate(config: &BToKllConfig, q2: f64) -> f64 {
 
     // F_S = (m_B² - m_K²) / (2 m_B) · (C10 + C10') · f_0
     // (scalar contribution, relevant for massive leptons)
-    let f_s = (m_b_sq - m_k_sq) / (2.0 * config.m_b)
-        * (wc.c10 + wc.c10_prime) * f_zero;
+    let f_s = (m_b_sq - m_k_sq) / (2.0 * config.m_b) * (wc.c10 + wc.c10_prime) * f_zero;
 
     // Normalization
     // N(q²) = G_F² α² |V_tb V_ts*|² / (512 π⁵ m_B³) · √λ · β_ℓ
@@ -367,10 +366,8 @@ pub fn differential_decay_rate(config: &BToKllConfig, q2: f64) -> f64 {
         * beta_l;
 
     // Full differential rate
-    let rate = norm * (
-        (2.0 / 3.0) * lam * beta_l * beta_l * (f_v * f_v + f_a * f_a)
-        + q2 * f_s * f_s
-    );
+    let rate =
+        norm * ((2.0 / 3.0) * lam * beta_l * beta_l * (f_v * f_v + f_a * f_a) + q2 * f_s * f_s);
 
     rate.max(0.0)
 }
@@ -491,8 +488,11 @@ mod tests {
         // x_t = (m_t/m_W)² ≈ 4.64, S_0 ≈ 2.31
         let x_t = (M_TOP / M_W).powi(2);
         let s0 = inami_lim_s0(x_t);
-        assert!(s0 > 2.0 && s0 < 3.0,
-            "S_0(x_t) = {} expected in [2.0, 3.0]", s0);
+        assert!(
+            s0 > 2.0 && s0 < 3.0,
+            "S_0(x_t) = {} expected in [2.0, 3.0]",
+            s0
+        );
     }
 
     #[test]
@@ -518,10 +518,8 @@ mod tests {
         let lattice = LatticeInputs::flag_defaults();
         let dm_s = compute_delta_m_s(&lattice);
         // Experimental: 17.765 ps⁻¹; we expect the right ballpark
-        assert!(dm_s > 5.0,
-            "ΔMs = {} ps⁻¹ too small", dm_s);
-        assert!(dm_s < 30.0,
-            "ΔMs = {} ps⁻¹ too large", dm_s);
+        assert!(dm_s > 5.0, "ΔMs = {} ps⁻¹ too small", dm_s);
+        assert!(dm_s < 30.0, "ΔMs = {} ps⁻¹ too large", dm_s);
     }
 
     #[test]
@@ -529,10 +527,8 @@ mod tests {
         let lattice = LatticeInputs::flag_defaults();
         let dm_d = compute_delta_m_d(&lattice);
         // Experimental: 0.5065 ps⁻¹
-        assert!(dm_d > 0.1,
-            "ΔMd = {} ps⁻¹ too small", dm_d);
-        assert!(dm_d < 2.0,
-            "ΔMd = {} ps⁻¹ too large", dm_d);
+        assert!(dm_d > 0.1, "ΔMd = {} ps⁻¹ too small", dm_d);
+        assert!(dm_d < 2.0, "ΔMd = {} ps⁻¹ too large", dm_d);
     }
 
     #[test]
@@ -542,8 +538,11 @@ mod tests {
         let dm_d = compute_delta_m_d(&lattice);
         // ΔMs/ΔMd ≈ |Vts/Vtd|² × (f_Bs/f_Bd)² × (B̂s/B̂d) × (m_Bs/m_Bd) ≈ 35
         let ratio = dm_s / dm_d;
-        assert!(ratio > 15.0 && ratio < 60.0,
-            "ΔMs/ΔMd = {} expected in [15, 60]", ratio);
+        assert!(
+            ratio > 15.0 && ratio < 60.0,
+            "ΔMs/ΔMd = {} expected in [15, 60]",
+            ratio
+        );
     }
 
     #[test]
@@ -560,8 +559,12 @@ mod tests {
         let config = BToKllConfig::b_to_k_mumu_defaults();
         for q2 in [1.0, 3.0, 6.0, 10.0, 15.0, 20.0] {
             let rate = differential_decay_rate(&config, q2);
-            assert!(rate > 0.0,
-                "dΓ/dq² should be positive at q² = {} GeV², got {}", q2, rate);
+            assert!(
+                rate > 0.0,
+                "dΓ/dq² should be positive at q² = {} GeV², got {}",
+                q2,
+                rate
+            );
         }
     }
 
@@ -588,9 +591,11 @@ mod tests {
 
         // ΔC9 = -1 should significantly alter the rate
         let rel_change = ((bsm_rate - sm_rate) / sm_rate).abs();
-        assert!(rel_change > 0.05,
+        assert!(
+            rel_change > 0.05,
             "BSM shift ΔC9=-1 should change rate by >5%, got {}%",
-            rel_change * 100.0);
+            rel_change * 100.0
+        );
     }
 
     #[test]
@@ -614,8 +619,10 @@ mod tests {
         let sm_rate = differential_decay_rate(&sm_config, 6.0);
         let bsm_rate = differential_decay_rate(&bsm_config, 6.0);
 
-        assert!((sm_rate - bsm_rate).abs() > 1e-30,
-            "Modifying C10 should impact the decay width");
+        assert!(
+            (sm_rate - bsm_rate).abs() > 1e-30,
+            "Modifying C10 should impact the decay width"
+        );
     }
 
     #[test]
@@ -639,7 +646,10 @@ mod tests {
         let json = serde_json::to_string(&report).unwrap();
         let report2: FlavorObservableReport = serde_json::from_str(&json).unwrap();
         assert!((report.delta_m_s - report2.delta_m_s).abs() < 1e-15);
-        assert_eq!(report.differential_spectrum.len(), report2.differential_spectrum.len());
+        assert_eq!(
+            report.differential_spectrum.len(),
+            report2.differential_spectrum.len()
+        );
     }
 
     #[test]

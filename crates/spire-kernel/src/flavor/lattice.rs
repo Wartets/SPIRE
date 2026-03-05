@@ -75,7 +75,11 @@ pub struct DecayConstant {
 impl DecayConstant {
     /// Create a new decay constant.
     pub fn new(value: f64, error: f64, scale_mu: f64) -> Self {
-        Self { value, error, scale_mu }
+        Self {
+            value,
+            error,
+            scale_mu,
+        }
     }
 
     /// FLAG 2023 average for $f_B$ (charged $B$ meson).
@@ -132,7 +136,12 @@ pub struct FormFactorZExpansion {
 impl FormFactorZExpansion {
     /// Create a new BCL z-expansion form factor.
     pub fn new(coefficients: Vec<f64>, m_pole: f64, t_plus: f64, t_0: f64) -> Self {
-        Self { coefficients, m_pole, t_plus, t_0 }
+        Self {
+            coefficients,
+            m_pole,
+            t_plus,
+            t_0,
+        }
     }
 
     /// Compute the conformal variable $z(q^2)$.
@@ -158,9 +167,11 @@ impl FormFactorZExpansion {
         let z = self.z_variable(q2);
         let pole_factor = 1.0 / (1.0 - q2 / (self.m_pole * self.m_pole));
 
-        let series: f64 = self.coefficients.iter().enumerate().fold(0.0, |acc, (k, &a_k)| {
-            acc + a_k * z.powi(k as i32)
-        });
+        let series: f64 = self
+            .coefficients
+            .iter()
+            .enumerate()
+            .fold(0.0, |acc, (k, &a_k)| acc + a_k * z.powi(k as i32));
 
         pole_factor * series
     }
@@ -200,18 +211,8 @@ impl BToKFormFactors {
         let t_0 = (M_B + M_K) * (M_B.sqrt() - M_K.sqrt()).powi(2);
 
         Self {
-            f_plus: FormFactorZExpansion::new(
-                vec![0.466, -0.885, -0.213],
-                M_B_STAR_S,
-                t_plus,
-                t_0,
-            ),
-            f_zero: FormFactorZExpansion::new(
-                vec![0.292, 0.281, 0.150],
-                M_B_STAR_S0,
-                t_plus,
-                t_0,
-            ),
+            f_plus: FormFactorZExpansion::new(vec![0.466, -0.885, -0.213], M_B_STAR_S, t_plus, t_0),
+            f_zero: FormFactorZExpansion::new(vec![0.292, 0.281, 0.150], M_B_STAR_S0, t_plus, t_0),
             f_tensor: FormFactorZExpansion::new(
                 vec![0.460, -0.798, -0.470],
                 M_B_STAR_S,
@@ -354,8 +355,11 @@ mod tests {
         // truncated z-expansion are expected.
         let f_plus_0 = ff.f_plus.evaluate(0.0);
         let ratio = f_zero_0 / f_plus_0;
-        assert!(ratio > 0.5 && ratio < 2.0,
-            "f_0(0)/f_+(0) out of range: {}", ratio);
+        assert!(
+            ratio > 0.5 && ratio < 2.0,
+            "f_0(0)/f_+(0) out of range: {}",
+            ratio
+        );
     }
 
     #[test]
@@ -364,8 +368,12 @@ mod tests {
         let ff = BToKFormFactors::flag_defaults();
         let f_low = ff.f_plus.evaluate(1.0);
         let f_high = ff.f_plus.evaluate(15.0);
-        assert!(f_high > f_low,
-            "f+(15) = {} should exceed f+(1) = {}", f_high, f_low);
+        assert!(
+            f_high > f_low,
+            "f+(15) = {} should exceed f+(1) = {}",
+            f_high,
+            f_low
+        );
     }
 
     #[test]
