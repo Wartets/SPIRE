@@ -22,6 +22,10 @@
   } from "$lib/stores/layoutStore";
   import type { CanvasItem } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { addCanvasItem } from "$lib/stores/layoutStore";
+  import type { WidgetType } from "$lib/stores/notebookStore";
+  import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -62,7 +66,58 @@
     canvasViewport.set({ panX, panY, zoom });
   }
 
-  // ── Pan (middle-click) ──
+  // ── Multi-Level Grid ──
+  // Minor grid (20px) fades when zoomed out; major grid (100px) persists.
+  const MINOR_GRID = 20;
+  const MAJOR_GRID = 100;
+
+  $: minorSize = MINOR_GRID * zoom;
+  $: majorSize = MAJOR_GRID * zoom;
+  $: minorOpacity = Math.min(1, Math.max(0, (zoom - 0.3) / 0.4));
+
+  $: gridStyle = `
+    background-position: ${panX}px ${panY}px;
+    background-size:
+      ${minorSize}px ${minorSize}px,
+      ${minorSize}px ${minorSize}px,
+      ${majorSize}px ${majorSize}px,
+      ${majorSize}px ${majorSize}px;
+    background-image:
+      linear-gradient(rgba(51,51,51,${minorOpacity * 0.35}) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(51,51,51,${minorOpacity * 0.35}) 1px, transparent 1px),
+      linear-gradient(rgba(85,85,85,0.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(85,85,85,0.4) 1px, transparent 1px);
+  `;
+
+  // ── Magnetic Snapping ──
+  const SNAP_GRID = 20;
+
+  function snapToGrid(value: number): number {
+    return Math.round(value / SNAP_GRID) * SNAP_GRID;
+  }
+
+  // ── Spacebar Hold (grab-to-pan) ──
+
+  let spaceHeld = false;
+  let spacePanning = false;
+
+  function handleKeyDown(event: KeyboardEvent): void {
+    if (event.code === "Space" && !spaceHeld) {
+      const tag = (event.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      event.preventDefault();
+      spaceHeld = true;
+    }
+  }
+
+  function handleKeyUp(event: KeyboardEvent): void {
+    if (event.code === "Space") {
+      spaceHeld = false;
+      spacePanning = false;
+    }
+  }
+
+  // ── Pan (middle-click or spacebar+left-click) ──
 
   let isPanning = false;
   let panStartX = 0;
@@ -71,10 +126,11 @@
   let panStartPanY = 0;
 
   function handleCanvasMouseDown(event: MouseEvent): void {
-    // Middle-click (button 1) or Ctrl+Left-click for pan
-    if (event.button === 1 || (event.button === 0 && event.altKey)) {
+    // Middle-click (button 1) or Alt+Left-click or Spacebar+Left-click for pan
+    if (event.button === 1 || (event.button === 0 && event.altKey) || (event.button === 0 && spaceHeld)) {
       event.preventDefault();
       isPanning = true;
+      if (spaceHeld) spacePanning = true;
       panStartX = event.clientX;
       panStartY = event.clientY;
       panStartPanX = panX;
@@ -110,9 +166,14 @@
   function handleCanvasMouseUp(): void {
     if (isPanning) {
       isPanning = false;
+      spacePanning = false;
       commitViewport();
     }
-    if (isDragging) {
+    if (isDragging && dragItem) {
+      // Magnetic snap to grid on drop
+      const snappedX = snapToGrid(dragItem.x);
+      const snappedY = snapToGrid(dragItem.y);
+      updateCanvasItem(dragItem.id, { x: snappedX, y: snappedY });
       isDragging = false;
       dragItem = null;
     }
@@ -187,29 +248,57 @@
     removeCanvasItem(item.id);
   }
 
+  // ── Canvas Context Menu ──
+
+  function handleCanvasContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Convert viewport coords to world coords for widget placement
+    const rect = canvasEl.getBoundingClientRect();
+    const worldX = (event.clientX - rect.left - panX) / zoom;
+    const worldY = (event.clientY - rect.top - panY) / zoom;
+
+    const widgetItems = WIDGET_DEFINITIONS.map((def) => ({
+      id: `ctx-add-${def.type}`,
+      label: `Add ${def.label}`,
+      icon: "+",
+      action: () => addCanvasItem(def.type, worldX, worldY),
+    }));
+
+    showContextMenu(event.clientX, event.clientY, [
+      { id: "ctx-add-header", label: "Add Widget", icon: "⊞", disabled: true, action: () => {} },
+      ...widgetItems,
+    ]);
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+  });
+
   onDestroy(() => {
     unsubViewport();
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keyup", handleKeyUp);
   });
 </script>
 
 <div
   class="infinite-canvas"
+  class:space-held={spaceHeld && !spacePanning}
+  class:space-panning={spacePanning}
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
   on:mousemove={handleCanvasMouseMove}
   on:mouseup={handleCanvasMouseUp}
   on:wheel={handleWheel}
+  on:contextmenu={handleCanvasContextMenu}
   role="application"
   aria-label="Infinite Canvas Workspace"
 >
-  <!-- Grid dots (background pattern) -->
-  <div
-    class="canvas-grid"
-    style="
-      background-position: {panX}px {panY}px;
-      background-size: {40 * zoom}px {40 * zoom}px;
-    "
-  ></div>
+  <!-- Multi-level grid (minor 20px + major 100px) -->
+  <div class="canvas-grid" style={gridStyle}></div>
 
   <!-- Transform layer -->
   <div
@@ -312,11 +401,18 @@
     user-select: none;
   }
 
+  .infinite-canvas.space-held {
+    cursor: grab;
+  }
+
+  .infinite-canvas.space-panning {
+    cursor: grabbing;
+  }
+
   .canvas-grid {
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
   }
 
   .canvas-transform {

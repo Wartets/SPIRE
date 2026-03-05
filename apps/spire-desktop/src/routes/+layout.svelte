@@ -24,8 +24,10 @@
     matchesShortcut,
   } from "$lib/core/services/CommandRegistry";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+  import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
   import { tutorialActive } from "$lib/core/services/TutorialService";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
@@ -71,12 +73,23 @@
     }
   }
 
+  // ── Global Context Menu Interceptor ─────────────────────────────
+  function handleGlobalContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    // Default items — widgets can override via their own contextmenu handlers
+    showContextMenu(event.clientX, event.clientY, [
+      { id: "ctx-palette", label: "Command Palette", icon: "⌘", shortcut: "Ctrl+K", action: () => togglePalette() },
+    ]);
+  }
+
   onMount(() => {
     window.addEventListener("keydown", handleGlobalKeydown, { capture: true });
+    window.addEventListener("contextmenu", handleGlobalContextMenu);
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleGlobalKeydown, { capture: true });
+    window.removeEventListener("contextmenu", handleGlobalContextMenu);
   });
 </script>
 
@@ -136,6 +149,9 @@
   {#if $paletteOpen}
     <CommandPalette />
   {/if}
+
+  <!-- Global Context Menu Overlay -->
+  <ContextMenu />
 
   <!-- Tutorial Overlay -->
   {#if $tutorialActive}

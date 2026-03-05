@@ -152,12 +152,28 @@
   }
 
   .handle-h {
-    width: 4px;
+    width: 6px;
     cursor: col-resize;
+    margin: 0 -1px;
+    position: relative;
+  }
+
+  .handle-h::after {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
   }
 
   .handle-v {
-    height: 4px;
+    height: 6px;
     cursor: row-resize;
+    margin: -1px 0;
+    position: relative;
+  }
+
+  .handle-v::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
   }
 </style>

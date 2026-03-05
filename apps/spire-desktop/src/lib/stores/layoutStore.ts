@@ -115,6 +115,20 @@ export interface CanvasViewport {
 export type ViewMode = "docking" | "canvas";
 
 // ===========================================================================
+// Workspace (Multi-Workspace Support)
+// ===========================================================================
+
+/** A self-contained workspace holding its own layout, canvas, and view mode. */
+export interface Workspace {
+  id: string;
+  name: string;
+  dockingRoot: LayoutNode;
+  canvasItemList: CanvasItem[];
+  viewport: CanvasViewport;
+  mode: ViewMode;
+}
+
+// ===========================================================================
 // ID Generation
 // ===========================================================================
 
@@ -575,4 +589,122 @@ export function collectWidgetLeaves(root: LayoutNode): WidgetLeaf[] {
   }
   walk(root);
   return leaves;
+}
+
+// ===========================================================================
+// Multi-Workspace Manager
+// ===========================================================================
+
+let _wsCounter = 0;
+
+function makeWorkspaceId(): string {
+  _wsCounter += 1;
+  return `ws-${_wsCounter}-${Date.now().toString(36)}`;
+}
+
+function createWorkspace(name: string): Workspace {
+  return {
+    id: makeWorkspaceId(),
+    name,
+    dockingRoot: createDefaultLayout(),
+    canvasItemList: [],
+    viewport: { panX: 0, panY: 0, zoom: 1 },
+    mode: "docking",
+  };
+}
+
+/** All workspaces. */
+export const workspaces = writable<Workspace[]>([createWorkspace("Workspace 1")]);
+
+/** ID of the currently active workspace. */
+export const activeWorkspaceId = writable<string>("");
+
+// Initialise active workspace ID from the first workspace
+workspaces.subscribe((wsList) => {
+  const currentId = get(activeWorkspaceId);
+  if (!currentId || !wsList.find((w) => w.id === currentId)) {
+    if (wsList.length > 0) {
+      activeWorkspaceId.set(wsList[0].id);
+    }
+  }
+});
+
+/** The currently active workspace object (derived). */
+export const activeWorkspace = derived(
+  [workspaces, activeWorkspaceId],
+  ([$wsList, $activeId]) => $wsList.find((w) => w.id === $activeId) ?? $wsList[0],
+);
+
+/** Add a new empty workspace and switch to it. */
+export function addWorkspace(name?: string): void {
+  const ws = createWorkspace(name ?? `Workspace ${get(workspaces).length + 1}`);
+  workspaces.update((list) => [...list, ws]);
+  activeWorkspaceId.set(ws.id);
+  // Sync the live stores to the new workspace
+  layoutRoot.set(ws.dockingRoot);
+  canvasItems.set(ws.canvasItemList);
+  canvasViewport.set(ws.viewport);
+  viewMode.set(ws.mode);
+}
+
+/** Switch to a workspace by ID, saving the current workspace first. */
+export function switchWorkspace(targetId: string): void {
+  const currentId = get(activeWorkspaceId);
+  if (currentId === targetId) return;
+
+  // Save current workspace state
+  saveCurrentWorkspaceState();
+
+  // Load target workspace
+  const wsList = get(workspaces);
+  const target = wsList.find((w) => w.id === targetId);
+  if (!target) return;
+
+  activeWorkspaceId.set(targetId);
+  layoutRoot.set(target.dockingRoot);
+  canvasItems.set(target.canvasItemList);
+  canvasViewport.set(target.viewport);
+  viewMode.set(target.mode);
+}
+
+/** Persist current live store state back into the workspace array. */
+export function saveCurrentWorkspaceState(): void {
+  const currentId = get(activeWorkspaceId);
+  workspaces.update((list) =>
+    list.map((ws) =>
+      ws.id === currentId
+        ? {
+            ...ws,
+            dockingRoot: get(layoutRoot),
+            canvasItemList: get(canvasItems),
+            viewport: get(canvasViewport),
+            mode: get(viewMode),
+          }
+        : ws,
+    ),
+  );
+}
+
+/** Remove a workspace by ID. Cannot remove the last workspace. */
+export function removeWorkspace(wsId: string): void {
+  const wsList = get(workspaces);
+  if (wsList.length <= 1) return;
+
+  const currentId = get(activeWorkspaceId);
+  workspaces.update((list) => list.filter((w) => w.id !== wsId));
+
+  // If we removed the active workspace, switch to the first remaining
+  if (currentId === wsId) {
+    const remaining = get(workspaces);
+    if (remaining.length > 0) {
+      switchWorkspace(remaining[0].id);
+    }
+  }
+}
+
+/** Rename a workspace. */
+export function renameWorkspace(wsId: string, name: string): void {
+  workspaces.update((list) =>
+    list.map((ws) => (ws.id === wsId ? { ...ws, name } : ws)),
+  );
 }

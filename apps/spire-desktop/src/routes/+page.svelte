@@ -23,6 +23,11 @@
     resetDockingLayout,
     clearCanvas,
     toggleViewMode,
+    workspaces,
+    activeWorkspaceId,
+    addWorkspace,
+    switchWorkspace,
+    removeWorkspace,
   } from "$lib/stores/layoutStore";
   import { workspaceInputsSnapshot } from "$lib/stores/workspaceInputsStore";
   import { activeFramework } from "$lib/stores/physicsStore";
@@ -44,6 +49,8 @@
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
   import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { canvasExportMenuItems } from "$lib/utils/export";
 
   let toolboxOpen = false;
   let workspaceControls: WorkspaceControls;
@@ -231,6 +238,32 @@
 </script>
 
 <div class="workbench">
+  <!-- ─── Workspace Tab Bar ─── -->
+  <div class="workspace-tabs">
+    {#each $workspaces as ws (ws.id)}
+      <button
+        class="ws-tab"
+        class:active={ws.id === $activeWorkspaceId}
+        on:click={() => switchWorkspace(ws.id)}
+        title={ws.name}
+      >
+        <span class="ws-tab-label">{ws.name}</span>
+        {#if $workspaces.length > 1}
+          <button
+            class="ws-tab-close"
+            on:click|stopPropagation={() => removeWorkspace(ws.id)}
+            aria-label="Close workspace"
+          >&times;</button>
+        {/if}
+      </button>
+    {/each}
+    <button
+      class="ws-tab ws-tab-add"
+      on:click={() => addWorkspace()}
+      title="New Workspace"
+    >+</button>
+  </div>
+
   <!-- ─── Toolbox Bar ─── -->
   <div class="toolbox-bar">
     <button
@@ -399,5 +432,85 @@
     min-height: 0;
     overflow: hidden;
     display: flex;
+  }
+
+  /* ── Workspace Tabs ──────────────────────────────────────── */
+  .workspace-tabs {
+    display: flex;
+    align-items: stretch;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    min-height: 1.5rem;
+  }
+  .workspace-tabs::-webkit-scrollbar { display: none; }
+
+  .ws-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--fg-secondary);
+    font-size: 0.65rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, color 0.1s;
+    flex-shrink: 0;
+  }
+
+  .ws-tab:hover {
+    background: var(--bg-surface);
+    color: var(--fg-primary);
+  }
+
+  .ws-tab.active {
+    background: var(--bg-surface);
+    color: var(--fg-accent);
+    border-bottom: 2px solid var(--hl-symbol);
+  }
+
+  .ws-tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+  }
+
+  .ws-tab-close {
+    background: none;
+    border: none;
+    font-size: 0.72rem;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    font-family: var(--font-mono);
+  }
+
+  .ws-tab-close:hover {
+    color: var(--hl-error);
+  }
+
+  .ws-tab-add {
+    color: var(--fg-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-right: none;
+  }
+
+  .ws-tab-add:hover {
+    color: var(--hl-symbol);
+    background: var(--bg-surface);
   }
 </style>

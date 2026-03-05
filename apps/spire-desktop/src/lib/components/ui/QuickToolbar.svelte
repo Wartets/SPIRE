@@ -53,15 +53,15 @@
   .quick-toolbar {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.4rem;
+    gap: 0.2rem;
+    padding: 0.15rem 0.3rem;
     background: var(--bg-surface);
     border: 1px solid var(--border);
     flex-shrink: 1;
     min-width: 0;
     overflow-x: auto;
-    flex-wrap: wrap;
-    max-height: 3.2rem;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -70,8 +70,11 @@
   .qt-button {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.2rem 0.5rem;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.4rem;
+    min-width: 2rem;
+    min-height: 1.5rem;
     border: 1px solid transparent;
     background: none;
     color: var(--fg-secondary);
@@ -79,6 +82,7 @@
     font-size: 0.68rem;
     cursor: pointer;
     white-space: nowrap;
+    flex-shrink: 0;
     transition: border-color 0.1s, color 0.1s;
   }
   .qt-button:hover {

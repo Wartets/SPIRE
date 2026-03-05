@@ -15,6 +15,8 @@
   import { closeNode, splitNode } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { tearOffWidget } from "$lib/core/services/WindowManager";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { pipelineLinks } from "$lib/core/services/PipelineService";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -39,6 +41,9 @@
   export let node: WidgetLeaf;
 
   $: label = WIDGET_LABELS[node.widgetType] ?? node.widgetType;
+  $: linked = $pipelineLinks.some(
+    (l) => l.source.widgetId === node.id || l.sink.widgetId === node.id,
+  );
 
   function handleSplitH(): void {
     splitNode(node.id, "row", node.widgetType);
@@ -55,11 +60,26 @@
   function handleClose(): void {
     closeNode(node.id);
   }
+
+  function handleHeaderContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, [
+      { id: "split-h", label: "Split Horizontal", action: handleSplitH },
+      { id: "split-v", label: "Split Vertical", action: handleSplitV },
+      { id: "tear-off", label: "Tear Off to Window", action: handleTearOff },
+      { id: "sep-1", label: "", separator: true, action: () => {} },
+      { id: "close", label: "Close Widget", action: handleClose },
+    ]);
+  }
 </script>
 
 <div class="widget-container">
-  <header class="wc-header">
+  <header class="wc-header" on:contextmenu={handleHeaderContext}>
     <span class="wc-title">{label}</span>
+    {#if linked}
+      <span class="wc-link-badge" title="Connected via pipeline">⟷</span>
+    {/if}
     <div class="wc-controls">
       <button
         class="wc-btn"
@@ -194,6 +214,13 @@
   .wc-close:hover {
     color: var(--hl-error);
     border-color: var(--hl-error);
+  }
+
+  .wc-link-badge {
+    font-size: 0.6rem;
+    color: var(--hl-symbol);
+    opacity: 0.8;
+    flex-shrink: 0;
   }
 
   .wc-body {
