@@ -5,15 +5,18 @@
   positions on a pannable, zoomable 2D plane.
 
   Controls:
-  - Middle-click + drag → Pan the viewport
-  - Scroll wheel       → Zoom to cursor
-  - Left-click header  → Drag widget to reposition
-  - Corner handle      → Resize widget
+  - Left-click + drag on background → Pan the viewport
+  - Middle-click + drag             → Pan the viewport
+  - Scroll wheel on background      → Zoom to cursor
+  - Left-click on widget header     → Drag widget to reposition
+  - Corner handle                   → Resize widget
+  - Click on zoom indicator         → Reset to 100%
 
   The canvas state (items, viewport) lives in `layoutStore`.
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { get } from "svelte/store";
   import {
     canvasItems,
     canvasViewport,
@@ -91,11 +94,61 @@
       radial-gradient(circle, rgba(170,170,170,0.55) ${majorDotR}px, transparent ${majorDotR}px);
   `;
 
-  // ── Magnetic Snapping ──
-  const SNAP_GRID = 5;
+  // ── Edge Snapping ──────────────────────────────────────────────────────
+  // When dragging, snap widget edges to sibling widget edges and to the
+  // visible viewport edges.  Threshold in world-space pixels.
+  const SNAP_THRESHOLD = 8;
 
-  function snapToGrid(value: number): number {
-    return Math.round(value / SNAP_GRID) * SNAP_GRID;
+  interface SnapResult { x: number; y: number; }
+
+  function snapToEdges(
+    dragId: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): SnapResult {
+    let sx = x;
+    let sy = y;
+    let bestDx = SNAP_THRESHOLD + 1;
+    let bestDy = SNAP_THRESHOLD + 1;
+
+    // Visible viewport in world coords
+    const rect = canvasEl?.getBoundingClientRect();
+    const vpLeft = -panX / zoom;
+    const vpTop = -panY / zoom;
+    const vpRight = vpLeft + (rect?.width ?? 900) / zoom;
+    const vpBottom = vpTop + (rect?.height ?? 600) / zoom;
+
+    // Candidate edges: viewport bounds
+    const xEdges = [vpLeft, vpRight];
+    const yEdges = [vpTop, vpBottom];
+
+    // Sibling widgets
+    const items = get(canvasItems);
+    for (const sib of items) {
+      if (sib.id === dragId) continue;
+      xEdges.push(sib.x, sib.x + sib.width);
+      yEdges.push(sib.y, sib.y + sib.height);
+    }
+
+    // Snap left/right edges of dragged widget
+    for (const edge of xEdges) {
+      const dLeft = Math.abs(x - edge);
+      const dRight = Math.abs(x + w - edge);
+      if (dLeft < bestDx) { bestDx = dLeft; sx = edge; }
+      if (dRight < bestDx) { bestDx = dRight; sx = edge - w; }
+    }
+
+    // Snap top/bottom edges of dragged widget
+    for (const edge of yEdges) {
+      const dTop = Math.abs(y - edge);
+      const dBottom = Math.abs(y + h - edge);
+      if (dTop < bestDy) { bestDy = dTop; sy = edge; }
+      if (dBottom < bestDy) { bestDy = dBottom; sy = edge - h; }
+    }
+
+    return { x: sx, y: sy };
   }
 
   // ── Spacebar Hold (grab-to-pan) ──
@@ -119,7 +172,8 @@
     }
   }
 
-  // ── Pan (middle-click or spacebar+left-click) ──
+  // ── Pan ──
+  // Left-click on background, middle-click anywhere, or spacebar+left.
 
   let isPanning = false;
   let panStartX = 0;
@@ -127,9 +181,26 @@
   let panStartPanX = 0;
   let panStartPanY = 0;
 
+  /** Check whether a mousedown target is the canvas background (not a widget). */
+  function isCanvasBackground(target: EventTarget | null): boolean {
+    if (!target || !(target instanceof HTMLElement)) return false;
+    // The canvas background elements have these classes
+    return (
+      target.classList.contains("infinite-canvas") ||
+      target.classList.contains("canvas-grid") ||
+      target.classList.contains("canvas-transform")
+    );
+  }
+
   function handleCanvasMouseDown(event: MouseEvent): void {
-    // Middle-click (button 1) or Alt+Left-click or Spacebar+Left-click for pan
-    if (event.button === 1 || (event.button === 0 && event.altKey) || (event.button === 0 && spaceHeld)) {
+    // Middle-click (button 1) always pans
+    const middleClick = event.button === 1;
+    // Left-click pans when on background, or with Alt/Space modifier
+    const leftOnBg =
+      event.button === 0 &&
+      (event.altKey || spaceHeld || isCanvasBackground(event.target));
+
+    if (middleClick || leftOnBg) {
       event.preventDefault();
       isPanning = true;
       if (spaceHeld) spacePanning = true;
@@ -146,19 +217,21 @@
       panY = panStartPanY + (event.clientY - panStartY);
     }
 
-    if (isDragging && dragItem) {
+    if (isDragging && dragItemId) {
       const dx = (event.clientX - dragStartX) / zoom;
       const dy = (event.clientY - dragStartY) / zoom;
-      updateCanvasItem(dragItem.id, {
-        x: dragItemStartX + dx,
-        y: dragItemStartY + dy,
-      });
+      const newX = dragItemStartX + dx;
+      const newY = dragItemStartY + dy;
+      // Track live position for snapping in mouseUp
+      dragCurrentX = newX;
+      dragCurrentY = newY;
+      updateCanvasItem(dragItemId, { x: newX, y: newY });
     }
 
-    if (isResizing && resizeItem) {
+    if (isResizing && resizeItemId) {
       const dx = (event.clientX - resizeStartX) / zoom;
       const dy = (event.clientY - resizeStartY) / zoom;
-      updateCanvasItem(resizeItem.id, {
+      updateCanvasItem(resizeItemId, {
         width: Math.max(280, resizeStartW + dx),
         height: Math.max(200, resizeStartH + dy),
       });
@@ -171,28 +244,41 @@
       spacePanning = false;
       commitViewport();
     }
-    if (isDragging && dragItem) {
-      // Magnetic snap to grid on drop
-      const snappedX = snapToGrid(dragItem.x);
-      const snappedY = snapToGrid(dragItem.y);
-      updateCanvasItem(dragItem.id, { x: snappedX, y: snappedY });
+    if (isDragging && dragItemId) {
+      // Edge snap on drop
+      const current = get(canvasItems).find((i) => i.id === dragItemId);
+      if (current) {
+        const snapped = snapToEdges(
+          dragItemId,
+          dragCurrentX,
+          dragCurrentY,
+          current.width,
+          current.height,
+        );
+        updateCanvasItem(dragItemId, { x: snapped.x, y: snapped.y });
+      }
       isDragging = false;
-      dragItem = null;
+      dragItemId = null;
     }
     if (isResizing) {
       isResizing = false;
-      resizeItem = null;
+      resizeItemId = null;
     }
   }
 
   // ── Zoom (scroll wheel) ──
+  // Only zoom when scrolling on the canvas background. Inside a widget
+  // body the wheel event should scroll the widget content normally.
 
   function handleWheel(event: WheelEvent): void {
+    // Let the wheel scroll inside widget content
+    const target = event.target as HTMLElement | null;
+    if (target?.closest(".cw-body")) return;
+
     event.preventDefault();
     const factor = event.deltaY > 0 ? 0.92 : 1.08;
     const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
 
-    // Keep the world point under the cursor fixed
     const rect = canvasEl.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
@@ -209,9 +295,7 @@
   // ── Widget Selection & Z-Index ──
 
   let selectedWidgetId: string | null = null;
-  /** Monotonically increasing z-index counter — each click brings to front. */
   let zCounter = 10;
-  /** Per-widget z-index map keyed by item id. */
   let zMap: Record<string, number> = {};
 
   function selectWidget(item: CanvasItem): void {
@@ -220,12 +304,10 @@
     zMap[item.id] = zCounter;
   }
 
-  /** Get the z-index for a canvas widget. */
   function zIndexOf(item: CanvasItem): number {
     return zMap[item.id] ?? 1;
   }
 
-  /** Reset the viewport zoom to 100% (centered). */
   function resetZoom(): void {
     zoom = 1;
     commitViewport();
@@ -234,28 +316,33 @@
   // ── Widget Drag (left-click on header) ──
 
   let isDragging = false;
-  let dragItem: CanvasItem | null = null;
+  let dragItemId: string | null = null;
   let dragStartX = 0;
   let dragStartY = 0;
   let dragItemStartX = 0;
   let dragItemStartY = 0;
+  let dragCurrentX = 0;
+  let dragCurrentY = 0;
 
   function handleWidgetDragStart(event: MouseEvent, item: CanvasItem): void {
     if (event.button !== 0) return;
+    event.preventDefault();
     event.stopPropagation();
     selectWidget(item);
     isDragging = true;
-    dragItem = item;
+    dragItemId = item.id;
     dragStartX = event.clientX;
     dragStartY = event.clientY;
     dragItemStartX = item.x;
     dragItemStartY = item.y;
+    dragCurrentX = item.x;
+    dragCurrentY = item.y;
   }
 
   // ── Widget Resize (bottom-right corner) ──
 
   let isResizing = false;
-  let resizeItem: CanvasItem | null = null;
+  let resizeItemId: string | null = null;
   let resizeStartX = 0;
   let resizeStartY = 0;
   let resizeStartW = 0;
@@ -263,9 +350,10 @@
 
   function handleResizeStart(event: MouseEvent, item: CanvasItem): void {
     if (event.button !== 0) return;
+    event.preventDefault();
     event.stopPropagation();
     isResizing = true;
-    resizeItem = item;
+    resizeItemId = item.id;
     resizeStartX = event.clientX;
     resizeStartY = event.clientY;
     resizeStartW = item.width;
@@ -315,6 +403,8 @@
     ]);
   }
 
+  // ── Lifecycle ──
+
   onMount(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
@@ -332,6 +422,7 @@
   class="infinite-canvas"
   class:space-held={spaceHeld && !spacePanning}
   class:space-panning={spacePanning}
+  class:is-panning={isPanning}
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
   on:mousemove={handleCanvasMouseMove}
@@ -362,6 +453,7 @@
           z-index: {zIndexOf(item)};
         "
         on:mousedown={() => selectWidget(item)}
+        on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
         role="group"
         aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
       >
@@ -468,7 +560,8 @@
     cursor: grab;
   }
 
-  .infinite-canvas.space-panning {
+  .infinite-canvas.space-panning,
+  .infinite-canvas.is-panning {
     cursor: grabbing;
   }
 
