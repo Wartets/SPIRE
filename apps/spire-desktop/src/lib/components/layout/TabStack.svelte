@@ -26,7 +26,7 @@
     setActiveTab(node.id, index);
   }
 
-  function handleCloseTab(index: number, event: MouseEvent): void {
+  function handleCloseTab(index: number, event: MouseEvent | KeyboardEvent): void {
     event.stopPropagation();
     const child = node.children[index];
     closeNode(child.id);
@@ -49,6 +49,7 @@
         <span
           class="tab-close"
           on:click={(e) => handleCloseTab(i, e)}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCloseTab(i, e); }}
           role="button"
           tabindex="-1"
           aria-label="Close tab"

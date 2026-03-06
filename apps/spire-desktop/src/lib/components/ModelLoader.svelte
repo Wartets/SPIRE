@@ -340,6 +340,7 @@
         class="ufo-modal"
         role="dialog"
         aria-modal="true"
+        tabindex="-1"
         on:click|stopPropagation
       >
         <div class="ufo-modal-header">

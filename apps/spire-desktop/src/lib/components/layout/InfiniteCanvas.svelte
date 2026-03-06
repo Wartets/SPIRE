@@ -292,6 +292,7 @@
   });
 </script>
 
+<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 <div
   class="infinite-canvas"
   class:space-held={spaceHeld && !spacePanning}
@@ -304,6 +305,7 @@
   on:contextmenu={handleCanvasContextMenu}
   role="application"
   aria-label="Infinite Canvas Workspace"
+  tabindex="-1"
 >
   <!-- Multi-level dot grid (minor 20px + major 100px) -->
   <div class="canvas-grid" style={gridStyle}></div>
@@ -325,11 +327,16 @@
           z-index: {item.id === selectedWidgetId ? 50 : 1};
         "
         on:mousedown={() => selectWidget(item)}
+        role="group"
+        aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
       >
         <!-- Widget header (draggable) -->
         <header
           class="cw-header"
           on:mousedown={(e) => handleWidgetDragStart(e, item)}
+          role="toolbar"
+          tabindex="-1"
+          aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} controls"
         >
           <span class="cw-title">
             {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
@@ -390,11 +397,13 @@
         </div>
 
         <!-- Resize handle -->
+        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
         <div
           class="cw-resize"
           on:mousedown={(e) => handleResizeStart(e, item)}
           role="separator"
           aria-label="Resize"
+          tabindex="-1"
         ></div>
       </div>
     {/each}

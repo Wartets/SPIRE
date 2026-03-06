@@ -407,6 +407,8 @@
       viewBox="0 0 {SVG_W} {SVG_H}"
       on:pointermove={onPointerMove}
       on:pointerup={onPointerUp}
+      role="application"
+      aria-label="Feynman diagram editor canvas"
     >
       <!-- Arrowhead markers -->
       <defs>
@@ -459,10 +461,13 @@
             stroke-width="1.5"
             class="node-shape"
             on:pointerdown={(e) => onPointerDown(e, node.id)}
+            role="button"
+            tabindex="-1"
+            aria-label="Vertex {node.id}"
           />
         {:else}
           <!-- External particle: rounded rect with label -->
-          <g on:pointerdown={(e) => onPointerDown(e, node.id)} class="node-group">
+          <g on:pointerdown={(e) => onPointerDown(e, node.id)} class="node-group" role="button" tabindex="-1" aria-label="Particle {node.label}">
             <rect
               x={node.x - 28}
               y={node.y - 14}

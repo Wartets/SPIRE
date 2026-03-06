@@ -129,7 +129,7 @@
   on:drop={handleDrop}
   role="group"
 >
-  <header class="wc-header" on:contextmenu={handleHeaderContext}>
+  <header class="wc-header" on:contextmenu={handleHeaderContext} role="toolbar" tabindex="-1" aria-label="Widget controls">
     <span
       class="wc-drag-handle"
       draggable="true"

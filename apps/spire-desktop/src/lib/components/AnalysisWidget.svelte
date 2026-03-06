@@ -822,7 +822,7 @@
     <!-- Particle Kinds (when detector is active) -->
     {#if detectorActive}
       <div class="field">
-        <label>Particle Kinds:</label>
+        <span class="field-label">Particle Kinds:</span>
         <div class="particle-kinds-row">
           {#each particleKinds as kind, i}
             <div class="particle-kind-item">
@@ -841,7 +841,7 @@
 
       <!-- Reco-Level Observable Presets -->
       <div class="preset-section">
-        <label>Reco Presets:</label>
+        <span class="field-label">Reco Presets:</span>
         <div class="preset-row">
           {#each RECO_PRESETS as rp}
             <button
@@ -1068,7 +1068,8 @@
     gap: 0.2rem;
   }
 
-  .field label {
+  .field label,
+  .field-label {
     color: #aaa;
     font-size: 0.78rem;
   }
@@ -1262,7 +1263,7 @@
     gap: 0.25rem;
   }
 
-  .preset-section label {
+  .preset-section .field-label {
     color: #aaa;
     font-size: 0.78rem;
   }
@@ -1297,14 +1298,6 @@
   .mode-btn:hover:not(.active) {
     background: rgba(255, 255, 255, 0.06);
     color: #bbb;
-  }
-
-  /* --- 2D Heatmap Canvas --- */
-
-  .heatmap-canvas {
-    display: block;
-    margin: 0 auto;
-    max-width: 100%;
   }
 
   /* --- NLO & Shower Toggles (Phase 46) --- */

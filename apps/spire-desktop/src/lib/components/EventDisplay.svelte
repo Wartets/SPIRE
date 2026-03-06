@@ -596,7 +596,7 @@
   .field.compact { flex: 1; min-width: 70px; }
   .field label { color: #aaa; font-size: 0.75rem; }
 
-  input[type="number"], input[type="text"], select {
+  input[type="number"], select {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;

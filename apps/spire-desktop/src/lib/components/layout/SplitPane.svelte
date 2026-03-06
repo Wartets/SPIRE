@@ -100,6 +100,7 @@
       <slot name="child" index={i} />
     </div>
     {#if i < sizes.length - 1}
+      <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
       <div
         class="split-handle"
         class:handle-h={direction === "row"}

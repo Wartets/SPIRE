@@ -28,8 +28,7 @@
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
   import { tutorialActive } from "$lib/core/services/TutorialService";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
-  import { startBroadcasting, buildSnapshot } from "$lib/core/services/StoreSyncService";
-  import { listenForStoreActions, broadcastStoreSync } from "$lib/core/services/WindowManager";
+  import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
@@ -84,27 +83,28 @@
     ]);
   }
 
-  let stopSync: (() => void) | null = null;
-  let stopActions: (() => void) | null = null;
+  let stopMainSync: (() => void) | null = null;
+
+  /** True when this layout is running inside a tear-off window. */
+  const isTearOff =
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/window");
 
   onMount(async () => {
     window.addEventListener("keydown", handleGlobalKeydown, { capture: true });
     window.addEventListener("contextmenu", handleGlobalContextMenu);
-    stopSync = startBroadcasting();
 
-    // Listen for requests from tear-off windows (e.g. initial sync)
-    stopActions = await listenForStoreActions((data) => {
-      if (data.action === "request-sync") {
-        broadcastStoreSync(buildSnapshot());
-      }
-    });
+    // Only the main window acts as the state authority.
+    // Tear-off windows initialise their own sync in window/+page.svelte.
+    if (!isTearOff) {
+      stopMainSync = await initMainWindowSync();
+    }
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleGlobalKeydown, { capture: true });
     window.removeEventListener("contextmenu", handleGlobalContextMenu);
-    stopSync?.();
-    stopActions?.();
+    stopMainSync?.();
   });
 </script>
 
