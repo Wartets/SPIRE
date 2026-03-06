@@ -560,10 +560,16 @@ fn session_create() -> String {
 /// Execute a Rhai script cell within a persistent notebook session.
 ///
 /// Variables and state from previous cell executions are preserved in
-/// the session's scope.
+/// the session's scope.  An optional `physics_context` JSON blob can
+/// inject live workspace data (diagrams, amplitudes, sqrt_s, etc.)
+/// into the Rhai scope before evaluation.
 #[tauri::command]
-fn session_execute_script(session_id: String, script: String) -> Result<SessionResult, String> {
-    session::global_session_manager().execute_script(&session_id, &script)
+fn session_execute_script(
+    session_id: String,
+    script: String,
+    physics_context: Option<serde_json::Value>,
+) -> Result<SessionResult, String> {
+    session::global_session_manager().execute_script(&session_id, &script, physics_context)
 }
 
 /// Execute a TOML config cell to load a theoretical model into a session.

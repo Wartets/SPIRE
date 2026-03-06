@@ -632,8 +632,8 @@ export function addCanvasItem(
   y?: number,
 ): void {
   const def = WIDGET_DEFINITIONS.find((d) => d.type === widgetType);
-  const w = (def?.defaultColSpan ?? 2) * 200;
-  const h = (def?.defaultRowSpan ?? 2) * 160;
+  const w = (def?.defaultColSpan ?? 2) * 320;
+  const h = (def?.defaultRowSpan ?? 2) * 220;
 
   // Default to viewport center if no coordinates specified
   if (x === undefined || y === undefined) {

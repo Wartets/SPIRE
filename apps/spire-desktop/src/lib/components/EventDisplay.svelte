@@ -446,12 +446,18 @@
     renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
   }
 
+  let resizeObserver: ResizeObserver | null = null;
+
   onMount(() => {
     initScene();
+    // Use ResizeObserver for container-level resize (canvas mode, docking splits)
+    resizeObserver = new ResizeObserver(() => handleResize());
+    if (containerEl) resizeObserver.observe(containerEl);
     window.addEventListener("resize", handleResize);
   });
 
   onDestroy(() => {
+    resizeObserver?.disconnect();
     window.removeEventListener("resize", handleResize);
     cancelAnimationFrame(animFrameId);
     controls?.dispose();

@@ -213,12 +213,23 @@ impl NotebookSession {
     ///
     /// Variables defined in the script are retained for subsequent cells.
     /// The `model` variable is automatically injected if a model is loaded.
-    pub fn execute_script(&mut self, script: &str) -> ExecutionResult {
+    /// An optional `physics_context` JSON blob can supply live workspace data
+    /// (diagrams, amplitudes, kinematics, sqrt_s, etc.) from the frontend.
+    pub fn execute_script(
+        &mut self,
+        script: &str,
+        physics_context: Option<&serde_json::Value>,
+    ) -> ExecutionResult {
         self.execution_count += 1;
 
         // Clear the print buffer
         if let Ok(mut buf) = self.print_buffer.lock() {
             buf.clear();
+        }
+
+        // Inject physics context from the frontend stores
+        if let Some(ctx) = physics_context {
+            self.inject_physics_context(ctx);
         }
 
         // Inject current model metadata into scope if available
@@ -395,6 +406,60 @@ impl NotebookSession {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Physics context injection
+    // -----------------------------------------------------------------------
+
+    /// Inject live physics context from frontend stores into the Rhai scope.
+    ///
+    /// Accepts a JSON object with optional fields such as:
+    /// - `n_diagrams` (i64) — number of generated Feynman topologies
+    /// - `diagram_names` (string[]) — topology labels
+    /// - `amplitudes` (string[]) — symbolic amplitude expressions
+    /// - `sqrt_s` (f64) — centre-of-mass energy
+    /// - `n_events` (i64) — number of events requested
+    /// - `cross_section` (f64) — latest cross-section result
+    /// - `threshold_energy` (f64) — kinematic threshold
+    /// - `observable_names` (string[]) — active observable labels
+    /// - `cut_names` (string[]) — active cut labels
+    fn inject_physics_context(&mut self, ctx: &serde_json::Value) {
+        // Helper: inject a JSON value into the Rhai scope as a Dynamic.
+        fn json_to_dynamic(v: &serde_json::Value) -> Dynamic {
+            match v {
+                serde_json::Value::Null => Dynamic::UNIT,
+                serde_json::Value::Bool(b) => Dynamic::from(*b),
+                serde_json::Value::Number(n) => {
+                    if let Some(i) = n.as_i64() {
+                        Dynamic::from(i)
+                    } else if let Some(f) = n.as_f64() {
+                        Dynamic::from(f)
+                    } else {
+                        Dynamic::UNIT
+                    }
+                }
+                serde_json::Value::String(s) => Dynamic::from(s.clone()),
+                serde_json::Value::Array(arr) => {
+                    let items: rhai::Array = arr.iter().map(json_to_dynamic).collect();
+                    Dynamic::from(items)
+                }
+                serde_json::Value::Object(map) => {
+                    let mut rhai_map = rhai::Map::new();
+                    for (k, v) in map {
+                        rhai_map.insert(k.clone().into(), json_to_dynamic(v));
+                    }
+                    Dynamic::from(rhai_map)
+                }
+            }
+        }
+
+        if let serde_json::Value::Object(map) = ctx {
+            for (key, value) in map {
+                let dyn_val = json_to_dynamic(value);
+                self.scope.set_or_push(key.as_str(), dyn_val);
+            }
+        }
+    }
+
     /// Get the current execution count.
     pub fn execution_count(&self) -> u32 {
         self.execution_count
@@ -455,6 +520,7 @@ impl SessionManager {
         &self,
         session_id: &str,
         script: &str,
+        physics_context: Option<serde_json::Value>,
     ) -> Result<ExecutionResult, String> {
         let sessions = self
             .sessions
@@ -469,7 +535,7 @@ impl SessionManager {
             .lock()
             .map_err(|_| "Session lock poisoned".to_string())?;
 
-        Ok(session.execute_script(script))
+        Ok(session.execute_script(script, physics_context.as_ref()))
     }
 
     /// Execute a TOML config cell in the specified session.
@@ -607,7 +673,7 @@ mod tests {
     #[test]
     fn session_create_and_execute_script() {
         let mut session = NotebookSession::new();
-        let result = session.execute_script("let x = 42; x");
+        let result = session.execute_script("let x = 42; x", None);
         assert!(result.success);
         assert_eq!(result.return_value, Some(serde_json::json!(42)));
     }
@@ -616,10 +682,10 @@ mod tests {
     fn session_persistent_scope() {
         let mut session = NotebookSession::new();
         // Cell 1: define variable
-        let r1 = session.execute_script("let mass = 125.0;");
+        let r1 = session.execute_script("let mass = 125.0;", None);
         assert!(r1.success);
         // Cell 2: use variable from cell 1
-        let r2 = session.execute_script("mass * 2.0");
+        let r2 = session.execute_script("mass * 2.0", None);
         assert!(r2.success);
         assert_eq!(r2.return_value, Some(serde_json::json!(250.0)));
     }
@@ -627,7 +693,7 @@ mod tests {
     #[test]
     fn session_print_capture() {
         let mut session = NotebookSession::new();
-        let result = session.execute_script(r#"print("Hello SPIRE"); print("Line 2");"#);
+        let result = session.execute_script(r#"print("Hello SPIRE"); print("Line 2");"#, None);
         assert!(result.success);
         assert!(result.output.contains("Hello SPIRE"));
         assert!(result.output.contains("Line 2"));
@@ -636,7 +702,7 @@ mod tests {
     #[test]
     fn session_script_error() {
         let mut session = NotebookSession::new();
-        let result = session.execute_script("let x = ;");
+        let result = session.execute_script("let x = ;", None);
         assert!(!result.success);
         assert!(result.error.is_some());
     }
@@ -644,7 +710,7 @@ mod tests {
     #[test]
     fn session_math_functions() {
         let mut session = NotebookSession::new();
-        let result = session.execute_script("sqrt(144.0)");
+        let result = session.execute_script("sqrt(144.0)", None);
         assert!(result.success);
         assert_eq!(result.return_value, Some(serde_json::json!(12.0)));
     }
@@ -657,6 +723,7 @@ mod tests {
             let p = vec4(100.0, 30.0, 40.0, 0.0);
             p.e()
         "#,
+            None,
         );
         assert!(result.success);
         assert_eq!(result.return_value, Some(serde_json::json!(100.0)));
@@ -668,7 +735,7 @@ mod tests {
         let id = manager.create_session();
         assert_eq!(manager.session_count(), 1);
 
-        let result = manager.execute_script(&id, "1 + 2").unwrap();
+        let result = manager.execute_script(&id, "1 + 2", None).unwrap();
         assert!(result.success);
         assert_eq!(result.return_value, Some(serde_json::json!(3)));
 
@@ -679,16 +746,16 @@ mod tests {
     #[test]
     fn session_manager_unknown_session() {
         let manager = SessionManager::new();
-        let result = manager.execute_script("nonexistent", "1");
+        let result = manager.execute_script("nonexistent", "1", None);
         assert!(result.is_err());
     }
 
     #[test]
     fn session_reset_clears_scope() {
         let mut session = NotebookSession::new();
-        session.execute_script("let x = 10;");
+        session.execute_script("let x = 10;", None);
         session.reset();
-        let result = session.execute_script("x");
+        let result = session.execute_script("x", None);
         assert!(!result.success); // x should not be defined after reset
     }
 
@@ -696,9 +763,31 @@ mod tests {
     fn execution_count_increments() {
         let mut session = NotebookSession::new();
         assert_eq!(session.execution_count(), 0);
-        session.execute_script("1");
+        session.execute_script("1", None);
         assert_eq!(session.execution_count(), 1);
-        session.execute_script("2");
+        session.execute_script("2", None);
         assert_eq!(session.execution_count(), 2);
+    }
+
+    #[test]
+    fn physics_context_injection() {
+        let mut session = NotebookSession::new();
+        let ctx = serde_json::json!({
+            "n_diagrams": 4,
+            "sqrt_s": 13000.0,
+            "diagram_names": ["s-channel", "t-channel", "u-channel", "box"],
+            "reaction_initial": ["e-", "e+"],
+        });
+        let result = session.execute_script("n_diagrams", Some(&ctx));
+        assert!(result.success);
+        assert_eq!(result.return_value, Some(serde_json::json!(4)));
+
+        let result2 = session.execute_script("sqrt_s", Some(&ctx));
+        assert!(result2.success);
+        assert_eq!(result2.return_value, Some(serde_json::json!(13000.0)));
+
+        let result3 = session.execute_script("diagram_names.len()", Some(&ctx));
+        assert!(result3.success);
+        assert_eq!(result3.return_value, Some(serde_json::json!(4)));
     }
 }

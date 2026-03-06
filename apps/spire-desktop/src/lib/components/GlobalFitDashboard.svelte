@@ -555,8 +555,9 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-height: 100%;
+    height: 100%;
     overflow-y: auto;
+    min-height: 0;
   }
 
   h2 {

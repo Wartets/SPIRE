@@ -280,16 +280,71 @@ pub struct TopologySet {
 // Internal Helpers - Vertex Matching
 // ---------------------------------------------------------------------------
 
+/// Map a particle/antiparticle field ID to the canonical ID used in vertex
+/// definitions.
+///
+/// In QFT, a vertex like $\bar\psi \gamma^\mu \psi A_\mu$ is defined with
+/// the *field* appearing twice — once for the particle and once for the
+/// antiparticle.  The SM vertex database therefore lists `["e-", "photon",
+/// "e-"]` for the QED vertex, but when matching an external positron (`e+`)
+/// we need to resolve it to `e-`.
+///
+/// This function handles the standard naming conventions:
+///   - `"e+"  → "e-"`, `"mu+" → "mu-"`, `"tau+" → "tau-"`
+///   - `"nu_e_bar" → "nu_e"`, `"nu_mu_bar" → "nu_mu"`
+///   - `"u_bar" → "u"`, `"d_bar" → "d"`
+///   - Bosons and particles already in canonical form are returned as-is.
+fn vertex_canonical_id<'a>(model: &'a TheoreticalModel, id: &str) -> String {
+    // Strategy: check whether `id` appears in any vertex definition.
+    // If yes, it's already canonical. If not, look for its antiparticle
+    // partner in the model (same mass, opposite charge).
+
+    // Fast path: if any vertex already uses this id, return as-is.
+    let in_vertex = model.vertex_factors.iter().any(|vf| {
+        vf.field_ids.iter().any(|fid| fid == id)
+    });
+    if in_vertex {
+        return id.to_string();
+    }
+
+    // Explicit antiparticle → particle mapping based on naming conventions.
+    let canonical = match id {
+        "e+"        => "e-",
+        "mu+"       => "mu-",
+        "tau+"      => "tau-",
+        "nu_e_bar"  => "nu_e",
+        "nu_mu_bar" => "nu_mu",
+        "nu_tau_bar"=> "nu_tau",
+        "u_bar"     => "u",
+        "d_bar"     => "d",
+        "s_bar"     => "s",
+        "c_bar"     => "c",
+        "b_bar"     => "b",
+        "t_bar"     => "t",
+        _ => id,
+    };
+
+    canonical.to_string()
+}
+
 /// Check whether a set of field IDs can meet at a vertex defined in the model.
 ///
 /// Vertex matching is **order-independent**: the field ID lists are sorted
 /// before comparison. This mirrors the physics: vertices are symmetric
 /// under permutation of the attached legs.
+///
+/// Antiparticle IDs are resolved to their canonical (vertex-compatible) forms
+/// before matching, so that e.g. `["e+", "photon", "e-"]` matches the
+/// QED vertex `["e-", "photon", "e-"]`.
 fn find_matching_vertex<'a>(
     model: &'a TheoreticalModel,
     field_ids: &[&str],
 ) -> Option<&'a VertexFactor> {
-    let mut sorted_query: Vec<&str> = field_ids.to_vec();
+    let canonical: Vec<String> = field_ids
+        .iter()
+        .map(|id| vertex_canonical_id(model, id))
+        .collect();
+    let mut sorted_query: Vec<&str> = canonical.iter().map(|s| s.as_str()).collect();
     sorted_query.sort();
 
     model.vertex_factors.iter().find(|vf| {

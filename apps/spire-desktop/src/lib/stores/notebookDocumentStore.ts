@@ -28,6 +28,21 @@ import {
   createCell,
   createNotebookDocument,
 } from "$lib/core/domain/notebook";
+import {
+  theoreticalModel,
+  activeReaction,
+  generatedDiagrams,
+  amplitudeResults,
+  activeAmplitude,
+  kinematics,
+  observableScripts,
+  cutScripts,
+} from "$lib/stores/physicsStore";
+import {
+  cmsEnergyInput,
+  initialIdsInput,
+  finalIdsInput,
+} from "$lib/stores/workspaceInputsStore";
 
 // ===========================================================================
 // Store
@@ -141,6 +156,87 @@ export function moveCell(fromIndex: number, toIndex: number): void {
 }
 
 // ===========================================================================
+// Physics Context Gathering
+// ===========================================================================
+
+/**
+ * Build a JSON-serializable snapshot of the current physics workspace state.
+ * This is injected into the Rhai scope so notebook cells can access live
+ * workspace data (diagrams, amplitudes, kinematics, sqrt_s, etc.).
+ */
+function gatherPhysicsContext(): Record<string, unknown> {
+  const ctx: Record<string, unknown> = {};
+
+  // Model
+  const model = get(theoreticalModel);
+  if (model) {
+    ctx.model_name = model.name ?? "Unknown";
+    ctx.n_fields = model.fields?.length ?? 0;
+    ctx.n_vertices = model.vertex_factors?.length ?? 0;
+    ctx.field_names = (model.fields ?? []).map((f: any) => f.id ?? f.name ?? "");
+    ctx.field_masses = (model.fields ?? []).map((f: any) => [
+      f.id ?? f.name ?? "",
+      f.mass ?? 0,
+    ]);
+  }
+
+  // Reaction (Reaction.initial / Reaction.final_state are AsymptoticState)
+  const rxn = get(activeReaction);
+  if (rxn) {
+    ctx.reaction_initial = (rxn.initial?.states ?? []).map(
+      (s: any) => s.particle?.field?.id ?? "",
+    );
+    ctx.reaction_final = (rxn.final_state?.states ?? []).map(
+      (s: any) => s.particle?.field?.id ?? "",
+    );
+    ctx.perturbative_order = rxn.perturbative_order ?? 0;
+  }
+
+  // Diagrams
+  const diags = get(generatedDiagrams);
+  if (diags) {
+    ctx.n_diagrams = diags.diagrams?.length ?? 0;
+    ctx.diagram_names = (diags.diagrams ?? []).map(
+      (d: any, i: number) => d.label ?? d.name ?? `topology_${i}`,
+    );
+  }
+
+  // Amplitudes
+  const amps = get(amplitudeResults);
+  if (amps && amps.length > 0) {
+    ctx.amplitudes = amps.map((a: any) => a.expression ?? a.symbolic ?? "");
+  }
+  const activeAmp = get(activeAmplitude);
+  if (activeAmp) {
+    ctx.active_amplitude = activeAmp;
+  }
+
+  // Kinematics (KinematicsReport → .threshold.threshold_energy)
+  const kin = get(kinematics);
+  if (kin) {
+    ctx.threshold_energy = kin.threshold?.threshold_energy ?? 0;
+    ctx.is_kinematically_allowed = kin.is_allowed ?? false;
+  }
+
+  // Workspace inputs (individual stores)
+  ctx.sqrt_s = get(cmsEnergyInput) ?? 0;
+  ctx.initial_ids = get(initialIdsInput) ?? [];
+  ctx.final_ids = get(finalIdsInput) ?? [];
+
+  // Observable & cut names
+  const obs = get(observableScripts);
+  if (obs && obs.length > 0) {
+    ctx.observable_names = obs.map((o: any) => o.name ?? "");
+  }
+  const cuts = get(cutScripts);
+  if (cuts && cuts.length > 0) {
+    ctx.cut_names = cuts.map((c: any) => c.name ?? "");
+  }
+
+  return ctx;
+}
+
+// ===========================================================================
 // Execution Actions
 // ===========================================================================
 
@@ -174,10 +270,16 @@ export async function executeCell(
 
     const argKey = cell.type === "script" ? "script" : "tomlContent";
 
-    const result: CellExecutionResult = await invoke(command, {
+    // For script cells, gather live physics context from the workspace stores
+    const invokeArgs: Record<string, unknown> = {
       sessionId,
       [argKey]: cell.source,
-    });
+    };
+    if (cell.type === "script") {
+      invokeArgs.physicsContext = gatherPhysicsContext();
+    }
+
+    const result: CellExecutionResult = await invoke(command, invokeArgs);
 
     // Write result back
     notebookDocument.update((d) => ({

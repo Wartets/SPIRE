@@ -17,6 +17,7 @@
   import { tearOffWidget } from "$lib/core/services/WindowManager";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { pipelineLinks } from "$lib/core/services/PipelineService";
+  import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -75,6 +76,27 @@
       { id: "sep-1", label: "", separator: true, action: () => {} },
       { id: "close", label: "Close Widget", action: handleClose },
     ]);
+  }
+
+  /** Right-click on widget body → show widget-specific items + layout items. */
+  function handleBodyContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const widgetItems = getWidgetContextItems(node.widgetType);
+    const layoutItems = [
+      { id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
+      { id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
+      { id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
+      { id: "close", label: "Close Widget", icon: "✕", action: handleClose },
+    ];
+    const items = [
+      ...widgetItems,
+      ...(widgetItems.length > 0
+        ? [{ id: "sep-body", label: "", separator: true, action: () => {} }]
+        : []),
+      ...layoutItems,
+    ];
+    showContextMenu(e.clientX, e.clientY, items);
   }
 
   // ── Docking Drag-and-Drop ──
@@ -173,7 +195,7 @@
     </div>
   </header>
 
-  <div class="wc-body">
+  <div class="wc-body" on:contextmenu={handleBodyContext} role="region" aria-label="Widget content">
     {#if node.widgetType === "model"}
       <ModelLoader />
     {:else if node.widgetType === "reaction"}

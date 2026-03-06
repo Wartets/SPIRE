@@ -253,6 +253,46 @@
 
   // --- Observables & Cuts ---
 
+  /** Preset observable definitions for quick one-click addition. */
+  interface ObservablePreset {
+    label: string;
+    name: string;
+    script: string;
+  }
+
+  const OBSERVABLE_PRESETS: ObservablePreset[] = [
+    { label: "Leading pT",      name: "Leading pT",                script: "event.momenta[0].pt()" },
+    { label: "Sub-leading pT",  name: "Subleading pT",             script: "event.momenta[1].pt()" },
+    { label: "Inv. Mass (1,2)", name: "Invariant Mass (pair)",      script: "let p = event.momenta[0] + event.momenta[1]; p.m()" },
+    { label: "η (leading)",     name: "Pseudorapidity η (leading)", script: "event.momenta[0].eta()" },
+    { label: "φ (leading)",     name: "Azimuthal Angle φ (leading)", script: "event.momenta[0].phi()" },
+    { label: "Energy (leading)",name: "Energy (leading)",           script: "event.momenta[0].e()" },
+    { label: "ΔR (1,2)",        name: "ΔR (pair)",                  script: "let deta = event.momenta[0].eta() - event.momenta[1].eta(); let dphi = event.momenta[0].phi() - event.momenta[1].phi(); sqrt(deta*deta + dphi*dphi)" },
+    { label: "HT",              name: "HT (scalar pT sum)",        script: "let ht = 0.0; for p in event.momenta { ht += p.pt(); } ht" },
+  ];
+
+  interface CutPreset {
+    label: string;
+    name: string;
+    script: string;
+  }
+
+  const CUT_PRESETS: CutPreset[] = [
+    { label: "pT > 20",     name: "pT > 20 GeV",     script: "event.momenta[0].pt() > 20.0" },
+    { label: "|η| < 2.5",   name: "|η| < 2.5",       script: "abs(event.momenta[0].eta()) < 2.5" },
+    { label: "M(1,2) > 50", name: "M(pair) > 50 GeV", script: "let p = event.momenta[0] + event.momenta[1]; p.m() > 50.0" },
+  ];
+
+  function applyObsPreset(preset: ObservablePreset): void {
+    newObsName = preset.name;
+    newObsScript = preset.script;
+  }
+
+  function applyCutPreset(preset: CutPreset): void {
+    newCutName = preset.name;
+    newCutScript = preset.script;
+  }
+
   let newObsName: string = "";
   let newObsScript: string = "";
   let newCutName: string = "";
@@ -441,6 +481,14 @@
       <!-- Observable Editor -->
       <div class="script-section">
         <h4>Custom Observable</h4>
+        <div class="preset-row">
+          <span class="preset-label">Presets:</span>
+          {#each OBSERVABLE_PRESETS as preset}
+            <button class="preset-btn" on:click={() => applyObsPreset(preset)} title={preset.script}>
+              {preset.label}
+            </button>
+          {/each}
+        </div>
         <input class="script-name" type="text" bind:value={newObsName} placeholder="Name (e.g. Invariant mass)" />
         <textarea class="script-editor" bind:value={newObsScript} placeholder="event.momenta[2].pt()" rows="3"></textarea>
         <button class="small-btn" on:click={handleAddObservable}>+ Add Observable</button>
@@ -449,6 +497,14 @@
       <!-- Cut Editor -->
       <div class="script-section">
         <h4>Kinematic Cut</h4>
+        <div class="preset-row">
+          <span class="preset-label">Presets:</span>
+          {#each CUT_PRESETS as preset}
+            <button class="preset-btn" on:click={() => applyCutPreset(preset)} title={preset.script}>
+              {preset.label}
+            </button>
+          {/each}
+        </div>
         <input class="script-name" type="text" bind:value={newCutName} placeholder="Name (e.g. pT > 50 GeV)" />
         <textarea class="script-editor" bind:value={newCutScript} placeholder="event.momenta[2].pt() > 50.0" rows="3"></textarea>
         <button class="small-btn" on:click={handleAddCut}>+ Add Cut</button>
@@ -502,6 +558,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    height: 100%;
+    overflow-y: auto;
+    min-height: 0;
   }
   h3 {
     margin: 0 0 0.25rem;
@@ -751,5 +810,35 @@
   }
   .script-item-result.fail {
     color: var(--hl-error);
+  }
+
+  /* ── Preset rows ────────────────────────── */
+  .preset-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.3rem;
+  }
+  .preset-row .preset-label {
+    color: var(--hl-accent, #8ab4f8);
+    font-weight: 600;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+  .preset-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    border: 1px solid rgba(138, 180, 248, 0.3);
+    border-radius: 4px;
+    background: rgba(138, 180, 248, 0.08);
+    color: #ccc;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    transition: background 0.15s;
+  }
+  .preset-btn:hover {
+    background: rgba(138, 180, 248, 0.2);
+    color: #fff;
   }
 </style>

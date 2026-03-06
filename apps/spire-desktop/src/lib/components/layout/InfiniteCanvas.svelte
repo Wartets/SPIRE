@@ -25,6 +25,7 @@
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
+  import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -91,7 +92,7 @@
   `;
 
   // ── Magnetic Snapping ──
-  const SNAP_GRID = 20;
+  const SNAP_GRID = 5;
 
   function snapToGrid(value: number): number {
     return Math.round(value / SNAP_GRID) * SNAP_GRID;
@@ -158,8 +159,8 @@
       const dx = (event.clientX - resizeStartX) / zoom;
       const dy = (event.clientY - resizeStartY) / zoom;
       updateCanvasItem(resizeItem.id, {
-        width: Math.max(200, resizeStartW + dx),
-        height: Math.max(120, resizeStartH + dy),
+        width: Math.max(280, resizeStartW + dx),
+        height: Math.max(200, resizeStartH + dy),
       });
     }
   }
@@ -258,6 +259,21 @@
     removeCanvasItem(item.id);
   }
 
+  /** Right-click on a canvas widget body — widget-specific items + close. */
+  function handleWidgetBodyContext(e: MouseEvent, item: CanvasItem): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const widgetItems = getWidgetContextItems(item.widgetType);
+    const items = [
+      ...widgetItems,
+      ...(widgetItems.length > 0
+        ? [{ id: "sep-cw", label: "", separator: true, action: () => {} }]
+        : []),
+      { id: "cw-close", label: "Close Widget", icon: "✕", action: () => removeCanvasItem(item.id) },
+    ];
+    showContextMenu(e.clientX, e.clientY, items);
+  }
+
   // ── Canvas Context Menu ──
 
   function handleCanvasContextMenu(event: MouseEvent): void {
@@ -352,7 +368,7 @@
         </header>
 
         <!-- Widget body -->
-        <div class="cw-body">
+        <div class="cw-body" on:contextmenu={(e) => handleWidgetBodyContext(e, item)} role="region">
           {#if item.widgetType === "model"}
             <ModelLoader />
           {:else if item.widgetType === "reaction"}

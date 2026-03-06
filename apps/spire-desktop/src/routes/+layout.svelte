@@ -212,6 +212,29 @@
     border-radius: 0 !important;
   }
 
+  /* ── Global Scrollbar Styling (dark & thin) ───────────────── */
+  :global(*) {
+    scrollbar-width: thin;                         /* Firefox */
+    scrollbar-color: #444444 transparent;          /* Firefox: thumb track */
+  }
+  :global(*::-webkit-scrollbar) {
+    width: 6px;
+    height: 6px;
+  }
+  :global(*::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+  :global(*::-webkit-scrollbar-thumb) {
+    background: #444444;
+    border-radius: 3px !important;
+  }
+  :global(*::-webkit-scrollbar-thumb:hover) {
+    background: #666666;
+  }
+  :global(*::-webkit-scrollbar-corner) {
+    background: transparent;
+  }
+
   /* ── App Shell ────────────────────────────────────────────── */
   .app-shell {
     display: flex;

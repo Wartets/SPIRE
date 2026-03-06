@@ -226,6 +226,9 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
+    height: 100%;
+    overflow-y: auto;
+    min-height: 0;
   }
   h3 {
     margin: 0 0 0.25rem;
