@@ -334,6 +334,32 @@ npm run build
 # Output: apps/spire-desktop/src-tauri/target/release/
 ```
 
+### Relaunching After Compilation
+
+Once you have built a release binary with `npm run build` (or `npm run tauri build`), you can relaunch the application directly **without recompiling**:
+
+**Windows:**
+```bash
+# The compiled executable is located at:
+apps\spire-desktop\src-tauri\target\release\spire-desktop-backend.exe
+
+# Simply run it:
+.\apps\spire-desktop\src-tauri\target\release\spire-desktop-backend.exe
+```
+
+**macOS / Linux:**
+```bash
+# The compiled binary is located at:
+apps/spire-desktop/src-tauri/target/release/spire-desktop-backend
+
+# Run it directly:
+./apps/spire-desktop/src-tauri/target/release/spire-desktop-backend
+```
+
+> **Tip:** You can create a desktop shortcut or alias pointing to the binary for quick access. The release binary is fully self-contained and does not require Node.js or Cargo at runtime.
+>
+> On Windows you can also find an **NSIS installer** (`.exe`) or **MSI installer** in `target/release/bundle/` after a release build.
+
 ### Running the Test Suite
 
 ```bash
