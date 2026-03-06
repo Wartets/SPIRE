@@ -292,6 +292,14 @@
   function zoomIn(): void { diagramZoom = Math.min(3, diagramZoom + 0.2); }
   function zoomOut(): void { diagramZoom = Math.max(0.4, diagramZoom - 0.2); }
   function zoomReset(): void { diagramZoom = 1; }
+
+  /** Handle wheel events on the SVG viewport for smooth zoom. */
+  function handleSvgWheel(event: WheelEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const step = event.deltaY > 0 ? -0.1 : 0.1;
+    diagramZoom = Math.min(3, Math.max(0.4, diagramZoom + step));
+  }
 </script>
 
 <div class="diagram-viz" data-tour-id="diagram-visualizer">
@@ -407,7 +415,7 @@
           </div>
         {:else}
           <!-- Feynman / Worldsheet SVG -->
-          <div class="svg-container" bind:this={renderContainer}></div>
+          <div class="svg-container" bind:this={renderContainer} on:wheel={handleSvgWheel} data-wheel-capture></div>
         {/if}
       </div>
 

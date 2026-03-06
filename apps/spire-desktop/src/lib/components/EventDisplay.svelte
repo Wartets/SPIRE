@@ -555,7 +555,7 @@
   </div>
 
   <!-- 3D Viewport -->
-  <div class="viewport" bind:this={containerEl}>
+  <div class="viewport" bind:this={containerEl} data-wheel-capture>
     {#if eventBatch.length === 0 && !loading}
       <div class="placeholder">
         Click <strong>Generate Batch</strong> to produce events for animated playback.

@@ -312,26 +312,83 @@
   }
 
   // ── Zoom (scroll wheel) ──
-  // Only zoom when scrolling on the canvas background. Inside a widget
-  // body the wheel event should scroll the widget content normally.
+  // Priority-based wheel event routing:
+  //
+  //   1. If cursor is over a widget with an interactive <canvas> element
+  //      (Three.js OrbitControls, WebGL, etc.) or an element tagged with
+  //      data-wheel-capture → let the widget handle it (no canvas zoom).
+  //
+  //   2. If cursor is over a widget whose .cw-body content is scrollable
+  //      AND the content can still scroll in the wheel direction →
+  //      let the browser scroll the widget content.
+  //
+  //   3. Otherwise (cursor on background, or widget content is not
+  //      scrollable / is at scroll boundary) → zoom the canvas.
+
+  /**
+   * Walk from `el` up to (but not including) `boundary` and return true
+   * if any ancestor captures wheel events — marked via the
+   * `data-wheel-capture` attribute.  Widgets whose content uses its own
+   * wheel-driven interaction (Three.js OrbitControls, map viewers, etc.)
+   * should place this attribute on the relevant container.
+   */
+  function elementCapturesWheel(el: HTMLElement | null, boundary: HTMLElement): boolean {
+    let cur = el;
+    while (cur && cur !== boundary) {
+      if (cur.hasAttribute("data-wheel-capture")) return true;
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  /**
+   * Return true when the scrollable element can still move in the
+   * direction indicated by deltaY.  If the user scrolls down but the
+   * element is already at the bottom (or up when at the top), the event
+   * should fall through to the canvas.
+   */
+  function canScrollInDirection(el: HTMLElement, deltaY: number): boolean {
+    const tolerance = 1; // sub-pixel rounding guard
+    if (deltaY < 0) {
+      // Scrolling up — can scroll if not at the top
+      return el.scrollTop > tolerance;
+    }
+    if (deltaY > 0) {
+      // Scrolling down — can scroll if not at the bottom
+      return el.scrollTop + el.clientHeight < el.scrollHeight - tolerance;
+    }
+    return false;
+  }
 
   function handleWheel(event: WheelEvent): void {
-    // Let the wheel scroll inside widget content — but only when the
-    // content actually overflows.  If the widget body has nothing to
-    // scroll, the wheel event should fall through to canvas zoom.
     const target = event.target as HTMLElement | null;
     const cwBody = target?.closest(".cw-body") as HTMLElement | null;
+
     if (cwBody) {
-      const hasVerticalScroll = cwBody.scrollHeight > cwBody.clientHeight;
-      const hasHorizontalScroll = cwBody.scrollWidth > cwBody.clientWidth;
-      if (hasVerticalScroll || hasHorizontalScroll) {
-        // Content is scrollable — let the browser handle the wheel
-        // event normally so the widget body scrolls.
+      // ── Cursor is inside a widget ──
+
+      // 1. Interactive canvas (Three.js, WebGL) or explicit capture
+      if (target && elementCapturesWheel(target, cwBody)) {
+        // The widget's own controller (OrbitControls, etc.) handles
+        // the event.  Do NOT also zoom the canvas.
         return;
       }
-      // Content does NOT overflow → fall through to canvas zoom.
+
+      // 2. Scrollable widget content
+      const hasOverflow =
+        cwBody.scrollHeight > cwBody.clientHeight + 1 ||
+        cwBody.scrollWidth > cwBody.clientWidth + 1;
+
+      if (hasOverflow && canScrollInDirection(cwBody, event.deltaY)) {
+        // Let the browser scroll the widget body natively.
+        return;
+      }
+
+      // 3. Widget content is not scrollable (or is at scroll boundary)
+      //    → fall through to canvas zoom below.
     }
 
+    // ── Global canvas zoom (cursor on background or non-interactive widget) ──
     event.preventDefault();
     const factor = event.deltaY > 0 ? 0.92 : 1.08;
     const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
