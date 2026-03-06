@@ -1,5 +1,5 @@
 /**
- * SPIRE — Notebook Document Store
+ * SPIRE - Notebook Document Store
  *
  * Reactive store that manages the active notebook document: cell CRUD,
  * reordering, and execution dispatch to the Rust backend via Tauri IPC.

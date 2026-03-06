@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Layout Renderer
+  SPIRE - Layout Renderer
 
   Recursive component that traverses the layout tree and renders
   the appropriate container or leaf component for each node.
@@ -11,7 +11,7 @@
   This is a `<svelte:self>` recursion pattern.
 
   Props:
-    node — The LayoutNode to render (any variant).
+    node - The LayoutNode to render (any variant).
 -->
 <script lang="ts">
   import type { LayoutNode, RowNode, ColNode, StackNode, WidgetLeaf } from "$lib/stores/layoutStore";

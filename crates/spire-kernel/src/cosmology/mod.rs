@@ -5,7 +5,7 @@
 //!
 //! ## Modules
 //!
-//! - [`relic`] — Boltzmann equation solver for computing the cosmological
+//! - [`relic`] - Boltzmann equation solver for computing the cosmological
 //!   relic abundance $\Omega h^2$ of a dark matter candidate.
 
 pub mod relic;

@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Log Console Component
+  SPIRE - Log Console Component
 
   Displays a scrollable list of timestamped system messages,
   computation summaries, and error notifications. The log store

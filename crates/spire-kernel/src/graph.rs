@@ -1,4 +1,4 @@
-//! # Graph — Feynman Diagram Topology
+//! # Graph - Feynman Diagram Topology
 //!
 //! This module handles the generation, manipulation, and validation of Feynman
 //! diagrams represented as directed graphs. Nodes represent interaction vertices
@@ -41,9 +41,9 @@ use crate::SpireResult;
 /// vertex governed by a Feynman rule derived from the Lagrangian.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
-    /// An external leg — an asymptotic **incoming** particle.
+    /// An external leg - an asymptotic **incoming** particle.
     ExternalIncoming(Particle),
-    /// An external leg — an asymptotic **outgoing** particle.
+    /// An external leg - an asymptotic **outgoing** particle.
     ExternalOutgoing(Particle),
     /// An interaction vertex carrying a specific vertex factor from the Lagrangian.
     InternalVertex(VertexFactor),
@@ -213,7 +213,7 @@ pub enum OneLoopTopologyKind {
     NPoint(u32),
 }
 
-/// A complete **FeynmanGraph** — the topological representation of a single
+/// A complete **FeynmanGraph** - the topological representation of a single
 /// Feynman diagram.
 ///
 /// Wraps a `petgraph::DiGraph` of [`Node`]s and [`Edge`]s, together with
@@ -277,7 +277,7 @@ pub struct TopologySet {
 }
 
 // ---------------------------------------------------------------------------
-// Internal Helpers — Vertex Matching
+// Internal Helpers - Vertex Matching
 // ---------------------------------------------------------------------------
 
 /// Check whether a set of field IDs can meet at a vertex defined in the model.
@@ -793,7 +793,7 @@ fn factorial(n: u32) -> u32 {
 }
 
 // ---------------------------------------------------------------------------
-// Public API — Diagram Generation and Manipulation
+// Public API - Diagram Generation and Manipulation
 // ---------------------------------------------------------------------------
 
 /// Generate all topologically distinct **tree-level** Feynman diagrams for a
@@ -811,9 +811,9 @@ fn factorial(n: u32) -> u32 {
 /// at every vertex correspond to an allowed [`VertexFactor`] in the model.
 ///
 /// # Arguments
-/// * `reaction`  — The validated reaction defining the external legs.
-/// * `model`     — The active theoretical model providing the allowed vertices.
-/// * `max_order` — Maximum loop order (only `LoopOrder::Tree` currently supported).
+/// * `reaction`  - The validated reaction defining the external legs.
+/// * `model`     - The active theoretical model providing the allowed vertices.
+/// * `max_order` - Maximum loop order (only `LoopOrder::Tree` currently supported).
 ///
 /// # Returns
 /// A [`TopologySet`] containing all valid, topologically distinct diagrams.
@@ -964,7 +964,7 @@ pub fn generate_topologies(
             //   V1 = [in1, out2, X], V2 = [in2, out1, X].
             // When this produces the SAME sorted vertex pair as the
             // t-channel (V1=[in1,out1,X], V2=[in2,out2,X]), both channels
-            // are generated and kept — they differ by momentum routing.
+            // are generated and kept - they differ by momentum routing.
             //
             // However, when the u-channel vertex pair is equivalent to an
             // s-channel annihilation pair and the graph topology would be
@@ -991,7 +991,7 @@ pub fn generate_topologies(
             };
 
             // Also skip if u-channel exchange is identical to t-channel
-            // (same vertex structure AND same vertex factor IDs — this
+            // (same vertex structure AND same vertex factor IDs - this
             // only matters when all four particles are identical)
             let u_vertices_same_as_t = {
                 let mut t_v1: Vec<&str> = vec![id_in1, id_out1];
@@ -1037,7 +1037,7 @@ pub fn generate_topologies(
         }
 
         _ => {
-            // Unsupported topology (N>2 legs on either side) — no diagrams.
+            // Unsupported topology (N>2 legs on either side) - no diagrams.
         }
     }
 
@@ -1134,8 +1134,8 @@ pub fn generate_topologies(
 /// requested channel (s, t, or u).
 ///
 /// # Arguments
-/// * `topologies` — The full set of generated topologies.
-/// * `channel`    — The Mandelstam channel to isolate.
+/// * `topologies` - The full set of generated topologies.
+/// * `channel`    - The Mandelstam channel to isolate.
 pub fn isolate_channels(
     topologies: &TopologySet,
     channel: Channel,
@@ -1155,7 +1155,7 @@ pub fn isolate_channels(
 /// factor of $1/n!$.
 ///
 /// # Arguments
-/// * `diagram` — The Feynman diagram to compute the symmetry factor for.
+/// * `diagram` - The Feynman diagram to compute the symmetry factor for.
 pub fn calculate_symmetry_factors(diagram: &FeynmanGraph) -> SpireResult<f64> {
     let outgoing: Vec<&Particle> = diagram
         .nodes
@@ -1176,9 +1176,9 @@ pub fn calculate_symmetry_factors(diagram: &FeynmanGraph) -> SpireResult<f64> {
 /// corresponding particle).
 ///
 /// # Arguments
-/// * `diagram` — The diagram to transform.
-/// * `leg_in`  — Index of the incoming external leg to cross.
-/// * `leg_out` — Index of the outgoing external leg to cross.
+/// * `diagram` - The diagram to transform.
+/// * `leg_in`  - Index of the incoming external leg to cross.
+/// * `leg_out` - Index of the outgoing external leg to cross.
 pub fn apply_crossing_symmetry(
     _diagram: &FeynmanGraph,
     _leg_in: usize,
@@ -1499,7 +1499,7 @@ fn generate_vertex_correction_topologies(
                     && find_matching_vertex(model, &v2_ids).is_some()
                 {
                     // Create a triangle topology placeholder
-                    // This is a simplified representation — the full graph construction
+                    // This is a simplified representation - the full graph construction
                     // follows the same pattern as self-energy but with 3 internal edges.
                     let routing = LoopMomentumRouting {
                         loop_momenta: vec!["l".to_string()],
@@ -1899,7 +1899,7 @@ fn generate_box_topologies(
                         results.push(fg);
                         *next_id += 1;
 
-                        // Found one valid box — return to avoid combinatorial explosion
+                        // Found one valid box - return to avoid combinatorial explosion
                         // (more boxes may exist with different field assignments)
                         if results.len() >= 4 {
                             return results;
@@ -1989,7 +1989,7 @@ pub fn check_one_particle_irreducible(diagram: &FeynmanGraph) -> bool {
 /// determine the momentum on every other internal edge.
 ///
 /// # Arguments
-/// * `diagram` — The Feynman diagram to route momenta through.
+/// * `diagram` - The Feynman diagram to route momenta through.
 ///
 /// # Returns
 /// A [`LoopMomentumRouting`] describing the momentum flow, or `None` for
@@ -3058,7 +3058,7 @@ mod tests {
 
     #[test]
     fn check_1pi_tree_diagram() {
-        // A tree diagram (no loops) is NOT 1PI — removing any internal edge
+        // A tree diagram (no loops) is NOT 1PI - removing any internal edge
         // disconnects the graph.
         let model = make_full_test_model();
         let reaction = make_reaction(

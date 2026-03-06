@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Parameter Scanner Widget (Phase 44)
+  SPIRE - Parameter Scanner Widget (Phase 44)
 
   Interactive 1D parameter sweep interface. The user selects a scan target
   (field mass, decay width, vertex coupling, or CMS energy), configures

@@ -10,7 +10,7 @@
 // Standard Model Particles (22 particles)
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_PARTICLES_TOML = `# SPIRE Particle Data — Standard Model
+export const DEFAULT_PARTICLES_TOML = `# SPIRE Particle Data - Standard Model
 #
 # Quantum Number Conventions (scaled integers to avoid fractions):
 #   spin            - 2J  (e.g., 1 for spin-½, 2 for spin-1)
@@ -404,7 +404,7 @@ interactions    = ["Yukawa", "ScalarSelf"]
 export const DEFAULT_VERTICES_TOML = `# SPIRE Standard Model Vertex Definitions
 
 # ============================================================================
-# QED VERTICES — Electromagnetic coupling (U(1)_EM)
+# QED VERTICES - Electromagnetic coupling (U(1)_EM)
 # ============================================================================
 
 [[vertex]]
@@ -536,7 +536,7 @@ expression        = "-i (g_z / 2) \\\\gamma^{\\\\mu} P_L"
 n_legs            = 3
 
 # ============================================================================
-# QCD VERTICES — Strong coupling (SU(3)_C)
+# QCD VERTICES - Strong coupling (SU(3)_C)
 # ============================================================================
 
 [[vertex]]
@@ -564,7 +564,7 @@ expression        = "-i g_s T^a \\\\gamma^{\\\\mu}"
 n_legs            = 3
 
 # ============================================================================
-# YUKAWA VERTICES — Higgs-fermion coupling
+# YUKAWA VERTICES - Higgs-fermion coupling
 # ============================================================================
 
 [[vertex]]

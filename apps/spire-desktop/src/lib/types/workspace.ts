@@ -1,17 +1,17 @@
 /**
- * SPIRE — Workspace Serialisation Schema
+ * SPIRE - Workspace Serialisation Schema
  *
  * Versioned JSON format for persisting and sharing computational
  * environments.  Strictly separates layout state (widget arrangement)
  * from domain state (physics inputs).  Computed results (diagrams,
- * amplitudes, kinematics) are NOT serialised — they are re-derived
+ * amplitudes, kinematics) are NOT serialised - they are re-derived
  * from the stored inputs via the computation pipeline.
  *
  * File convention: `*.spire.json`
  * Current schema version: "2.0"
  *
- * v2.0  — Recursive docking tree + canvas items replace flat grid.
- * v1.0  — Flat CSS grid with SerializedWidget[] (legacy).
+ * v2.0  - Recursive docking tree + canvas items replace flat grid.
+ * v1.0  - Flat CSS grid with SerializedWidget[] (legacy).
  */
 
 import type { WidgetType } from "$lib/stores/notebookStore";
@@ -44,7 +44,7 @@ export interface WorkspaceMetadata {
 // ---------------------------------------------------------------------------
 
 /**
- * A serialised widget (v1.0 legacy format — kept for backward-compat import).
+ * A serialised widget (v1.0 legacy format - kept for backward-compat import).
  */
 export interface SerializedWidget {
   /** Which component this widget renders. */
@@ -74,10 +74,10 @@ export interface WorkspaceLayout {
   /** Widgets placed on the infinite canvas. */
   canvasItems: CanvasItem[];
 
-  // Legacy compat (optional — only present in v1.0 imports)
-  /** @deprecated — v1.0 flat widget list; unused in v2.0 exports. */
+  // Legacy compat (optional - only present in v1.0 imports)
+  /** @deprecated - v1.0 flat widget list; unused in v2.0 exports. */
   widgets?: SerializedWidget[];
-  /** @deprecated — v1.0 grid column count. */
+  /** @deprecated - v1.0 grid column count. */
   gridColumns?: number;
 }
 

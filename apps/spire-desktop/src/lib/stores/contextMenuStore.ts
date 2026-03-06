@@ -1,5 +1,5 @@
 /**
- * SPIRE — Context Menu Store
+ * SPIRE - Context Menu Store
  *
  * Reactive store controlling a global custom right-click context menu.
  * Widgets populate the menu items dynamically based on what was clicked.

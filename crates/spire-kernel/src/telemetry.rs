@@ -1,4 +1,4 @@
-//! # Telemetry — Kernel-Level Performance Profiling
+//! # Telemetry - Kernel-Level Performance Profiling
 //!
 //! This module provides lightweight instrumentation for tracking execution
 //! time across distinct computation stages. The design prioritises minimal
@@ -9,7 +9,7 @@
 //!
 //! - [`ComputeProfile`] is a generic, serializable container mapping
 //!   arbitrary stage names to wall-clock milliseconds. The frontend
-//!   renders whatever keys the backend provides — no hardcoded stage names.
+//!   renders whatever keys the backend provides - no hardcoded stage names.
 //!
 //! - [`ScopedTimer`] is a RAII guard that records `Instant::now()` on
 //!   creation and writes the elapsed time to a `ComputeProfile` on drop.
@@ -22,7 +22,7 @@
 //!
 //! `ScopedTimer` adds one `Instant::now()` call at stage entry and one
 //! `HashMap::insert` at stage exit. This amounts to ~50ns overhead per
-//! stage boundary — negligible compared to the millisecond-scale
+//! stage boundary - negligible compared to the millisecond-scale
 //! computation it measures. The convergence snapshot vector is pre-allocated
 //! to avoid reallocation during integration.
 
@@ -38,7 +38,7 @@ use std::time::Instant;
 ///
 /// The `stage_timings` map uses arbitrary string keys so that the
 /// frontend UI can dynamically render whatever stages the backend
-/// reports — including stages injected by future external solvers.
+/// reports - including stages injected by future external solvers.
 ///
 /// # Serialization
 ///

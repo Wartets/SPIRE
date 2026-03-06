@@ -1,4 +1,4 @@
-//! # NLO — Next-to-Leading Order Corrections
+//! # NLO - Next-to-Leading Order Corrections
 //!
 //! This module implements the theoretical infrastructure for computing NLO
 //! QCD corrections to scattering cross-sections using the **Catani–Seymour
@@ -18,7 +18,7 @@
 //!
 //! ## Submodules
 //!
-//! - [`dipole`] — Catani–Seymour kinematic mappings, splitting functions,
+//! - [`dipole`] - Catani–Seymour kinematic mappings, splitting functions,
 //!   dipole contributions, and the `SubtractionScheme` trait.
 
 pub mod dipole;

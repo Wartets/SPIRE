@@ -2,7 +2,7 @@
 name = "spire-cli"
 version.workspace = true
 edition.workspace = true
-description = "Headless CLI daemon for SPIRE — batch Monte Carlo integration and event generation on HPC clusters"
+description = "Headless CLI daemon for SPIRE - batch Monte Carlo integration and event generation on HPC clusters"
 
 [lints]
 workspace = true

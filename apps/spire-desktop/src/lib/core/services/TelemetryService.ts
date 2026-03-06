@@ -1,5 +1,5 @@
 /**
- * Telemetry Service — Performance Profiling Store
+ * Telemetry Service - Performance Profiling Store
  *
  * Provides reactive Svelte stores for tracking kernel computation
  * performance. Receives ComputeProfile payloads from the backend
@@ -9,9 +9,9 @@
  *
  * ## Architecture
  *
- * - `latestProfile` — The most recent ComputeProfile from any computation.
- * - `historicalProfiles` — Rolling buffer of the last 20 profiles.
- * - `convergenceData` — Extracted from the latest profile for MC convergence plots.
+ * - `latestProfile` - The most recent ComputeProfile from any computation.
+ * - `historicalProfiles` - Rolling buffer of the last 20 profiles.
+ * - `convergenceData` - Extracted from the latest profile for MC convergence plots.
  *
  * The service is intentionally decoupled from the backend transport.
  * Any component that receives a computation result with a profile can

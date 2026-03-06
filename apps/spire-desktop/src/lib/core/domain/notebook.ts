@@ -1,12 +1,12 @@
 /**
- * SPIRE — Notebook Domain Types
+ * SPIRE - Notebook Domain Types
  *
  * Data structures for the cell-based execution engine.  A notebook
  * document is an ordered list of typed cells (Markdown, Script, Config)
  * that are executed sequentially against a persistent Rhai session.
  *
- * All types are plain JSON-serialisable objects — no class instances
- * or circular references — so the entire document can be saved and
+ * All types are plain JSON-serialisable objects - no class instances
+ * or circular references - so the entire document can be saved and
  * restored with `JSON.stringify()` / `JSON.parse()`.
  */
 
@@ -17,9 +17,9 @@
 /**
  * Discriminator for cell content types.
  *
- * - `"markdown"` — Rich-text annotation (not executed).
- * - `"script"`   — Rhai source code evaluated by the kernel.
- * - `"config"`   — TOML payload parsed to load a theoretical model.
+ * - `"markdown"` - Rich-text annotation (not executed).
+ * - `"script"`   - Rhai source code evaluated by the kernel.
+ * - `"config"`   - TOML payload parsed to load a theoretical model.
  */
 export type CellType = "markdown" | "script" | "config";
 

@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Widget Container
+  SPIRE - Widget Container
 
   Replacement for the old WidgetCell + BaseWidget combination in the
   docking system.  Renders the widget header bar with docking controls
@@ -7,7 +7,7 @@
   the inner content to the appropriate physics widget component.
 
   Props:
-    node — The WidgetLeaf from the layout tree.
+    node - The WidgetLeaf from the layout tree.
 -->
 <script lang="ts">
   import type { WidgetLeaf } from "$lib/stores/layoutStore";

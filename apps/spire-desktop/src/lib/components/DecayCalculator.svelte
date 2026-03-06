@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Decay Calculator Widget (Phase 45)
+  SPIRE - Decay Calculator Widget (Phase 45)
 
   Interactive branching-ratio and partial-width calculator.  The user
   selects a massive particle from the loaded model, triggers the decay
@@ -70,7 +70,7 @@
     }
 
     // Deduplicate by keeping only particles with mass > 0 and width ≥ 0.
-    // Assign PDG-like codes based on position (placeholder — real PDG codes
+    // Assign PDG-like codes based on position (placeholder - real PDG codes
     // would come from the model metadata).
     const seen = new Set<string>();
     const result: typeof massiveParticles = [];
@@ -128,7 +128,7 @@
     }
   }
 
-  /** Svelte tick — wait for DOM update. */
+  /** Svelte tick - wait for DOM update. */
   function tick(): Promise<void> {
     return new Promise((r) => setTimeout(r, 0));
   }
@@ -293,7 +293,7 @@
       </label>
       <select id="decay-particle" bind:value={selectedIdx} disabled={computing}>
         {#each massiveParticles as p, i}
-          <option value={i}>{p.name} ({p.id}) — {p.mass.toPrecision(4)} GeV</option>
+          <option value={i}>{p.name} ({p.id}) - {p.mass.toPrecision(4)} GeV</option>
         {/each}
         {#if massiveParticles.length === 0}
           <option value={0} disabled>Load a model first</option>

@@ -1,19 +1,19 @@
-//! # Bridge — External Parton Shower Provider Interface
+//! # Bridge - External Parton Shower Provider Interface
 //!
 //! Implements the modular bridge between SPIRE's parton-level event
 //! generation and external parton shower / hadronisation programs.
 //!
 //! ## Design Principles
 //!
-//! 1. **No hard-coded Pythia assumptions** — the `PartonShowerProvider`
+//! 1. **No hard-coded Pythia assumptions** - the `PartonShowerProvider`
 //!    trait can be implemented for any external program (Herwig, Sherpa,
 //!    Vincia, Dire, etc.).
 //!
-//! 2. **File-based interchange** — events are exchanged via standard HEP
+//! 2. **File-based interchange** - events are exchanged via standard HEP
 //!    file formats (LHE in, HepMC out), ensuring compatibility with the
 //!    entire MC ecosystem.
 //!
-//! 3. **CLI-first execution** — the default `PythiaCLIProvider` invokes
+//! 3. **CLI-first execution** - the default `PythiaCLIProvider` invokes
 //!    Pythia as a subprocess, requiring only that the user has a working
 //!    Pythia installation with a suitable run script.
 //!
@@ -169,8 +169,8 @@ pub trait PartonShowerProvider: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `events` — Parton-level event records (from SPIRE's MC integration).
-    /// * `config` — Shower configuration parameters.
+    /// * `events` - Parton-level event records (from SPIRE's MC integration).
+    /// * `config` - Shower configuration parameters.
     ///
     /// # Returns
     ///

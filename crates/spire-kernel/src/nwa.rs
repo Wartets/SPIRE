@@ -1,4 +1,4 @@
-//! # Narrow Width Approximation (NWA) — Cascade Decay Simulation
+//! # Narrow Width Approximation (NWA) - Cascade Decay Simulation
 //!
 //! This module implements the **Narrow Width Approximation** for simulating
 //! decay cascades in Monte Carlo event generation. When a final-state
@@ -92,10 +92,10 @@ impl Default for CascadeConfig {
 /// $(\cos\theta, \phi)$ on the unit sphere.
 ///
 /// # Arguments
-/// * `parent_mass` — The invariant mass of the parent particle (GeV).
-/// * `m1` — Mass of daughter 1 (GeV).
-/// * `m2` — Mass of daughter 2 (GeV).
-/// * `rng` — Random number generator.
+/// * `parent_mass` - The invariant mass of the parent particle (GeV).
+/// * `m1` - Mass of daughter 1 (GeV).
+/// * `m2` - Mass of daughter 2 (GeV).
+/// * `rng` - Random number generator.
 ///
 /// # Returns
 /// A pair of 4-momenta $(p_1, p_2)$ in the parent rest frame,
@@ -356,10 +356,10 @@ fn sample_channel<'a>(
 /// This is applied recursively until all particles are stable.
 ///
 /// # Arguments
-/// * `event` — The original phase-space event (e.g., from RAMBO).
-/// * `particle_ids` — The field IDs of the final-state particles (one per momentum).
-/// * `model` — The theoretical model containing field definitions and vertices.
-/// * `config` — Cascade configuration (max depth, min BR, seed).
+/// * `event` - The original phase-space event (e.g., from RAMBO).
+/// * `particle_ids` - The field IDs of the final-state particles (one per momentum).
+/// * `model` - The theoretical model containing field definitions and vertices.
+/// * `config` - Cascade configuration (max depth, min BR, seed).
 ///
 /// # Returns
 /// A [`CascadeEvent`] containing all stable final-state particles.
@@ -553,7 +553,7 @@ mod tests {
 
         let result = cascade_decay(&event, &particle_ids, &model, &config).unwrap();
 
-        // Electrons are stable — should pass through unchanged.
+        // Electrons are stable - should pass through unchanged.
         assert_eq!(result.particles.len(), 2);
         assert_eq!(result.n_decays, 0);
         assert_eq!(result.particles[0].field_id, "e-");

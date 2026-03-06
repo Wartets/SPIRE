@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Particle Table
+  SPIRE - Particle Table
 
   Visual Standard Model periodic-table-style particle selector.
   Renders a dense grid of particle cells grouped by category
@@ -10,12 +10,12 @@
   list/dropdown via the `mode` prop.
 
   Props:
-    particles  — Array of selectable particle entries.
-    selected   — Currently selected particle ID (bound).
-    mode       — "table" | "list" display mode.
+    particles  - Array of selectable particle entries.
+    selected   - Currently selected particle ID (bound).
+    mode       - "table" | "list" display mode.
 
   Events:
-    select     — Dispatched when a particle is clicked, with the particle ID.
+    select     - Dispatched when a particle is clicked, with the particle ID.
 -->
 <script context="module" lang="ts">
   /** A single entry in the particle table. */
@@ -131,7 +131,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} — {p.mass}, Q = {p.charge}"
+            title="{p.name} - {p.mass}, Q = {p.charge}"
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -149,7 +149,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} — {p.mass}, Q = {p.charge}"
+            title="{p.name} - {p.mass}, Q = {p.charge}"
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -167,7 +167,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} — {p.mass}, Q = {p.charge}"
+            title="{p.name} - {p.mass}, Q = {p.charge}"
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -185,7 +185,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} — {p.mass}, Q = {p.charge}"
+            title="{p.name} - {p.mass}, Q = {p.charge}"
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -203,7 +203,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} — {p.mass}, Q = {p.charge}"
+            title="{p.name} - {p.mass}, Q = {p.charge}"
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>

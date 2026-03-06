@@ -1,7 +1,7 @@
 //! # Parton Distribution Functions
 //!
 //! This module provides the framework for evaluating Parton Distribution
-//! Functions (PDFs) — the probability densities $f_a^H(x, Q^2)$ describing
+//! Functions (PDFs) - the probability densities $f_a^H(x, Q^2)$ describing
 //! the momentum distribution of parton flavour $a$ inside hadron $H$ at
 //! momentum fraction $x$ and factorisation scale $Q^2$.
 //!
@@ -43,7 +43,7 @@ use std::f64::consts::PI;
 /// A generic provider of parton distribution functions.
 ///
 /// Implementations must evaluate the PDF $f_a(x, Q^2)$ for any supported
-/// parton flavour. The trait is designed for extensibility — future
+/// parton flavour. The trait is designed for extensibility - future
 /// implementations may wrap interpolated grid files or external C++ libraries.
 ///
 /// # Contract
@@ -57,9 +57,9 @@ pub trait PdfProvider: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `pdg_id` — Monte Carlo particle numbering code for the parton.
-    /// * `x` — Momentum fraction carried by the parton ($0 < x \leq 1$).
-    /// * `q2` — Factorisation scale $Q^2$ in GeV².
+    /// * `pdg_id` - Monte Carlo particle numbering code for the parton.
+    /// * `x` - Momentum fraction carried by the parton ($0 < x \leq 1$).
+    /// * `q2` - Factorisation scale $Q^2$ in GeV².
     ///
     /// # Returns
     ///
@@ -275,9 +275,9 @@ pub enum Hadron {
     Proton,
     /// Antiproton ($\bar{u}\bar{u}\bar{d}$).
     AntiProton,
-    /// Pion+ ($u\bar{d}$) — simplified parton content.
+    /// Pion+ ($u\bar{d}$) - simplified parton content.
     PionPlus,
-    /// Pion- ($\bar{u}d$) — simplified parton content.
+    /// Pion- ($\bar{u}d$) - simplified parton content.
     PionMinus,
 }
 
@@ -549,7 +549,7 @@ mod tests {
 
     #[test]
     fn toy_pdf_scale_independent() {
-        // The toy PDF has no Q² evolution — values should not change with scale.
+        // The toy PDF has no Q² evolution - values should not change with scale.
         let pdf = ToyProtonPdf::new();
         let v1 = pdf.evaluate(PDG_U, 0.3, 10.0);
         let v2 = pdf.evaluate(PDG_U, 0.3, 10000.0);

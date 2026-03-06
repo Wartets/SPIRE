@@ -1,4 +1,4 @@
-//! # Property-Based Tests — Kinematic Invariants
+//! # Property-Based Tests - Kinematic Invariants
 //!
 //! Verifies the fundamental physical invariants of relativistic kinematics:
 //!

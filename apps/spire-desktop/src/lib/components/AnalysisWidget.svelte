@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Analysis Widget
+  SPIRE - Analysis Widget
 
   Interactive kinematic analysis and histogramming. Allows users to define
   Rhai observable scripts (e.g., pT, invariant mass), configure histogram
@@ -197,8 +197,8 @@
   }
 
   const DETECTOR_PRESETS: DetectorPresetInfo[] = [
-    { value: '', label: 'None (truth-level)', description: 'No detector simulation — observables use truth-level kinematics' },
-    { value: 'perfect', label: 'Perfect Detector', description: 'No smearing, 100% efficiency — useful for validation' },
+    { value: '', label: 'None (truth-level)', description: 'No detector simulation - observables use truth-level kinematics' },
+    { value: 'perfect', label: 'Perfect Detector', description: 'No smearing, 100% efficiency - useful for validation' },
     { value: 'lhc_like', label: 'LHC-like (ATLAS/CMS)', description: 'R = 0.4, pT > 25 GeV, hadronic σ/E ∝ 0.50/√E' },
     { value: 'ilc_like', label: 'ILC-like (e⁺e⁻)', description: 'R = 0.7, pT > 10 GeV, hadronic σ/E ∝ 0.30/√E' },
   ];
@@ -430,7 +430,7 @@
           y_max: 1.0,
           alpha: nloAlpha,
         });
-        appendLog(`NLO corrections enabled — scheme: ${nloScheme}, α = ${nloAlpha}`);
+        appendLog(`NLO corrections enabled - scheme: ${nloScheme}, α = ${nloAlpha}`);
       }
 
       // Send shower configuration if enabled (Phase 46).
@@ -444,7 +444,7 @@
           mpi: showerMPI,
           seed: 42,
         });
-        appendLog(`Parton shower enabled — provider: ${showerProvider}`);
+        appendLog(`Parton shower enabled - provider: ${showerProvider}`);
       }
 
       const analysisResult = await runAnalysis({

@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Interactive Diagram Editor
+  SPIRE - Interactive Diagram Editor
 
   SVG-based Feynman diagram editor with:
   - Force-directed automatic layout (Coulomb repulsion + Hooke springs)

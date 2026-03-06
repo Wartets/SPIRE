@@ -1,4 +1,4 @@
-//! # Dipole Subtraction — Catani–Seymour Formalism
+//! # Dipole Subtraction - Catani–Seymour Formalism
 //!
 //! Implements the **final-final (FF)** Catani–Seymour dipole subtraction
 //! for NLO QCD calculations, as described in:
@@ -74,8 +74,8 @@ pub enum SplittingType {
 
 /// Result of the Catani–Seymour final-final kinematic mapping.
 ///
-/// Given the real-emission momenta $(p_i, p_j, p_k)$ — emitter, emitted,
-/// spectator — this struct holds the mapped Born-level momenta
+/// Given the real-emission momenta $(p_i, p_j, p_k)$ - emitter, emitted,
+/// spectator - this struct holds the mapped Born-level momenta
 /// $(\tilde{p}_{ij}, \tilde{p}_k)$ and the kinematic invariants $(y, z)$.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DipoleKinematics {
@@ -98,9 +98,9 @@ pub struct DipoleKinematics {
 ///
 /// # Arguments
 ///
-/// * `p_i` — Four-momentum of the emitter parton.
-/// * `p_j` — Four-momentum of the emitted (unresolved) parton.
-/// * `p_k` — Four-momentum of the spectator parton.
+/// * `p_i` - Four-momentum of the emitter parton.
+/// * `p_j` - Four-momentum of the emitted (unresolved) parton.
+/// * `p_k` - Four-momentum of the spectator parton.
 ///
 /// # Returns
 ///
@@ -177,14 +177,14 @@ pub fn catani_seymour_ff_map(
 ///
 /// # Arguments
 ///
-/// * `splitting` — Which parton splitting to evaluate.
-/// * `z` — The splitting variable from the dipole mapping.
-/// * `y` — The energy-sharing variable from the dipole mapping.
+/// * `splitting` - Which parton splitting to evaluate.
+/// * `z` - The splitting variable from the dipole mapping.
+/// * `y` - The energy-sharing variable from the dipole mapping.
 ///
 /// # Returns
 ///
 /// The value of the splitting kernel $\langle V \rangle / (p_i \cdot p_j)$
-/// (the denominator is *not* included — the caller multiplies by
+/// (the denominator is *not* included - the caller multiplies by
 /// $1 / (2 \, p_i \cdot p_j)$ when constructing the full dipole).
 ///
 /// # Splitting Kernels
@@ -252,10 +252,10 @@ pub struct DipoleContribution {
 ///
 /// # Arguments
 ///
-/// * `p_i` — Emitter four-momentum.
-/// * `p_j` — Emitted (unresolved) parton four-momentum.
-/// * `p_k` — Spectator four-momentum.
-/// * `splitting` — Which splitting kernel to apply.
+/// * `p_i` - Emitter four-momentum.
+/// * `p_j` - Emitted (unresolved) parton four-momentum.
+/// * `p_k` - Spectator four-momentum.
+/// * `splitting` - Which splitting kernel to apply.
 ///
 /// # Returns
 ///
@@ -276,7 +276,7 @@ pub fn build_dipole(
     // The dipole factor absorbs the 1/(2 p_i·p_j) propagator and sign:
     //   D = -V / (2 * p_i·p_j)
     let dipole_factor = if pi_dot_pj.abs() < 1e-30 {
-        0.0 // Exact soft limit — dipole diverges; regulated by slicing or cutoff
+        0.0 // Exact soft limit - dipole diverges; regulated by slicing or cutoff
     } else {
         -splitting_value / (2.0 * pi_dot_pj)
     };
@@ -350,10 +350,10 @@ pub trait SubtractionScheme: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `momenta` — The $(m+1)$-body final-state four-momenta.
-    /// * `parton_ids` — PDG-like identifiers for each parton (quark = 1..6,
+    /// * `momenta` - The $(m+1)$-body final-state four-momenta.
+    /// * `parton_ids` - PDG-like identifiers for each parton (quark = 1..6,
     ///   antiquark = -1..-6, gluon = 21).
-    /// * `config` — Subtraction parameters (cuts, alpha restriction).
+    /// * `config` - Subtraction parameters (cuts, alpha restriction).
     ///
     /// # Returns
     ///

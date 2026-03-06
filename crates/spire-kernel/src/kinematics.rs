@@ -1,15 +1,15 @@
-//! # Kinematics — Phase Space and Relativistic Calculus
+//! # Kinematics - Phase Space and Relativistic Calculus
 //!
 //! This module implements the relativistic kinematics of scattering and decay
 //! processes in quantum field theory:
 //!
 //! - **Mandelstam variables** ($s$, $t$, $u$) for $2 \to 2$ scattering.
-//! - **Källén triangle function** $\lambda(x, y, z)$ — the universal kinematic
+//! - **Källén triangle function** $\lambda(x, y, z)$ - the universal kinematic
 //!   kernel for 2-body relativistic phase space.
 //! - **CM-frame momentum** $p^*$ from invariant mass and rest masses.
 //! - **2-body phase space volume** $\Phi_2$.
 //! - **Dalitz plot boundaries** for 3-body decays.
-//! - **Reaction thresholds** — minimum $\sqrt{s}$ for particle production.
+//! - **Reaction thresholds** - minimum $\sqrt{s}$ for particle production.
 //! - **Lorentz boosts** between reference frames.
 //!
 //! # Metric Convention
@@ -193,9 +193,9 @@ pub fn kallen_lambda(x: f64, y: f64, z: f64) -> f64 {
 /// $s \le 0$), i.e. below threshold.
 ///
 /// # Arguments
-/// * `s` — Invariant mass squared $s$ of the 2-body system (GeV²).
-/// * `m_a` — Mass of particle $a$ (GeV).
-/// * `m_b` — Mass of particle $b$ (GeV).
+/// * `s` - Invariant mass squared $s$ of the 2-body system (GeV²).
+/// * `m_a` - Mass of particle $a$ (GeV).
+/// * `m_b` - Mass of particle $b$ (GeV).
 pub fn cm_momentum(s: f64, m_a: f64, m_b: f64) -> f64 {
     if s <= 0.0 {
         return 0.0;
@@ -226,9 +226,9 @@ pub fn cm_momentum(s: f64, m_a: f64, m_b: f64) -> f64 {
 /// Returns `0.0` below threshold.
 ///
 /// # Arguments
-/// * `s` — Invariant mass squared of the system (GeV²).
-/// * `m3` — Mass of final-state particle 3 (GeV).
-/// * `m4` — Mass of final-state particle 4 (GeV).
+/// * `s` - Invariant mass squared of the system (GeV²).
+/// * `m3` - Mass of final-state particle 3 (GeV).
+/// * `m4` - Mass of final-state particle 4 (GeV).
 pub fn two_body_phase_space(s: f64, m3: f64, m4: f64) -> f64 {
     let p_star = cm_momentum(s, m3, m4);
     if p_star <= 0.0 || s <= 0.0 {
@@ -250,10 +250,10 @@ pub fn two_body_phase_space(s: f64, m3: f64, m4: f64) -> f64 {
 /// - $u = (p_1 - p_4)^2$
 ///
 /// # Arguments
-/// * `p1` — Four-momentum of incoming particle 1.
-/// * `p2` — Four-momentum of incoming particle 2.
-/// * `p3` — Four-momentum of outgoing particle 3.
-/// * `p4` — Four-momentum of outgoing particle 4.
+/// * `p1` - Four-momentum of incoming particle 1.
+/// * `p2` - Four-momentum of incoming particle 2.
+/// * `p3` - Four-momentum of outgoing particle 3.
+/// * `p4` - Four-momentum of outgoing particle 4.
 pub fn compute_mandelstam(
     p1: &FourMomentum,
     p2: &FourMomentum,
@@ -276,7 +276,7 @@ impl MandelstamVars {
     /// (relative error $< 10^{-9}$ or absolute error $< 10^{-12}$).
     ///
     /// # Arguments
-    /// * `masses` — Rest masses of the four external particles $[m_1, m_2, m_3, m_4]$.
+    /// * `masses` - Rest masses of the four external particles $[m_1, m_2, m_3, m_4]$.
     pub fn verify_sum_rule(&self, masses: &[f64; 4]) -> bool {
         let sum_stu = self.s + self.t + self.u;
         let sum_m_sq: f64 = masses.iter().map(|m| m * m).sum();
@@ -299,8 +299,8 @@ impl MandelstamVars {
 /// The minimum $s$ is the production threshold: $s_{\min} = (m_3 + m_4)^2$.
 ///
 /// # Arguments
-/// * `masses` — The four external particle masses $[m_1, m_2, m_3, m_4]$ in GeV.
-/// * `s` — The centre-of-mass energy squared at which to evaluate the $t$ boundaries.
+/// * `masses` - The four external particle masses $[m_1, m_2, m_3, m_4]$ in GeV.
+/// * `s` - The centre-of-mass energy squared at which to evaluate the $t$ boundaries.
 pub fn compute_mandelstam_boundaries(
     masses: [f64; 4],
     s: f64,
@@ -367,8 +367,8 @@ pub fn compute_mandelstam_boundaries(
 /// is kinematically forbidden).
 ///
 /// # Arguments
-/// * `mother_mass` — Mass of the decaying particle in GeV.
-/// * `daughter_masses` — Masses of the three daughter particles $[m_a, m_b, m_c]$.
+/// * `mother_mass` - Mass of the decaying particle in GeV.
+/// * `daughter_masses` - Masses of the three daughter particles $[m_a, m_b, m_c]$.
 pub fn generate_dalitz_boundaries(
     mother_mass: f64,
     daughter_masses: [f64; 3],
@@ -467,9 +467,9 @@ pub struct DalitzPlotData {
 /// $s_{bc}$ between its kinematic minimum and maximum.
 ///
 /// # Arguments
-/// * `mother_mass` — Mass of the decaying particle $M$ (GeV).
-/// * `m_a`, `m_b`, `m_c` — Daughter particle masses (GeV).
-/// * `n_points` — Approximate number of points to generate. The function
+/// * `mother_mass` - Mass of the decaying particle $M$ (GeV).
+/// * `m_a`, `m_b`, `m_c` - Daughter particle masses (GeV).
+/// * `n_points` - Approximate number of points to generate. The function
 ///   uses $\sqrt{n}$ grid divisions along each axis.
 ///
 /// # Errors
@@ -511,7 +511,7 @@ pub fn generate_dalitz_plot_data(
         };
 
         if s_bc_hi - s_bc_lo < 1e-14 {
-            // Degenerate slice — emit a single point.
+            // Degenerate slice - emit a single point.
             points.push((s_ab, (s_bc_lo + s_bc_hi) / 2.0));
             continue;
         }
@@ -544,8 +544,8 @@ pub fn generate_dalitz_plot_data(
 /// where $m_b$ is the beam particle mass and $s_{\min} = (\sum_i m_i)^2$.
 ///
 /// # Arguments
-/// * `final_masses` — Rest masses of the desired final-state particles (GeV).
-/// * `target_mass` — If computing the lab-frame threshold, provide `Some((beam_mass, target_mass))`.
+/// * `final_masses` - Rest masses of the desired final-state particles (GeV).
+/// * `target_mass` - If computing the lab-frame threshold, provide `Some((beam_mass, target_mass))`.
 pub fn calculate_thresholds(
     final_masses: &[f64],
     target_mass: Option<f64>,
@@ -579,8 +579,8 @@ pub fn calculate_thresholds(
 /// the production threshold).
 ///
 /// # Arguments
-/// * `available_cms_energy` — Available centre-of-mass energy $\sqrt{s}$ in GeV.
-/// * `final_masses` — Rest masses of the final-state particles in GeV.
+/// * `available_cms_energy` - Available centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` - Rest masses of the final-state particles in GeV.
 pub fn is_kinematically_allowed(available_cms_energy: f64, final_masses: &[f64]) -> bool {
     let threshold: f64 = final_masses.iter().sum();
     available_cms_energy >= threshold - 1e-12
@@ -599,8 +599,8 @@ pub fn is_kinematically_allowed(available_cms_energy: f64, final_masses: &[f64])
 /// $$\vec{p}\,' = \vec{p} + (\gamma - 1) \frac{(\vec{\beta} \cdot \vec{p})}{|\vec{\beta}|^2} \vec{\beta} - \gamma E \vec{\beta}$$
 ///
 /// # Arguments
-/// * `momentum` — The four-momentum to transform.
-/// * `boost` — The Lorentz boost specification.
+/// * `momentum` - The four-momentum to transform.
+/// * `boost` - The Lorentz boost specification.
 pub fn apply_lorentz_boost(
     momentum: &FourMomentum,
     boost: &LorentzBoost,
@@ -636,8 +636,8 @@ pub fn apply_lorentz_boost(
 /// $$\vec{\beta}_{\text{CM}} = \frac{\vec{p}_{\text{beam}}}{E_{\text{beam}} + m_t}$$
 ///
 /// # Arguments
-/// * `beam_momentum` — Four-momentum of the beam particle.
-/// * `target_mass` — Rest mass of the stationary target particle.
+/// * `beam_momentum` - Four-momentum of the beam particle.
+/// * `target_mass` - Rest mass of the stationary target particle.
 pub fn compute_cm_boost(
     beam_momentum: &FourMomentum,
     target_mass: f64,
@@ -646,7 +646,7 @@ pub fn compute_cm_boost(
 
     if e_total.abs() < 1e-15 {
         return Err(crate::SpireError::KinematicsForbidden(
-            "Total energy is zero — cannot compute CM boost".into(),
+            "Total energy is zero - cannot compute CM boost".into(),
         ));
     }
 
@@ -686,8 +686,8 @@ pub fn compute_cm_boost(
 /// $3N - 4$ (after removing 4 constraints from energy-momentum conservation).
 ///
 /// # Arguments
-/// * `total_energy_cm` — Total CM energy in GeV.
-/// * `final_masses` — Masses of the $N$ final-state particles.
+/// * `total_energy_cm` - Total CM energy in GeV.
+/// * `final_masses` - Masses of the $N$ final-state particles.
 pub fn generate_phase_space(total_energy_cm: f64, final_masses: &[f64]) -> SpireResult<PhaseSpace> {
     let n = final_masses.len();
     if n == 0 {
@@ -718,7 +718,7 @@ pub fn generate_phase_space(total_energy_cm: f64, final_masses: &[f64]) -> Spire
         )
     } else {
         format!(
-            "dΦ_{} — {}-body LIPS with {} integration variables",
+            "dΦ_{} - {}-body LIPS with {} integration variables",
             n, n, n_variables
         )
     };
@@ -733,7 +733,7 @@ pub fn generate_phase_space(total_energy_cm: f64, final_masses: &[f64]) -> Spire
 }
 
 // ===========================================================================
-// Phase Space Generator — Trait & RAMBO Implementation
+// Phase Space Generator - Trait & RAMBO Implementation
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
@@ -781,8 +781,8 @@ pub trait PhaseSpaceGenerator: Send + Sync {
     /// Generate a single phase-space event.
     ///
     /// # Arguments
-    /// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-    /// * `final_masses` — Rest masses of the $N$ final-state particles in GeV.
+    /// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+    /// * `final_masses` - Rest masses of the $N$ final-state particles in GeV.
     ///
     /// # Returns
     /// A `PhaseSpacePoint` containing the momenta and LIPS weight.
@@ -1179,10 +1179,10 @@ mod tests {
     fn mandelstam_ee_to_mumu_cm_frame() {
         // e⁺e⁻ → μ⁺μ⁻ in the CM frame at √s = 200 GeV
         // Massless approximation for simplicity:
-        //   p1 = (100, 0, 0, 100)   — e⁻ along +z
-        //   p2 = (100, 0, 0, -100)  — e⁺ along -z
-        //   p3 = (100, 50, 0, 86.6) — μ⁻ at θ ≈ 30°
-        //   p4 = (100, -50, 0, -86.6) — μ⁺ back-to-back
+        //   p1 = (100, 0, 0, 100)   - e⁻ along +z
+        //   p2 = (100, 0, 0, -100)  - e⁺ along -z
+        //   p3 = (100, 50, 0, 86.6) - μ⁻ at θ ≈ 30°
+        //   p4 = (100, -50, 0, -86.6) - μ⁺ back-to-back
         let p1 = FourMomentum::new(100.0, 0.0, 0.0, 100.0);
         let p2 = FourMomentum::new(100.0, 0.0, 0.0, -100.0);
         let p3 = FourMomentum::new(100.0, 50.0, 0.0, 86.6025403784);
@@ -1201,9 +1201,9 @@ mod tests {
             sum
         );
 
-        // t = (p1 - p3)²  — should be negative (space-like)
+        // t = (p1 - p3)²  - should be negative (space-like)
         assert!(m.t < 0.0, "t should be negative for scattering");
-        // u = (p1 - p4)²  — should also be negative
+        // u = (p1 - p4)²  - should also be negative
         assert!(m.u < 0.0, "u should be negative for scattering");
     }
 

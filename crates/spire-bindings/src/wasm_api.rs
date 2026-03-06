@@ -1,4 +1,4 @@
-//! # WASM API — WebAssembly Bindings for SPIRE
+//! # WASM API - WebAssembly Bindings for SPIRE
 //!
 //! This module provides `#[wasm_bindgen]`-annotated functions that expose the
 //! SPIRE kernel to JavaScript/TypeScript consumers running in a browser or
@@ -57,9 +57,9 @@ fn to_js_err(msg: String) -> JsValue {
 /// Load a theoretical model from TOML strings.
 ///
 /// # Arguments
-/// * `particles_toml` — Raw contents of `particles.toml`.
-/// * `vertices_toml` — Raw contents of `sm_vertices.toml` (or BSM model).
-/// * `model_name` — Optional model name (defaults to `"Standard Model"`).
+/// * `particles_toml` - Raw contents of `particles.toml`.
+/// * `vertices_toml` - Raw contents of `sm_vertices.toml` (or BSM model).
+/// * `model_name` - Optional model name (defaults to `"Standard Model"`).
 ///
 /// # Returns
 /// A JS object matching the `TheoreticalModel` TypeScript interface.
@@ -78,10 +78,10 @@ pub fn wasm_load_model(
 /// Construct and validate a specific reaction.
 ///
 /// # Arguments
-/// * `initial_ids` — JS array of initial-state particle ID strings.
-/// * `final_ids` — JS array of final-state particle ID strings.
-/// * `cms_energy` — Centre-of-mass energy in GeV.
-/// * `model` — The `TheoreticalModel` JS object.
+/// * `initial_ids` - JS array of initial-state particle ID strings.
+/// * `final_ids` - JS array of final-state particle ID strings.
+/// * `cms_energy` - Centre-of-mass energy in GeV.
+/// * `model` - The `TheoreticalModel` JS object.
 ///
 /// # Returns
 /// A JS object matching the `Reaction` TypeScript interface.
@@ -113,9 +113,9 @@ pub fn wasm_construct_reaction(
 /// initial state and energy.
 ///
 /// # Arguments
-/// * `initial_ids` — JS array of initial-state particle ID strings.
-/// * `cms_energy` — Centre-of-mass energy in GeV.
-/// * `model` — The `TheoreticalModel` JS object.
+/// * `initial_ids` - JS array of initial-state particle ID strings.
+/// * `cms_energy` - Centre-of-mass energy in GeV.
+/// * `model` - The `TheoreticalModel` JS object.
 ///
 /// # Returns
 /// A JS array of `ReconstructedFinalState` objects.
@@ -152,9 +152,9 @@ pub fn wasm_reconstruct_reaction(
 /// Generate all topologically distinct Feynman diagrams for a reaction.
 ///
 /// # Arguments
-/// * `reaction` — A `Reaction` JS object from a prior construction call.
-/// * `model` — The `TheoreticalModel` JS object.
-/// * `max_loop_order` — Maximum loop order (0 = tree-level).
+/// * `reaction` - A `Reaction` JS object from a prior construction call.
+/// * `model` - The `TheoreticalModel` JS object.
+/// * `max_loop_order` - Maximum loop order (0 = tree-level).
 ///
 /// # Returns
 /// A JS object matching the `TopologySet` TypeScript interface.
@@ -185,7 +185,7 @@ pub fn wasm_generate_diagrams(
 /// Compute the invariant amplitude for a specific Feynman diagram.
 ///
 /// # Arguments
-/// * `diagram` — A `FeynmanGraph` JS object from a prior diagram generation.
+/// * `diagram` - A `FeynmanGraph` JS object from a prior diagram generation.
 ///
 /// # Returns
 /// A JS object matching the `AmplitudeResult` TypeScript interface.
@@ -203,10 +203,10 @@ pub fn wasm_derive_amplitude(diagram: JsValue) -> Result<JsValue, JsValue> {
 /// Compute kinematic properties for a set of final-state masses at a given energy.
 ///
 /// # Arguments
-/// * `final_masses` — JS array of final-state particle masses in GeV.
-/// * `cms_energy` — Available centre-of-mass energy in GeV.
-/// * `target_mass` — Optional target mass for fixed-target kinematics.
-/// * `external_masses` — Optional 4-element array for Mandelstam boundary computation.
+/// * `final_masses` - JS array of final-state particle masses in GeV.
+/// * `cms_energy` - Available centre-of-mass energy in GeV.
+/// * `target_mass` - Optional target mass for fixed-target kinematics.
+/// * `external_masses` - Optional 4-element array for Mandelstam boundary computation.
 ///
 /// # Returns
 /// A JS object matching the `KinematicsReport` structure.
@@ -263,9 +263,9 @@ pub fn wasm_compute_kinematics(
 /// Generate Dalitz plot phase-space points for a 3-body decay.
 ///
 /// # Arguments
-/// * `mother_mass` — Mass of the decaying particle (GeV).
-/// * `m_a`, `m_b`, `m_c` — Daughter masses (GeV).
-/// * `n_points` — Approximate number of phase-space points.
+/// * `mother_mass` - Mass of the decaying particle (GeV).
+/// * `m_a`, `m_b`, `m_c` - Daughter masses (GeV).
+/// * `n_points` - Approximate number of phase-space points.
 ///
 /// # Returns
 /// A JS object matching the `DalitzPlotData` TypeScript interface.
@@ -285,7 +285,7 @@ pub fn wasm_compute_dalitz_data(
 /// Export a symbolic amplitude as a LaTeX string.
 ///
 /// # Arguments
-/// * `diagram` — A `FeynmanGraph` JS object.
+/// * `diagram` - A `FeynmanGraph` JS object.
 ///
 /// # Returns
 /// A JS string containing the LaTeX representation (e.g. `i\mathcal{M} = ...`).
@@ -303,7 +303,7 @@ pub fn wasm_export_amplitude_latex(diagram: JsValue) -> Result<JsValue, JsValue>
 /// Export a theoretical model in simplified UFO format.
 ///
 /// # Arguments
-/// * `model` — A `TheoreticalModel` JS object.
+/// * `model` - A `TheoreticalModel` JS object.
 ///
 /// # Returns
 /// A JS object mapping filenames to their content:
@@ -318,7 +318,7 @@ pub fn wasm_export_model_ufo(model: JsValue) -> Result<JsValue, JsValue> {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 16 — CAS Derivation Steps
+// Phase 16 - CAS Derivation Steps
 // ---------------------------------------------------------------------------
 
 /// Perform a step-by-step amplitude derivation using the CAS engine.
@@ -328,8 +328,8 @@ pub fn wasm_export_model_ufo(model: JsValue) -> Result<JsValue, JsValue> {
 /// to the final result.
 ///
 /// # Arguments
-/// * `diagram` — A `FeynmanGraph` JS object.
-/// * `dim` — Spacetime dimension specification (e.g., `{ Fixed: 4 }` or `{ DimReg: { base: 4 } }`).
+/// * `diagram` - A `FeynmanGraph` JS object.
+/// * `dim` - Spacetime dimension specification (e.g., `{ Fixed: 4 }` or `{ DimReg: { base: 4 } }`).
 ///
 /// # Returns
 /// A JS array of `DerivationStep` objects.
@@ -347,7 +347,7 @@ pub fn wasm_derive_amplitude_steps(diagram: JsValue, dim: JsValue) -> Result<JsV
 }
 
 // ---------------------------------------------------------------------------
-// Phase 18 — Cross-Section Calculation
+// Phase 18 - Cross-Section Calculation
 // ---------------------------------------------------------------------------
 
 /// Calculate a phase-space cross-section via Monte Carlo integration.
@@ -358,9 +358,9 @@ pub fn wasm_derive_amplitude_steps(diagram: JsValue, dim: JsValue) -> Result<JsV
 /// in both natural units (GeV$^{-2}$) and picobarns.
 ///
 /// # Arguments
-/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-/// * `final_masses` — JS array of final-state particle masses in GeV.
-/// * `num_events`   — Number of Monte Carlo samples.
+/// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` - JS array of final-state particle masses in GeV.
+/// * `num_events`   - Number of Monte Carlo samples.
 ///
 /// # Returns
 /// A JS object matching the `CrossSectionResult` interface.
@@ -395,9 +395,9 @@ pub fn wasm_calculate_cross_section(
 /// with constant $|\mathcal{M}|^2 = 1$ (phase-space only).
 ///
 /// # Arguments
-/// * `beam_energy_sq` — Hadronic $S$ in GeV² (e.g., $13000^2$ for 13 TeV LHC).
-/// * `final_masses` — JS array of final-state particle masses in GeV.
-/// * `num_events` — Number of Monte Carlo samples per parton channel.
+/// * `beam_energy_sq` - Hadronic $S$ in GeV² (e.g., $13000^2$ for 13 TeV LHC).
+/// * `final_masses` - JS array of final-state particle masses in GeV.
+/// * `num_events` - Number of Monte Carlo samples per parton channel.
 ///
 /// # Returns
 /// A JS object matching the `HadronicCrossSectionResult` interface.

@@ -1,4 +1,4 @@
-//! # Jet Clustering — Anti-$k_t$ Algorithm
+//! # Jet Clustering - Anti-$k_t$ Algorithm
 //!
 //! This module implements the **Anti-$k_t$** sequential recombination
 //! jet clustering algorithm (Cacciari, Salam, Soyez 2008), the
@@ -240,9 +240,9 @@ fn delta_r_sq(a: &PseudoJet, b: &PseudoJet) -> f64 {
 ///
 /// # Arguments
 ///
-/// * `inputs` — 4-momenta of the input particles (partons or calorimeter deposits).
-/// * `algorithm` — Jet algorithm selection (Anti-$k_t$, C/A, or $k_t$).
-/// * `radius` — The jet radius parameter $R$.
+/// * `inputs` - 4-momenta of the input particles (partons or calorimeter deposits).
+/// * `algorithm` - Jet algorithm selection (Anti-$k_t$, C/A, or $k_t$).
+/// * `radius` - The jet radius parameter $R$.
 ///
 /// # Returns
 ///

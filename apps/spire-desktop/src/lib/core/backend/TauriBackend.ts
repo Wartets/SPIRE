@@ -1,5 +1,5 @@
 /**
- * SPIRE — Tauri IPC Backend
+ * SPIRE - Tauri IPC Backend
  *
  * Implements the `SpireBackend` interface by delegating every call to
  * the Tauri `invoke()` IPC bridge.  This is the primary backend when
@@ -106,7 +106,7 @@ async function getInvoke(): Promise<(cmd: string, args?: Record<string, unknown>
     throw new BackendError(
       "transport",
       "tauri",
-      "Failed to load @tauri-apps/api/tauri — is this running inside Tauri?",
+      "Failed to load @tauri-apps/api/tauri - is this running inside Tauri?",
       err,
     );
   }

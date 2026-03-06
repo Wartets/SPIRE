@@ -1,4 +1,4 @@
-//! # Integration — Monte Carlo Phase Space Integration Engine
+//! # Integration - Monte Carlo Phase Space Integration Engine
 //!
 //! This module provides a modular framework for numerical integration of
 //! matrix elements over Lorentz-invariant phase space. It is the engine
@@ -95,7 +95,7 @@ impl IntegrationResult {
 }
 
 // ===========================================================================
-// Integrator Backend — Unified CPU / GPU Abstraction
+// Integrator Backend - Unified CPU / GPU Abstraction
 // ===========================================================================
 
 /// The hardware backend for amplitude evaluation.
@@ -167,7 +167,7 @@ impl IntegratorBackend {
 /// This trait enables swapping integration algorithms without changing the
 /// physics code:
 ///
-/// - [`UniformIntegrator`]: Flat (unweighted) Monte Carlo — baseline.
+/// - [`UniformIntegrator`]: Flat (unweighted) Monte Carlo - baseline.
 /// - Future `VegasIntegrator`: Adaptive importance sampling for peaked
 ///   integrands (e.g., near resonances).
 /// - Future `MultiChannelIntegrator`: Multiple phase-space mappings for
@@ -182,12 +182,12 @@ pub trait MonteCarloIntegrator: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `integrand` — A function mapping a phase-space point to a scalar
+    /// * `integrand` - A function mapping a phase-space point to a scalar
     ///   value (typically $|\mathcal{M}|^2$).
-    /// * `generator` — The phase-space generator producing random events.
-    /// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-    /// * `final_masses` — Rest masses of the final-state particles.
-    /// * `num_events` — Number of Monte Carlo events to generate.
+    /// * `generator` - The phase-space generator producing random events.
+    /// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+    /// * `final_masses` - Rest masses of the final-state particles.
+    /// * `num_events` - Number of Monte Carlo events to generate.
     ///
     /// # Returns
     ///
@@ -414,12 +414,12 @@ impl UniformIntegrator {
     ///
     /// # Arguments
     ///
-    /// * `integrand` — Squared matrix element $|\mathcal{M}|^2$.
-    /// * `cuts` — Kinematic cuts to apply sequentially.
-    /// * `generator` — Phase-space generator.
-    /// * `cms_energy` — Centre-of-mass energy in GeV.
-    /// * `final_masses` — Final-state particle masses.
-    /// * `num_events` — Number of phase-space events to generate.
+    /// * `integrand` - Squared matrix element $|\mathcal{M}|^2$.
+    /// * `cuts` - Kinematic cuts to apply sequentially.
+    /// * `generator` - Phase-space generator.
+    /// * `cms_energy` - Centre-of-mass energy in GeV.
+    /// * `final_masses` - Final-state particle masses.
+    /// * `num_events` - Number of phase-space events to generate.
     pub fn integrate_with_cuts<F>(
         &self,
         integrand: F,
@@ -600,13 +600,13 @@ impl UniformIntegrator {
 ///
 /// # Arguments
 ///
-/// * `amplitude_sq_fn` — A closure returning $|\mathcal{M}|^2$ for a given
+/// * `amplitude_sq_fn` - A closure returning $|\mathcal{M}|^2$ for a given
 ///   phase-space point.
-/// * `integrator` — The Monte Carlo integration algorithm.
-/// * `generator` — The phase-space generator.
-/// * `cms_energy` — Centre-of-mass energy in GeV.
-/// * `final_masses` — Final-state particle masses in GeV.
-/// * `num_events` — Number of events to sample.
+/// * `integrator` - The Monte Carlo integration algorithm.
+/// * `generator` - The phase-space generator.
+/// * `cms_energy` - Centre-of-mass energy in GeV.
+/// * `final_masses` - Final-state particle masses in GeV.
+/// * `num_events` - Number of events to sample.
 ///
 /// # Returns
 ///
@@ -694,16 +694,16 @@ pub struct HadronicIntegratorConfig<'a> {
 ///
 /// # Arguments
 ///
-/// * `config` — Hadronic beam/PDF configuration.
-/// * `final_masses` — Rest masses of the final-state partons in GeV.
-/// * `amplitude_sq_fn` — Closure returning $|\mathcal{M}|^2$ for a given
+/// * `config` - Hadronic beam/PDF configuration.
+/// * `final_masses` - Rest masses of the final-state partons in GeV.
+/// * `amplitude_sq_fn` - Closure returning $|\mathcal{M}|^2$ for a given
 ///   phase-space point *and* the partonic invariant $\hat{s}$.
 ///   Signature: `(ps_point, s_hat) -> f64`.
-/// * `parton_channels` — List of `(pdg_a, pdg_b)` pairs to sum over.
+/// * `parton_channels` - List of `(pdg_a, pdg_b)` pairs to sum over.
 ///   If empty, the Cartesian product of `beam1.parton_content()` and
 ///   `beam2.parton_content()` is used.
-/// * `generator` — Phase-space generator (e.g., RAMBO).
-/// * `num_events` — Number of MC samples *per channel*.
+/// * `generator` - Phase-space generator (e.g., RAMBO).
+/// * `num_events` - Number of MC samples *per channel*.
 ///
 /// # Returns
 ///

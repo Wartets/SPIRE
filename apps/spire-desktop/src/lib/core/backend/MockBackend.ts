@@ -1,5 +1,5 @@
 /**
- * SPIRE — Mock Backend (Simulation Mode)
+ * SPIRE - Mock Backend (Simulation Mode)
  *
  * Implements the `SpireBackend` interface with static, hardcoded
  * responses that keep the UI functional when neither the Tauri native
@@ -15,7 +15,7 @@
  * - **Testing harness**: Unit tests for Svelte components can inject
  *   this backend to avoid real computation.
  *
- * All returned data is physically plausible but minimal — enough to
+ * All returned data is physically plausible but minimal - enough to
  * populate the UI widgets without misleading the user into thinking
  * real computation occurred.  Every response carries a clear signal
  * (e.g., model name "Mock Standard Model") indicating simulation mode.
@@ -94,7 +94,7 @@ export class MockBackend implements SpireBackend {
     await simulateLatency();
     return {
       name: modelName ?? "Mock Standard Model",
-      description: "Simulation-mode placeholder model — no real computation backend is connected.",
+      description: "Simulation-mode placeholder model - no real computation backend is connected.",
       fields: [
         {
           id: "e-",
@@ -242,7 +242,7 @@ export class MockBackend implements SpireBackend {
     return [
       {
         label: "Mock Step",
-        description: "Placeholder derivation step — no computation backend connected.",
+        description: "Placeholder derivation step - no computation backend connected.",
         expression: { Scalar: 0 },
         latex: "\\mathcal{M} = 0",
       },
@@ -314,8 +314,8 @@ export class MockBackend implements SpireBackend {
     await simulateLatency();
     return {
       "__init__.py": "# Mock UFO model (simulation mode)\n",
-      "particles.py": "# No particles — simulation mode\n",
-      "parameters.py": "# No parameters — simulation mode\n",
+      "particles.py": "# No particles - simulation mode\n",
+      "parameters.py": "# No parameters - simulation mode\n",
     };
   }
 
@@ -456,7 +456,7 @@ export class MockBackend implements SpireBackend {
         {
           severity: "info",
           check: "simulation",
-          message: "Mock validation — no computation backend connected.",
+          message: "Mock validation - no computation backend connected.",
         },
       ],
     };
@@ -496,7 +496,7 @@ export class MockBackend implements SpireBackend {
     };
     const thModel: TheoreticalModel = {
       name: `${modelName} (mock)`,
-      description: "Imported via simulation mode — no computation backend.",
+      description: "Imported via simulation mode - no computation backend.",
       fields: [],
       terms: [],
       vertex_factors: [],

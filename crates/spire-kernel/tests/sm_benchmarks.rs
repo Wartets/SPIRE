@@ -315,7 +315,7 @@ fn w_decay_channels_exist() {
 /// (from the Yukawa vertex in the model) with a positive partial width.
 ///
 /// The full SM Higgs width requires b-quark and τ Yukawa couplings
-/// plus loop-induced $H \to gg$, $H \to \gamma\gamma$ — which are
+/// plus loop-induced $H \to gg$, $H \to \gamma\gamma$ - which are
 /// beyond the current vertex set. This test validates the infrastructure
 /// rather than matching the PDG total width.
 #[test]
@@ -449,7 +449,7 @@ fn z_pole_peak_cross_section() {
 /// where $s$, $t$, $u$ are the Mandelstam variables.
 #[test]
 fn qed_cross_section_mc_vs_analytic() {
-    let sqrt_s = 10.0; // GeV — well below Z pole, pure QED dominates
+    let sqrt_s = 10.0; // GeV - well below Z pole, pure QED dominates
     let s = sqrt_s * sqrt_s;
     let final_masses = [M_MU, M_MU];
 

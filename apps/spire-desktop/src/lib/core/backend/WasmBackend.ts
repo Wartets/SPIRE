@@ -1,5 +1,5 @@
 /**
- * SPIRE — WebAssembly Backend
+ * SPIRE - WebAssembly Backend
  *
  * Implements the `SpireBackend` interface by dispatching computation
  * requests to the `spire-kernel` WebAssembly module.  In a standard
@@ -131,7 +131,7 @@ export class WasmBackend implements SpireBackend {
         this.pending.clear();
       };
     } catch {
-      // Worker creation failed — calls will throw "unsupported".
+      // Worker creation failed - calls will throw "unsupported".
       this.worker = null;
     }
   }
@@ -467,7 +467,7 @@ export class WasmBackend implements SpireBackend {
     cpu_backend: string;
     gpu_backend: string;
   }> {
-    // WASM backend runs in the browser — GPU is never available via
+    // WASM backend runs in the browser - GPU is never available via
     // the spire-kernel compute pipeline (browser WebGPU is separate).
     return {
       gpu_feature_compiled: false,

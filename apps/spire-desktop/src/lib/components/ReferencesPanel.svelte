@@ -1,5 +1,5 @@
 <!--
-  SPIRE — References Panel
+  SPIRE - References Panel
 
   Dynamically populated bibliography widget.  As the user performs
   calculations (constructing reactions, generating diagrams, evaluating

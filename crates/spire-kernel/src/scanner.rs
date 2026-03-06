@@ -1,16 +1,16 @@
-//! # Parameter Scanner — Automated Parameter Sweeps
+//! # Parameter Scanner - Automated Parameter Sweeps
 //!
 //! Provides a modular, parallel parameter sweep engine. The scanner is
-//! completely agnostic to what it scans — it takes a dot-separated target
+//! completely agnostic to what it scans - it takes a dot-separated target
 //! path (e.g., `"field.Z_prime.mass"`) and sweeps it over a user-defined
 //! range, evaluating the cross-section at each scan point.
 //!
 //! ## Supported Targets
 //!
-//! - `"field.<field_id>.mass"` — Varies the mass of a field (and its propagator).
-//! - `"field.<field_id>.width"` — Varies the decay width of a field.
-//! - `"vertex.<term_id>.coupling"` — Varies the coupling constant of a vertex.
-//! - `"cms_energy"` — Varies the centre-of-mass energy.
+//! - `"field.<field_id>.mass"` - Varies the mass of a field (and its propagator).
+//! - `"field.<field_id>.width"` - Varies the decay width of a field.
+//! - `"vertex.<term_id>.coupling"` - Varies the coupling constant of a vertex.
+//! - `"cms_energy"` - Varies the centre-of-mass energy.
 //!
 //! ## Parallelism
 //!
@@ -292,7 +292,7 @@ fn evaluate_scan_point(
 }
 
 // ===========================================================================
-// Public API — 1D Scan
+// Public API - 1D Scan
 // ===========================================================================
 
 /// Run a 1D parameter scan with parallel evaluation via [`rayon`].
@@ -340,7 +340,7 @@ pub fn run_scan_1d(config: &ScanConfig1D) -> SpireResult<ScanResult1D> {
 }
 
 // ===========================================================================
-// Public API — 2D Scan
+// Public API - 2D Scan
 // ===========================================================================
 
 /// Run a 2D parameter scan with parallel evaluation via [`rayon`].

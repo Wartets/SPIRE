@@ -1,9 +1,9 @@
 <!--
-  SPIRE Desktop — Root Layout
+  SPIRE Desktop - Root Layout
 
   Global application shell: navigation bar, framework selector,
   model-status indicator, global keybind manager, and Command Palette
-  overlay.  Implements the "Typewriter" design system — monospace
+  overlay.  Implements the "Typewriter" design system - monospace
   typography, sharp corners, high-contrast dark palette via CSS custom
   properties.
 -->
@@ -77,7 +77,7 @@
   // ── Global Context Menu Interceptor ─────────────────────────────
   function handleGlobalContextMenu(event: MouseEvent): void {
     event.preventDefault();
-    // Default items — widgets can override via their own contextmenu handlers
+    // Default items - widgets can override via their own contextmenu handlers
     showContextMenu(event.clientX, event.clientY, [
       { id: "ctx-palette", label: "Command Palette", icon: "⌘", shortcut: "Ctrl+K", action: () => togglePalette() },
     ]);

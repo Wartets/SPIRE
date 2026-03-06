@@ -1,5 +1,5 @@
 /**
- * SPIRE — Notebook Store
+ * SPIRE - Notebook Store
  *
  * Manages the dynamic workbench layout.  Each "cell" in the notebook
  * is a WidgetInstance placed on a CSS-Grid canvas.  The store exposes

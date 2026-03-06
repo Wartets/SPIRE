@@ -1,15 +1,15 @@
 <!--
-  SPIRE — Compute Grid Dashboard Widget
+  SPIRE - Compute Grid Dashboard Widget
 
   Real-time monitoring and control interface for the distributed Monte
   Carlo compute grid.  Displays:
 
-  1. **Node Status Panel** — Per-worker status indicators (Idle / Computing /
+  1. **Node Status Panel** - Per-worker status indicators (Idle / Computing /
      Merging / Error) with retry counts and progress bars.
-  2. **Global Progress Bar** — Events completed, chunks merged, ETA.
-  3. **Convergence Plot** — Cross-section uncertainty (δσ) vs √N,
+  2. **Global Progress Bar** - Events completed, chunks merged, ETA.
+  3. **Convergence Plot** - Cross-section uncertainty (δσ) vs √N,
      rendered with Chart.js, showing the expected 1/√N convergence.
-  4. **Results Summary** — Merged cross-section, histograms, and
+  4. **Results Summary** - Merged cross-section, histograms, and
      per-chunk wall-clock times.
 
   The widget subscribes reactively to the GridManager's Svelte store
@@ -145,13 +145,13 @@
       const xsecPb = result.cross_section * 0.3894e9;
       const errPb = result.cross_section_error * 0.3894e9;
       appendLog(
-        `Compute Grid: COMPLETE — σ ≈ ${xsecPb.toExponential(4)} ± ${errPb.toExponential(2)} pb ` +
+        `Compute Grid: COMPLETE - σ ≈ ${xsecPb.toExponential(4)} ± ${errPb.toExponential(2)} pb ` +
           `(${result.events_generated.toLocaleString()} events, ` +
           `${result.events_passed.toLocaleString()} passed)`,
       );
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : String(err);
-      appendLog(`Compute Grid: ERROR — ${errorMsg}`);
+      appendLog(`Compute Grid: ERROR - ${errorMsg}`);
     }
   }
 
@@ -247,7 +247,7 @@
   }
 
   function formatEta(ms: number | null): string {
-    if (ms === null) return "—";
+    if (ms === null) return "-";
     return formatMs(ms);
   }
 

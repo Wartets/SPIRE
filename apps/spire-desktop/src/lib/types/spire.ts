@@ -19,7 +19,7 @@ export type Spin = number;
 /** Chirality projection of a fermion. */
 export type Chirality = "Left" | "Right";
 
-/** Helicity — spin projection along the direction of motion. */
+/** Helicity - spin projection along the direction of motion. */
 export type Helicity = "Plus" | "Minus";
 
 /** Electric charge in units of e, numerator over 3 for quarks. */
@@ -614,7 +614,7 @@ export interface KinematicsReport {
 // Export Types
 // ---------------------------------------------------------------------------
 
-/** Result of a UFO model export — maps filenames to Python source content. */
+/** Result of a UFO model export - maps filenames to Python source content. */
 export interface UfoExportResult {
   /** Map of filename → file content, e.g. { "particles.py": "...", "parameters.py": "..." } */
   [filename: string]: string;
@@ -766,7 +766,7 @@ export interface WorkspaceState {
 }
 
 // ---------------------------------------------------------------------------
-// Scripting — Observables & Cuts
+// Scripting - Observables & Cuts
 // ---------------------------------------------------------------------------
 
 /** A user-defined observable script. */
@@ -1450,7 +1450,7 @@ export interface RelicDensityReport {
 }
 
 // ---------------------------------------------------------------------------
-// Flavor Physics — Lattice QCD & EFT Observables
+// Flavor Physics - Lattice QCD & EFT Observables
 // ---------------------------------------------------------------------------
 
 /** A hadronic decay constant from Lattice QCD. */

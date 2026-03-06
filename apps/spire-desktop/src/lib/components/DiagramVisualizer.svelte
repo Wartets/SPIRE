@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Diagram Visualizer Component
+  SPIRE - Diagram Visualizer Component
 
   Renders Feynman diagrams graphically using Mermaid.js with a
   text-based ASCII fallback toggle. Each diagram's graph structure,
@@ -198,7 +198,7 @@
       console.warn("Mermaid render error:", e);
       // On failure, show the raw definition for debugging
       if (mermaidContainer) {
-        mermaidContainer.innerHTML = `<pre style="color:#e74c3c;font-size:0.75rem;">Render error — showing raw definition:\n\n${graphToMermaid(diag)}</pre>`;
+        mermaidContainer.innerHTML = `<pre style="color:#e74c3c;font-size:0.75rem;">Render error - showing raw definition:\n\n${graphToMermaid(diag)}</pre>`;
       }
     }
   }
@@ -220,7 +220,7 @@
   function renderDiagramText(diag: FeynmanDiagram): string {
     const lines: string[] = [];
     lines.push(`Diagram #${diag.id}  |  ${loopLabel(diag.loop_order)}  |  S = ${diag.symmetry_factor}`);
-    lines.push(`Channels: ${diag.channels.join(", ") || "—"}`);
+    lines.push(`Channels: ${diag.channels.join(", ") || "-"}`);
     lines.push(`Connected: ${diag.is_connected ? "yes" : "no"}`);
     lines.push("─".repeat(40));
     lines.push("Nodes:");
@@ -280,11 +280,11 @@
     <div class="summary-bar">
       {diagrams.length} diagram{diagrams.length !== 1 ? "s" : ""} generated
       {#if $generatedDiagrams}
-        — max order: {loopLabel($generatedDiagrams.max_loop_order)}
+        - max order: {loopLabel($generatedDiagrams.max_loop_order)}
       {/if}
       {#if selectedDiagram}
         | {loopLabel(selectedDiagram.loop_order)} | S = {selectedDiagram.symmetry_factor}
-        | Ch: {selectedDiagram.channels.join(", ") || "—"}
+        | Ch: {selectedDiagram.channels.join(", ") || "-"}
         {#if selectedDiagram.loop_topology_kind}
           | Topology: {topologyLabel(selectedDiagram.loop_topology_kind)}
         {/if}

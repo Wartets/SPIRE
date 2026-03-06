@@ -69,7 +69,7 @@ pub struct IndexSlot {
 
 /// The Lorentz representation (spin) of a field in the AST.
 ///
-/// This is independent of the `ontology::Spin` type — it classifies the
+/// This is independent of the `ontology::Spin` type - it classifies the
 /// field operator's transformation behaviour for the purpose of Lagrangian
 /// construction and Feynman rule derivation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -344,8 +344,8 @@ pub fn validate_index_contraction(expr: &LagrangianExpr) -> SpireResult<()> {
 /// - Everything else → `CouplingConstant`
 ///
 /// # Arguments
-/// * `input` — The term string.
-/// * `known_fields` — Map of field_id → FieldSpin for resolving field operators.
+/// * `input` - The term string.
+/// * `known_fields` - Map of field_id → FieldSpin for resolving field operators.
 ///
 /// # Examples
 /// ```text

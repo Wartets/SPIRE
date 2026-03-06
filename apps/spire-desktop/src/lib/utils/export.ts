@@ -1,5 +1,5 @@
 /**
- * SPIRE — Universal Export Utilities
+ * SPIRE - Universal Export Utilities
  *
  * Helper functions for downloading generated data and graphics in
  * various formats.  Every widget that produces output (plots, tables,

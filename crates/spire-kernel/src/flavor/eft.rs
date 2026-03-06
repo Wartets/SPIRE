@@ -143,9 +143,9 @@ impl WilsonCoefficients {
     /// Create Wilson coefficients with BSM shifts on top of SM values.
     ///
     /// # Arguments
-    /// * `delta_c9` — New Physics shift $\Delta C_9$.
-    /// * `delta_c10` — New Physics shift $\Delta C_{10}$.
-    /// * `delta_c7` — New Physics shift $\Delta C_7$.
+    /// * `delta_c9` - New Physics shift $\Delta C_9$.
+    /// * `delta_c10` - New Physics shift $\Delta C_{10}$.
+    /// * `delta_c7` - New Physics shift $\Delta C_7$.
     pub fn with_bsm_shifts(delta_c7: f64, delta_c9: f64, delta_c10: f64) -> Self {
         let mut wc = Self::sm_defaults();
         wc.c7_eff += delta_c7;
@@ -414,11 +414,11 @@ pub const EXP_DELTA_M_S: f64 = 17.765; // ps⁻¹
 /// mixing mass differences.
 ///
 /// # Arguments
-/// * `lattice` — Lattice QCD inputs (decay constants, bag parameters, form factors).
-/// * `wilson` — Wilson coefficients (SM + optional BSM shifts).
-/// * `q2_min` — Lower bound of the $q^2$ integration window in GeV².
-/// * `q2_max` — Upper bound of the $q^2$ integration window in GeV².
-/// * `n_points` — Number of evaluation points for the differential spectrum.
+/// * `lattice` - Lattice QCD inputs (decay constants, bag parameters, form factors).
+/// * `wilson` - Wilson coefficients (SM + optional BSM shifts).
+/// * `q2_min` - Lower bound of the $q^2$ integration window in GeV².
+/// * `q2_max` - Upper bound of the $q^2$ integration window in GeV².
+/// * `n_points` - Number of evaluation points for the differential spectrum.
 pub fn compute_flavor_observables(
     lattice: &LatticeInputs,
     wilson: &WilsonCoefficients,

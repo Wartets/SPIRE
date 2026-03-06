@@ -1,5 +1,5 @@
 /**
- * SPIRE — Backend Module Barrel Export
+ * SPIRE - Backend Module Barrel Export
  *
  * Centralises all backend-related exports so that consumers can import
  * from a single path:

@@ -1,4 +1,4 @@
-//! # ODE Solvers — Generic Ordinary Differential Equation Integration
+//! # ODE Solvers - Generic Ordinary Differential Equation Integration
 //!
 //! This module provides reusable, high-precision numerical solvers for
 //! systems of first-order ordinary differential equations of the form:
@@ -10,11 +10,11 @@
 //!
 //! ## Solvers
 //!
-//! - [`RungeKutta4`] — Classical 4th-order Runge-Kutta with fixed step
+//! - [`RungeKutta4`] - Classical 4th-order Runge-Kutta with fixed step
 //!   size.  Excellent accuracy for smooth problems with predictable
 //!   step requirements.
 //!
-//! - [`DormandPrince45`] — Adaptive Runge-Kutta 4(5) (Dormand-Prince)
+//! - [`DormandPrince45`] - Adaptive Runge-Kutta 4(5) (Dormand-Prince)
 //!   with embedded error estimation and automatic step-size control.
 //!   Essential for stiff transitions such as cosmological freeze-out.
 //!
@@ -60,10 +60,10 @@ pub trait OdeSolver {
     /// Integrate the scalar ODE $dy/dx = f(x, y)$ from $x_0$ to $x_f$.
     ///
     /// # Arguments
-    /// * `f` — The right-hand side function $f(x, y)$.
-    /// * `x0` — Initial value of the independent variable.
-    /// * `y0` — Initial value of the dependent variable.
-    /// * `xf` — Final value of the independent variable.
+    /// * `f` - The right-hand side function $f(x, y)$.
+    /// * `x0` - Initial value of the independent variable.
+    /// * `y0` - Initial value of the dependent variable.
+    /// * `xf` - Final value of the independent variable.
     ///
     /// # Returns
     /// A vector of `(x, y)` pairs tracing the solution trajectory.
@@ -80,10 +80,10 @@ pub trait VectorOdeSolver {
     /// Integrate a system of coupled ODEs from $x_0$ to $x_f$.
     ///
     /// # Arguments
-    /// * `f` — The right-hand side function $\mathbf{f}(x, \mathbf{y})$.
-    /// * `x0` — Initial value of the independent variable.
-    /// * `y0` — Initial state vector.
-    /// * `xf` — Final value of the independent variable.
+    /// * `f` - The right-hand side function $\mathbf{f}(x, \mathbf{y})$.
+    /// * `x0` - Initial value of the independent variable.
+    /// * `y0` - Initial state vector.
+    /// * `xf` - Final value of the independent variable.
     ///
     /// # Returns
     /// A vector of `(x, y_vec)` pairs tracing the solution trajectory.
@@ -543,7 +543,7 @@ mod tests {
 
     #[test]
     fn dp45_adapts_to_stiff_region() {
-        // dy/dx = -100*(y - sin(x)) + cos(x) — mildly stiff
+        // dy/dx = -100*(y - sin(x)) + cos(x) - mildly stiff
         // Exact solution starting at y(0)=0 converges rapidly to sin(x)
         let solver = DormandPrince45::new(1e-8, 1e-8);
         let traj = solver.integrate(|x, y| -100.0 * (y - x.sin()) + x.cos(), 0.0, 0.0, 3.0);

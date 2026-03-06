@@ -1,5 +1,5 @@
 <!--
-  SPIRE — 3D Event Display with Time-of-Flight Animation
+  SPIRE - 3D Event Display with Time-of-Flight Animation
 
   Interactive Three.js-powered visualization of particle physics events.
   Shows a wireframe detector barrel with jet cones, lepton tracks,
@@ -560,8 +560,8 @@
   <!-- Legend -->
   <div class="legend">
     <span class="legend-item" style="color: #ff8800;">■ Jets</span>
-    <span class="legend-item" style="color: #44ff44;">— Electrons</span>
-    <span class="legend-item" style="color: #ff4444;">— Muons</span>
+    <span class="legend-item" style="color: #44ff44;">- Electrons</span>
+    <span class="legend-item" style="color: #ff4444;">- Muons</span>
     <span class="legend-item" style="color: #ffff44;">┅ Photons</span>
     <span class="legend-item" style="color: #ff00ff;">⇢ MET</span>
   </div>

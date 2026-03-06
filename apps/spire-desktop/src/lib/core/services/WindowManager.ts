@@ -1,5 +1,5 @@
 /**
- * SPIRE — Window Manager Service
+ * SPIRE - Window Manager Service
  *
  * Manages Tauri multi-window lifecycle for widget tear-offs.
  * When a user tears off a widget, a new native OS window is spawned
@@ -77,7 +77,7 @@ export async function tearOffWidget(
 
       const webview = new WebviewWindow(windowLabel, {
         url,
-        title: `SPIRE — ${title}`,
+        title: `SPIRE - ${title}`,
         width: 700,
         height: 500,
         resizable: true,

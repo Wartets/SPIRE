@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Workspace Controls Component
+  SPIRE - Workspace Controls Component
 
   Compact inline controls for saving, loading, and resetting
   the workspace.  Renders as a horizontal row of buttons

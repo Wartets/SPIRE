@@ -73,7 +73,7 @@ pub struct RgeFlowResult {
 /// integrates the RGE using 4th-order Runge–Kutta in the variable $t = \ln(\mu)$.
 ///
 /// # Arguments
-/// * `config` — The RGE flow configuration.
+/// * `config` - The RGE flow configuration.
 ///
 /// # Returns
 /// An `RgeFlowResult` with the coupling evolution.

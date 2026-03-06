@@ -1,4 +1,4 @@
-//! # LHE — Les Houches Event File Writer
+//! # LHE - Les Houches Event File Writer
 //!
 //! Implements the Les Houches Event (LHE) file format version 3.0 as defined
 //! in [hep-ph/0609017](https://arxiv.org/abs/hep-ph/0609017).
@@ -48,7 +48,7 @@ use crate::{SpireError, SpireResult};
 ///
 /// # Type Parameter
 ///
-/// `W` — any `std::io::Write` target (file, `Vec<u8>`, stdout, etc.).
+/// `W` - any `std::io::Write` target (file, `Vec<u8>`, stdout, etc.).
 ///
 /// # Provenance
 ///
@@ -241,15 +241,15 @@ impl From<std::io::Error> for SpireError {
 ///
 /// # Arguments
 ///
-/// * `event` — The phase-space point from Monte Carlo sampling.
-/// * `initial_pdg_ids` — PDG IDs for the initial-state particles.
-/// * `final_pdg_ids` — PDG IDs for the final-state particles.
-/// * `final_masses` — Rest masses of the final-state particles (GeV).
-/// * `beam_energy` — Per-beam energy in GeV (used for initial-state momenta).
-/// * `process_id` — Subprocess identifier.
-/// * `scale` — Factorisation scale $Q$ in GeV.
-/// * `alpha_qed` — QED coupling at the event scale.
-/// * `alpha_qcd` — QCD coupling at the event scale.
+/// * `event` - The phase-space point from Monte Carlo sampling.
+/// * `initial_pdg_ids` - PDG IDs for the initial-state particles.
+/// * `final_pdg_ids` - PDG IDs for the final-state particles.
+/// * `final_masses` - Rest masses of the final-state particles (GeV).
+/// * `beam_energy` - Per-beam energy in GeV (used for initial-state momenta).
+/// * `process_id` - Subprocess identifier.
+/// * `scale` - Factorisation scale $Q$ in GeV.
+/// * `alpha_qed` - QED coupling at the event scale.
+/// * `alpha_qcd` - QCD coupling at the event scale.
 ///
 /// # Convention
 ///

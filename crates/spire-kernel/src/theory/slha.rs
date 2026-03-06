@@ -9,9 +9,9 @@
 //! SLHA is a plain-text, line-oriented format used by spectrum generators
 //! (SPheno, SoftSUSY, ISAJET) and Monte Carlo tools. Key blocks:
 //!
-//! - `BLOCK MASS` — PDG ID → pole mass mapping
-//! - `BLOCK NMIX`, `UMIX`, `VMIX`, `STOPMIX`, … — mixing matrices ($N_{ij}$)
-//! - `DECAY <pdg_id> <width>` — decay table with branching ratios
+//! - `BLOCK MASS` - PDG ID → pole mass mapping
+//! - `BLOCK NMIX`, `UMIX`, `VMIX`, `STOPMIX`, … - mixing matrices ($N_{ij}$)
+//! - `DECAY <pdg_id> <width>` - decay table with branching ratios
 //!
 //! Comments begin with `#` and extend to end of line.
 //!
@@ -669,7 +669,7 @@ DECAY  1000022  0.00000000E+00  # Gamma(~chi_10) -- stable LSP
         // Stop squark mass.
         assert!((mass_block.entries[&vec![1000006]] - 399.668493).abs() < 1e-3);
 
-        // Negative mass (CP phase) — neutralino 3.
+        // Negative mass (CP phase) - neutralino 3.
         assert!((mass_block.entries[&vec![1000025]] - (-363.756027)).abs() < 1e-3);
     }
 

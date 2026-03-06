@@ -1,4 +1,4 @@
-//! # S-Matrix — Process Construction and Validation
+//! # S-Matrix - Process Construction and Validation
 //!
 //! This module implements the high-level logic for constructing and validating
 //! physical scattering and decay processes within the S-matrix framework.
@@ -75,17 +75,17 @@ pub struct ReconstructedFinalState {
 /// flow between initial and final fermion states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MediatingBoson {
-    /// Photon ($\gamma$) — mediates electromagnetic interactions.
+    /// Photon ($\gamma$) - mediates electromagnetic interactions.
     Photon,
-    /// $W^+$ boson — mediates weak charged-current interactions ($\Delta Q > 0$).
+    /// $W^+$ boson - mediates weak charged-current interactions ($\Delta Q > 0$).
     WPlus,
-    /// $W^-$ boson — mediates weak charged-current interactions ($\Delta Q < 0$).
+    /// $W^-$ boson - mediates weak charged-current interactions ($\Delta Q < 0$).
     WMinus,
-    /// $Z^0$ boson — mediates weak neutral-current interactions.
+    /// $Z^0$ boson - mediates weak neutral-current interactions.
     Z0,
-    /// Gluon ($g$) — mediates strong interactions (colour change).
+    /// Gluon ($g$) - mediates strong interactions (colour change).
     Gluon,
-    /// Higgs boson ($H$) — mediates Yukawa interactions.
+    /// Higgs boson ($H$) - mediates Yukawa interactions.
     Higgs,
 }
 
@@ -151,7 +151,7 @@ impl Reaction {
             violation_diagnostics = all_violations;
             false
         } else {
-            // At least one interaction type works — check kinematics.
+            // At least one interaction type works - check kinematics.
             let final_mass_sum: f64 = final_state
                 .states
                 .iter()
@@ -183,7 +183,7 @@ impl Reaction {
 }
 
 // ---------------------------------------------------------------------------
-// Public API — Reaction Construction
+// Public API - Reaction Construction
 // ---------------------------------------------------------------------------
 
 /// Construct and fully validate a `Reaction` by resolving particle identifiers
@@ -194,10 +194,10 @@ impl Reaction {
 /// 3. Delegates to [`Reaction::validate`].
 ///
 /// # Arguments
-/// * `initial_ids` — Particle identifier strings for the initial state.
-/// * `final_ids`   — Particle identifier strings for the final state.
-/// * `model`       — The active theoretical model providing field definitions.
-/// * `cms_energy`  — Centre-of-mass energy in GeV (optional).
+/// * `initial_ids` - Particle identifier strings for the initial state.
+/// * `final_ids`   - Particle identifier strings for the final state.
+/// * `model`       - The active theoretical model providing field definitions.
+/// * `cms_energy`  - Centre-of-mass energy in GeV (optional).
 pub fn construct_reaction(
     initial_ids: &[&str],
     final_ids: &[&str],
@@ -254,9 +254,9 @@ pub fn construct_reaction(
 /// and filters out kinematically forbidden channels.
 ///
 /// # Arguments
-/// * `initial_states`   — The initial-state particles.
-/// * `model`            — The active theoretical model.
-/// * `available_energy` — Centre-of-mass energy in GeV.
+/// * `initial_states`   - The initial-state particles.
+/// * `model`            - The active theoretical model.
+/// * `available_energy` - Centre-of-mass energy in GeV.
 pub fn reconstruct_reaction(
     initial_states: &[Particle],
     model: &TheoreticalModel,
@@ -357,8 +357,8 @@ pub fn reconstruct_reaction(
 /// * $\Delta Q = 0$, neutral particle → $Z^0$ only.
 ///
 /// # Arguments
-/// * `initial`        — The incoming fermion.
-/// * `final_particle` — The outgoing fermion.
+/// * `initial`        - The incoming fermion.
+/// * `final_particle` - The outgoing fermion.
 pub fn identify_mediating_bosons(
     initial: &Particle,
     final_particle: &Particle,
@@ -469,11 +469,11 @@ pub struct CrossSectionResult {
 ///
 /// # Arguments
 ///
-/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-/// * `final_masses` — Rest masses of the $N$ final-state particles in GeV.
-/// * `amplitude_sq_fn` — A closure returning $|\mathcal{M}|^2$ for a given
+/// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` - Rest masses of the $N$ final-state particles in GeV.
+/// * `amplitude_sq_fn` - A closure returning $|\mathcal{M}|^2$ for a given
 ///   set of final-state momenta (as a `PhaseSpacePoint`).
-/// * `num_events` — Number of Monte Carlo samples.
+/// * `num_events` - Number of Monte Carlo samples.
 ///
 /// # Returns
 ///
@@ -582,13 +582,13 @@ pub fn calculate_phase_space_cross_section(
 ///
 /// # Arguments
 ///
-/// * `pdf1` / `pdf2` — PDF providers for beams 1 and 2.
-/// * `beam1` / `beam2` — Hadron species (determines active parton channels).
-/// * `beam_energy_sq` — Hadronic $S = (p_1 + p_2)^2$ in GeV².
-/// * `final_masses` — Final-state particle masses in GeV.
-/// * `amplitude_sq_fn` — Closure $|\mathcal{M}|^2(\text{PS}, \hat{s}) \to \mathbb{R}$.
-/// * `num_events` — Number of MC samples per parton channel.
-/// * `q2_fixed` — Optional fixed factorisation scale. If `None`, uses $\hat{s}$.
+/// * `pdf1` / `pdf2` - PDF providers for beams 1 and 2.
+/// * `beam1` / `beam2` - Hadron species (determines active parton channels).
+/// * `beam_energy_sq` - Hadronic $S = (p_1 + p_2)^2$ in GeV².
+/// * `final_masses` - Final-state particle masses in GeV.
+/// * `amplitude_sq_fn` - Closure $|\mathcal{M}|^2(\text{PS}, \hat{s}) \to \mathbb{R}$.
+/// * `num_events` - Number of MC samples per parton channel.
+/// * `q2_fixed` - Optional fixed factorisation scale. If `None`, uses $\hat{s}$.
 ///
 /// # Returns
 ///
@@ -662,7 +662,7 @@ mod tests {
     use crate::ontology::*;
 
     // -----------------------------------------------------------------------
-    // Test helpers — field constructors
+    // Test helpers - field constructors
     // -----------------------------------------------------------------------
 
     fn electron_field() -> Field {
@@ -925,7 +925,7 @@ mod tests {
 
     #[test]
     fn validate_ee_to_mumu_valid() {
-        // e+ e- → μ+ μ- at 10 GeV — valid EM process.
+        // e+ e- → μ+ μ- at 10 GeV - valid EM process.
         let model = make_test_model();
         let rxn = construct_reaction(&["e-", "e+"], &["mu-", "mu+"], &model, Some(10.0)).unwrap();
         assert!(
@@ -1243,7 +1243,7 @@ mod tests {
 
     #[test]
     fn cross_section_with_constant_amplitude() {
-        // |M|² = 42 everywhere — result should be 42× the phase-space-only value.
+        // |M|² = 42 everywhere - result should be 42× the phase-space-only value.
         let ps_result = calculate_phase_space_cross_section(50.0, &[0.0, 0.0], 20_000).unwrap();
 
         let amp_result = calculate_cross_section(50.0, &[0.0, 0.0], |_| 42.0, 20_000).unwrap();
@@ -1288,7 +1288,7 @@ mod tests {
 
     #[test]
     fn cross_section_massive_two_body() {
-        // 2 → 2 with m = 1 GeV each, √s = 10 GeV — well above threshold.
+        // 2 → 2 with m = 1 GeV each, √s = 10 GeV - well above threshold.
         let result = calculate_phase_space_cross_section(10.0, &[1.0, 1.0], 20_000).unwrap();
 
         assert!(result.cross_section > 0.0);
@@ -1297,7 +1297,7 @@ mod tests {
 
     #[test]
     fn cross_section_insufficient_energy() {
-        // √s = 1 GeV but final masses total 10 GeV — should error.
+        // √s = 1 GeV but final masses total 10 GeV - should error.
         let result = calculate_phase_space_cross_section(1.0, &[5.0, 5.0], 1000);
         assert!(result.is_err());
     }

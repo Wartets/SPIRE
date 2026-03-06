@@ -1,4 +1,4 @@
-//! # SPIRE Desktop — Tauri Backend
+//! # SPIRE Desktop - Tauri Backend
 //!
 //! This is the Tauri application entry point. It defines IPC commands that the
 //! SvelteKit frontend invokes via `@tauri-apps/api`. Each command delegates to
@@ -46,7 +46,7 @@ use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 
 // ---------------------------------------------------------------------------
-// KinematicsReport — aggregate return type
+// KinematicsReport - aggregate return type
 // ---------------------------------------------------------------------------
 
 /// Aggregate result for the `compute_kinematics` command.
@@ -214,9 +214,9 @@ fn compute_kinematics(
 /// a vector of $(s_{ab}, s_{bc})$ coordinate pairs.
 ///
 /// # Arguments
-/// * `mother_mass` — Mass of the decaying particle (GeV).
-/// * `m_a`, `m_b`, `m_c` — Daughter masses (GeV).
-/// * `n_points` — Approximate number of phase-space points to generate.
+/// * `mother_mass` - Mass of the decaying particle (GeV).
+/// * `m_a`, `m_b`, `m_c` - Daughter masses (GeV).
+/// * `n_points` - Approximate number of phase-space points to generate.
 #[tauri::command]
 fn compute_dalitz_data(
     mother_mass: f64,
@@ -268,8 +268,8 @@ fn export_model_ufo(model: TheoreticalModel) -> Result<HashMap<String, String>, 
 /// algebraic transformation from the initial Feynman rules to the final result.
 ///
 /// # Arguments
-/// * `diagram` — A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
-/// * `dim` — Spacetime dimension (e.g., `{ "Fixed": 4 }`).
+/// * `diagram` - A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
+/// * `dim` - Spacetime dimension (e.g., `{ "Fixed": 4 }`).
 ///
 /// # Returns
 /// A JSON array of `DerivationStep` objects with `label`, `description`,
@@ -302,7 +302,7 @@ fn derive_amplitude_steps(
 /// `reco` variable (jets, leptons, MET) in addition to `event`.
 ///
 /// # Arguments
-/// * `config` — Analysis configuration with plot definitions, cuts, CMS energy, etc.
+/// * `config` - Analysis configuration with plot definitions, cuts, CMS energy, etc.
 ///
 /// # Returns
 /// An `AnalysisResult` containing filled histogram data and integration diagnostics.
@@ -404,10 +404,10 @@ fn test_cut_script(script: String) -> Result<bool, String> {
 /// and missing transverse energy for rendering in the Three.js event display.
 ///
 /// # Arguments
-/// * `cms_energy` — Centre-of-mass energy (GeV).
-/// * `final_masses` — Final-state particle masses.
-/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
-/// * `particle_kinds` — Optional particle kind labels per final-state leg.
+/// * `cms_energy` - Centre-of-mass energy (GeV).
+/// * `final_masses` - Final-state particle masses.
+/// * `detector_preset` - Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds` - Optional particle kind labels per final-state leg.
 #[tauri::command]
 fn generate_display_event(
     cms_energy: f64,
@@ -431,11 +431,11 @@ fn generate_display_event(
 /// rendering in the Three.js time-of-flight animation loop.
 ///
 /// # Arguments
-/// * `cms_energy` — Centre-of-mass energy (GeV).
-/// * `final_masses` — Final-state particle masses.
-/// * `detector_preset` — Detector preset name (e.g., `"lhc_like"`).
-/// * `particle_kinds` — Optional particle kind labels per final-state leg.
-/// * `batch_size` — Number of events to generate (clamped to 1..=100).
+/// * `cms_energy` - Centre-of-mass energy (GeV).
+/// * `final_masses` - Final-state particle masses.
+/// * `detector_preset` - Detector preset name (e.g., `"lhc_like"`).
+/// * `particle_kinds` - Optional particle kind labels per final-state leg.
+/// * `batch_size` - Number of events to generate (clamped to 1..=100).
 #[tauri::command]
 fn generate_display_batch(
     cms_energy: f64,
@@ -629,8 +629,8 @@ fn run_parameter_scan_2d(config: scanner::ScanConfig2D) -> Result<scanner::ScanR
 /// and assembles branching ratios into a serialisable decay table.
 ///
 /// # Arguments
-/// * `model` — The theoretical model containing fields and vertices.
-/// * `particle_id` — The identifier of the decaying particle.
+/// * `model` - The theoretical model containing fields and vertices.
+/// * `particle_id` - The identifier of the decaying particle.
 ///
 /// # Returns
 /// A `DecayTable` with channels, partial widths, BRs, and total width.
@@ -645,9 +645,9 @@ fn calculate_decay_table_cmd(
 /// Format a decay table as an SLHA DECAY block string.
 ///
 /// # Arguments
-/// * `model` — The theoretical model.
-/// * `particle_id` — The identifier of the decaying particle.
-/// * `pdg_code` — The PDG Monte Carlo particle numbering code.
+/// * `model` - The theoretical model.
+/// * `particle_id` - The identifier of the decaying particle.
+/// * `pdg_code` - The PDG Monte Carlo particle numbering code.
 ///
 /// # Returns
 /// The formatted SLHA DECAY block as a string.
@@ -718,9 +718,9 @@ fn configure_shower(config: serde_json::Value) -> Result<(), String> {
 /// LaTeX source string using the `revtex4-2` document class.
 ///
 /// # Arguments
-/// * `diagram` — A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
-/// * `process_label` — Human-readable process label (e.g., "e⁺e⁻ → μ⁺μ⁻").
-/// * `dim` — Spacetime dimension configuration.
+/// * `diagram` - A `FeynmanGraph` from a prior `generate_feynman_diagrams` call.
+/// * `process_label` - Human-readable process label (e.g., "e⁺e⁻ → μ⁺μ⁻").
+/// * `dim` - Spacetime dimension configuration.
 ///
 /// # Returns
 /// The complete `.tex` source as a string, ready for `pdflatex` compilation.
@@ -747,11 +747,11 @@ fn generate_mathematical_proof(
 /// bit-for-bit reproducibility verification.
 ///
 /// # Arguments
-/// * `model` — The full theoretical model.
-/// * `reaction` — The configured scattering reaction (if any).
-/// * `cms_energy` — Centre-of-mass energy in GeV (0.0 if not set).
-/// * `num_events` — Number of Monte Carlo events.
-/// * `seed` — Random number generator seed.
+/// * `model` - The full theoretical model.
+/// * `reaction` - The configured scattering reaction (if any).
+/// * `cms_energy` - Centre-of-mass energy in GeV (0.0 if not set).
+/// * `num_events` - Number of Monte Carlo events.
+/// * `seed` - Random number generator seed.
 #[tauri::command]
 fn compute_provenance_hash(
     model: TheoreticalModel,
@@ -781,7 +781,7 @@ fn compute_provenance_hash(
 /// the frontend for workspace restoration.
 ///
 /// # Arguments
-/// * `payload` — JSON string of a serialized `ProvenanceRecord`.
+/// * `payload` - JSON string of a serialized `ProvenanceRecord`.
 ///
 /// # Returns
 /// The deserialized `ProvenanceState` on success. Returns an error if the
@@ -811,7 +811,7 @@ fn load_provenance_state(payload: String) -> Result<provenance_engine::Provenanc
 /// curve for log-log plotting.
 ///
 /// # Arguments
-/// * `config` — [`RelicConfig`](relic_engine::RelicConfig) with DM mass,
+/// * `config` - [`RelicConfig`](relic_engine::RelicConfig) with DM mass,
 ///   annihilation cross-section, and d.o.f.
 ///
 /// # Returns
@@ -825,7 +825,7 @@ fn calculate_relic_density(
 }
 
 // ---------------------------------------------------------------------------
-// Flavor Physics — Lattice QCD & EFT Observables
+// Flavor Physics - Lattice QCD & EFT Observables
 // ---------------------------------------------------------------------------
 
 /// Compute neutral B-meson mixing mass differences.
@@ -834,7 +834,7 @@ fn calculate_relic_density(
 /// Lattice QCD inputs (decay constants and bag parameters).
 ///
 /// # Arguments
-/// * `lattice` — [`LatticeInputs`](flavor_lattice::LatticeInputs) with
+/// * `lattice` - [`LatticeInputs`](flavor_lattice::LatticeInputs) with
 ///   decay constants, bag parameters, and form factors.
 ///
 /// # Returns
@@ -857,11 +857,11 @@ fn calculate_b_mixing(lattice: flavor_lattice::LatticeInputs) -> Result<serde_js
 /// and returns the differential $d\Gamma/dq^2$ spectrum for plotting.
 ///
 /// # Arguments
-/// * `q2_min` — Lower bound of the $q^2$ window in GeV².
-/// * `q2_max` — Upper bound of the $q^2$ window in GeV².
-/// * `wilson_coeffs` — Wilson coefficients (SM + BSM shifts).
-/// * `lattice` — Lattice QCD inputs.
-/// * `n_points` — Number of evaluation points for the spectrum.
+/// * `q2_min` - Lower bound of the $q^2$ window in GeV².
+/// * `q2_max` - Upper bound of the $q^2$ window in GeV².
+/// * `wilson_coeffs` - Wilson coefficients (SM + BSM shifts).
+/// * `lattice` - Lattice QCD inputs.
+/// * `n_points` - Number of evaluation points for the spectrum.
 ///
 /// # Returns
 /// A [`FlavorObservableReport`](flavor_eft::FlavorObservableReport).

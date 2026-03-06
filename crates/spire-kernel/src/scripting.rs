@@ -1,8 +1,8 @@
-//! # Scripting — Embedded Rhai Scripting Engine
+//! # Scripting - Embedded Rhai Scripting Engine
 //!
 //! This module embeds the [Rhai](https://rhai.rs) scripting engine into the
 //! SPIRE kernel, enabling researchers to define custom observables, kinematic
-//! cuts, and momentum-dependent form factors at runtime — without recompiling
+//! cuts, and momentum-dependent form factors at runtime - without recompiling
 //! the core engine.
 //!
 //! ## Performance
@@ -17,9 +17,9 @@
 //! The engine registers core physics types so that Rhai scripts can manipulate
 //! them natively:
 //!
-//! - [`SpacetimeVector`] — with methods `.e()`, `.px()`, `.py()`, `.pz()`,
+//! - [`SpacetimeVector`] - with methods `.e()`, `.px()`, `.py()`, `.pz()`,
 //!   `.pt()`, `.eta()`, `.phi()`, `.m()`, `.rapidity()`.
-//! - [`PhaseSpacePoint`] — with property `.momenta` (array of vectors) and
+//! - [`PhaseSpacePoint`] - with property `.momenta` (array of vectors) and
 //!   `.weight` (phase-space weight).
 //!
 //! ## Examples
@@ -57,7 +57,7 @@ use crate::reco::detector::ReconstructedEvent;
 use crate::{SpireError, SpireResult};
 
 // ---------------------------------------------------------------------------
-// SpacetimeVector — Rhai helper functions
+// SpacetimeVector - Rhai helper functions
 // ---------------------------------------------------------------------------
 
 /// Energy component $v^0$.
@@ -158,7 +158,7 @@ fn sv_to_string(v: &mut SpacetimeVector) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// PhaseSpacePoint — Rhai helper functions
+// PhaseSpacePoint - Rhai helper functions
 // ---------------------------------------------------------------------------
 
 /// Get the momenta array from a PhaseSpacePoint.
@@ -175,7 +175,7 @@ fn psp_get_weight(psp: &mut PhaseSpacePoint) -> f64 {
 }
 
 // ---------------------------------------------------------------------------
-// Jet — Rhai helper functions
+// Jet - Rhai helper functions
 // ---------------------------------------------------------------------------
 
 /// Jet transverse momentum $p_T$.
@@ -229,7 +229,7 @@ fn jet_pz(j: &mut Jet) -> f64 {
 }
 
 // ---------------------------------------------------------------------------
-// ReconstructedEvent — Rhai helper functions
+// ReconstructedEvent - Rhai helper functions
 // ---------------------------------------------------------------------------
 
 /// Get the jets array from a ReconstructedEvent.
@@ -285,7 +285,7 @@ fn reco_met_pt(reco: &mut ReconstructedEvent) -> f64 {
 // Script Engine
 // ---------------------------------------------------------------------------
 
-/// The SPIRE scripting engine — a pre-configured Rhai runtime with all
+/// The SPIRE scripting engine - a pre-configured Rhai runtime with all
 /// physics types registered.
 ///
 /// Scripts are compiled to an AST once, then evaluated repeatedly in the
@@ -722,9 +722,9 @@ mod tests {
 
     fn sample_event() -> PhaseSpacePoint {
         // e+ e- → mu+ mu- at 200 GeV CM
-        // Particle 0: e- (100, 0, 0, 100)   — massless, along +z
-        // Particle 1: e+ (100, 0, 0, -100)   — massless, along -z
-        // Particle 2: mu+ (100, 30, 40, 86.6) — massive final state
+        // Particle 0: e- (100, 0, 0, 100)   - massless, along +z
+        // Particle 1: e+ (100, 0, 0, -100)   - massless, along -z
+        // Particle 2: mu+ (100, 30, 40, 86.6) - massive final state
         // Particle 3: mu- (100, -30, -40, -86.6)
         PhaseSpacePoint {
             momenta: vec![

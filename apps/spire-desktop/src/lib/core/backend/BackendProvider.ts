@@ -1,5 +1,5 @@
 /**
- * SPIRE — Backend Provider (Environment Detection & Routing)
+ * SPIRE - Backend Provider (Environment Detection & Routing)
  *
  * Detects the current execution environment and instantiates the
  * appropriate `SpireBackend` implementation.  The resolved backend
@@ -8,17 +8,17 @@
  *
  * ## Detection Priority
  *
- * 1. **Tauri IPC** — Check for `window.__TAURI_IPC__` or
+ * 1. **Tauri IPC** - Check for `window.__TAURI_IPC__` or
  *    `window.__TAURI_INTERNALS__`.  If either exists, the app is running
  *    inside the native Tauri webview → use `TauriBackend`.
  *
- * 2. **WebAssembly (explicit opt-in)** — The WASM backend requires the
+ * 2. **WebAssembly (explicit opt-in)** - The WASM backend requires the
  *    `spire-kernel-wasm` module to be built and deployed alongside the
  *    frontend.  A bootstrap script must set `window.__SPIRE_WASM_READY__`
  *    to signal availability.  Without it, the bare-specifier import
  *    crashes the browser module loader.
  *
- * 3. **Mock (Simulation Mode)** — Fallback → use `MockBackend`.
+ * 3. **Mock (Simulation Mode)** - Fallback → use `MockBackend`.
  *
  * The detection runs exactly once during module initialisation and the
  * result is frozen for the lifetime of the page.
@@ -37,7 +37,7 @@ import { MockBackend } from "./MockBackend";
 /**
  * Probe the runtime environment and return the detected backend kind.
  *
- * This function is intentionally synchronous and safe — it must never
+ * This function is intentionally synchronous and safe - it must never
  * throw an exception, since it runs during module-level initialisation.
  */
 function detectEnvironment(): BackendKind {
@@ -53,7 +53,7 @@ function detectEnvironment(): BackendKind {
       return "tauri";
     }
   } catch {
-    // `window` may not exist in SSR or test contexts — fall through.
+    // `window` may not exist in SSR or test contexts - fall through.
   }
 
   try {
@@ -73,7 +73,7 @@ function detectEnvironment(): BackendKind {
       return "wasm";
     }
   } catch {
-    // WebAssembly check failed — fall through to mock.
+    // WebAssembly check failed - fall through to mock.
   }
 
   return "mock";

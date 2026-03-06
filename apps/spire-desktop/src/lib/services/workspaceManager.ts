@@ -1,5 +1,5 @@
 /**
- * SPIRE — Workspace Manager Service
+ * SPIRE - Workspace Manager Service
  *
  * Handles serialisation, deserialisation, validation, and persistence
  * of workspace state.  All operations are pure functions that read from
@@ -10,8 +10,8 @@
  *   - **Export**: `.spire.json` file downloaded via the Web File API
  *   - **Import**: `.spire.json` file parsed and hydrated into stores
  *
- * v2.0 — Layout serialised as a recursive LayoutNode tree + canvas items.
- * v1.0 — Legacy flat CSS grid (auto-migrated on import).
+ * v2.0 - Layout serialised as a recursive LayoutNode tree + canvas items.
+ * v1.0 - Legacy flat CSS grid (auto-migrated on import).
  */
 
 import { get } from "svelte/store";
@@ -156,7 +156,7 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
     }
   }
 
-  // Layout — accept either v1.0 (widgets array) or v2.0 (layoutTree)
+  // Layout - accept either v1.0 (widgets array) or v2.0 (layoutTree)
   if (!("layout" in obj) || typeof obj.layout !== "object" || obj.layout === null) {
     errors.push("Missing or invalid 'layout' field.");
   } else {
@@ -271,7 +271,7 @@ function migrateV1Widgets(serialized: SerializedWidget[]): LayoutNode {
  *
  * Validates the data, hydrates all stores, and logs a summary.
  * Supports both v1.0 (flat grid → auto-migrated) and v2.0 (layout tree).
- * Does NOT trigger any computation — the user must explicitly
+ * Does NOT trigger any computation - the user must explicitly
  * Load Model / Construct Reaction.
  *
  * @returns `true` if import succeeded, `false` if validation failed.
@@ -312,7 +312,7 @@ export function importWorkspace(data: unknown): boolean {
     setLayoutRoot(tree);
     clearCanvas();
     appendLog(
-      `Workspace "${workspace.metadata.name}" imported (v1.0 → v2.0 migration) — ` +
+      `Workspace "${workspace.metadata.name}" imported (v1.0 → v2.0 migration) - ` +
         `framework: ${workspace.physics.framework}`,
     );
   } else {
@@ -324,7 +324,7 @@ export function importWorkspace(data: unknown): boolean {
       clearCanvas();
     }
     appendLog(
-      `Workspace "${workspace.metadata.name}" imported — ` +
+      `Workspace "${workspace.metadata.name}" imported - ` +
         `framework: ${workspace.physics.framework}`,
     );
   }

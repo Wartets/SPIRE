@@ -1,5 +1,5 @@
 /**
- * SPIRE — Compute Worker
+ * SPIRE - Compute Worker
  *
  * Web Worker script that receives ComputeTask messages from the
  * GridManager, invokes the backend's `run_analysis` command,
@@ -56,7 +56,7 @@ let aborted = false;
  * Resolution order:
  *   1. Tauri IPC (if running inside the Tauri webview)
  *   2. WASM kernel (if WebAssembly is available)
- *   3. Error — no backend reachable from worker context
+ *   3. Error - no backend reachable from worker context
  */
 async function executeTask(task: ComputeTask): Promise<AnalysisResult> {
   // --- Attempt 1: Tauri IPC ---
@@ -64,7 +64,7 @@ async function executeTask(task: ComputeTask): Promise<AnalysisResult> {
     const { invoke } = await import("@tauri-apps/api/tauri");
     return await invoke<AnalysisResult>("run_analysis", { config: task.config });
   } catch {
-    // Tauri not available — fall through to WASM.
+    // Tauri not available - fall through to WASM.
   }
 
   // --- Attempt 2: WASM kernel ---
@@ -83,7 +83,7 @@ async function executeTask(task: ComputeTask): Promise<AnalysisResult> {
       return resolved as AnalysisResult;
     }
   } catch {
-    // WASM not available either — fall through.
+    // WASM not available either - fall through.
   }
 
   throw new Error(

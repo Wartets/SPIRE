@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Lagrangian Workbench
+  SPIRE - Lagrangian Workbench
 
   Interactive workbench for defining Lagrangian interaction terms,
   validating theoretical consistency (Lorentz invariance, gauge singlet,
@@ -285,7 +285,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Lifecycle — Command Registration
+  // Lifecycle - Command Registration
   // ---------------------------------------------------------------------------
 
   const LAGRANGIAN_CMD_IDS = [
@@ -494,7 +494,7 @@
       </div>
       <div class="beta-input">
         <label>
-          β-function (Rhai script — variable: <code>g</code>, constant: <code>PI</code>)
+          β-function (Rhai script - variable: <code>g</code>, constant: <code>PI</code>)
           <textarea
             bind:value={rgeBetaScript}
             rows="4"

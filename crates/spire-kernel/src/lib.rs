@@ -6,48 +6,48 @@
 //!
 //! ## Module Overview
 //!
-//! - [`ontology`] — Core traits and structs for all physical entities (particles, fields,
+//! - [`ontology`] - Core traits and structs for all physical entities (particles, fields,
 //!   quantum states). Defines the formal type system grounded in Poincaré and gauge group
 //!   representations.
-//! - [`groups`] — Mathematical structures for symmetry groups ($SU(3)_C \times SU(2)_L
+//! - [`groups`] - Mathematical structures for symmetry groups ($SU(3)_C \times SU(2)_L
 //!   \times U(1)_Y$ and Poincaré). Conservation law validation via group invariants.
-//! - [`s_matrix`] — High-level process construction and validation. Manages transitions
+//! - [`s_matrix`] - High-level process construction and validation. Manages transitions
 //!   between asymptotic states, reaction reconstruction, and mediating boson identification.
-//! - [`lagrangian`] — Parses theoretical models from data files and derives vertex rules,
+//! - [`lagrangian`] - Parses theoretical models from data files and derives vertex rules,
 //!   propagators, and Feynman rules from Lagrangian terms.
-//! - [`graph`] — Feynman diagram generation, manipulation, and validation as directed
+//! - [`graph`] - Feynman diagram generation, manipulation, and validation as directed
 //!   graphs. Topological enumeration, channel identification, symmetry factor calculation.
-//! - [`algebra`] — Symbolic mathematics engine for 4-momenta, gamma matrices, spinors,
+//! - [`algebra`] - Symbolic mathematics engine for 4-momenta, gamma matrices, spinors,
 //!   polarization vectors. Trace evaluation and index contraction. Numerical evaluation
 //!   of CAS expressions via `NumericalContext`.
-//! - [`kinematics`] — Phase space calculations, Mandelstam variables, threshold energies,
+//! - [`kinematics`] - Phase space calculations, Mandelstam variables, threshold energies,
 //!   Lorentz boosts, Dalitz plot boundary generation, and N-body phase space generation
 //!   via the RAMBO algorithm.
-//! - [`integration`] — Monte Carlo integration engine for computing cross-sections and
+//! - [`integration`] - Monte Carlo integration engine for computing cross-sections and
 //!   differential distributions from squared matrix elements over phase space.
-//! - [`pdf`] — Parton Distribution Function framework. Generic `PdfProvider` trait
+//! - [`pdf`] - Parton Distribution Function framework. Generic `PdfProvider` trait
 //!   with analytical toy implementations for proton parton densities.
-//! - [`scripting`] — Embedded Rhai scripting engine for runtime-defined observables,
+//! - [`scripting`] - Embedded Rhai scripting engine for runtime-defined observables,
 //!   kinematic cuts, and form factors.
-//! - [`io`] — Event serialization framework. Generic `EventWriter` trait with
+//! - [`io`] - Event serialization framework. Generic `EventWriter` trait with
 //!   Les Houches Event (LHE) format v3.0 implementation.
-//! - [`interface`] — External solver communication. Generic `ExternalSolver` trait
+//! - [`interface`] - External solver communication. Generic `ExternalSolver` trait
 //!   with CLI subprocess wrapper for invoking tools like FIRE and Kira.
-//! - [`analysis`] — Integrated histogramming and analysis pipeline. High-performance
+//! - [`analysis`] - Integrated histogramming and analysis pipeline. High-performance
 //!   `Histogram1D` and `Histogram2D` structures with thread-local merge strategy
 //!   for parallel Monte Carlo, connected to the Rhai scripting engine for
 //!   runtime-defined observables.
-//! - [`reco`] — Reconstruction and phenomenological detector simulation.
+//! - [`reco`] - Reconstruction and phenomenological detector simulation.
 //!   Anti-$k_t$ jet clustering, configurable energy smearing and efficiency
 //!   maps, missing transverse energy computation, and `ReconstructedEvent`
 //!   objects for experimentally comparable observables.
-//! - [`math`] — Generic mathematical solvers. ODE integration via
+//! - [`math`] - Generic mathematical solvers. ODE integration via
 //!   Runge-Kutta 4 (fixed-step) and Dormand-Prince 4(5) (adaptive)
 //!   methods. Designed as reusable infrastructure for any numerical problem.
-//! - [`cosmology`] — Cosmological relic density calculator. Boltzmann
+//! - [`cosmology`] - Cosmological relic density calculator. Boltzmann
 //!   equation integration for dark matter freeze-out, thermal cross-section
 //!   averaging, and $\Omega h^2$ computation with Planck comparison.
-//! - [`flavor`] — Lattice QCD data integration and Flavor EFT engine.
+//! - [`flavor`] - Lattice QCD data integration and Flavor EFT engine.
 //!   BCL $z$-expansion form factor parameterization, hadronic decay
 //!   constants, Wilson coefficient registry, $B$-meson mixing ($\Delta M_q$),
 //!   and rare semi-leptonic decay rates ($B \to K \ell^+ \ell^-$).

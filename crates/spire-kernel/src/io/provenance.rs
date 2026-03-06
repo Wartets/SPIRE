@@ -1,4 +1,4 @@
-//! # Data Provenance — Deterministic State Hashing & Reproducibility
+//! # Data Provenance - Deterministic State Hashing & Reproducibility
 //!
 //! This module implements a cryptographic provenance engine that guarantees
 //! bit-for-bit reproducibility of Monte Carlo integrations by capturing
@@ -75,13 +75,13 @@ pub struct KinematicConfig {
 ///
 /// # Fields
 ///
-/// - `model` — The full [`TheoreticalModel`] including masses, widths,
+/// - `model` - The full [`TheoreticalModel`] including masses, widths,
 ///   couplings, vertex factors, propagators, and gauge symmetry.
-/// - `reaction` — The scattering process (initial/final states) if one
+/// - `reaction` - The scattering process (initial/final states) if one
 ///   has been configured.
-/// - `kinematics` — Centre-of-mass energy and event count.
-/// - `seed` — The Monte Carlo random number generator seed.
-/// - `version` — The SPIRE version string at the time of computation.
+/// - `kinematics` - Centre-of-mass energy and event count.
+/// - `seed` - The Monte Carlo random number generator seed.
+/// - `version` - The SPIRE version string at the time of computation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProvenanceState {
     /// The theoretical model in its entirety.

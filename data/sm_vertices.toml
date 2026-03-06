@@ -4,7 +4,7 @@
 # The kernel uses these to validate diagram topologies and assign Feynman rules.
 
 # ============================================================================
-# QED VERTICES — Electromagnetic coupling (U(1)_EM)
+# QED VERTICES - Electromagnetic coupling (U(1)_EM)
 # ============================================================================
 
 [[vertex]]
@@ -196,7 +196,7 @@ expression        = "-i (g_z) \\gamma^{\\mu} (g_V^d - g_A^d \\gamma^5)"
 n_legs            = 3
 
 # ============================================================================
-# QCD VERTICES — Strong coupling (SU(3)_C)
+# QCD VERTICES - Strong coupling (SU(3)_C)
 # ============================================================================
 
 [[vertex]]
@@ -224,7 +224,7 @@ expression        = "-i g_s T^a \\gamma^{\\mu}"
 n_legs            = 3
 
 # ============================================================================
-# YUKAWA VERTICES — Higgs-fermion coupling
+# YUKAWA VERTICES - Higgs-fermion coupling
 # ============================================================================
 
 [[vertex]]

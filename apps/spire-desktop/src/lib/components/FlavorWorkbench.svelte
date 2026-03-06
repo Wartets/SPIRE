@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Flavor Physics Workbench
+  SPIRE - Flavor Physics Workbench
 
   Precision flavor observable calculator widget. Provides a tabbed interface
   for configuring:
@@ -203,7 +203,7 @@
         },
       });
     }).catch(() => {
-      // Chart.js not available — silent fallback
+      // Chart.js not available - silent fallback
     });
   }
 

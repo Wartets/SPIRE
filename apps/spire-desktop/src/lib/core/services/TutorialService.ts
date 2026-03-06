@@ -1,5 +1,5 @@
 /**
- * SPIRE — Tutorial Service
+ * SPIRE - Tutorial Service
  *
  * Guided onboarding state machine for new users.  Manages a sequence
  * of TutorialStep objects that target specific DOM elements via
@@ -11,9 +11,9 @@
  * elements by reading their bounding rectangles.
  *
  * Architecture:
- *   - `tutorialActive`: boolean store — whether the tutorial is running.
- *   - `currentStepIndex`: number store — which step is being shown.
- *   - `currentStep`: derived — the active TutorialStep object.
+ *   - `tutorialActive`: boolean store - whether the tutorial is running.
+ *   - `currentStepIndex`: number store - which step is being shown.
+ *   - `currentStep`: derived - the active TutorialStep object.
  *   - Navigation: `nextStep()`, `prevStep()`, `skipTutorial()`.
  *   - The default tutorial walks through a Bhabha scattering calculation.
  */
@@ -49,35 +49,35 @@ export interface TutorialStep {
 export const DEFAULT_TUTORIAL: TutorialStep[] = [
   {
     targetId: "model-loader",
-    title: "Step 1 — Load a Theoretical Model",
+    title: "Step 1 - Load a Theoretical Model",
     content:
       "Start by loading the Standard Model. This populates the particle spectrum (fields, masses, quantum numbers) and the Lagrangian interaction vertices that define the Feynman rules.",
     placement: "right",
   },
   {
     targetId: "reaction-input",
-    title: "Step 2 — Define the Reaction",
+    title: "Step 2 - Define the Reaction",
     content:
       "Specify the initial and final states of your scattering process. For Bhabha scattering, set the initial state to e⁻ e⁺ and the final state to e⁻ e⁺. Set the centre-of-mass energy (e.g. 91.2 GeV for the Z pole).",
     placement: "right",
   },
   {
     targetId: "reaction-run",
-    title: "Step 3 — Run the Pipeline",
+    title: "Step 3 - Run the Pipeline",
     content:
       "Click 'Run Full Pipeline' to construct the reaction, generate all Feynman diagrams at tree level, derive the symbolic amplitudes, and compute the kinematics. Each step validates conservation laws automatically.",
     placement: "bottom",
   },
   {
     targetId: "diagram-visualizer",
-    title: "Step 4 — Inspect the Diagrams",
+    title: "Step 4 - Inspect the Diagrams",
     content:
       "The Diagram Visualizer shows all topologically distinct Feynman diagrams for this process. For e⁻e⁺ → e⁻e⁺ you will see s-channel (Z/γ) and t-channel diagrams. Each diagram's symmetry factor and channel type are displayed.",
     placement: "left",
   },
   {
     targetId: "analysis-widget",
-    title: "Step 5 — Run a Monte Carlo Analysis",
+    title: "Step 5 - Run a Monte Carlo Analysis",
     content:
       "Open the Analysis widget to generate Monte Carlo events. Choose an observable (e.g. leading pT), set the number of events and √s, then click 'Run'. The histogram shows the differential cross-section distribution.",
     placement: "top",

@@ -6,9 +6,9 @@
 //!
 //! ## Modules
 //!
-//! - [`lattice`] — Lattice QCD data structures: hadronic decay constants
+//! - [`lattice`] - Lattice QCD data structures: hadronic decay constants
 //!   and form factor parameterizations via the BCL $z$-expansion.
-//! - [`eft`] — Flavor EFT engine: Wilson coefficients, $B$-meson mixing,
+//! - [`eft`] - Flavor EFT engine: Wilson coefficients, $B$-meson mixing,
 //!   and rare semi-leptonic decay rate computations.
 
 pub mod eft;

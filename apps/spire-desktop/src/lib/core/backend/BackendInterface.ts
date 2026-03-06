@@ -1,5 +1,5 @@
 /**
- * SPIRE — Abstract Backend Interface
+ * SPIRE - Abstract Backend Interface
  *
  * Defines the complete contract between the frontend UI and the physics
  * computation engine.  Every backend strategy (Tauri IPC, WebAssembly,
@@ -68,9 +68,9 @@ import type {
 /**
  * Identifies which execution environment is currently active.
  *
- * - `"tauri"` — Native Tauri IPC bridge to the Rust backend process.
- * - `"wasm"`  — In-browser WebAssembly module (spire-kernel compiled to wasm32).
- * - `"mock"`  — Static fallback returning safe placeholder data.
+ * - `"tauri"` - Native Tauri IPC bridge to the Rust backend process.
+ * - `"wasm"`  - In-browser WebAssembly module (spire-kernel compiled to wasm32).
+ * - `"mock"`  - Static fallback returning safe placeholder data.
  */
 export type BackendKind = "tauri" | "wasm" | "mock";
 
@@ -111,10 +111,10 @@ export class BackendError extends Error {
 /**
  * Discriminated error categories.
  *
- * - `"transport"` — IPC / network / serialisation failure.
- * - `"kernel"`    — The physics kernel returned an error (bad input, etc.).
- * - `"unsupported"` — The active backend does not implement this operation.
- * - `"timeout"`   — The operation exceeded its time budget.
+ * - `"transport"` - IPC / network / serialisation failure.
+ * - `"kernel"`    - The physics kernel returned an error (bad input, etc.).
+ * - `"unsupported"` - The active backend does not implement this operation.
+ * - `"timeout"`   - The operation exceeded its time budget.
  */
 export type BackendErrorKind =
   | "transport"

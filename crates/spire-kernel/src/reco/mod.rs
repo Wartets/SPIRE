@@ -1,4 +1,4 @@
-//! # Reco — Reconstruction & Detector Simulation
+//! # Reco - Reconstruction & Detector Simulation
 //!
 //! This module bridges parton-level Monte Carlo truth and experimentally
 //! comparable reconstructed observables. It provides:

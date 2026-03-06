@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Split Pane
+  SPIRE - Split Pane
 
   Generic resizable container that renders its children separated by
   draggable resize handles.  Supports both horizontal (row) and
@@ -10,9 +10,9 @@
   `resizePanes` reducer.
 
   Props:
-    nodeId      — The ID of the container node (for resize updates).
-    direction   — "row" (horizontal) or "col" (vertical).
-    sizes       — Flex-grow proportions for each child slot.
+    nodeId      - The ID of the container node (for resize updates).
+    direction   - "row" (horizontal) or "col" (vertical).
+    sizes       - Flex-grow proportions for each child slot.
 
   Slots:
     Each child should be passed via `<slot />`.  This component uses

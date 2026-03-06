@@ -1,5 +1,5 @@
 /**
- * SPIRE — Distributed Compute Grid Types
+ * SPIRE - Distributed Compute Grid Types
  *
  * Type definitions for the message protocol between the GridManager
  * (main thread) and ComputeNode workers.  The protocol is designed

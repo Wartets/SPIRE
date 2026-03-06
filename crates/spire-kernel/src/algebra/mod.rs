@@ -1,4 +1,4 @@
-//! # Algebra — Symbolic Mathematics Engine
+//! # Algebra - Symbolic Mathematics Engine
 //!
 //! This module implements the symbolic mathematical structures required for
 //! constructing and manipulating scattering amplitudes in QFT:
@@ -194,7 +194,7 @@ impl MetricSignature {
             ));
         }
 
-        // Fast-path: 4D Minkowski (+,-,-,-) — the overwhelmingly common case.
+        // Fast-path: 4D Minkowski (+,-,-,-) - the overwhelmingly common case.
         if dim == 4 && self.signs.len() == 4 {
             let vs = v.components();
             let ws = w.components();
@@ -258,7 +258,7 @@ pub trait SpacetimeMetricTrait {
     fn is_diagonal(&self) -> bool;
 }
 
-/// A flat diagonal metric tensor — the workhorse for perturbative QFT.
+/// A flat diagonal metric tensor - the workhorse for perturbative QFT.
 ///
 /// Constant diagonal entries defined by a [`MetricSignature`]. Covers
 /// Minkowski, Euclidean, and higher-dimensional flat backgrounds.
@@ -328,7 +328,7 @@ impl SpacetimeMetricTrait for FlatMetric {
 /// Internal storage for [`SpacetimeVector`]: stack-allocated for D ≤ 4,
 /// heap-allocated for higher dimensions.
 ///
-/// The 4D case — overwhelmingly dominant in particle physics — lives entirely
+/// The 4D case - overwhelmingly dominant in particle physics - lives entirely
 /// on the stack with 32-byte alignment for SIMD-friendly access.  Higher
 /// dimensions fall back to a heap `Vec<f64>` transparently.
 #[derive(Debug, Clone)]
@@ -438,7 +438,7 @@ impl VectorStorage {
 /// spatial.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SpacetimeVector {
-    /// Internal storage — stack for D ≤ 4, heap for D > 4.
+    /// Internal storage - stack for D ≤ 4, heap for D > 4.
     storage: VectorStorage,
 }
 
@@ -509,7 +509,7 @@ impl SpacetimeVector {
         }
     }
 
-    /// Create a 4-vector $(v^0, v^1, v^2, v^3)$ — the most common case in
+    /// Create a 4-vector $(v^0, v^1, v^2, v^3)$ - the most common case in
     /// particle physics.  Stack-allocated with zero heap allocation.
     #[inline]
     pub fn new_4d(v0: f64, v1: f64, v2: f64, v3: f64) -> Self {
@@ -737,7 +737,7 @@ impl std::fmt::Display for SpacetimeVector {
 /// # Default
 ///
 /// The default configuration is standard 4D Minkowski with no dimensional
-/// regularization — the setting for tree-level Standard Model calculations.
+/// regularization - the setting for tree-level Standard Model calculations.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SpacetimeConfig {
     /// The flat metric defining inner products.
@@ -789,7 +789,7 @@ impl Default for SpacetimeConfig {
 }
 
 // ---------------------------------------------------------------------------
-// Spacetime Dimension — Dimensional Regularization
+// Spacetime Dimension - Dimensional Regularization
 // ---------------------------------------------------------------------------
 
 /// The spacetime dimension used for loop calculations.
@@ -900,7 +900,7 @@ impl SpacetimeDimension {
 ///
 /// Every tensor loop integral can be reduced to a linear combination of these
 /// scalar master integrals (plus rational coefficients). This enum is the
-/// mathematical label — the actual integral expressions are symbolic and
+/// mathematical label - the actual integral expressions are symbolic and
 /// never evaluated numerically within this module.
 ///
 /// **Extensibility**: Higher-point functions ($E_0$, $F_0$, ...) for multi-loop
@@ -999,13 +999,13 @@ pub struct DiracSpinor {
 /// Classification of a Dirac spinor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SpinorKind {
-    /// Positive-energy spinor $u(p, s)$ — particle.
+    /// Positive-energy spinor $u(p, s)$ - particle.
     U,
-    /// Barred positive-energy spinor $\bar{u}(p, s)$ — outgoing particle.
+    /// Barred positive-energy spinor $\bar{u}(p, s)$ - outgoing particle.
     UBar,
-    /// Negative-energy spinor $v(p, s)$ — antiparticle.
+    /// Negative-energy spinor $v(p, s)$ - antiparticle.
     V,
-    /// Barred negative-energy spinor $\bar{v}(p, s)$ — outgoing antiparticle.
+    /// Barred negative-energy spinor $\bar{v}(p, s)$ - outgoing antiparticle.
     VBar,
 }
 
@@ -1060,7 +1060,7 @@ pub enum PolarizationState {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// Lorentz Index — the fundamental label for spacetime algebra
+// Lorentz Index - the fundamental label for spacetime algebra
 // ---------------------------------------------------------------------------
 
 /// A symbolic Lorentz index used throughout the CAS.
@@ -1103,7 +1103,7 @@ impl std::fmt::Display for LorentzIndex {
 }
 
 // ---------------------------------------------------------------------------
-// SpacetimeTensor — Generalized Tensor Representation
+// SpacetimeTensor - Generalized Tensor Representation
 // ---------------------------------------------------------------------------
 
 /// Classification of spacetime tensor symmetry/structure.
@@ -1130,7 +1130,7 @@ pub enum SpacetimeTensorKind {
 }
 
 // ---------------------------------------------------------------------------
-// CasExpr — The Core Expression Tree
+// CasExpr - The Core Expression Tree
 // ---------------------------------------------------------------------------
 
 /// The recursive expression tree of SPIRE's Computer Algebra System.
@@ -1259,7 +1259,7 @@ pub enum CasExpr {
 }
 
 // ---------------------------------------------------------------------------
-// CasExpr — Core Methods
+// CasExpr - Core Methods
 // ---------------------------------------------------------------------------
 
 impl CasExpr {
@@ -1387,7 +1387,7 @@ impl CasExpr {
     ///
     /// For example: $a(b + c) \rightarrow ab + ac$.
     ///
-    /// This operates one level deep — call repeatedly for full expansion.
+    /// This operates one level deep - call repeatedly for full expansion.
     pub fn expand(&self) -> CasExpr {
         match self {
             CasExpr::Mul(factors) => {
@@ -1430,7 +1430,7 @@ impl CasExpr {
     /// 5. Apply metric tensor contractions.
     ///
     /// # Arguments
-    /// * `dim` — The spacetime dimension for γ-matrix contractions.
+    /// * `dim` - The spacetime dimension for γ-matrix contractions.
     pub fn simplify(&self, dim: SpacetimeDimension) -> CasExpr {
         match self {
             CasExpr::Add(terms) => {
@@ -1642,7 +1642,7 @@ impl CasExpr {
     /// the mass times the spinor.
     ///
     /// # Arguments
-    /// * `on_shell_masses` — Map from momentum label to on-shell mass.
+    /// * `on_shell_masses` - Map from momentum label to on-shell mass.
     pub fn apply_dirac_equation(
         &self,
         on_shell_masses: &std::collections::HashMap<String, f64>,
@@ -1926,7 +1926,7 @@ fn try_replace_index(expr: &CasExpr, old: &LorentzIndex, new: &LorentzIndex) -> 
 }
 
 // ---------------------------------------------------------------------------
-// DerivationStep — Step-by-Step Amplitude Derivation
+// DerivationStep - Step-by-Step Amplitude Derivation
 // ---------------------------------------------------------------------------
 
 /// A single step in a structured amplitude derivation.
@@ -1952,11 +1952,11 @@ pub struct DerivationStep {
 /// from the initial Feynman rules through simplification to the final result.
 ///
 /// # Steps
-/// 1. **Feynman Rules** — Map graph to initial CAS expression.
-/// 2. **Index Assignment** — Assign Lorentz indices.
-/// 3. **Metric Contraction** — Contract $g^{\mu\nu}$ terms.
-/// 4. **Dirac Equation** — Simplify on-shell spinor terms.
-/// 5. **Final Expression** — The simplified amplitude.
+/// 1. **Feynman Rules** - Map graph to initial CAS expression.
+/// 2. **Index Assignment** - Assign Lorentz indices.
+/// 3. **Metric Contraction** - Contract $g^{\mu\nu}$ terms.
+/// 4. **Dirac Equation** - Simplify on-shell spinor terms.
+/// 5. **Final Expression** - The simplified amplitude.
 pub fn derive_amplitude_steps(
     diagram: &FeynmanGraph,
     dim: SpacetimeDimension,
@@ -2473,8 +2473,8 @@ fn feynman_graph_to_cas(diagram: &FeynmanGraph) -> SpireResult<CasExpr> {
 /// - $\mathrm{Tr}[\gamma^5 \gamma^\mu \gamma^\nu \gamma^\rho \gamma^\sigma] = -4i\,\epsilon^{\mu\nu\rho\sigma}$
 ///
 /// # Arguments
-/// * `expr` — The expression inside the trace (typically a `Mul` of gamma matrices).
-/// * `dim` — Spacetime dimension for dimensional regularization.
+/// * `expr` - The expression inside the trace (typically a `Mul` of gamma matrices).
+/// * `dim` - Spacetime dimension for dimensional regularization.
 pub fn evaluate_cas_trace(expr: &CasExpr, dim: SpacetimeDimension) -> SpireResult<CasExpr> {
     // Extract gamma matrices and check for gamma5
     let factors = match expr {
@@ -2656,7 +2656,7 @@ pub fn contract_levi_civita(eps1: &[LorentzIndex; 4], eps2: &[LorentzIndex; 4]) 
 
     match shared.len() {
         0 => {
-            // No contraction — return the product of two ε tensors
+            // No contraction - return the product of two ε tensors
             CasExpr::Mul(vec![
                 CasExpr::LeviCivita {
                     indices: eps1.clone(),
@@ -2859,13 +2859,13 @@ pub fn contract_levi_civita(eps1: &[LorentzIndex; 4], eps2: &[LorentzIndex; 4]) 
 /// has 16 terms. This function returns the rearranged CAS expression.
 ///
 /// # Arguments
-/// * `bilinear1` — First spinor bilinear (as a CAS expression, e.g., ūΓu).
-/// * `bilinear2` — Second spinor bilinear (as a CAS expression, e.g., v̄Γv).
+/// * `bilinear1` - First spinor bilinear (as a CAS expression, e.g., ūΓu).
+/// * `bilinear2` - Second spinor bilinear (as a CAS expression, e.g., v̄Γv).
 ///
 /// # Returns
 /// The Fierz-rearranged expression, or the original if not applicable.
 pub fn apply_fierz_identity(bilinear1: &CasExpr, bilinear2: &CasExpr) -> CasExpr {
-    // The Fierz identity is complex — this provides the structural framework.
+    // The Fierz identity is complex - this provides the structural framework.
     // A full implementation would decompose the gamma matrix insertions
     // and apply the 16×16 Fierz matrix.
     //
@@ -3447,7 +3447,7 @@ pub struct ContractionResult {
 }
 
 // ---------------------------------------------------------------------------
-// FourMomentum — Arithmetic and Kinematics
+// FourMomentum - Arithmetic and Kinematics
 // ---------------------------------------------------------------------------
 
 impl FourMomentum {
@@ -3541,7 +3541,7 @@ impl Neg for FourMomentum {
 }
 
 // ---------------------------------------------------------------------------
-// Feynman Rules Mapper — generate_amplitude
+// Feynman Rules Mapper - generate_amplitude
 // ---------------------------------------------------------------------------
 
 /// Assign a Lorentz index label based on a running counter.
@@ -3579,7 +3579,7 @@ fn lorentz_index_label(counter: usize) -> String {
 /// Perfect fermion-line ordering is a refinement for a future phase.
 ///
 /// # Arguments
-/// * `diagram` — The Feynman diagram to translate into an amplitude.
+/// * `diagram` - The Feynman diagram to translate into an amplitude.
 pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpression> {
     use crate::telemetry::ComputeProfile;
     use std::time::Instant;
@@ -3702,7 +3702,7 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
             }
 
             // ---------------------------------------------------------------
-            // Spin-0 scalar (2J = 0) — external scalar contributes factor 1
+            // Spin-0 scalar (2J = 0) - external scalar contributes factor 1
             // (no spinor or polarization vector, just a trivial factor).
             // ---------------------------------------------------------------
             _ => {
@@ -3792,7 +3792,7 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
 }
 
 // ---------------------------------------------------------------------------
-// Algebra Stubs — Trace Evaluation & Index Contraction
+// Algebra Stubs - Trace Evaluation & Index Contraction
 // ---------------------------------------------------------------------------
 
 /// Evaluate the trace of a product of Dirac gamma matrices.
@@ -3808,8 +3808,8 @@ pub fn generate_amplitude(diagram: &FeynmanGraph) -> SpireResult<AmplitudeExpres
 /// future phase.
 ///
 /// # Arguments
-/// * `gamma_indices` — Ordered sequence of gamma matrix Lorentz indices.
-/// * `include_gamma5` — Whether $\gamma^5$ appears in the product.
+/// * `gamma_indices` - Ordered sequence of gamma matrix Lorentz indices.
+/// * `include_gamma5` - Whether $\gamma^5$ appears in the product.
 pub fn evaluate_trace(gamma_indices: &[u8], include_gamma5: bool) -> SpireResult<TraceResult> {
     evaluate_trace_d(gamma_indices, include_gamma5, SpacetimeDimension::four())
 }
@@ -3829,9 +3829,9 @@ pub fn evaluate_trace(gamma_indices: &[u8], include_gamma5: bool) -> SpireResult
 /// | $\gamma^\mu \gamma^\nu \gamma^\rho \gamma_\mu$ | $4g^{\nu\rho} - (4-d)\gamma^\nu\gamma^\rho$ |
 ///
 /// # Arguments
-/// * `gamma_indices` — Ordered sequence of gamma matrix Lorentz indices.
-/// * `include_gamma5` — Whether $\gamma^5$ appears in the product.
-/// * `dim` — The spacetime dimension to use for the trace algebra.
+/// * `gamma_indices` - Ordered sequence of gamma matrix Lorentz indices.
+/// * `include_gamma5` - Whether $\gamma^5$ appears in the product.
+/// * `dim` - The spacetime dimension to use for the trace algebra.
 ///
 /// # Current Implementation
 ///
@@ -3919,7 +3919,7 @@ pub fn evaluate_trace_d(
 /// Full symbolic index contraction is planned for a future phase.
 ///
 /// # Arguments
-/// * `expression` — The symbolic amplitude expression containing uncontracted indices.
+/// * `expression` - The symbolic amplitude expression containing uncontracted indices.
 pub fn contract_indices(expression: &AmplitudeExpression) -> SpireResult<ContractionResult> {
     contract_indices_d(expression, SpacetimeDimension::four())
 }
@@ -3932,8 +3932,8 @@ pub fn contract_indices(expression: &AmplitudeExpression) -> SpireResult<Contrac
 /// UV-divergent integrals.
 ///
 /// # Arguments
-/// * `expression` — The symbolic amplitude expression.
-/// * `dim` — The spacetime dimension for the contraction algebra.
+/// * `expression` - The symbolic amplitude expression.
+/// * `dim` - The spacetime dimension for the contraction algebra.
 pub fn contract_indices_d(
     expression: &AmplitudeExpression,
     dim: SpacetimeDimension,
@@ -3956,11 +3956,11 @@ pub fn contract_indices_d(
 /// $$\sum_s v(p,s)\bar{v}(p,s) = \not{p} - m$$
 ///
 /// # Arguments
-/// * `amplitude` — The amplitude expression to process.
+/// * `amplitude` - The amplitude expression to process.
 pub fn perform_spin_summation(
     _amplitude: &AmplitudeExpression,
 ) -> SpireResult<AmplitudeExpression> {
-    todo!("Spin summation not yet implemented — requires full Dirac algebra engine")
+    todo!("Spin summation not yet implemented - requires full Dirac algebra engine")
 }
 
 /// Apply polarization sum rules for external vector bosons.
@@ -3970,11 +3970,11 @@ pub fn perform_spin_summation(
 /// For massive bosons: includes the longitudinal contribution.
 ///
 /// # Arguments
-/// * `amplitude` — The amplitude expression to process.
+/// * `amplitude` - The amplitude expression to process.
 pub fn apply_polarization_sum(
     _amplitude: &AmplitudeExpression,
 ) -> SpireResult<AmplitudeExpression> {
-    todo!("Polarization sum not yet implemented — requires full tensor algebra engine")
+    todo!("Polarization sum not yet implemented - requires full tensor algebra engine")
 }
 
 // ---------------------------------------------------------------------------
@@ -4012,9 +4012,9 @@ impl PropagatorFormLabel for crate::lagrangian::Propagator {
 /// classification.
 ///
 /// # Arguments
-/// * `graph` — A 1-loop FeynmanGraph with topology already classified.
-/// * `propagator_masses` — Masses of the internal loop propagators in order.
-/// * `dim` — The spacetime dimension for the integral.
+/// * `graph` - A 1-loop FeynmanGraph with topology already classified.
+/// * `propagator_masses` - Masses of the internal loop propagators in order.
+/// * `dim` - The spacetime dimension for the integral.
 ///
 /// # Returns
 /// A `SymbolicTerm::LoopIntegral` representing the scalar integral, or an
@@ -4228,7 +4228,7 @@ impl std::ops::Div for Complex {
     fn div(self, rhs: Self) -> Self {
         let denom = rhs.norm_sq();
         if denom < 1e-300 {
-            // Division by zero — return NaN-like sentinel.
+            // Division by zero - return NaN-like sentinel.
             return Self {
                 re: f64::NAN,
                 im: f64::NAN,
@@ -4405,13 +4405,13 @@ impl CasExpr {
     ///
     /// # Supported Nodes
     ///
-    /// - `Scalar`, `ImaginaryUnit` — direct numerical values.
-    /// - `Symbol` — looked up in `ctx.symbols`.
-    /// - `DotProduct` — computed via `ctx.dot_product`.
-    /// - `Add`, `Mul`, `Neg`, `Fraction` — standard arithmetic.
-    /// - `PropagatorDenom` — evaluated as $1/(p^2 - m^2 + i\epsilon)$.
-    /// - `MetricTensor`, `KroneckerDelta` — evaluated with numeric indices.
-    /// - `Trace` — evaluated by summing over Lorentz index values $0,1,2,3$.
+    /// - `Scalar`, `ImaginaryUnit` - direct numerical values.
+    /// - `Symbol` - looked up in `ctx.symbols`.
+    /// - `DotProduct` - computed via `ctx.dot_product`.
+    /// - `Add`, `Mul`, `Neg`, `Fraction` - standard arithmetic.
+    /// - `PropagatorDenom` - evaluated as $1/(p^2 - m^2 + i\epsilon)$.
+    /// - `MetricTensor`, `KroneckerDelta` - evaluated with numeric indices.
+    /// - `Trace` - evaluated by summing over Lorentz index values $0,1,2,3$.
     ///
     /// # Errors
     ///
@@ -4511,7 +4511,7 @@ impl CasExpr {
             }
 
             CasExpr::SlashedMomentum { label } => {
-                // ⧸p = γ^μ p_μ — this is a matrix-valued object.
+                // ⧸p = γ^μ p_μ - this is a matrix-valued object.
                 // In a fully contracted/traced amplitude it should have been
                 // reduced to scalars. If we encounter it here, treat as the
                 // Lorentz-contracted scalar p·p for a rough numerical estimate.
@@ -4534,7 +4534,7 @@ impl CasExpr {
             }
 
             CasExpr::GammaMat { .. } | CasExpr::Gamma5 => {
-                // Gamma matrices are matrix-valued — in a fully simplified
+                // Gamma matrices are matrix-valued - in a fully simplified
                 // amplitude they should not appear bare. Return an error.
                 Err("Cannot numerically evaluate bare gamma matrix. \
                      Ensure amplitude has been fully simplified (traces evaluated, \
@@ -4554,7 +4554,7 @@ impl CasExpr {
                 .into()),
 
             CasExpr::Commutator(a, b) => {
-                // [A, B] = AB - BA — evaluate as scalars
+                // [A, B] = AB - BA - evaluate as scalars
                 let va = a.evaluate_numerically(ctx)?;
                 let vb = b.evaluate_numerically(ctx)?;
                 Ok(va * vb - vb * va) // For scalars this is 0, which is correct.
@@ -4636,10 +4636,10 @@ fn levi_civita_numeric(a: usize, b: usize, c: usize, d: usize) -> f64 {
 ///
 /// # Arguments
 ///
-/// * `amplitude_sq` — The squared amplitude $|\mathcal{M}|^2$ as a `CasExpr`,
+/// * `amplitude_sq` - The squared amplitude $|\mathcal{M}|^2$ as a `CasExpr`,
 ///   already evaluated symbolically (traces performed, indices contracted).
-/// * `ctx` — The numerical context with momenta set to the phase-space point.
-/// * `initial_spin_dofs` — Spin degrees of freedom for each initial-state particle
+/// * `ctx` - The numerical context with momenta set to the phase-space point.
+/// * `initial_spin_dofs` - Spin degrees of freedom for each initial-state particle
 ///   (e.g., $2$ for a spin-$\frac{1}{2}$ fermion, $2$ for a massless vector boson).
 ///
 /// # Returns
@@ -6548,7 +6548,7 @@ mod tests {
 
     #[test]
     fn cas_free_indices_contracted() {
-        // g^{μμ} — same index twice → contracted, no free indices
+        // g^{μμ} - same index twice → contracted, no free indices
         let mu = LorentzIndex::Named("mu".into());
         let expr = CasExpr::MetricTensor {
             mu: mu.clone(),
@@ -6975,7 +6975,7 @@ mod tests {
 
     #[test]
     fn levi_civita_no_contraction() {
-        // All different indices — no contraction, return product
+        // All different indices - no contraction, return product
         let a = LorentzIndex::Named("a".into());
         let b = LorentzIndex::Named("b".into());
         let c = LorentzIndex::Named("c".into());
@@ -7603,7 +7603,7 @@ mod tests {
 
     #[test]
     fn spacetime_vector_spatial_magnitude_1d() {
-        // A 1D vector has only a temporal component — spatial magnitude = 0
+        // A 1D vector has only a temporal component - spatial magnitude = 0
         let v = SpacetimeVector::new(vec![42.0]);
         assert_eq!(v.spatial_magnitude(), 0.0);
     }

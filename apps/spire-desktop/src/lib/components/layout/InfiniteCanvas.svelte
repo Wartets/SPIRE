@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Infinite Canvas
+  SPIRE - Infinite Canvas
 
   Whiteboard-mode workspace.  Widgets are placed at arbitrary (x, y)
   positions on a pannable, zoomable 2D plane.

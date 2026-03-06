@@ -1,5 +1,5 @@
 /**
- * SPIRE — Workspace Inputs Store
+ * SPIRE - Workspace Inputs Store
  *
  * Shared writable stores for user-configurable physics parameters.
  * These stores were promoted from component-local variables in

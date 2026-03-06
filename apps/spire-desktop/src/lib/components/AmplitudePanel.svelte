@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Amplitude Panel Component
+  SPIRE - Amplitude Panel Component
 
   Displays symbolic amplitude expressions computed from Feynman diagrams.
   Shows the full list of computed amplitudes with their coupling constants

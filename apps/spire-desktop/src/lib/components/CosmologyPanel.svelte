@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Cosmology Panel
+  SPIRE - Cosmology Panel
 
   Dark matter relic density calculator widget. Configures DM candidate
   properties (mass, annihilation cross-section, degrees of freedom),
@@ -78,7 +78,7 @@
           labels,
           datasets: [
             {
-              label: "Y(x) — actual yield",
+              label: "Y(x) - actual yield",
               data: yData,
               borderColor: "#4fc3f7",
               backgroundColor: "rgba(79, 195, 247, 0.1)",
@@ -87,7 +87,7 @@
               fill: false,
             },
             {
-              label: "Y_eq(x) — equilibrium",
+              label: "Y_eq(x) - equilibrium",
               data: yEqData,
               borderColor: "#ff8a65",
               backgroundColor: "rgba(255, 138, 101, 0.1)",
@@ -134,7 +134,7 @@
         },
       });
     }).catch(() => {
-      // Chart.js not available — silent fallback
+      // Chart.js not available - silent fallback
     });
   }
 

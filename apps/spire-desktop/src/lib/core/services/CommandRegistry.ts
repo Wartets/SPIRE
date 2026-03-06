@@ -1,5 +1,5 @@
 /**
- * SPIRE — Command Registry
+ * SPIRE - Command Registry
  *
  * Centralised, decoupled service for registering, resolving, and
  * executing named commands across the entire application.  Any module
@@ -280,7 +280,7 @@ export function fuzzySearchCommands(
     }
 
     if (qi === lowerQuery.length) {
-      // All characters matched — add word-boundary bonus
+      // All characters matched - add word-boundary bonus
       const titleLower = cmd.title.toLowerCase();
       const startsWithBonus = titleLower.startsWith(lowerQuery) ? -100 : 0;
       scored.push({ command: cmd, score: score + startsWithBonus });

@@ -143,7 +143,7 @@ writer.finish()?;
 
 ### Helper Function
 
-`event_record_from_phase_space(ps, pdg_ids, beam_ids, beam_energy, process_id)` —
+`event_record_from_phase_space(ps, pdg_ids, beam_ids, beam_energy, process_id)` -
 converts a `PhaseSpacePoint` and metadata into an `EventRecord` suitable
 for the `EventWriter` interface.
 
@@ -209,7 +209,7 @@ via the `invoke()` bridge:
 | `test_observable_script` | `script` | `f64` |
 | `test_cut_script` | `script` | `bool` |
 
-All commands are stateless — the full model and reaction objects are passed
+All commands are stateless - the full model and reaction objects are passed
 in each call as serialized JSON.
 
 ---
@@ -279,7 +279,7 @@ momenta, weights = spire_hep.generate_phase_space_events(
     num_events=100_000,
     seed=42,
 )
-# momenta.shape == (100000, 2, 4)  — [event, particle, (E, px, py, pz)]
+# momenta.shape == (100000, 2, 4)  - [event, particle, (E, px, py, pz)]
 # weights.shape == (100000,)
 ```
 

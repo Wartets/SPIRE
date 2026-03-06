@@ -1,5 +1,5 @@
 /**
- * SPIRE — Layout Store
+ * SPIRE - Layout Store
  *
  * Data-driven recursive docking system.  The entire workspace layout
  * is expressed as a JSON-serialisable tree of `LayoutNode` values.
@@ -20,7 +20,7 @@
  *
  * ## Serialisation
  *
- * Every type in this module is plain JSON — no class instances, no
+ * Every type in this module is plain JSON - no class instances, no
  * functions, no circular references.  `layoutRoot` can be serialised
  * with `JSON.stringify()` and restored with `JSON.parse()`.
  */
@@ -44,7 +44,7 @@ interface LayoutNodeBase {
   type: LayoutType;
 }
 
-/** Horizontal split — children are arranged left-to-right. */
+/** Horizontal split - children are arranged left-to-right. */
 export interface RowNode extends LayoutNodeBase {
   type: "row";
   /** Ordered child nodes. */
@@ -53,7 +53,7 @@ export interface RowNode extends LayoutNodeBase {
   sizes: number[];
 }
 
-/** Vertical split — children are arranged top-to-bottom. */
+/** Vertical split - children are arranged top-to-bottom. */
 export interface ColNode extends LayoutNodeBase {
   type: "col";
   /** Ordered child nodes. */
@@ -62,7 +62,7 @@ export interface ColNode extends LayoutNodeBase {
   sizes: number[];
 }
 
-/** Tabbed group — one child visible at a time. */
+/** Tabbed group - one child visible at a time. */
 export interface StackNode extends LayoutNodeBase {
   type: "stack";
   /** Child nodes (each tab). */
@@ -71,7 +71,7 @@ export interface StackNode extends LayoutNodeBase {
   activeIndex: number;
 }
 
-/** Leaf node — renders an actual widget component. */
+/** Leaf node - renders an actual widget component. */
 export interface WidgetLeaf extends LayoutNodeBase {
   type: "widget";
   /** Which component to render. */
@@ -511,9 +511,9 @@ export function setLayoutRoot(root: LayoutNode): void {
 
 /**
  * Position relative to the drop target.
- * - "before" / "after" — split the parent container
- * - "left" / "right" / "top" / "bottom" — split the target into a new container
- * - "center" — replace the target (tab-stack, future use)
+ * - "before" / "after" - split the parent container
+ * - "left" / "right" / "top" / "bottom" - split the target into a new container
+ * - "center" - replace the target (tab-stack, future use)
  */
 export type DropPosition = "left" | "right" | "top" | "bottom" | "center";
 
@@ -528,9 +528,9 @@ export type DropPosition = "left" | "right" | "top" | "bottom" | "center";
  *   3. Wrap the target in a new row/col container with the source node
  *      placed according to `position`.
  *
- * @param sourceId  — ID of the widget leaf to move.
- * @param targetId  — ID of the node to drop onto.
- * @param position  — Where relative to the target to place the source.
+ * @param sourceId  - ID of the widget leaf to move.
+ * @param targetId  - ID of the node to drop onto.
+ * @param position  - Where relative to the target to place the source.
  */
 export function moveNode(
   sourceId: string,
@@ -560,7 +560,7 @@ export function moveNode(
 
     // Phase 2: Locate the target in the pruned tree
     if (pruned.id === targetId) {
-      // Target is the new root — wrap it
+      // Target is the new root - wrap it
       const direction: "row" | "col" =
         position === "left" || position === "right" ? "row" : "col";
       const children =
@@ -696,7 +696,7 @@ export function toggleViewMode(): void {
   const current = get(viewMode);
 
   if (current === "docking") {
-    // Switching to Canvas — sync docking widgets into canvas
+    // Switching to Canvas - sync docking widgets into canvas
     const currentCanvas = get(canvasItems);
     if (currentCanvas.length === 0) {
       const leaves = collectWidgetLeaves(get(layoutRoot));
@@ -727,7 +727,7 @@ export function toggleViewMode(): void {
       canvasItems.set(newItems);
     }
   } else {
-    // Switching to Docking — sync canvas widgets into docking tree
+    // Switching to Docking - sync canvas widgets into docking tree
     const currentCanvas = get(canvasItems);
     if (currentCanvas.length > 0) {
       // Rebuild docking tree: single column of all canvas widget types

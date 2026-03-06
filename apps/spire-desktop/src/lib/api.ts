@@ -5,7 +5,7 @@
  * environment-aware transport layer (`$lib/core/backend`).
  *
  * Prior to Phase 36 this module called `invoke()` from
- * `@tauri-apps/api/tauri` directly — which crashed in any
+ * `@tauri-apps/api/tauri` directly - which crashed in any
  * non-Tauri browser with:
  *   `window.__TAURI_IPC__ is not a function`
  *
@@ -251,7 +251,7 @@ export async function runAnalysis(
 }
 
 // ---------------------------------------------------------------------------
-// Scripting — Observables & Cuts
+// Scripting - Observables & Cuts
 // ---------------------------------------------------------------------------
 
 /**
@@ -388,7 +388,7 @@ export async function runRgeFlow(
 /**
  * Parse an SLHA spectrum string and return the structured document.
  *
- * @param slhaText — Raw SLHA file content (blocks + decay tables).
+ * @param slhaText - Raw SLHA file content (blocks + decay tables).
  * @returns Parsed `SlhaDocument` with blocks and decays.
  */
 export async function importSlhaString(
@@ -403,8 +403,8 @@ export async function importSlhaString(
  * Pass an object with the string content of each `.py` file
  * (particles.py, vertices.py, etc.). Missing files can be set to `null`.
  *
- * @param fileContents — The UFO file contents.
- * @param modelName — Human-readable model name (e.g., "MSSM").
+ * @param fileContents - The UFO file contents.
+ * @param modelName - Human-readable model name (e.g., "MSSM").
  * @returns A tuple of the raw `UfoModel` and the converted `TheoreticalModel`.
  */
 export async function importUfoModel(
@@ -421,9 +421,9 @@ export async function importUfoModel(
  * expression's field and coupling content, then generates all
  * linear-in-δ counterterm vertices.
  *
- * @param input — Lagrangian term string (e.g., "e * psi_bar * gamma_mu * psi * A^mu").
- * @param knownFields — Field → spin mapping for the parser.
- * @param externalFields — External legs for vertex derivation.
+ * @param input - Lagrangian term string (e.g., "e * psi_bar * gamma_mu * psi * A^mu").
+ * @param knownFields - Field → spin mapping for the parser.
+ * @param externalFields - External legs for vertex derivation.
  * @returns Full `CountertermResult` with counterterm ASTs and Feynman rules.
  */
 export async function deriveCounterterms(
@@ -594,7 +594,7 @@ export async function calculateRelicDensity(
 }
 
 // ---------------------------------------------------------------------------
-// Flavor Physics — Lattice QCD & EFT
+// Flavor Physics - Lattice QCD & EFT
 // ---------------------------------------------------------------------------
 
 /**
@@ -616,11 +616,11 @@ export async function calculateBMixing(
  * evaluates B-meson mixing, and returns the differential spectrum
  * for plotting.
  *
- * @param q2Min — Lower bound of the q² integration window in GeV².
- * @param q2Max — Upper bound of the q² integration window in GeV².
- * @param wilsonCoeffs — Wilson coefficients (SM + BSM shifts).
- * @param lattice — Lattice QCD inputs.
- * @param nPoints — Number of evaluation points for the spectrum.
+ * @param q2Min - Lower bound of the q² integration window in GeV².
+ * @param q2Max - Upper bound of the q² integration window in GeV².
+ * @param wilsonCoeffs - Wilson coefficients (SM + BSM shifts).
+ * @param lattice - Lattice QCD inputs.
+ * @param nPoints - Number of evaluation points for the spectrum.
  */
 export async function calculateBToKll(
   q2Min: number,

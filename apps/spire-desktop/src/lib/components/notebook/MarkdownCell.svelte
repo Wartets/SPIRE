@@ -1,11 +1,11 @@
 <!--
-  SPIRE — Markdown Cell
+  SPIRE - Markdown Cell
 
   Dual-mode cell for rich-text annotation.  In edit mode, displays
   a raw Markdown textarea.  In view mode, renders a lightweight
   HTML preview.  Click to edit; blur or Escape to preview.
 
-  Not executable — purely documentary.
+  Not executable - purely documentary.
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";

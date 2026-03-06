@@ -1,5 +1,5 @@
 /**
- * SPIRE — Pipeline Service
+ * SPIRE - Pipeline Service
  *
  * Publish/subscribe event bus that wires widget outputs to widget
  * inputs.  Implements the "piping" paradigm where the output of one
@@ -250,7 +250,7 @@ export function publishData(
         try {
           sinkEntry.callback(payload);
         } catch {
-          // Sink callback failed — silently continue to other sinks
+          // Sink callback failed - silently continue to other sinks
         }
       }
     }

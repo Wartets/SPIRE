@@ -8,11 +8,11 @@
 //!
 //! A UFO model is a Python package with these key files:
 //!
-//! - `particles.py` — Particle definitions: `Particle(pdg_code=21, name='g', ...)`
-//! - `vertices.py` — Vertex definitions: `Vertex(name='V_1', particles=[...], ...)`
-//! - `couplings.py` — Coupling definitions: `Coupling(name='GC_3', value='...', ...)`
-//! - `parameters.py` — Parameter definitions: `Parameter(name='aS', ...)`
-//! - `lorentz.py` — Lorentz structures for vertices.
+//! - `particles.py` - Particle definitions: `Particle(pdg_code=21, name='g', ...)`
+//! - `vertices.py` - Vertex definitions: `Vertex(name='V_1', particles=[...], ...)`
+//! - `couplings.py` - Coupling definitions: `Coupling(name='GC_3', value='...', ...)`
+//! - `parameters.py` - Parameter definitions: `Parameter(name='aS', ...)`
+//! - `lorentz.py` - Lorentz structures for vertices.
 //!
 //! This module uses lightweight string/regex-style parsing (no Python interpreter)
 //! to be WASM-compatible.
@@ -852,8 +852,8 @@ fn build_param_values(params: &[UfoParameter]) -> HashMap<String, f64> {
 ///
 /// # Arguments
 ///
-/// * `ufo` — The parsed UFO model.
-/// * `model_name` — Human-readable name for the model.
+/// * `ufo` - The parsed UFO model.
+/// * `model_name` - Human-readable name for the model.
 pub fn ufo_to_theoretical_model(ufo: &UfoModel, model_name: &str) -> SpireResult<TheoreticalModel> {
     let param_values = build_param_values(&ufo.parameters);
 

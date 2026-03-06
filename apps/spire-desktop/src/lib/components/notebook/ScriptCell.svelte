@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Script Cell
+  SPIRE - Script Cell
 
   Editable Rhai code cell with execution support.  Shows the source
   editor, a run button, execution count, and output/error display.

@@ -1,4 +1,4 @@
-//! # Python API — PyO3 Bindings for SPIRE
+//! # Python API - PyO3 Bindings for SPIRE
 //!
 //! This module exposes the SPIRE kernel to Python via PyO3, compiling the
 //! kernel into a native Python extension module (`spire_hep`).
@@ -7,7 +7,7 @@
 //!
 //! The Python API is a thin, high-performance FFI wrapper over the generic
 //! traits and functions in `spire-kernel`.  No physics logic is duplicated
-//! here — every computation delegates to the kernel.
+//! here - every computation delegates to the kernel.
 //!
 //! ## Data Transport
 //!
@@ -504,7 +504,7 @@ impl PyHadronicResult {
 }
 
 // ===========================================================================
-// Legacy Wrapper Classes (from Phase 2 — retained for API stability)
+// Legacy Wrapper Classes (from Phase 2 - retained for API stability)
 // ===========================================================================
 
 /// Python-visible wrapper around a `Reaction` result.
@@ -679,10 +679,10 @@ fn spire_hep(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 ///   Lorentz-invariant phase space weight for each event.
 ///
 /// # Arguments
-/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-/// * `final_masses` — List of final-state particle masses in GeV.
-/// * `num_events` — Number of events to generate.
-/// * `seed` — Optional RNG seed for reproducible generation.
+/// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` - List of final-state particle masses in GeV.
+/// * `num_events` - Number of events to generate.
+/// * `seed` - Optional RNG seed for reproducible generation.
 ///
 /// # Example
 /// ```python
@@ -740,7 +740,7 @@ fn generate_phase_space_events<'py>(
             for (j, momentum) in event.momenta.iter().enumerate() {
                 let base = i * n_particles * 4 + j * 4;
                 let comps = momentum.components();
-                // Copy (E, px, py, pz) — at most 4 components.
+                // Copy (E, px, py, pz) - at most 4 components.
                 let n_copy = comps.len().min(4);
                 momenta_slice[base..base + n_copy].copy_from_slice(&comps[..n_copy]);
                 // Zero-pad if fewer than 4 components (shouldn't happen for 4D).
@@ -766,9 +766,9 @@ fn generate_phase_space_events<'py>(
 /// in Python/NumPy.
 ///
 /// # Arguments
-/// * `cms_energy` — Centre-of-mass energy $\sqrt{s}$ in GeV.
-/// * `final_masses` — List of final-state particle masses in GeV.
-/// * `num_events` — Number of Monte Carlo samples.
+/// * `cms_energy` - Centre-of-mass energy $\sqrt{s}$ in GeV.
+/// * `final_masses` - List of final-state particle masses in GeV.
+/// * `num_events` - Number of Monte Carlo samples.
 ///
 /// # Returns
 /// A `CrossSectionResult` object.
@@ -796,9 +796,9 @@ fn calculate_cross_section(
 /// with constant $|\mathcal{M}|^2 = 1$ (phase-space only).
 ///
 /// # Arguments
-/// * `beam_energy_sq` — Hadronic $S$ in GeV² (e.g., `13000.0**2` for 13 TeV LHC).
-/// * `final_masses` — List of final-state particle masses in GeV.
-/// * `num_events` — Number of Monte Carlo samples per parton channel.
+/// * `beam_energy_sq` - Hadronic $S$ in GeV² (e.g., `13000.0**2` for 13 TeV LHC).
+/// * `final_masses` - List of final-state particle masses in GeV.
+/// * `num_events` - Number of Monte Carlo samples per parton channel.
 ///
 /// # Returns
 /// A `HadronicCrossSectionResult` object.
@@ -820,7 +820,7 @@ fn calculate_hadronic_cross_section(
 }
 
 // ===========================================================================
-// Legacy Functions (from Phase 2 — retained for API stability)
+// Legacy Functions (from Phase 2 - retained for API stability)
 // ===========================================================================
 
 /// Load a theoretical model from TOML file contents.

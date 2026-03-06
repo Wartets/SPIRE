@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Notebook Widget
+  SPIRE - Notebook Widget
 
   Top-level container for the cell-based execution engine.
   Renders an ordered list of cells via CellRenderer, provides

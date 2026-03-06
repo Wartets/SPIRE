@@ -1,4 +1,4 @@
-//! # Property-Based Tests — Algebraic Consistency
+//! # Property-Based Tests - Algebraic Consistency
 //!
 //! Verifies the mathematical identities of the SPIRE algebra module:
 //!

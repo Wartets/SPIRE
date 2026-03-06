@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Telemetry Panel
+  SPIRE - Telemetry Panel
 
   Live performance dashboard widget.  Displays kernel-level profiling
   data attached to computation results (cross-section, topology
@@ -7,12 +7,12 @@
 
   ## Sections
 
-  1. **Summary Strip** — total time, peak memory, thread count.
-  2. **Stage Timings** — horizontal bar chart, fully dynamic (renders
+  1. **Summary Strip** - total time, peak memory, thread count.
+  2. **Stage Timings** - horizontal bar chart, fully dynamic (renders
      whatever keys the ComputeProfile provides).
-  3. **Convergence Plot** — SVG polyline of relative error vs event
+  3. **Convergence Plot** - SVG polyline of relative error vs event
      count for Monte Carlo computations.
-  4. **History** — scrollable list of the last 20 profiled runs.
+  4. **History** - scrollable list of the last 20 profiled runs.
 -->
 <script lang="ts">
   import {

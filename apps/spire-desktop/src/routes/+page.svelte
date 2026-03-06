@@ -1,5 +1,5 @@
 <!--
-  SPIRE Desktop — Adaptive Workbench Page
+  SPIRE Desktop - Adaptive Workbench Page
 
   Dual-mode workspace: recursive docking panels (default) or infinite
   whiteboard canvas.  The layout tree is driven by layoutStore.

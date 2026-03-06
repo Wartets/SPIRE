@@ -1,4 +1,4 @@
-//! # Relic Density — Cosmological Freeze-Out Calculator
+//! # Relic Density - Cosmological Freeze-Out Calculator
 //!
 //! Computes the present-day cosmological relic abundance $\Omega h^2$ of a
 //! dark matter (DM) candidate by solving the Boltzmann equation through the
@@ -289,7 +289,7 @@ fn find_freeze_out(config: &RelicConfig) -> f64 {
 }
 
 // ===========================================================================
-// Main Solver — Semi-Analytic
+// Main Solver - Semi-Analytic
 // ===========================================================================
 
 /// Compute the cosmological relic density for a dark matter candidate.

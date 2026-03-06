@@ -3,9 +3,9 @@
 SPIRE is designed to interoperate with the broader high-energy physics
 software ecosystem. This guide covers two key integration pathways:
 
-1. **LHE Event Export** — writing generated events to the standard
+1. **LHE Event Export** - writing generated events to the standard
    Les Houches Event format for downstream processing.
-2. **Python Library (`spire-hep`)** — using SPIRE's physics engine
+2. **Python Library (`spire-hep`)** - using SPIRE's physics engine
    directly from Python with zero-copy NumPy array access.
 
 ---
@@ -43,14 +43,14 @@ to share the same data structures.
 
 Events are described by format-agnostic intermediate types:
 
-- **`EventParticle`** — a single particle entry with PDG ID, status code
+- **`EventParticle`** - a single particle entry with PDG ID, status code
   ($-1$ = initial, $+1$ = final, $+2$ = intermediate), mother indices,
   colour flow tags, 4-momentum $(p_x, p_y, p_z, E, m)$, proper lifetime,
   and spin information.
-- **`EventRecord`** — a complete event: list of particles, event weight,
+- **`EventRecord`** - a complete event: list of particles, event weight,
   factorisation scale, $\alpha_{\text{QED}}$, $\alpha_{\text{QCD}}$, and
   process identifier.
-- **`InitConfig`** — beam configuration, PDF metadata, and a list of
+- **`InitConfig`** - beam configuration, PDF metadata, and a list of
   `ProcessInfo` entries describing each subprocess (cross-section, error,
   maximum weight).
 
@@ -173,14 +173,14 @@ momenta, weights = spire_hep.generate_phase_space_events(
     seed=42,       # optional: deterministic seed
 )
 
-print(momenta.shape)   # (100000, 4, 4) — [event, particle, component]
+print(momenta.shape)   # (100000, 4, 4) - [event, particle, component]
 print(weights.shape)   # (100000,)
 print(momenta.dtype)   # float64
 ```
 
 The `momenta` array has shape `(N_events, N_particles, 4)` where the
 last axis is $(E, p_x, p_y, p_z)$. Both arrays are C-contiguous
-`float64`, allocated directly in NumPy memory via `PyArray` — no
+`float64`, allocated directly in NumPy memory via `PyArray` - no
 intermediate Rust `Vec` is created.
 
 ### Cross-Section Computation

@@ -102,7 +102,7 @@ export const hasDiagrams = derived(
 );
 
 // ---------------------------------------------------------------------------
-// Scripting — User-Defined Observables & Cuts
+// Scripting - User-Defined Observables & Cuts
 // ---------------------------------------------------------------------------
 
 /** User-defined observable scripts. */

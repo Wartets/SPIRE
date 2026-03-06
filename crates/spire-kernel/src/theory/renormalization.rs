@@ -38,7 +38,7 @@ use crate::SpireResult;
 
 /// A renormalization constant (counterterm parameter).
 ///
-/// Represents $\delta Z_\phi$, $\delta m$, or $\delta g$ — the shift
+/// Represents $\delta Z_\phi$, $\delta m$, or $\delta g$ - the shift
 /// from the bare to the renormalized parameter at one-loop order.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenormalizationConstant {
@@ -113,8 +113,8 @@ pub struct CountertermResult {
 ///
 /// # Arguments
 ///
-/// * `expr` — The tree-level Lagrangian expression.
-/// * `field_renorm` — Mapping from field_id to the $\delta Z$ counterterm name.
+/// * `expr` - The tree-level Lagrangian expression.
+/// * `field_renorm` - Mapping from field_id to the $\delta Z$ counterterm name.
 pub fn apply_field_renormalization(
     expr: &LagrangianExpr,
     field_renorm: &HashMap<String, String>,
@@ -460,9 +460,9 @@ fn collect_coupling_names_inner(expr: &LagrangianExpr, names: &mut Vec<String>) 
 ///
 /// # Arguments
 ///
-/// * `tree_level` — The tree-level Lagrangian AST expression.
-/// * `scheme` — The renormalization scheme.
-/// * `external_fields` — External field specification for vertex rule derivation.
+/// * `tree_level` - The tree-level Lagrangian AST expression.
+/// * `scheme` - The renormalization scheme.
+/// * `external_fields` - External field specification for vertex rule derivation.
 pub fn generate_counterterms(
     tree_level: &LagrangianExpr,
     scheme: &RenormalizationScheme,

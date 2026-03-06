@@ -344,7 +344,7 @@ export const AmplitudeResultSchema = z.object({
   profile: ComputeProfileSchema.optional(),
 }).passthrough();
 
-// CasExpr is deeply recursive — validate structurally without full recursion
+// CasExpr is deeply recursive - validate structurally without full recursion
 // to avoid Zod stack overflows on deeply nested expressions.
 export const CasExprSchema: z.ZodType = z.lazy(() =>
   z.union([

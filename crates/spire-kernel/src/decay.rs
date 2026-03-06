@@ -1,4 +1,4 @@
-//! # Decay — Automated Width & Branching Ratio Calculator
+//! # Decay - Automated Width & Branching Ratio Calculator
 //!
 //! This module discovers kinematically allowed decay channels for any particle
 //! in a [`TheoreticalModel`], computes partial widths via phase-space integration,
@@ -107,8 +107,8 @@ const HBAR_GEV_S: f64 = 6.582119569e-25;
 /// masses exceed the parent mass.
 ///
 /// # Arguments
-/// * `model` — The theoretical model containing fields and vertex factors.
-/// * `parent_id` — The identifier of the decaying particle.
+/// * `model` - The theoretical model containing fields and vertex factors.
+/// * `parent_id` - The identifier of the decaying particle.
 ///
 /// # Returns
 /// A vector of candidate channels (before width calculation).
@@ -291,7 +291,7 @@ fn compute_m_squared_2body(
 
     // Case 2: Scalar → fermion pair (H → f f̄)
     if is_scalar(parent_form) && is_fermion(d0_form) && is_fermion(d1_form) {
-        // |M|² = g² · 2 m_A² · (1 - 4 m_f²/m_A²) — beta² threshold factor.
+        // |M|² = g² · 2 m_A² · (1 - 4 m_f²/m_A²) - beta² threshold factor.
         // Both daughters are the same fermion flavour typically.
         let m_f_sq = m_b_sq; // Take the first daughter mass.
         let beta_sq = (1.0 - 4.0 * m_f_sq / m_a_sq).max(0.0);
@@ -336,10 +336,10 @@ fn compute_m_squared_2body(
 ///   N_c \cdot \overline{|\mathcal{M}|^2}$$
 ///
 /// # Arguments
-/// * `model` — The theoretical model.
-/// * `parent` — The decaying particle field.
-/// * `daughter_ids` — IDs of the daughter particles.
-/// * `vertex` — The vertex factor mediating this decay.
+/// * `model` - The theoretical model.
+/// * `parent` - The decaying particle field.
+/// * `daughter_ids` - IDs of the daughter particles.
+/// * `vertex` - The vertex factor mediating this decay.
 fn compute_partial_width_2body(
     model: &TheoreticalModel,
     parent: &Field,
@@ -399,8 +399,8 @@ fn compute_partial_width_2body(
 /// widths, and assembles the branching ratios.
 ///
 /// # Arguments
-/// * `model` — The theoretical model.
-/// * `parent_id` — Identifier of the decaying particle.
+/// * `model` - The theoretical model.
+/// * `parent_id` - Identifier of the decaying particle.
 ///
 /// # Returns
 /// A [`DecayTable`] with all channels, partial widths, and BRs.
@@ -493,7 +493,7 @@ impl DecayTable {
     /// Format this decay table as an SLHA `DECAY` block string.
     ///
     /// # Arguments
-    /// * `pdg_code` — The PDG Monte Carlo particle numbering code.
+    /// * `pdg_code` - The PDG Monte Carlo particle numbering code.
     ///
     /// # Example Output
     /// ```text

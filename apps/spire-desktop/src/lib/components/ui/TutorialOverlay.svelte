@@ -1,12 +1,12 @@
 <!--
-  SPIRE — Tutorial Overlay
+  SPIRE - Tutorial Overlay
 
   Non-intrusive guided onboarding overlay.  Draws a dark semi-transparent
   mask over the entire viewport and cuts a transparent "spotlight" window
   over the bounding rectangle of the element targeted by the current
   tutorial step (found via `[data-tour-id="<id>"]`).
 
-  The overlay never alters underlying component logic — it only reads
+  The overlay never alters underlying component logic - it only reads
   DOM bounding rectangles and renders a positioned tooltip with
   navigation controls.
 -->
@@ -41,7 +41,7 @@
     await tick();
     const el = document.querySelector(`[data-tour-id="${targetId}"]`);
     if (!el) {
-      // Element not found — use a centered fallback
+      // Element not found - use a centered fallback
       spotRect = {
         top: window.innerHeight / 2 - 50,
         left: window.innerWidth / 2 - 100,

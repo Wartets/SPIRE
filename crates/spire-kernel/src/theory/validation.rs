@@ -3,14 +3,14 @@
 //! Validates proposed Lagrangian terms against the fundamental requirements of
 //! a consistent quantum field theory:
 //!
-//! 1. **Lorentz invariance** — All Lorentz indices must be contracted (Einstein
+//! 1. **Lorentz invariance** - All Lorentz indices must be contracted (Einstein
 //!    summation convention). The term must transform as a Lorentz scalar.
 //!
-//! 2. **Gauge singlet** — The term must be invariant under all gauge symmetries
+//! 2. **Gauge singlet** - The term must be invariant under all gauge symmetries
 //!    of the model. For $SU(N)$: the $N$-ality (sum of representation dimensions
 //!    mod $N$) must be zero. For $U(1)$: the sum of charges must vanish.
 //!
-//! 3. **Hermiticity** — The Lagrangian density must be Hermitian:
+//! 3. **Hermiticity** - The Lagrangian density must be Hermitian:
 //!    $\mathcal{L} = \mathcal{L}^\dagger$. Each interaction term must have a
 //!    conjugate partner (or be self-conjugate).
 
@@ -82,9 +82,9 @@ pub struct FieldGaugeInfo {
 /// Perform all consistency checks on a Lagrangian term.
 ///
 /// # Arguments
-/// * `expr` — The parsed Lagrangian AST.
-/// * `gauge_symmetry` — Optional gauge symmetry of the model.
-/// * `field_gauge_info` — Gauge representation info for each field.
+/// * `expr` - The parsed Lagrangian AST.
+/// * `gauge_symmetry` - Optional gauge symmetry of the model.
+/// * `field_gauge_info` - Gauge representation info for each field.
 ///
 /// # Returns
 /// A `ValidationResult` with the outcome of each check.

@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Kinematics View Component
+  SPIRE - Kinematics View Component
 
   Displays kinematic analysis results including threshold energy,
   phase space information, Mandelstam variable boundaries, and

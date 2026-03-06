@@ -1,5 +1,5 @@
 <!--
-  GpuToggle.svelte — Hardware Backend Toggle
+  GpuToggle.svelte - Hardware Backend Toggle
 
   Queries the backend for available compute hardware and renders a
   toggle switch between CPU and GPU integration.  When GPU acceleration

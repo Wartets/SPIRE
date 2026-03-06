@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-//! # Proptest Strategies — Reusable Generators for Physics Types
+//! # Proptest Strategies - Reusable Generators for Physics Types
 //!
 //! This module defines `proptest` strategies for generating random instances
 //! of the SPIRE kernel's core types:

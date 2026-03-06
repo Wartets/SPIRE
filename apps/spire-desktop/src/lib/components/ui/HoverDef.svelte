@@ -1,5 +1,5 @@
 <!--
-  SPIRE — HoverDef Tooltip Component
+  SPIRE - HoverDef Tooltip Component
 
   Inline wrapper that enriches physics terms with glossary tooltips.
   On hover, queries the GlossaryService for the term's definition,
@@ -8,7 +8,7 @@
   Usage:
     <HoverDef term="alpha_s">α_s</HoverDef>
 
-  The component is presentation-only — it queries the central
+  The component is presentation-only - it queries the central
   GlossaryService and renders whatever data is registered for the
   given key.  If the key is not found, the slot content is rendered
   without decoration.

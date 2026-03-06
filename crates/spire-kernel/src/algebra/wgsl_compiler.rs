@@ -1,4 +1,4 @@
-//! # WGSL Compiler — CasExpr → WebGPU Shading Language
+//! # WGSL Compiler - CasExpr → WebGPU Shading Language
 //!
 //! Translates the symbolic [`CasExpr`] amplitude AST into WGSL compute
 //! shader source code suitable for execution on the GPU via `wgpu`.
@@ -44,7 +44,7 @@ use std::fmt::Write;
 use super::CasExpr;
 
 // ===========================================================================
-// WGSL Prelude — Complex Arithmetic Library
+// WGSL Prelude - Complex Arithmetic Library
 // ===========================================================================
 
 /// The WGSL prelude: complex number struct and arithmetic functions.

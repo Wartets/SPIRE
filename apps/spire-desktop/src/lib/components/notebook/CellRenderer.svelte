@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Cell Renderer (Pluggable Dispatch)
+  SPIRE - Cell Renderer (Pluggable Dispatch)
 
   Generic component that dispatches to the appropriate cell type
   component based on `cell.type`.  This enables extreme modularity:

@@ -1,5 +1,5 @@
 /**
- * SPIRE — WASM Compute Worker
+ * SPIRE - WASM Compute Worker
  *
  * Dedicated Web Worker that hosts the spire-kernel WebAssembly module.
  * Receives JSON-serialised command requests from the `WasmBackend` on
@@ -57,7 +57,7 @@ async function ensureWasmLoaded(): Promise<void> {
   wasmLoadAttempted = true;
 
   try {
-    // @ts-expect-error — spire-kernel-wasm is an optional dependency built separately
+    // @ts-expect-error - spire-kernel-wasm is an optional dependency built separately
     const mod = await import(/* @vite-ignore */ "spire-kernel-wasm");
     if (typeof mod.default === "function") {
       await mod.default(); // init() for wasm-bindgen
@@ -102,7 +102,7 @@ async function dispatch(command: string, args: Record<string, unknown>): Promise
     );
   }
 
-  // Pass serialised JSON — the WASM side will deserialise with serde.
+  // Pass serialised JSON - the WASM side will deserialise with serde.
   const result = fn(JSON.stringify(args));
 
   // If the WASM function returns a Promise (async), await it.

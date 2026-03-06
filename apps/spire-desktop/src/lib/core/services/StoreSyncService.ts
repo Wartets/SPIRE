@@ -1,5 +1,5 @@
 /**
- * SPIRE — Store Synchronisation Service
+ * SPIRE - Store Synchronisation Service
  *
  * Bridges the Svelte store layer with the Tauri event system so that
  * tear-off windows share the same physics state as the main workspace.
@@ -80,7 +80,7 @@ export interface StoreSnapshot {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** True while we are applying a received payload — suppresses re-broadcasts. */
+/** True while we are applying a received payload - suppresses re-broadcasts. */
 let _hydrating = false;
 
 const ALL_STORES = [
@@ -189,17 +189,17 @@ export async function initMainWindowSync(): Promise<() => void> {
       (event) => {
         const { action, payload } = event.payload;
         if (action === "request-sync") {
-          // Tear-off just opened — send it the current state immediately
+          // Tear-off just opened - send it the current state immediately
           emit("spire://store-sync", buildSnapshot());
         } else if (action === "store-update") {
-          // Tear-off performed a local mutation — apply to main stores
+          // Tear-off performed a local mutation - apply to main stores
           hydrateFromPayload(payload);
         }
       },
     );
     cleanups.push(unlistenActions);
   } catch {
-    // Not in Tauri — no-op
+    // Not in Tauri - no-op
   }
 
   return () => cleanups.forEach((fn) => fn());
@@ -264,7 +264,7 @@ export async function initTearOffSync(): Promise<() => void> {
       payload: null,
     });
   } catch {
-    // Not in Tauri — no-op
+    // Not in Tauri - no-op
   }
 
   return () => cleanups.forEach((fn) => fn());

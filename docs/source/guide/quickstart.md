@@ -29,13 +29,13 @@ The application window opens with a three-column dashboard.
 ## Step 1: Load a Model
 
 The **Model Loader** panel (left sidebar, top) comes pre-populated with the
-Standard Model definition — 22 particles and 14 interaction vertices.
+Standard Model definition - 22 particles and 14 interaction vertices.
 
 1. Optionally select a **Framework** from the dropdown (Standard Model, QED,
    QCD, Electroweak, or BSM).
 2. Click **"Load Model"**.
 3. A green status badge confirms the model is loaded:
-   `✓ Standard Model — 22 fields, 14 vertices`
+   `✓ Standard Model - 22 fields, 14 vertices`
 
 !!! tip "Custom Models"
     Click **"▸ Edit TOML Data"** to reveal the TOML editors. You can modify

@@ -1,12 +1,12 @@
 <!--
-  SPIRE — Widget Cell
+  SPIRE - Widget Cell
 
   Instantiates the correct inner component based on the
   WidgetInstance type, wraps it in BaseWidget, and wires
   the close event back to notebookStore.removeWidget().
 
   Props:
-    instance — The WidgetInstance from the notebook store.
+    instance - The WidgetInstance from the notebook store.
 -->
 <script lang="ts">
   import type { WidgetInstance } from "$lib/stores/notebookStore";

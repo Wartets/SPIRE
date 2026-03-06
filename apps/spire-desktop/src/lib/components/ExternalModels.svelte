@@ -1,10 +1,10 @@
 <!--
-  SPIRE — External Models (Phase 33)
+  SPIRE - External Models (Phase 33)
 
   Import panel for external theory model files:
-    • SLHA spectrum files (.slha) — mass spectra, decay tables, mixing matrices
-    • UFO model archives — FeynRules/SARAH output (particles.py, vertices.py, etc.)
-    • NLO counterterm generator — automatic δZ/δm/δg from tree-level terms
+    • SLHA spectrum files (.slha) - mass spectra, decay tables, mixing matrices
+    • UFO model archives - FeynRules/SARAH output (particles.py, vertices.py, etc.)
+    • NLO counterterm generator - automatic δZ/δm/δg from tree-level terms
 
   Features:
     - Drag-and-drop / file-picker upload zones for SLHA and UFO
@@ -351,7 +351,7 @@
                   <details class="block-details">
                     <summary>
                       <strong>PDG {decay.pdg_id}</strong>
-                      — Γ = {decay.total_width.toExponential(4)} GeV
+                      - Γ = {decay.total_width.toExponential(4)} GeV
                     </summary>
                     <table class="data-table">
                       <thead>
@@ -542,7 +542,7 @@
             <div class="const-list">
               {#each nloResult.renorm_constants as rc}
                 <div class="const-chip">
-                  <strong>{rc.name}</strong> ({rc.kind}) — δ({rc.original_parameter})
+                  <strong>{rc.name}</strong> ({rc.kind}) - δ({rc.original_parameter})
                 </div>
               {/each}
             </div>

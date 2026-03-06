@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Base Widget Shell
+  SPIRE - Base Widget Shell
 
   Standard wrapper for every widget on the workbench canvas.
   Provides a consistent header bar with title, optional extra
@@ -7,12 +7,12 @@
   The widget body is rendered through the default slot.
 
   Props:
-    title      — Header text shown in the widget bar
-    widgetId   — Unique instance ID (used for close dispatch)
-    closable   — Whether to show the × close button (default: true)
+    title      - Header text shown in the widget bar
+    widgetId   - Unique instance ID (used for close dispatch)
+    closable   - Whether to show the × close button (default: true)
 
   Events:
-    close      — Dispatched when the close button is clicked
+    close      - Dispatched when the close button is clicked
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";

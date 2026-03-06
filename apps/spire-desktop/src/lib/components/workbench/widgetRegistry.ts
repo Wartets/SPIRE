@@ -1,5 +1,5 @@
 /**
- * SPIRE — Widget Registry
+ * SPIRE - Widget Registry
  *
  * Maps each WidgetType to its human-readable label.
  * The actual Svelte component mapping is handled in the

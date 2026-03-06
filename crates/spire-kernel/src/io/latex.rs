@@ -1,4 +1,4 @@
-//! # LaTeX — Proof Document Compiler
+//! # LaTeX - Proof Document Compiler
 //!
 //! This module compiles a [`ProofDocument`] into a publication-ready LaTeX
 //! document using the `revtex4-2` document class (American Physical Society

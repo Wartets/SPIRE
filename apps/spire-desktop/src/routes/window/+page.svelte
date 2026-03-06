@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Tear-Off Window Route
+  SPIRE - Tear-Off Window Route
 
   Minimalist standalone page for widgets torn off into separate
   native OS windows.  Reads `widgetType` and `nodeId` from the
@@ -58,7 +58,7 @@
     unlisten = await initTearOffSync();
 
     if (label) {
-      document.title = `SPIRE — ${label}`;
+      document.title = `SPIRE - ${label}`;
     }
   });
 

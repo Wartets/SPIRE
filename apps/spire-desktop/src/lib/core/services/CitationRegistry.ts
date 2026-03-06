@@ -1,5 +1,5 @@
 /**
- * SPIRE — Citation Registry
+ * SPIRE - Citation Registry
  *
  * Data-driven bibliography engine for theoretical justification.
  * Maintains a database of academic citations (BibTeX-style) and
@@ -231,7 +231,7 @@ _register({
 _register({
   id: "degrande2012",
   authors: ["Degrande, C.", "Duhr, C.", "Fuks, B.", "Grellscheid, D.", "Mattelaer, O.", "Reiter, T."],
-  title: "UFO — The Universal FeynRules Output",
+  title: "UFO - The Universal FeynRules Output",
   year: 2012,
   journal: "Comput. Phys. Commun.",
   volume: "183",

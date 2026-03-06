@@ -1,18 +1,18 @@
 <!--
-  SPIRE — GPU-Accelerated WebGL2 Heatmap
+  SPIRE - GPU-Accelerated WebGL2 Heatmap
 
   Renders 2D histogram data using a WebGL2 fragment shader with
   colourmap support (Viridis / Magma). Replaces the previous
   Canvas 2D heatmap for significantly better performance on large grids.
 
   Props:
-    data        — Row-major Float32Array of bin contents.
-    nx, ny      — Grid dimensions (columns × rows).
-    maxVal      — Maximum bin value for colour normalisation.
-    xEdges      — X-axis bin edge array.
-    yEdges      — Y-axis bin edge array.
-    title       — Plot title string.
-    colorScale  — Colour map: "viridis" | "magma".
+    data        - Row-major Float32Array of bin contents.
+    nx, ny      - Grid dimensions (columns × rows).
+    maxVal      - Maximum bin value for colour normalisation.
+    xEdges      - X-axis bin edge array.
+    yEdges      - Y-axis bin edge array.
+    title       - Plot title string.
+    colorScale  - Colour map: "viridis" | "magma".
 -->
 <script lang="ts">
   import { onMount, onDestroy, afterUpdate } from "svelte";
@@ -266,7 +266,7 @@
   $: axisHtml = buildAxisLabels();
 
   // ---------------------------------------------------------------------------
-  // Reactivity — re-upload texture when data changes
+  // Reactivity - re-upload texture when data changes
   // ---------------------------------------------------------------------------
 
   $: if (gl && data && nx > 0 && ny > 0) {

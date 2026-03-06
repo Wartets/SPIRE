@@ -1,4 +1,4 @@
-//! # Interface — External Solver Communication
+//! # Interface - External Solver Communication
 //!
 //! This module provides a generic framework for invoking external command-line
 //! tools from within the SPIRE kernel. Many advanced HEP computations rely on
@@ -16,10 +16,10 @@
 //! ## Architecture
 //!
 //! ```text
-//! ┌─────────────┐    stdin     ┌──────────────┐
-//! │ SPIRE Kernel │ ──────────> │ External CLI │
-//! │  (CliSolver) │ <────────── │  (FIRE, etc) │
-//! └─────────────┘    stdout    └──────────────┘
+//! ┌──────────────┐    stdin     ┌──────────────┐
+//! │ SPIRE Kernel │ ──────────>  │ External CLI │
+//! │  (CliSolver) │ <──────────  │  (FIRE, etc) │
+//! └──────────────┘    stdout    └──────────────┘
 //! ```
 //!
 //! ## Timeout Safety
@@ -66,7 +66,7 @@ pub trait ExternalSolver: Send + Sync {
     /// Send an input expression to the solver and return its output.
     ///
     /// # Arguments
-    /// * `input` — The expression or command string in the tool's native format.
+    /// * `input` - The expression or command string in the tool's native format.
     ///
     /// # Returns
     /// The solver's stdout output as a `String`.

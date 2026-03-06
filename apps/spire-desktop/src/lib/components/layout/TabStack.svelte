@@ -1,12 +1,12 @@
 <!--
-  SPIRE — Tab Stack
+  SPIRE - Tab Stack
 
   Renders a tabbed group of layout nodes.  Only the active tab's
   content is displayed; the tab bar shows all children with their
   widget type labels.
 
   Props:
-    node — The StackNode from the layout tree.
+    node - The StackNode from the layout tree.
 -->
 <script lang="ts">
   import type { StackNode, LayoutNode } from "$lib/stores/layoutStore";

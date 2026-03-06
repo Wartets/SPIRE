@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Quick Toolbar
+  SPIRE - Quick Toolbar
 
   A compact floating row of buttons displaying pinned commands from
   the CommandRegistry.  Each button shows the command's icon (or a

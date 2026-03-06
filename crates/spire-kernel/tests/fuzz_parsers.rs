@@ -1,4 +1,4 @@
-//! # Fuzzing Harness — Parser & Function Robustness
+//! # Fuzzing Harness - Parser & Function Robustness
 //!
 //! Verifies the **zero-panic** mandate: every public entry point in the
 //! kernel that accepts untrusted string or numeric input must return
@@ -6,12 +6,12 @@
 //!
 //! ## Targets
 //!
-//! 1. `parse_model` — arbitrary byte strings must produce `Err`, not panic.
-//! 2. `kallen_lambda` / `cm_momentum` / `is_kinematically_allowed` — NaN, Inf,
+//! 1. `parse_model` - arbitrary byte strings must produce `Err`, not panic.
+//! 2. `kallen_lambda` / `cm_momentum` / `is_kinematically_allowed` - NaN, Inf,
 //!    negative, and zero inputs must not panic.
-//! 3. `compute_mandelstam` — pathological momenta must not panic.
-//! 4. `apply_lorentz_boost` — superluminal and degenerate boosts must not panic.
-//! 5. RAMBO — edge-case energies and masses must not panic.
+//! 3. `compute_mandelstam` - pathological momenta must not panic.
+//! 4. `apply_lorentz_boost` - superluminal and degenerate boosts must not panic.
+//! 5. RAMBO - edge-case energies and masses must not panic.
 
 mod strategies;
 
@@ -38,7 +38,7 @@ proptest! {
         particles in arbitrary_ascii_string(),
         vertices in arbitrary_ascii_string(),
     ) {
-        // We don't care whether it returns Ok or Err — only that it doesn't panic.
+        // We don't care whether it returns Ok or Err - only that it doesn't panic.
         let _result = parse_model(&particles, &vertices);
     }
 
@@ -120,7 +120,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(256))]
 
     /// `apply_lorentz_boost` with extreme beta values must not panic.
-    /// It may return `Ok` or `Err` — the only requirement is no panic.
+    /// It may return `Ok` or `Err` - the only requirement is no panic.
     #[test]
     fn apply_lorentz_boost_no_panic(
         e in prop::num::f64::ANY,

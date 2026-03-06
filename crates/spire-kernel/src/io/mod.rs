@@ -1,4 +1,4 @@
-//! # IO — Event Serialization and File Format Writers
+//! # IO - Event Serialization and File Format Writers
 //!
 //! This module provides a generic framework for writing Monte Carlo event
 //! records to standard HEP file formats. The design separates the
@@ -7,7 +7,7 @@
 //!
 //! ## Supported Formats
 //!
-//! - [`lhe::LheWriter`] — Les Houches Event (LHE) format v3.0, the
+//! - [`lhe::LheWriter`] - Les Houches Event (LHE) format v3.0, the
 //!   industry-standard text format for exchanging parton-level events
 //!   between generators (MadGraph, Sherpa) and shower/hadronization
 //!   codes (Pythia, Herwig).
@@ -16,10 +16,10 @@
 //!
 //! All writers implement the three-phase [`EventWriter`] protocol:
 //!
-//! 1. **`write_header`** — Emit format preamble, beam parameters, and
+//! 1. **`write_header`** - Emit format preamble, beam parameters, and
 //!    process cross-sections.
-//! 2. **`write_event`** — Emit one event record (called in the MC loop).
-//! 3. **`finish`** — Flush buffers and write format epilogue.
+//! 2. **`write_event`** - Emit one event record (called in the MC loop).
+//! 3. **`finish`** - Flush buffers and write format epilogue.
 //!
 //! Writers are parameterised over `std::io::Write`, so they work equally
 //! well with files, in-memory buffers, and network streams.
@@ -156,7 +156,7 @@ pub struct ProcessInfo {
 /// # Performance
 ///
 /// Writers should use buffered I/O internally. The `write_event` method
-/// is called in the Monte Carlo hot loop — avoid allocations.
+/// is called in the Monte Carlo hot loop - avoid allocations.
 pub trait EventWriter: Send {
     /// Write the file header and initialisation block.
     fn write_header(&mut self, config: &InitConfig) -> SpireResult<()>;

@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Command Palette
+  SPIRE - Command Palette
 
   A globally accessible modal overlay triggered via Ctrl+K / Cmd+K.
   Provides fuzzy search across all registered commands, groups results

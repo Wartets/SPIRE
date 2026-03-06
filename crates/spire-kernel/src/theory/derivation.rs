@@ -211,8 +211,8 @@ fn differentiate_product(
 /// 5. Compute the symmetry factor for identical bosonic external legs.
 ///
 /// # Arguments
-/// * `expr` — The parsed Lagrangian term AST.
-/// * `external_fields` — Ordered list of external field specifications.
+/// * `expr` - The parsed Lagrangian term AST.
+/// * `external_fields` - Ordered list of external field specifications.
 ///
 /// # Returns
 /// A `DerivedVertexRule` containing the residual expression, LaTeX rendering,

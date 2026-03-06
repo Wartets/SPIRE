@@ -1,4 +1,4 @@
-# SPIRE — Structured Particle Interaction & Reaction Engine
+# SPIRE - Structured Particle Interaction & Reaction Engine
 
 > A computational formalism for High Energy Physics and Quantum Field Theory.
 
@@ -11,9 +11,9 @@ derivation of Feynman diagrams and scattering amplitudes from first principles.
 It operates on the principle of strict isomorphism between three representations
 of physical phenomena:
 
-1. **Symbolic interaction** — reaction equations ($A + B \to C + D$)
-2. **Topological representation** — Feynman diagrams (directed graphs)
-3. **Analytical formulation** — invariant amplitudes ($\mathcal{M}$) and cross-sections
+1. **Symbolic interaction** - reaction equations ($A + B \to C + D$)
+2. **Topological representation** - Feynman diagrams (directed graphs)
+3. **Analytical formulation** - invariant amplitudes ($\mathcal{M}$) and cross-sections
 
 The system is grounded in S-Matrix theory, treating physical processes as
 transitions between asymptotic states in Hilbert space. Rather than retrieving
@@ -24,19 +24,19 @@ axioms: Lagrangian densities, symmetry groups, and conservation laws.
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| **Kernel** | Rust (`spire-kernel`) | Physics engine — ontology, groups, S-matrix, Lagrangian, graphs, algebra, kinematics |
+| **Kernel** | Rust (`spire-kernel`) | Physics engine - ontology, groups, S-matrix, Lagrangian, graphs, algebra, kinematics |
 | **Bindings** | Rust (`spire-bindings`) | WASM + Python FFI wrappers |
 | **Desktop** | Tauri + SvelteKit | GUI with IPC bridge to the kernel |
 
 ### Module Map
 
-- `ontology` — Particle fields, quantum numbers, state construction
-- `groups` — Gauge group validation, conservation law checks, CPT symmetry
-- `s_matrix` — Reaction construction, final-state reconstruction, mediator identification
-- `lagrangian` — Model parsing (TOML), vertex factor / propagator derivation
-- `graph` — Feynman diagram topology generation via `petgraph`
-- `algebra` — Symbolic amplitude construction, Dirac traces, Lorentz contractions
-- `kinematics` — Thresholds, phase space, Mandelstam boundaries, Dalitz plots
+- `ontology` - Particle fields, quantum numbers, state construction
+- `groups` - Gauge group validation, conservation law checks, CPT symmetry
+- `s_matrix` - Reaction construction, final-state reconstruction, mediator identification
+- `lagrangian` - Model parsing (TOML), vertex factor / propagator derivation
+- `graph` - Feynman diagram topology generation via `petgraph`
+- `algebra` - Symbolic amplitude construction, Dirac traces, Lorentz contractions
+- `kinematics` - Thresholds, phase space, Mandelstam boundaries, Dalitz plots
 
 ## Status
 

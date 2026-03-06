@@ -1,4 +1,4 @@
-//! # Data Loader — TOML Ingestion for Particle and Vertex Databases
+//! # Data Loader - TOML Ingestion for Particle and Vertex Databases
 //!
 //! This module provides the deserialization layer that reads external TOML data
 //! files (`particles.toml`, `sm_vertices.toml`, BSM extensions) into the kernel's
@@ -24,7 +24,7 @@ use crate::SpireError;
 use crate::SpireResult;
 
 // ---------------------------------------------------------------------------
-// Raw TOML Deserialization Structures — Particles
+// Raw TOML Deserialization Structures - Particles
 // ---------------------------------------------------------------------------
 
 /// Top-level wrapper for `particles.toml`.
@@ -78,7 +78,7 @@ pub struct RawParticle {
 }
 
 // ---------------------------------------------------------------------------
-// Raw TOML Deserialization Structures — Vertices
+// Raw TOML Deserialization Structures - Vertices
 // ---------------------------------------------------------------------------
 
 /// Top-level wrapper for `sm_vertices.toml` (or a BSM vertex file).
@@ -205,7 +205,7 @@ pub fn raw_vertex_to_factor(raw: &RawVertex) -> SpireResult<VertexFactor> {
 }
 
 // ---------------------------------------------------------------------------
-// Public API — Database Loading
+// Public API - Database Loading
 // ---------------------------------------------------------------------------
 
 /// Load and parse a particle database from a TOML string.
@@ -214,7 +214,7 @@ pub fn raw_vertex_to_factor(raw: &RawVertex) -> SpireResult<VertexFactor> {
 /// a [`ParticleDatabase`] containing all particle definitions.
 ///
 /// # Arguments
-/// * `toml_content` — The full contents of the particles TOML file.
+/// * `toml_content` - The full contents of the particles TOML file.
 pub fn load_particle_database(toml_content: &str) -> SpireResult<ParticleDatabase> {
     toml::from_str(toml_content).map_err(|e| {
         SpireError::ModelParseError(format!("Failed to parse particle database TOML: {}", e))
@@ -227,7 +227,7 @@ pub fn load_particle_database(toml_content: &str) -> SpireResult<ParticleDatabas
 /// returns a [`VertexDatabase`] containing all vertex definitions.
 ///
 /// # Arguments
-/// * `toml_content` — The full contents of the vertices TOML file.
+/// * `toml_content` - The full contents of the vertices TOML file.
 pub fn load_vertex_database(toml_content: &str) -> SpireResult<VertexDatabase> {
     toml::from_str(toml_content).map_err(|e| {
         SpireError::ModelParseError(format!("Failed to parse vertex database TOML: {}", e))
@@ -242,9 +242,9 @@ pub fn load_vertex_database(toml_content: &str) -> SpireResult<VertexDatabase> {
 /// assembles the full model.
 ///
 /// # Arguments
-/// * `particles_toml` — Contents of the particles definition file.
-/// * `vertices_toml` — Contents of the vertices/interactions definition file.
-/// * `model_name` — Name to assign to the constructed model.
+/// * `particles_toml` - Contents of the particles definition file.
+/// * `vertices_toml` - Contents of the vertices/interactions definition file.
+/// * `model_name` - Name to assign to the constructed model.
 pub fn build_model(
     particles_toml: &str,
     vertices_toml: &str,
@@ -405,7 +405,7 @@ pub struct ModelConfigFile {
 /// standard 4D Minkowski defaults.
 ///
 /// # Arguments
-/// * `toml_str` — Raw TOML string that may contain a `[spacetime]` table.
+/// * `toml_str` - Raw TOML string that may contain a `[spacetime]` table.
 pub fn parse_spacetime_config(
     toml_str: &str,
 ) -> SpireResult<(
@@ -417,7 +417,7 @@ pub fn parse_spacetime_config(
     };
     use crate::ontology::PhysicalConstants;
 
-    // Try parsing the TOML — if it fails or has no [spacetime], use defaults.
+    // Try parsing the TOML - if it fails or has no [spacetime], use defaults.
     let config: ModelConfigFile =
         toml::from_str(toml_str).unwrap_or(ModelConfigFile { spacetime: None });
 
@@ -489,10 +489,10 @@ pub fn parse_spacetime_config(
 /// a separate TOML string (or the same file).
 ///
 /// # Arguments
-/// * `particles_toml` — Contents of the particles definition file.
-/// * `vertices_toml` — Contents of the vertices/interactions definition file.
-/// * `model_name` — Name to assign to the constructed model.
-/// * `config_toml` — Optional TOML string containing a `[spacetime]` table.
+/// * `particles_toml` - Contents of the particles definition file.
+/// * `vertices_toml` - Contents of the vertices/interactions definition file.
+/// * `model_name` - Name to assign to the constructed model.
+/// * `config_toml` - Optional TOML string containing a `[spacetime]` table.
 pub fn build_model_with_config(
     particles_toml: &str,
     vertices_toml: &str,
@@ -869,7 +869,7 @@ n_legs            = 3
         assert_eq!(model.fields.len(), 2);
         assert_eq!(model.terms.len(), 1);
         assert_eq!(model.vertex_factors.len(), 1);
-        // Propagators are now auto-derived from field spin — one per field.
+        // Propagators are now auto-derived from field spin - one per field.
         assert_eq!(model.propagators.len(), model.fields.len());
     }
 
@@ -938,7 +938,7 @@ n_legs            = 3
 
     #[test]
     fn build_model_accepts_valid_vertex_references() {
-        // Both "e-" is defined in particles — vertex referencing only "e-" should work.
+        // Both "e-" is defined in particles - vertex referencing only "e-" should work.
         let valid_vertices = r#"
 [[vertex]]
 id                = "self_coupling"

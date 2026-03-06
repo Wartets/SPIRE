@@ -32,11 +32,11 @@ use crate::SpireResult;
 /// corresponding gauge group.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GaugeGroup {
-    /// $U(1)_Y$ — Abelian hypercharge symmetry.
+    /// $U(1)_Y$ - Abelian hypercharge symmetry.
     U1Y,
-    /// $SU(2)_L$ — Non-Abelian weak isospin symmetry.
+    /// $SU(2)_L$ - Non-Abelian weak isospin symmetry.
     SU2L,
-    /// $SU(3)_C$ — Non-Abelian colour symmetry (QCD).
+    /// $SU(3)_C$ - Non-Abelian colour symmetry (QCD).
     SU3C,
 }
 
@@ -77,9 +77,9 @@ pub struct PoincareRepresentation {
 /// A Lie group that can appear as a gauge symmetry factor.
 ///
 /// Supports the three families relevant to particle physics:
-/// - $U(1)$ — Abelian groups (hypercharge, dark photon, etc.)
-/// - $SU(N)$ — Special unitary groups (colour, weak isospin, GUT groups)
-/// - $SO(N)$ — Special orthogonal groups (Lorentz group, $SO(10)$ GUT)
+/// - $U(1)$ - Abelian groups (hypercharge, dark photon, etc.)
+/// - $SU(N)$ - Special unitary groups (colour, weak isospin, GUT groups)
+/// - $SO(N)$ - Special orthogonal groups (Lorentz group, $SO(10)$ GUT)
 ///
 /// The `label` field is a human-readable identifier for display and TOML parsing
 /// (e.g., `"Y"`, `"C"`, `"L"`, `"'"`).
@@ -255,8 +255,8 @@ impl GaugeSymmetry {
 /// - $SU(5)$: 5-ality (fundamental `[1,0,0,0]`=1, anti-fundamental `[0,0,0,1]`=4)
 ///
 /// # Arguments
-/// * `n` — The $N$ in $SU(N)$.
-/// * `dynkin_labels` — The Dynkin labels of the representation (length $N-1$).
+/// * `n` - The $N$ in $SU(N)$.
+/// * `dynkin_labels` - The Dynkin labels of the representation (length $N-1$).
 ///
 /// # Returns
 /// The $N$-ality as an integer in $[0, N)$.
@@ -297,8 +297,8 @@ pub fn conjugate_n_ality(n: u8, n_ality: u32) -> u32 {
 ///   or pseudoreal, so we check the overall "spinorial" parity).
 ///
 /// # Arguments
-/// * `group` — The Lie group to check.
-/// * `representations` — The representations of all particles at the vertex/reaction.
+/// * `group` - The Lie group to check.
+/// * `representations` - The representations of all particles at the vertex/reaction.
 ///
 /// # Returns
 /// `Ok(true)` if gauge invariance is satisfied, `Ok(false)` otherwise.
@@ -313,7 +313,7 @@ pub fn validate_gauge_invariance(
         .collect();
 
     if relevant.is_empty() {
-        // No representations under this group — trivially satisfied.
+        // No representations under this group - trivially satisfied.
         return Ok(true);
     }
 
@@ -467,7 +467,7 @@ pub struct DiscreteSymmetryResult {
 }
 
 // ---------------------------------------------------------------------------
-// Public API — Conservation and Symmetry Validation
+// Public API - Conservation and Symmetry Validation
 // ---------------------------------------------------------------------------
 
 /// Validate all additive conservation laws for a proposed reaction.
@@ -478,9 +478,9 @@ pub struct DiscreteSymmetryResult {
 /// arithmetic.
 ///
 /// # Arguments
-/// * `initial` — Slice of initial-state `QuantumState` objects.
-/// * `final_states` — Slice of final-state `QuantumState` objects.
-/// * `interaction` — The type of interaction governing the process (determines
+/// * `initial` - Slice of initial-state `QuantumState` objects.
+/// * `final_states` - Slice of final-state `QuantumState` objects.
+/// * `interaction` - The type of interaction governing the process (determines
 ///   which quantum numbers must be strictly conserved).
 pub fn validate_conservation_laws(
     initial: &[QuantumState],
@@ -618,9 +618,9 @@ pub fn validate_conservation_laws(
 /// and electromagnetic interactions conserve all discrete symmetries.
 ///
 /// # Arguments
-/// * `initial` — Slice of initial-state `QuantumState` objects.
-/// * `final_states` — Slice of final-state `QuantumState` objects.
-/// * `interaction` — The governing interaction type.
+/// * `initial` - Slice of initial-state `QuantumState` objects.
+/// * `final_states` - Slice of final-state `QuantumState` objects.
+/// * `interaction` - The governing interaction type.
 pub fn check_cpt(
     _initial: &[QuantumState],
     _final_states: &[QuantumState],
@@ -1105,7 +1105,7 @@ mod tests {
     }
 
     // ===================================================================
-    // Phase 14 — Generalized Lie Algebra Tests
+    // Phase 14 - Generalized Lie Algebra Tests
     // ===================================================================
 
     // --- LieGroup basic properties ---

@@ -1,5 +1,5 @@
 /**
- * SPIRE — Distributed Compute Grid
+ * SPIRE - Distributed Compute Grid
  *
  * The GridManager orchestrates distributed Monte Carlo integration by
  * partitioning analysis jobs into chunks, dispatching them to a pool of
@@ -78,7 +78,7 @@ function makeNodeId(): string {
 }
 
 // ---------------------------------------------------------------------------
-// LocalWorkerNode — Web Worker implementation of ComputeNode
+// LocalWorkerNode - Web Worker implementation of ComputeNode
 // ---------------------------------------------------------------------------
 
 /**
@@ -160,7 +160,7 @@ export class LocalWorkerNode implements ComputeNode {
         if (this.errorCb) this.errorCb(msg.taskId, msg.message);
         break;
       case "pong":
-        // Health-check response — no action needed.
+        // Health-check response - no action needed.
         break;
     }
   }
@@ -447,7 +447,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Node Wiring
+  // Internal - Node Wiring
   // ───────────────────────────────────────────────────────────────────────
 
   private wireNode(node: ComputeNode): void {
@@ -457,7 +457,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Dispatch
+  // Internal - Dispatch
   // ───────────────────────────────────────────────────────────────────────
 
   private dispatchPending(): void {
@@ -474,7 +474,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Result Handling
+  // Internal - Result Handling
   // ───────────────────────────────────────────────────────────────────────
 
   private handleResult(nodeId: NodeId, result: ComputeResult): void {
@@ -532,7 +532,7 @@ export class GridManager {
 
       this.dispatchPending();
     } else {
-      // Exhausted retries — fail the entire job.
+      // Exhausted retries - fail the entire job.
       this.jobStatus = "error";
       this.clearAllTimeouts();
       this.updateSnapshot();
@@ -548,7 +548,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Timeout Management
+  // Internal - Timeout Management
   // ───────────────────────────────────────────────────────────────────────
 
   private startTimeout(taskId: string): void {
@@ -587,7 +587,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Finalisation & Merging
+  // Internal - Finalisation & Merging
   // ───────────────────────────────────────────────────────────────────────
 
   private finalise(): void {
@@ -629,7 +629,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Convergence Monitoring
+  // Internal - Convergence Monitoring
   // ───────────────────────────────────────────────────────────────────────
 
   private updateConvergence(): void {
@@ -649,7 +649,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Snapshot Generation
+  // Internal - Snapshot Generation
   // ───────────────────────────────────────────────────────────────────────
 
   private updateSnapshot(): void {
@@ -724,7 +724,7 @@ export class GridManager {
   }
 
   // ───────────────────────────────────────────────────────────────────────
-  // Internal — Helpers
+  // Internal - Helpers
   // ───────────────────────────────────────────────────────────────────────
 
   private findOriginalTask(taskId: string): ComputeTask | null {

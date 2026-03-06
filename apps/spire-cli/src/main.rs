@@ -1,4 +1,4 @@
-//! # SPIRE CLI — Headless HPC Daemon
+//! # SPIRE CLI - Headless HPC Daemon
 //!
 //! A command-line interface for running SPIRE physics computations without
 //! a graphical frontend. Designed for High-Performance Computing (HPC)
@@ -39,7 +39,7 @@ use spire_kernel::SpireError;
 // CLI Argument Parser
 // ===========================================================================
 
-/// SPIRE CLI — Headless Monte Carlo event generation and cross-section
+/// SPIRE CLI - Headless Monte Carlo event generation and cross-section
 /// computation for High-Performance Computing environments.
 #[derive(Parser, Debug)]
 #[command(name = "spire-cli")]
@@ -150,7 +150,7 @@ fn default_format() -> String {
 /// Print system hardware capabilities relevant to SPIRE computation.
 fn print_hardware_info() {
     println!("╔══════════════════════════════════════════════════════╗");
-    println!("║           SPIRE — Hardware Capability Report        ║");
+    println!("║           SPIRE - Hardware Capability Report        ║");
     println!("╠══════════════════════════════════════════════════════╣");
     println!(
         "║  CPU threads (logical):  {:>4}                        ║",

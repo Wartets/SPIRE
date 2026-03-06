@@ -1,4 +1,4 @@
-//! # Ontology — Formal Definitions of Physical Entities
+//! # Ontology - Formal Definitions of Physical Entities
 //!
 //! This module defines the core type system for all physical entities in SPIRE.
 //! Particles are modelled as irreducible representations of the Poincaré group
@@ -34,7 +34,7 @@ pub enum Chirality {
     Right,
 }
 
-/// Helicity — the projection of spin along the direction of motion.
+/// Helicity - the projection of spin along the direction of motion.
 ///
 /// Explicitly set for external fermions and photons in asymptotic states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -184,7 +184,7 @@ pub struct QuantumNumbers {
     pub representations: Vec<crate::groups::LieGroupRepresentation>,
 }
 
-/// A *Field* in the formal ontology — the fundamental quantum field from which
+/// A *Field* in the formal ontology - the fundamental quantum field from which
 /// particles arise as excitations.
 ///
 /// Fields carry intrinsic properties (mass, spin, gauge representations) and
@@ -207,7 +207,7 @@ pub struct Field {
     pub interactions: Vec<InteractionType>,
 }
 
-/// A concrete **Particle** — an on-shell or off-shell excitation of a `Field`,
+/// A concrete **Particle** - an on-shell or off-shell excitation of a `Field`,
 /// carrying specific kinematic and helicity information for a given process.
 ///
 /// This is the object that appears as an external leg or internal line in a
@@ -242,7 +242,7 @@ pub struct QuantumState {
 }
 
 // ---------------------------------------------------------------------------
-// Public API — State Initialization and Conjugation
+// Public API - State Initialization and Conjugation
 // ---------------------------------------------------------------------------
 
 /// Initialize a `QuantumState` from a field definition and explicit 4-momentum.
@@ -252,9 +252,9 @@ pub struct QuantumState {
 /// returns a fully constructed asymptotic state vector.
 ///
 /// # Arguments
-/// * `field` — The field definition supplying mass, spin, and quantum numbers.
-/// * `four_momentum` — $[E, p_x, p_y, p_z]$ in GeV (West Coast metric).
-/// * `helicity` — Optional helicity assignment for the external state.
+/// * `field` - The field definition supplying mass, spin, and quantum numbers.
+/// * `four_momentum` - $[E, p_x, p_y, p_z]$ in GeV (West Coast metric).
+/// * `helicity` - Optional helicity assignment for the external state.
 pub fn initialize_state(
     field: &Field,
     four_momentum: [f64; 4],

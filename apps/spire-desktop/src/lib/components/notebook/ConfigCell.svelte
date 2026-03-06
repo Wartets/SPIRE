@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Config Cell
+  SPIRE - Config Cell
 
   TOML editor cell for loading theoretical models into the notebook
   session.  Parses the TOML content on the backend, builds the model,

@@ -2,7 +2,7 @@
 
 SPIRE embeds the [Rhai](https://rhai.rs) scripting language, enabling
 researchers to define **custom observables**, **kinematic cuts**, and
-**momentum-dependent form factors** at runtime — without recompiling
+**momentum-dependent form factors** at runtime - without recompiling
 the kernel or writing Rust code.
 
 ---

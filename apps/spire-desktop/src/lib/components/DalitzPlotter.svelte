@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Dalitz Plot Visualizer
+  SPIRE - Dalitz Plot Visualizer
 
   Generates and renders a Dalitz plot (s_ab vs s_bc) for a 3-body decay
   M → a + b + c. Uses the Rust kernel to compute the phase-space points
@@ -137,7 +137,7 @@
         plugins: {
           title: {
             display: true,
-            text: `Dalitz Plot — M = ${motherMass.toFixed(3)} GeV`,
+            text: `Dalitz Plot - M = ${motherMass.toFixed(3)} GeV`,
             color: "#7ec8e3",
             font: { size: 13 },
           },

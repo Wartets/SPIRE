@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Reaction Workspace Component
+  SPIRE - Reaction Workspace Component
 
   Provides controls to specify initial / final particle states, CMS energy,
   and trigger reaction construction, diagram generation, and amplitude
@@ -411,7 +411,7 @@
     {#if $activeReaction}
       <div class="status-badge" class:valid={$activeReaction.is_valid} class:invalid={!$activeReaction.is_valid}>
         {#if $activeReaction.is_valid}
-          Valid — order {$activeReaction.perturbative_order}, via {$activeReaction.interaction_types.join(", ")}
+          Valid - order {$activeReaction.perturbative_order}, via {$activeReaction.interaction_types.join(", ")}
         {:else}
           Violation: {$activeReaction.violation_diagnostics.join("; ")}
         {/if}

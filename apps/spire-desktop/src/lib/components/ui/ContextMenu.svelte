@@ -1,5 +1,5 @@
 <!--
-  SPIRE — Global Context Menu
+  SPIRE - Global Context Menu
 
   Custom right-click context menu that replaces the browser default.
   Subscribes to `contextMenuStore` for position, visibility, and

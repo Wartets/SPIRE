@@ -1,4 +1,4 @@
-//! # Detector Response — Phenomenological Simulation
+//! # Detector Response - Phenomenological Simulation
 //!
 //! This module provides a modular, configurable detector simulation that
 //! bridges parton-level Monte Carlo truth and reconstructed experimental
@@ -419,11 +419,11 @@ fn smear_momentum(
 ///
 /// # Arguments
 ///
-/// * `event` — The truth-level phase-space point.
-/// * `particle_kinds` — Classification of each final-state particle.
+/// * `event` - The truth-level phase-space point.
+/// * `particle_kinds` - Classification of each final-state particle.
 ///   Must have the same length as `event.momenta`.
-/// * `detector` — The detector model to apply.
-/// * `rng` — Random number generator for efficiency and smearing.
+/// * `detector` - The detector model to apply.
+/// * `rng` - Random number generator for efficiency and smearing.
 ///
 /// # Returns
 ///
@@ -749,7 +749,7 @@ mod tests {
         let detector = DetectorModel::lhc_like();
         let mut rng = StdRng::seed_from_u64(42);
 
-        // Smear a 50 GeV electron many times — the energy should fluctuate.
+        // Smear a 50 GeV electron many times - the energy should fluctuate.
         let original = SpacetimeVector::new_4d(50.0, 30.0, 40.0, 0.0);
         let mut energies: Vec<f64> = Vec::new();
         for _ in 0..100 {

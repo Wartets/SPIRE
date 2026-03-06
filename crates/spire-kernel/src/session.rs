@@ -1,4 +1,4 @@
-//! # Session — Persistent Notebook Execution Engine
+//! # Session - Persistent Notebook Execution Engine
 //!
 //! Manages stateful notebook sessions where variables, models, and reactions
 //! persist across sequential cell executions.  Each session encapsulates a
@@ -7,9 +7,9 @@
 //!
 //! ## Architecture
 //!
-//! - [`NotebookSession`] — A single session holding the Rhai runtime state,
+//! - [`NotebookSession`] - A single session holding the Rhai runtime state,
 //!   the active theoretical model, and the active reaction.
-//! - [`SessionManager`] — A thread-safe registry of active sessions, keyed
+//! - [`SessionManager`] - A thread-safe registry of active sessions, keyed
 //!   by UUID strings.  Designed to be stored in Tauri's managed state or
 //!   used from any multi-threaded context.
 //!
@@ -96,7 +96,7 @@ impl ExecutionResult {
 pub struct NotebookSession {
     /// The Rhai engine with all SPIRE physics types registered.
     engine: Engine,
-    /// Persistent variable scope — survives across cell executions.
+    /// Persistent variable scope - survives across cell executions.
     scope: Scope<'static>,
     /// The active theoretical model (set via Config cells).
     model: Option<TheoreticalModel>,
