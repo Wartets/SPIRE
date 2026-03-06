@@ -884,6 +884,61 @@ fn calculate_b_to_k_ll(
 }
 
 // ---------------------------------------------------------------------------
+// GPU / Hardware Backend Commands
+// ---------------------------------------------------------------------------
+
+/// Query hardware capabilities for GPU-accelerated integration.
+///
+/// Returns a JSON-serializable report of available compute backends:
+/// whether the `gpu` feature was compiled in, whether a GPU adapter was
+/// found at runtime, and the adapter description string.
+///
+/// The frontend uses this to conditionally show a GPU toggle switch in
+/// the Analysis and Parameter Scanner widgets.
+#[tauri::command]
+fn query_hardware_backends() -> HardwareReport {
+    let gpu_compiled = cfg!(feature = "gpu");
+    let gpu_available = spire_kernel::integration::IntegratorBackend::gpu_available();
+    let adapter_name = if gpu_available {
+        #[cfg(feature = "gpu")]
+        {
+            spire_kernel::integration::gpu::GpuIntegrator::new()
+                .map(|g| g.adapter_info.clone())
+                .unwrap_or_default()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
+    HardwareReport {
+        gpu_feature_compiled: gpu_compiled,
+        gpu_adapter_available: gpu_available,
+        adapter_name,
+        cpu_backend: spire_kernel::integration::IntegratorBackend::Cpu.description().to_string(),
+        gpu_backend: spire_kernel::integration::IntegratorBackend::Gpu.description().to_string(),
+    }
+}
+
+/// Serializable report of available hardware backends.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct HardwareReport {
+    /// Whether the binary was compiled with `features = ["gpu"]`.
+    gpu_feature_compiled: bool,
+    /// Whether a compatible GPU adapter was found at runtime.
+    gpu_adapter_available: bool,
+    /// Human-readable GPU adapter name (empty if none).
+    adapter_name: String,
+    /// Description of the CPU backend.
+    cpu_backend: String,
+    /// Description of the GPU backend.
+    gpu_backend: String,
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
@@ -929,6 +984,7 @@ fn main() {
             calculate_relic_density,
             calculate_b_mixing,
             calculate_b_to_k_ll,
+            query_hardware_backends,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

@@ -147,7 +147,15 @@ $$\sigma_{pp} = \sum_{a,b} \int dx_1 \, dx_2 \; f_a(x_1, Q^2) \, f_b(x_2, Q^2) \
 ### 15. Cosmological Relic Density Calculator
 SPIRE computes the present-day dark matter relic abundance $\Omega h^2$ by solving the Boltzmann equation through the thermal freeze-out epoch:
 
-$$\frac{dY}{dx} = -\sqrt{\frac{\pi}{45}}\; M_{\text{Pl}}\; m_\chi\; \frac{g_{*s}}{\sqrt{g_*}}\; \frac{\langle\sigma v\rangle}{x^2}\; \left(Y^2 - Y_{\text{eq}}^2\right)$$
+\[
+\frac{dY}{dx} =
+- \sqrt{\frac{\pi}{45}}\,
+M_{\mathrm{Pl}}\,
+m_{\chi}\,
+\frac{g_{*s}}{\sqrt{g_*}}\,
+\frac{\langle \sigma v \rangle}{x^2}\,
+\left(Y^2 - Y_{\mathrm{eq}}^2\right)
+\]
 
 Key features:
 - **Semi-analytic freeze-out method** (Kolb & Turner): Iterative $x_f$ determination via the condition $n_{\text{eq}} \langle\sigma v\rangle = H$, with analytic post-freeze-out solution.
@@ -189,33 +197,33 @@ SPIRE follows a strict three-layer architecture that enforces separation of conc
 ### The Rust Kernel (`spire-kernel`)
 The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. All 25 modules:
 
-| Module | Responsibility | Approx. LOC |
-|--------|---------------|-------------|
-| `algebra` | CAS engine, Dirac algebra, trace evaluation, amplitude derivation, proof tracking | ~8,300 |
-| `analysis` | Histogram engine, observable scripting, detector simulation, jet clustering | ~3,200 |
-| `data_loader` | TOML model ingestion, propagator auto-derivation from spin | ~550 |
-| `decay` | Automatic partial-width calculation, branching ratios, cascade chains | ~1,200 |
-| `graph` | Feynman topology generation, channel classification, symmetry factors | ~3,200 |
-| `groups` | Lie algebra engine, gauge symmetry validation, conservation laws | ~2,800 |
-| `integration` | Monte Carlo integrator, hadronic cross-section convolution with PDFs | ~900 |
-| `interface` | External solver communication (CLI subprocess wrapper) | ~300 |
-| `io` | Event serialization (LHE v3.0), LaTeX proof compiler, data provenance | ~1,200 |
-| `kinematics` | Mandelstam variables, RAMBO phase-space, Dalitz, Lorentz boosts | ~1,800 |
-| `lagrangian` | TheoreticalModel assembly, vertex factors, propagators | ~1,400 |
-| `nlo` | NLO dipole subtraction (Catani-Seymour, FKS, Antenna) | ~500 |
-| `nwa` | Narrow-Width Approximation, cascade decay kinematics | ~400 |
-| `ontology` | Quantum field definitions, state vectors, Poincare representations | ~850 |
-| `pdf` | Parton Distribution Function framework, analytical toy models | ~500 |
-| `reco` | Anti-$k_t$ jet clustering, detector parametrisation, $E_T^{\text{miss}}$ | ~900 |
-| `s_matrix` | Reaction construction, final-state reconstruction, cross-sections | ~1,400 |
-| `scanner` | 1D and 2D parameter scans over model parameters | ~500 |
-| `scripting` | Rhai script compilation and evaluation | ~600 |
-| `session` | Persistent session management, script/config execution | ~400 |
-| `shower` | External parton shower bridge (Pythia/Herwig/Sherpa) | ~600 |
-| `telemetry` | Computation profiling, timing, resource tracking | ~200 |
-| `theory/` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA parser, UFO bridge, NLO counterterms | ~3,800 |
-| `math` | Generic ODE solvers: Runge-Kutta 4 (fixed-step), Dormand-Prince 4(5) (adaptive) | ~400 |
-| `cosmology` | Relic density calculator: Boltzmann freeze-out, thermal cross-sections, $\Omega h^2$ | ~500 |
+| Module | Responsibility |
+|--------|----------------|
+| `algebra` | CAS engine, Dirac algebra, trace evaluation, amplitude derivation, proof tracking |
+| `analysis` | Histogram engine, observable scripting, detector simulation, jet clustering |
+| `data_loader` | TOML model ingestion, propagator auto-derivation from spin |
+| `decay` | Automatic partial-width calculation, branching ratios, cascade chains |
+| `graph` | Feynman topology generation, channel classification, symmetry factors |
+| `groups` | Lie algebra engine, gauge symmetry validation, conservation laws |
+| `integration` | Monte Carlo integrator, hadronic cross-section convolution with PDFs |
+| `interface` | External solver communication (CLI subprocess wrapper) |
+| `io` | Event serialization (LHE v3.0), LaTeX proof compiler, data provenance |
+| `kinematics` | Mandelstam variables, RAMBO phase-space, Dalitz, Lorentz boosts |
+| `lagrangian` | TheoreticalModel assembly, vertex factors, propagators |
+| `nlo` | NLO dipole subtraction (Catani-Seymour, FKS, Antenna) |
+| `nwa` | Narrow-Width Approximation, cascade decay kinematics |
+| `ontology` | Quantum field definitions, state vectors, Poincare representations |
+| `pdf` | Parton Distribution Function framework, analytical toy models |
+| `reco` | Anti-$k_t$ jet clustering, detector parametrisation, $E_T^{\text{miss}}$ |
+| `s_matrix` | Reaction construction, final-state reconstruction, cross-sections |
+| `scanner` | 1D and 2D parameter scans over model parameters |
+| `scripting` | Rhai script compilation and evaluation |
+| `session` | Persistent session management, script/config execution |
+| `shower` | External parton shower bridge (Pythia/Herwig/Sherpa) |
+| `telemetry` | Computation profiling, timing, resource tracking |
+| `theory/` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA parser, UFO bridge, NLO counterterms |
+| `math` | Generic ODE solvers: Runge-Kutta 4 (fixed-step), Dormand-Prince 4(5) (adaptive) |
+| `cosmology` | Relic density calculator: Boltzmann freeze-out, thermal cross-sections, $\Omega h^2$ |
 
 ### The Bindings Layer (`spire-bindings`)
 Exposes the kernel through stable Foreign Function Interfaces:
@@ -317,10 +325,12 @@ cd apps/spire-desktop
 npm install
 
 # 3. Run in development mode (with hot-reloading)
-npm run tauri dev
+npm run dev
+# (alternatively: npm run tauri dev)
 
 # 4. Build a release-optimised binary
-npm run tauri build
+npm run build
+# (alternatively: npm run tauri build)
 # Output: apps/spire-desktop/src-tauri/target/release/
 ```
 

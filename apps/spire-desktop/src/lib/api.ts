@@ -631,3 +631,34 @@ export async function calculateBToKll(
 ): Promise<import("$lib/types/spire").FlavorObservableReport> {
   return getBackend().calculateBToKll(q2Min, q2Max, wilsonCoeffs, lattice, nPoints);
 }
+
+// ---------------------------------------------------------------------------
+// Hardware Backend Query
+// ---------------------------------------------------------------------------
+
+/**
+ * Hardware capabilities report from the backend.
+ */
+export interface HardwareReport {
+  /** Whether the binary was compiled with the `gpu` feature. */
+  gpu_feature_compiled: boolean;
+  /** Whether a compatible GPU adapter was found at runtime. */
+  gpu_adapter_available: boolean;
+  /** Human-readable GPU adapter name (empty if none). */
+  adapter_name: string;
+  /** Description of the CPU backend. */
+  cpu_backend: string;
+  /** Description of the GPU backend. */
+  gpu_backend: string;
+}
+
+/**
+ * Query the backend for available hardware compute backends.
+ *
+ * Returns whether GPU acceleration is compiled in and available at
+ * runtime, along with adapter descriptions.  The frontend uses this
+ * to conditionally display a GPU toggle in the Analysis widget.
+ */
+export async function queryHardwareBackends(): Promise<HardwareReport> {
+  return getBackend().queryHardwareBackends();
+}

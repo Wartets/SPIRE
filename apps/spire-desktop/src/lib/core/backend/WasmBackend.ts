@@ -459,4 +459,22 @@ export class WasmBackend implements SpireBackend {
       n_points: nPoints ?? 100,
     });
   }
+
+  async queryHardwareBackends(): Promise<{
+    gpu_feature_compiled: boolean;
+    gpu_adapter_available: boolean;
+    adapter_name: string;
+    cpu_backend: string;
+    gpu_backend: string;
+  }> {
+    // WASM backend runs in the browser — GPU is never available via
+    // the spire-kernel compute pipeline (browser WebGPU is separate).
+    return {
+      gpu_feature_compiled: false,
+      gpu_adapter_available: false,
+      adapter_name: "",
+      cpu_backend: "CPU (WASM single-thread)",
+      gpu_backend: "GPU (not available in WASM mode)",
+    };
+  }
 }

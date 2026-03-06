@@ -1,0 +1,46 @@
+# ============================================================================
+# SPIRE Run Card — Example Configuration for spire-cli
+# ============================================================================
+#
+# This file defines a complete Monte Carlo run for the headless HPC daemon.
+# Usage:
+#   spire-cli --config data/run_card.toml
+#   spire-cli --config data/run_card.toml --events 500000 --output events.lhe
+#
+# All energies in GeV, cross sections in pb.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Process definition
+# ---------------------------------------------------------------------------
+[process]
+# Particle identifiers matching the SPIRE ontology (see data/particles.toml).
+initial_state = ["u", "ubar"]
+final_state   = ["e-", "e+"]
+
+# Centre-of-mass energy √s in GeV.
+sqrt_s = 91.1876       # Z-pole
+
+# Path to the model file.  Relative paths are resolved from the working
+# directory.
+model_file = "data/particles.toml"
+
+# ---------------------------------------------------------------------------
+# Integration parameters
+# ---------------------------------------------------------------------------
+[integration]
+# Number of Monte Carlo events to generate.
+num_events = 100_000
+
+# Random seed (64-bit unsigned).  Set to 0 for a random seed each run.
+seed = 42
+
+# ---------------------------------------------------------------------------
+# Output configuration
+# ---------------------------------------------------------------------------
+[output]
+# Format: "lhe" (Les Houches Events), "json", or "stdout" (summary only).
+format = "lhe"
+
+# Output file path.  Ignored when format = "stdout".
+file = "output/drell_yan_z_pole.lhe"

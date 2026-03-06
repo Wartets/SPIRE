@@ -4,6 +4,7 @@ members = [
     "crates/spire-kernel",
     "crates/spire-bindings",
     "apps/spire-desktop/src-tauri",
+    "apps/spire-cli",
 ]
 
 [workspace.package]

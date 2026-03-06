@@ -38,6 +38,9 @@
 //!
 //! where $f_i = |\mathcal{M}(p_i)|^2 \cdot w_i$.
 
+#[cfg(feature = "gpu")]
+pub mod gpu;
+
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -87,6 +90,64 @@ impl IntegrationResult {
             events_evaluated: self.events_evaluated,
             efficiency: self.efficiency,
             relative_error: self.relative_error,
+        }
+    }
+}
+
+// ===========================================================================
+// Integrator Backend — Unified CPU / GPU Abstraction
+// ===========================================================================
+
+/// The hardware backend for amplitude evaluation.
+///
+/// This enum selects whether the squared matrix element $|\mathcal{M}|^2$
+/// is evaluated on the CPU (using Rayon thread-parallel loops) or on the
+/// GPU (using a WGSL compute shader via `wgpu`).
+///
+/// # Fallback Behavior
+///
+/// If [`IntegratorBackend::Gpu`] is selected but no GPU adapter is
+/// available (or the `gpu` feature is not compiled in), the integration
+/// functions transparently fall back to [`IntegratorBackend::Cpu`] and
+/// emit a diagnostic warning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IntegratorBackend {
+    /// Evaluate amplitudes on the CPU using Rayon parallelism.
+    Cpu,
+    /// Evaluate amplitudes on the GPU using a WGSL compute shader.
+    ///
+    /// Requires the `gpu` feature to be enabled at compile time and a
+    /// compatible GPU adapter at runtime.
+    Gpu,
+}
+
+impl Default for IntegratorBackend {
+    fn default() -> Self {
+        Self::Cpu
+    }
+}
+
+impl IntegratorBackend {
+    /// Returns `true` if GPU integration is available at runtime.
+    ///
+    /// This checks both compile-time feature availability and runtime
+    /// adapter presence.
+    pub fn gpu_available() -> bool {
+        #[cfg(feature = "gpu")]
+        {
+            gpu::GpuIntegrator::new().is_some()
+        }
+        #[cfg(not(feature = "gpu"))]
+        {
+            false
+        }
+    }
+
+    /// Return a human-readable description of the backend.
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::Cpu => "CPU (Rayon thread-parallel)",
+            Self::Gpu => "GPU (WebGPU compute shader)",
         }
     }
 }

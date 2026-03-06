@@ -475,4 +475,14 @@ export class TauriBackend implements SpireBackend {
       n_points: nPoints ?? 100,
     });
   }
+
+  async queryHardwareBackends(): Promise<{
+    gpu_feature_compiled: boolean;
+    gpu_adapter_available: boolean;
+    adapter_name: string;
+    cpu_backend: string;
+    gpu_backend: string;
+  }> {
+    return tauriInvoke("query_hardware_backends", {});
+  }
 }

@@ -693,4 +693,21 @@ This is a mock proof document for ${processLabel}.
       exp_delta_m_s: 17.765,
     };
   }
+
+  async queryHardwareBackends(): Promise<{
+    gpu_feature_compiled: boolean;
+    gpu_adapter_available: boolean;
+    adapter_name: string;
+    cpu_backend: string;
+    gpu_backend: string;
+  }> {
+    await simulateLatency();
+    return {
+      gpu_feature_compiled: false,
+      gpu_adapter_available: false,
+      adapter_name: "",
+      cpu_backend: "CPU (Rayon thread-parallel)",
+      gpu_backend: "GPU (WebGPU compute shader)",
+    };
+  }
 }

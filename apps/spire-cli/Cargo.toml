@@ -1,0 +1,22 @@
+[package]
+name = "spire-cli"
+version.workspace = true
+edition.workspace = true
+description = "Headless CLI daemon for SPIRE — batch Monte Carlo integration and event generation on HPC clusters"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "spire-cli"
+path = "src/main.rs"
+
+[features]
+gpu = ["spire-kernel/gpu"]
+
+[dependencies]
+spire-kernel = { path = "../../crates/spire-kernel" }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"

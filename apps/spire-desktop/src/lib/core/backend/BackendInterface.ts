@@ -297,4 +297,13 @@ export interface SpireBackend {
     lattice: LatticeInputs,
     nPoints?: number,
   ): Promise<FlavorObservableReport>;
+
+  // ── Hardware Backend Query ──────────────────────────────────────────
+  queryHardwareBackends(): Promise<{
+    gpu_feature_compiled: boolean;
+    gpu_adapter_available: boolean;
+    adapter_name: string;
+    cpu_backend: string;
+    gpu_backend: string;
+  }>;
 }

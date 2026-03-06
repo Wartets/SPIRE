@@ -34,6 +34,8 @@
 //!
 //! The result is an ordered list of symbolic terms whose product gives $i\mathcal{M}$.
 
+pub mod wgsl_compiler;
+
 use nalgebra::Matrix4;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
