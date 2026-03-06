@@ -30,6 +30,24 @@
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
 
+  // ── LOD & Frustum Culling ──
+  import CanvasLODWrapper from "$lib/components/canvas/CanvasLODWrapper.svelte";
+  import {
+    type LodLevel,
+    type ViewportRect,
+    zoomToLod,
+    computeViewport,
+    expandByOverscan,
+    isVisible,
+    WIDGET_ICONS,
+    WIDGET_ACCENT,
+  } from "$lib/components/canvas/lodUtils";
+
+  // ── Summary components (medium-zoom LOD) ──
+  import DiagramSummary from "$lib/components/canvas/summaries/DiagramSummary.svelte";
+  import AmplitudeSummary from "$lib/components/canvas/summaries/AmplitudeSummary.svelte";
+  import AnalysisSummary from "$lib/components/canvas/summaries/AnalysisSummary.svelte";
+
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
   import ReactionWorkspace from "$lib/components/ReactionWorkspace.svelte";
@@ -93,6 +111,26 @@
       radial-gradient(circle, rgba(136,136,136,${minorOpacity * 0.45}) ${minorDotR}px, transparent ${minorDotR}px),
       radial-gradient(circle, rgba(170,170,170,0.55) ${majorDotR}px, transparent ${majorDotR}px);
   `;
+
+  // ── Frustum Culling & LOD ──────────────────────────────────────────────
+  // Compute the visible world-space viewport, expanded by overscan, and
+  // the current LOD tier.  Widgets outside the frustum are replaced by
+  // lightweight empty placeholders to save DOM nodes and GPU memory.
+
+  /** Screen dimensions (updated via ResizeObserver). */
+  let screenW = 900;
+  let screenH = 600;
+
+  $: worldViewport = expandByOverscan(
+    computeViewport(panX, panY, zoom, screenW, screenH),
+  );
+
+  $: lodLevel = zoomToLod(zoom);
+
+  /** Test whether a canvas item is within the visible frustum. */
+  function itemIsVisible(item: CanvasItem): boolean {
+    return isVisible(item.x, item.y, item.width, item.height, worldViewport);
+  }
 
   // ── Edge Snapping ──────────────────────────────────────────────────────
   // When dragging, snap widget edges to sibling widget edges and to the
@@ -519,13 +557,29 @@
 
   // ── Lifecycle ──
 
+  let resizeObserver: ResizeObserver | null = null;
+
   onMount(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+
+    // Track canvas element dimensions for frustum culling
+    if (canvasEl) {
+      screenW = canvasEl.clientWidth;
+      screenH = canvasEl.clientHeight;
+      resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          screenW = entry.contentRect.width;
+          screenH = entry.contentRect.height;
+        }
+      });
+      resizeObserver.observe(canvasEl);
+    }
   });
 
   onDestroy(() => {
     unsubViewport();
+    resizeObserver?.disconnect();
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keyup", handleKeyUp);
   });
@@ -537,6 +591,7 @@
   class:space-held={spaceHeld && !spacePanning}
   class:space-panning={spacePanning}
   class:is-panning={isPanning}
+  style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
   on:mousemove={handleCanvasMouseMove}
@@ -556,107 +611,160 @@
     style="transform: translate({panX}px, {panY}px) scale({zoom});"
   >
     {#each $canvasItems as item (item.id)}
-      <div
-        class="canvas-widget"
-        class:cw-selected={item.id === selectedWidgetId}
-        style="
-          left: {item.x}px;
-          top: {item.y}px;
-          width: {item.width}px;
-          height: {item.height}px;
-          z-index: {zIndexOf(item)};
-        "
-        on:mousedown={() => selectWidget(item)}
-        on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
-        role="group"
-        aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
-      >
-        <!-- Widget header (draggable) -->
-        <header
-          class="cw-header"
-          on:mousedown={(e) => handleWidgetDragStart(e, item)}
-          role="toolbar"
-          tabindex="-1"
-          aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} controls"
+      {#if itemIsVisible(item)}
+        <!-- Visible widget — render at current LOD tier -->
+        <div
+          class="canvas-widget"
+          class:cw-selected={item.id === selectedWidgetId}
+          class:cw-lod-summary={lodLevel === "summary"}
+          class:cw-lod-minimal={lodLevel === "minimal"}
+          style="
+            left: {item.x}px;
+            top: {item.y}px;
+            width: {item.width}px;
+            height: {item.height}px;
+            z-index: {zIndexOf(item)};
+          "
+          on:mousedown={() => selectWidget(item)}
+          on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
+          role="group"
+          aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
         >
-          <span class="cw-title">
-            {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
-          </span>
-          <button
-            class="cw-close"
-            on:click={() => handleClose(item)}
-            on:mousedown|stopPropagation
-            title="Close"
-          >&times;</button>
-        </header>
+          <!-- Widget header (draggable) — hidden at minimal LOD -->
+          {#if lodLevel !== "minimal"}
+            <header
+              class="cw-header"
+              on:mousedown={(e) => handleWidgetDragStart(e, item)}
+              role="toolbar"
+              tabindex="-1"
+              aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} controls"
+            >
+              <span class="cw-header-icon" style="color: {WIDGET_ACCENT[item.widgetType] ?? '#5eb8ff'};">
+                {@html WIDGET_ICONS[item.widgetType] ?? ''}
+              </span>
+              <span class="cw-title">
+                {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
+              </span>
+              <button
+                class="cw-close"
+                on:click={() => handleClose(item)}
+                on:mousedown|stopPropagation
+                title="Close"
+              >&times;</button>
+            </header>
+          {/if}
 
-        <!-- Widget body -->
-        <div class="cw-body" on:contextmenu={(e) => handleWidgetBodyContext(e, item)} role="region">
-          {#if item.widgetType === "model"}
-            <ModelLoader />
-          {:else if item.widgetType === "reaction"}
-            <ReactionWorkspace />
-          {:else if item.widgetType === "diagram"}
-            <DiagramVisualizer />
-          {:else if item.widgetType === "amplitude"}
-            <AmplitudePanel />
-          {:else if item.widgetType === "kinematics"}
-            <KinematicsView />
-          {:else if item.widgetType === "dalitz"}
-            <DalitzPlotter />
-          {:else if item.widgetType === "analysis"}
-            <AnalysisWidget />
-          {:else if item.widgetType === "event_display"}
-            <EventDisplay />
-          {:else if item.widgetType === "diagram_editor"}
-            <DiagramEditor />
-          {:else if item.widgetType === "lagrangian_workbench"}
-            <LagrangianWorkbench />
-          {:else if item.widgetType === "external_models"}
-            <ExternalModels />
-          {:else if item.widgetType === "compute_grid"}
-            <ComputeGridWidget />
-          {:else if item.widgetType === "references"}
-            <ReferencesPanel />
-          {:else if item.widgetType === "telemetry"}
-            <TelemetryPanel />
-          {:else if item.widgetType === "log"}
-            <LogConsole />
-          {:else if item.widgetType === "notebook"}
-            <NotebookWidget />
-          {:else if item.widgetType === "parameter_scanner"}
-            <ParameterScanner />
-          {:else if item.widgetType === "decay_calculator"}
-            <DecayCalculator />
-          {:else if item.widgetType === "cosmology"}
-            <CosmologyPanel />
-          {:else if item.widgetType === "flavor_workbench"}
-            <FlavorWorkbench />
-          {:else if item.widgetType === "plugin_manager"}
-            <PluginManager />
-          {:else if item.widgetType === "global_fit_dashboard"}
-            <GlobalFitDashboard />
-          {:else}
-            <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
+          <!-- Widget body -->
+          <div
+            class="cw-body"
+            class:cw-body-minimal={lodLevel === "minimal"}
+            on:mousedown={(e) => { if (lodLevel === "minimal") handleWidgetDragStart(e, item); }}
+            on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
+            role="region"
+          >
+            <CanvasLODWrapper widgetType={item.widgetType} {zoom}>
+              <!-- ═══ FULL LOD (zoom ≥ 0.6): interactive widget ═══ -->
+              <div slot="full" class="zoom-adaptive-text">
+                {#if item.widgetType === "model"}
+                  <ModelLoader />
+                {:else if item.widgetType === "reaction"}
+                  <ReactionWorkspace />
+                {:else if item.widgetType === "diagram"}
+                  <DiagramVisualizer />
+                {:else if item.widgetType === "amplitude"}
+                  <AmplitudePanel />
+                {:else if item.widgetType === "kinematics"}
+                  <KinematicsView />
+                {:else if item.widgetType === "dalitz"}
+                  <DalitzPlotter />
+                {:else if item.widgetType === "analysis"}
+                  <AnalysisWidget />
+                {:else if item.widgetType === "event_display"}
+                  <EventDisplay />
+                {:else if item.widgetType === "diagram_editor"}
+                  <DiagramEditor />
+                {:else if item.widgetType === "lagrangian_workbench"}
+                  <LagrangianWorkbench />
+                {:else if item.widgetType === "external_models"}
+                  <ExternalModels />
+                {:else if item.widgetType === "compute_grid"}
+                  <ComputeGridWidget />
+                {:else if item.widgetType === "references"}
+                  <ReferencesPanel />
+                {:else if item.widgetType === "telemetry"}
+                  <TelemetryPanel />
+                {:else if item.widgetType === "log"}
+                  <LogConsole />
+                {:else if item.widgetType === "notebook"}
+                  <NotebookWidget />
+                {:else if item.widgetType === "parameter_scanner"}
+                  <ParameterScanner />
+                {:else if item.widgetType === "decay_calculator"}
+                  <DecayCalculator />
+                {:else if item.widgetType === "cosmology"}
+                  <CosmologyPanel />
+                {:else if item.widgetType === "flavor_workbench"}
+                  <FlavorWorkbench />
+                {:else if item.widgetType === "plugin_manager"}
+                  <PluginManager />
+                {:else if item.widgetType === "global_fit_dashboard"}
+                  <GlobalFitDashboard />
+                {:else}
+                  <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
+                {/if}
+              </div>
+
+              <!-- ═══ SUMMARY LOD (0.3 ≤ zoom < 0.6): simplified card ═══ -->
+              <div slot="summary">
+                {#if item.widgetType === "diagram"}
+                  <DiagramSummary />
+                {:else if item.widgetType === "amplitude"}
+                  <AmplitudeSummary />
+                {:else if item.widgetType === "analysis"}
+                  <AnalysisSummary />
+                {:else}
+                  <span style="color: var(--fg-secondary); font-size: 0.68rem; font-style: italic;">
+                    {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
+                  </span>
+                {/if}
+              </div>
+            </CanvasLODWrapper>
+          </div>
+
+          <!-- Resize handle (hidden at minimal LOD) -->
+          {#if lodLevel !== "minimal"}
+            <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+            <div
+              class="cw-resize"
+              on:mousedown={(e) => handleResizeStart(e, item)}
+              role="separator"
+              aria-label="Resize"
+              tabindex="-1"
+            ></div>
           {/if}
         </div>
-
-        <!-- Resize handle -->
-        <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+      {:else}
+        <!-- Off-screen placeholder: maintains layout geometry without DOM cost -->
         <div
-          class="cw-resize"
-          on:mousedown={(e) => handleResizeStart(e, item)}
-          role="separator"
-          aria-label="Resize"
-          tabindex="-1"
+          class="cw-placeholder"
+          style="
+            left: {item.x}px;
+            top: {item.y}px;
+            width: {item.width}px;
+            height: {item.height}px;
+          "
+          aria-hidden="true"
         ></div>
-      </div>
+      {/if}
     {/each}
   </div>
 
   <!-- Zoom indicator (click to reset to 100%) -->
   <button class="zoom-indicator" on:click={resetZoom} title="Reset zoom to 100%">
     {Math.round(zoom * 100)}%
+    {#if lodLevel !== "full"}
+      <span class="lod-badge">{lodLevel === "summary" ? "SUM" : "MIN"}</span>
+    {/if}
   </button>
 </div>
 
@@ -726,6 +834,18 @@
     cursor: grabbing;
   }
 
+  .cw-header-icon {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    line-height: 0;
+  }
+
+  .cw-header-icon :global(svg) {
+    width: 13px;
+    height: 13px;
+  }
+
   .cw-title {
     flex: 1;
     font-size: 0.65rem;
@@ -759,6 +879,47 @@
     overflow: auto;
     padding: 0.5rem;
     min-height: 0;
+  }
+
+  .cw-body-minimal {
+    padding: 0;
+    cursor: grab;
+  }
+
+  .cw-body-minimal:active {
+    cursor: grabbing;
+  }
+
+  /* ── Frustum Culling Placeholder ── */
+  .cw-placeholder {
+    position: absolute;
+    pointer-events: none;
+    /* No background — completely invisible lightweight box */
+  }
+
+  /* ── LOD Visual States ── */
+  .cw-lod-summary {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .cw-lod-minimal {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    border-width: 1px;
+  }
+
+  /* ── Font Scaling Floor ──
+     When the canvas is zoomed out aggressively, text rendered inside
+     widgets gets multiplied by the CSS zoom and can become microscopic.
+     The .zoom-adaptive-text utility applies a compensating scale so
+     that no text drops below ~9px screen-space.  Below the threshold
+     a translucent block replaces text to indicate content exists
+     without wasting GPU cycles on illegible glyphs. */
+  .zoom-adaptive-text {
+    /* Content container for full-LOD widgets.  The --canvas-zoom
+       variable is inherited and available to child components that
+       need zoom-aware styling (e.g. font scaling floors). */
+    width: 100%;
+    height: 100%;
   }
 
   .cw-resize {
@@ -799,10 +960,21 @@
     cursor: pointer;
     z-index: 10;
     transition: border-color 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
   }
 
   .zoom-indicator:hover {
     border-color: var(--hl-symbol);
     color: var(--fg-primary);
+  }
+
+  .lod-badge {
+    font-size: 0.5rem;
+    padding: 0 0.2rem;
+    border: 1px solid var(--hl-value);
+    color: var(--hl-value);
+    letter-spacing: 0.04em;
   }
 </style>

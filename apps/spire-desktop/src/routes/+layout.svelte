@@ -195,6 +195,28 @@
     --hl-symbol:    #5eb8ff;
     --hl-error:     #e74c3c;
     --hl-success:   #2ecc71;
+    --canvas-zoom:  1;
+  }
+
+  /* ── Font Scaling Floor ───────────────────────────────────── */
+  /* When the infinite canvas is zoomed out aggressively, the CSS
+     transform scale() shrinks all widget content proportionally.
+     At extreme zoom-outs (<0.3×) text becomes microscopic and
+     illegible.  The .zoom-floor-text utility detects this via
+     --canvas-zoom and replaces text glyphs with translucent
+     block indicators (wireframe placeholders) so the layout
+     structure remains visible without wasting GPU cycles on
+     sub-pixel glyph rasterisation.
+
+     The floor threshold is set to 9px screen-space, assuming a
+     base font size of ~12px.  zoom × 12 < 9  ⟹  zoom < 0.75. */
+  :global(.zoom-floor-text) {
+    color: transparent;
+    background: var(--fg-secondary, #888);
+    opacity: 0.25;
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
   }
 
   /* ── Global Reset ─────────────────────────────────────────── */
