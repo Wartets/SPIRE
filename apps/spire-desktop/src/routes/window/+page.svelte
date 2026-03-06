@@ -14,6 +14,7 @@
   import type { WidgetType } from "$lib/stores/notebookStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { listenForStoreSync } from "$lib/core/services/WindowManager";
+  import { hydrateFromPayload } from "$lib/core/services/StoreSyncService";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -56,9 +57,14 @@
 
     // Listen for state synchronisation from the main window
     unlisten = await listenForStoreSync((payload) => {
-      // Future: hydrate local physics stores from payload
-      console.debug("[SPIRE tear-off] Received store sync:", payload);
+      hydrateFromPayload(payload);
     });
+
+    // Request an initial sync from the main window
+    try {
+      const { emit } = await import("@tauri-apps/api/event");
+      await emit("spire://store-action", { action: "request-sync", payload: null });
+    } catch { /* not in Tauri */ }
 
     // Set document title
     if (label) {

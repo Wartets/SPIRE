@@ -28,6 +28,8 @@
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
   import { tutorialActive } from "$lib/core/services/TutorialService";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { startBroadcasting, buildSnapshot } from "$lib/core/services/StoreSyncService";
+  import { listenForStoreActions, broadcastStoreSync } from "$lib/core/services/WindowManager";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   function onFrameworkChange(e: Event): void {
@@ -82,14 +84,27 @@
     ]);
   }
 
-  onMount(() => {
+  let stopSync: (() => void) | null = null;
+  let stopActions: (() => void) | null = null;
+
+  onMount(async () => {
     window.addEventListener("keydown", handleGlobalKeydown, { capture: true });
     window.addEventListener("contextmenu", handleGlobalContextMenu);
+    stopSync = startBroadcasting();
+
+    // Listen for requests from tear-off windows (e.g. initial sync)
+    stopActions = await listenForStoreActions((data) => {
+      if (data.action === "request-sync") {
+        broadcastStoreSync(buildSnapshot());
+      }
+    });
   });
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleGlobalKeydown, { capture: true });
     window.removeEventListener("contextmenu", handleGlobalContextMenu);
+    stopSync?.();
+    stopActions?.();
   });
 </script>
 
