@@ -209,9 +209,26 @@
   // ── Widget Selection & Z-Index ──
 
   let selectedWidgetId: string | null = null;
+  /** Monotonically increasing z-index counter — each click brings to front. */
+  let zCounter = 10;
+  /** Per-widget z-index map keyed by item id. */
+  let zMap: Record<string, number> = {};
 
   function selectWidget(item: CanvasItem): void {
     selectedWidgetId = item.id;
+    zCounter += 1;
+    zMap[item.id] = zCounter;
+  }
+
+  /** Get the z-index for a canvas widget. */
+  function zIndexOf(item: CanvasItem): number {
+    return zMap[item.id] ?? 1;
+  }
+
+  /** Reset the viewport zoom to 100% (centered). */
+  function resetZoom(): void {
+    zoom = 1;
+    commitViewport();
   }
 
   // ── Widget Drag (left-click on header) ──
@@ -342,7 +359,7 @@
           top: {item.y}px;
           width: {item.width}px;
           height: {item.height}px;
-          z-index: {item.id === selectedWidgetId ? 50 : 1};
+          z-index: {zIndexOf(item)};
         "
         on:mousedown={() => selectWidget(item)}
         role="group"
@@ -431,10 +448,10 @@
     {/each}
   </div>
 
-  <!-- Zoom indicator -->
-  <div class="zoom-indicator">
+  <!-- Zoom indicator (click to reset to 100%) -->
+  <button class="zoom-indicator" on:click={resetZoom} title="Reset zoom to 100%">
     {Math.round(zoom * 100)}%
-  </div>
+  </button>
 </div>
 
 <style>
@@ -572,7 +589,13 @@
     color: var(--fg-secondary);
     font-size: 0.62rem;
     font-family: var(--font-mono);
-    pointer-events: none;
+    cursor: pointer;
     z-index: 10;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .zoom-indicator:hover {
+    border-color: var(--hl-symbol);
+    color: var(--fg-primary);
   }
 </style>
