@@ -107,7 +107,7 @@
   function nodeLabel(kind: NodeKind): string {
     if ("ExternalIncoming" in kind) return kind.ExternalIncoming.field.name;
     if ("ExternalOutgoing" in kind) return kind.ExternalOutgoing.field.name;
-    if ("Vertex" in kind) return "⊗";
+    if ("InternalVertex" in kind) return "⊗";
     return "?";
   }
 
@@ -131,8 +131,8 @@
       source: src,
       target: tgt,
       label: e.momentum_label,
-      particleName: e.particle.field.name,
-      edgeType: classifyEdge(e.particle.field.name),
+      particleName: e.field.name,
+      edgeType: classifyEdge(e.field.name),
       isExternal: e.is_external,
     }));
 
@@ -342,7 +342,7 @@
   }
 
   function isVertex(kind: NodeKind): boolean {
-    return "Vertex" in kind;
+    return "InternalVertex" in kind;
   }
 
   function edgeStrokeColor(edgeType: string): string {

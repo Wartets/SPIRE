@@ -285,7 +285,7 @@ export type LoopOrder = "Tree" | "OneLoop" | "TwoLoop" | { NLoop: number };
 export type NodeKind =
   | { ExternalIncoming: Particle }
   | { ExternalOutgoing: Particle }
-  | { Vertex: VertexFactor };
+  | { InternalVertex: VertexFactor };
 
 /** A node in the Feynman diagram. */
 export interface FeynmanNode {
@@ -296,7 +296,7 @@ export interface FeynmanNode {
 
 /** An edge (propagator line) in the Feynman diagram. */
 export interface FeynmanEdge {
-  particle: Particle;
+  field: Field;
   propagator: Propagator | null;
   momentum_label: string;
   is_external: boolean;

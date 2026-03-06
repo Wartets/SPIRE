@@ -81,8 +81,8 @@
     if ("ExternalOutgoing" in kind) {
       return `${kind.ExternalOutgoing.field.symbol} → (out)`;
     }
-    if ("Vertex" in kind) {
-      return `vertex [${kind.Vertex.field_ids.join(", ")}]`;
+    if ("InternalVertex" in kind) {
+      return `vertex [${kind.InternalVertex.field_ids.join(", ")}]`;
     }
     return "?";
   }
@@ -91,7 +91,7 @@
   function nodeShort(kind: NodeKind): string {
     if ("ExternalIncoming" in kind) return kind.ExternalIncoming.field.symbol;
     if ("ExternalOutgoing" in kind) return kind.ExternalOutgoing.field.symbol;
-    if ("Vertex" in kind) return "V";
+    if ("InternalVertex" in kind) return "V";
     return "?";
   }
 
@@ -147,8 +147,8 @@
         const label = esc(kind.ExternalOutgoing.field.symbol);
         // Stadium shape for external outgoing
         lines.push(`    ${id}(["→ ${label}"]):::outgoing`);
-      } else if ("Vertex" in kind) {
-        const vf = kind.Vertex;
+      } else if ("InternalVertex" in kind) {
+        const vf = kind.InternalVertex;
         const label = esc(vf.field_ids.join(","));
         // Circle for vertex
         lines.push(`    ${id}(("${label}")):::vertex`);
@@ -157,7 +157,7 @@
 
     // ── Edge definitions ──
     for (const [src, tgt, edge] of diag.edges) {
-      const particle = esc(edge.particle.field.symbol);
+      const particle = esc(edge.field.symbol);
       const mom = esc(edge.momentum_label);
       const label = mom ? `${particle} [${mom}]` : particle;
 
@@ -230,7 +230,7 @@
     lines.push("");
     lines.push("Edges:");
     for (const [src, tgt, edge] of diag.edges) {
-      const pName = edge.particle.field.symbol;
+      const pName = edge.field.symbol;
       const mom = edge.momentum_label;
       const ext = edge.is_external ? " (ext)" : "";
       lines.push(`  ${src} --${pName}(${mom})--> ${tgt}${ext}`);
@@ -320,7 +320,7 @@
             <span>{src}</span>
             <span>→</span>
             <span>{tgt}</span>
-            <span class="particle-name">{edge.particle.field.symbol}</span>
+            <span class="particle-name">{edge.field.symbol}</span>
             <span class="momentum">{edge.momentum_label}</span>
           </div>
         {/each}

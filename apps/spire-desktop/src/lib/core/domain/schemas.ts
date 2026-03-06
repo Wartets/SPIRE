@@ -256,7 +256,7 @@ export const LoopOrderSchema = z.union([
 export const NodeKindSchema = z.union([
   z.object({ ExternalIncoming: ParticleSchema }),
   z.object({ ExternalOutgoing: ParticleSchema }),
-  z.object({ Vertex: VertexFactorSchema }),
+  z.object({ InternalVertex: VertexFactorSchema }),
 ]);
 
 export const FeynmanNodeSchema = z.object({
@@ -266,7 +266,7 @@ export const FeynmanNodeSchema = z.object({
 });
 
 export const FeynmanEdgeSchema = z.object({
-  particle: ParticleSchema,
+  field: FieldSchema,
   propagator: PropagatorSchema.nullable(),
   momentum_label: z.string(),
   is_external: z.boolean(),
@@ -342,7 +342,7 @@ export const AmplitudeResultSchema = z.object({
   couplings: z.array(z.string()),
   momenta_labels: z.array(z.string()),
   profile: ComputeProfileSchema.optional(),
-});
+}).passthrough();
 
 // CasExpr is deeply recursive — validate structurally without full recursion
 // to avoid Zod stack overflows on deeply nested expressions.

@@ -244,11 +244,11 @@
   /** Run the full pipeline: construct → diagrams → amplitudes → kinematics. */
   async function handleRunAll(): Promise<void> {
     await handleConstructReaction();
-    if ($activeReaction && $activeReaction.is_valid) {
-      await handleGenerateDiagrams();
-      await handleDeriveAmplitudes();
-      await handleComputeKinematics();
-    }
+    if (!$activeReaction || !$activeReaction.is_valid) return;
+    await handleGenerateDiagrams();
+    if (!$generatedDiagrams) return;
+    await handleDeriveAmplitudes();
+    await handleComputeKinematics();
   }
 
   // --- Observables & Cuts ---

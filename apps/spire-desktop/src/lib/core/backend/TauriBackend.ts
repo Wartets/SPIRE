@@ -397,15 +397,15 @@ export class TauriBackend implements SpireBackend {
   async calculateDecayTable(model: TheoreticalModel, particleId: string): Promise<CalcDecayTable> {
     return tauriInvokeValidated("calculate_decay_table_cmd", CalcDecayTableSchema, {
       model,
-      particle_id: particleId,
+      particleId,
     });
   }
 
   async exportDecaySlha(model: TheoreticalModel, particleId: string, pdgCode: number): Promise<string> {
     const raw = await tauriInvoke("export_decay_slha", {
       model,
-      particle_id: particleId,
-      pdg_code: pdgCode,
+      particleId,
+      pdgCode,
     });
     return raw as string;
   }
@@ -440,8 +440,8 @@ export class TauriBackend implements SpireBackend {
     return tauriInvoke("compute_provenance_hash", {
       model,
       reaction,
-      cms_energy: cmsEnergy,
-      num_events: numEvents,
+      cmsEnergy,
+      numEvents,
       seed,
     });
   }
