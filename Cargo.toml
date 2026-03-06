@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/spire-kernel",
     "crates/spire-bindings",
+    "crates/spire-python",
     "apps/spire-desktop/src-tauri",
     "apps/spire-cli",
 ]

@@ -1,0 +1,27 @@
+[package]
+name = "spire-python"
+version.workspace = true
+edition.workspace = true
+description = "Python extension module for SPIRE – PyO3 + rust-numpy + Jupyter bridge"
+
+[lints]
+workspace = true
+
+[lib]
+name = "spire_python"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+auto-initialize = ["pyo3/auto-initialize"]
+
+[dependencies]
+spire-kernel = { path = "../spire-kernel" }
+pyo3 = { version = "0.20", features = ["extension-module"] }
+numpy = "0.20"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+pyo3 = { version = "0.20", features = ["auto-initialize"] }
