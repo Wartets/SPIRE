@@ -335,6 +335,18 @@ export async function executeAllCells(
   }
 }
 
+/** Clear the execution result of a single cell. */
+export function clearCellOutput(id: string): void {
+  notebookDocument.update((d) => ({
+    ...d,
+    cells: d.cells.map((c) =>
+      c.id === id
+        ? { ...c, executionCount: null, lastResult: null, running: false }
+        : c,
+    ),
+  }));
+}
+
 /** Clear all execution results and counters. */
 export function clearAllOutputs(): void {
   notebookDocument.update((d) => ({

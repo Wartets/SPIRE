@@ -1,84 +1,81 @@
 <!--
-  SPIRE - Global Context Menu
+  SPIRE - Global Context Menu  (root overlay)
 
-  Custom right-click context menu that replaces the browser default.
-  Subscribes to `contextMenuStore` for position, visibility, and
-  menu items.  Rendered as a fixed-position overlay; dismissed on
-  click-outside, Escape, or item activation.
-
-  This component should be placed once in the root layout.
+  Mounted once in +layout.svelte.  Reads from `contextMenuStore`,
+  positions the root panel with viewport clamping, delegates rendering
+  and keyboard nav to ContextMenuList.svelte.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import {
     contextMenu,
     hideContextMenu,
   } from "$lib/stores/contextMenuStore";
-  import type { ContextMenuItem } from "$lib/stores/contextMenuStore";
+  import ContextMenuList from "./ContextMenuList.svelte";
 
-  function handleItemClick(item: ContextMenuItem): void {
-    if (item.disabled) return;
-    hideContextMenu();
-    item.action();
+  let menuEl: HTMLDivElement | undefined;
+  let listRef: ContextMenuList | undefined;
+  let clampedX = 0;
+  let clampedY = 0;
+
+  async function clampToViewport(rawX: number, rawY: number): Promise<void> {
+    await tick();
+    if (!menuEl) {
+      clampedX = rawX;
+      clampedY = rawY;
+      return;
+    }
+    const rect = menuEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 4;
+
+    const overflowH = rawX + rect.width > vw - pad;
+    const overflowV = rawY + rect.height > vh - pad;
+
+    clampedX = overflowH ? Math.max(pad, rawX - rect.width) : rawX;
+    clampedY = overflowV ? Math.max(pad, rawY - rect.height) : rawY;
+  }
+
+  $: if ($contextMenu.visible) {
+    clampToViewport($contextMenu.x, $contextMenu.y);
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (event.key === "Escape" && $contextMenu.visible) {
-      event.preventDefault();
-      hideContextMenu();
-    }
+    if (!$contextMenu.visible) return;
+    if (listRef) listRef.handleKeydown(event);
   }
 
   function handleClickOutside(): void {
-    if ($contextMenu.visible) {
-      hideContextMenu();
-    }
+    if ($contextMenu.visible) hideContextMenu();
   }
 
   onMount(() => {
-    window.addEventListener("keydown", handleKeydown);
+    window.addEventListener("keydown", handleKeydown, { capture: true });
   });
-
   onDestroy(() => {
-    window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("keydown", handleKeydown, { capture: true });
   });
 </script>
 
 {#if $contextMenu.visible}
-  <!-- Invisible backdrop to catch outside clicks -->
   <div
     class="ctx-backdrop"
     on:mousedown={handleClickOutside}
     role="presentation"
   ></div>
 
-  <!-- Context menu panel -->
   <div
-    class="ctx-menu"
-    style="left: {$contextMenu.x}px; top: {$contextMenu.y}px;"
-    role="menu"
-    aria-label="Context menu"
+    class="ctx-root"
+    bind:this={menuEl}
+    style="left: {clampedX}px; top: {clampedY}px;"
   >
-    {#each $contextMenu.items as item (item.id)}
-      {#if item.separator}
-        <div class="ctx-separator" role="separator"></div>
-      {/if}
-      <button
-        class="ctx-item"
-        class:disabled={item.disabled}
-        on:click={() => handleItemClick(item)}
-        role="menuitem"
-        disabled={item.disabled}
-      >
-        {#if item.icon}
-          <span class="ctx-icon">{item.icon}</span>
-        {/if}
-        <span class="ctx-label">{item.label}</span>
-        {#if item.shortcut}
-          <span class="ctx-shortcut">{item.shortcut}</span>
-        {/if}
-      </button>
-    {/each}
+    <ContextMenuList
+      bind:this={listRef}
+      items={$contextMenu.items}
+      isRoot={true}
+      hasFocus={true}
+    />
   </div>
 {/if}
 
@@ -86,73 +83,10 @@
   .ctx-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 9998;
+    z-index: 10000;
   }
-
-  .ctx-menu {
+  .ctx-root {
     position: fixed;
-    z-index: 9999;
-    min-width: 180px;
-    max-width: 280px;
-    background: var(--bg-primary, #121212);
-    border: 1px solid var(--border, #333);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-    display: flex;
-    flex-direction: column;
-    padding: 0.2rem 0;
-    font-family: var(--font-mono);
-  }
-
-  .ctx-separator {
-    height: 1px;
-    background: var(--border, #333);
-    margin: 0.15rem 0;
-  }
-
-  .ctx-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.6rem;
-    background: none;
-    border: none;
-    color: var(--fg-primary, #e8e8e8);
-    font-size: 0.75rem;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    text-align: left;
-    white-space: nowrap;
-    transition: background 0.08s;
-  }
-
-  .ctx-item:hover:not(.disabled) {
-    background: var(--bg-surface, #1a1a1a);
-    color: var(--fg-accent, #fff);
-  }
-
-  .ctx-item.disabled {
-    color: var(--fg-secondary, #888);
-    cursor: default;
-    opacity: 0.5;
-  }
-
-  .ctx-icon {
-    width: 1.2em;
-    text-align: center;
-    font-size: 0.82rem;
-    flex-shrink: 0;
-  }
-
-  .ctx-label {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .ctx-shortcut {
-    font-size: 0.62rem;
-    color: var(--fg-secondary, #888);
-    margin-left: auto;
-    flex-shrink: 0;
+    z-index: 10001;
   }
 </style>

@@ -521,12 +521,12 @@
     e.preventDefault();
     e.stopPropagation();
     const widgetItems = getWidgetContextItems(item.widgetType);
-    const items = [
+    const items: import("$lib/types/menu").ContextMenuItem[] = [
       ...widgetItems,
       ...(widgetItems.length > 0
-        ? [{ id: "sep-cw", label: "", separator: true, action: () => {} }]
+        ? [{ type: "separator" as const, id: "sep-cw" }]
         : []),
-      { id: "cw-close", label: "Close Widget", icon: "✕", action: () => removeCanvasItem(item.id) },
+      { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => removeCanvasItem(item.id) },
     ];
     showContextMenu(e.clientX, e.clientY, items);
   }
@@ -534,6 +534,8 @@
   // ── Canvas Context Menu ──
 
   function handleCanvasContextMenu(event: MouseEvent): void {
+    // Shift + Right-click bypasses SPIRE and opens the native browser menu
+    if (event.shiftKey) return;
     event.preventDefault();
     event.stopPropagation();
 
@@ -542,16 +544,18 @@
     const worldX = (event.clientX - rect.left - panX) / zoom;
     const worldY = (event.clientY - rect.top - panY) / zoom;
 
-    const widgetItems = WIDGET_DEFINITIONS.map((def) => ({
+    const widgetSubItems: import("$lib/types/menu").ContextMenuItem[] = WIDGET_DEFINITIONS.map((def) => ({
+      type: "action" as const,
       id: `ctx-add-${def.type}`,
-      label: `Add ${def.label}`,
-      icon: "+",
+      label: def.label,
       action: () => addCanvasItem(def.type, worldX, worldY),
     }));
 
     showContextMenu(event.clientX, event.clientY, [
-      { id: "ctx-add-header", label: "Add Widget", icon: "⊞", disabled: true, action: () => {} },
-      ...widgetItems,
+      { type: "submenu", id: "ctx-add-widget", label: "Add Widget", icon: "+", children: widgetSubItems },
+      { type: "separator", id: "sep-canvas" },
+      { type: "action", id: "ctx-reset-zoom", label: "Reset Zoom", shortcut: "Click %", action: () => resetZoom() },
+      { type: "action", id: "ctx-center-view", label: "Center View", action: () => { panX = 0; panY = 0; commitViewport(); } },
     ]);
   }
 

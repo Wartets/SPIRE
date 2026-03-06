@@ -76,10 +76,12 @@
 
   // ── Global Context Menu Interceptor ─────────────────────────────
   function handleGlobalContextMenu(event: MouseEvent): void {
+    // Shift + Right-click bypasses SPIRE and opens the native browser menu
+    if (event.shiftKey) return;
     event.preventDefault();
     // Default items - widgets can override via their own contextmenu handlers
     showContextMenu(event.clientX, event.clientY, [
-      { id: "ctx-palette", label: "Command Palette", icon: "⌘", shortcut: "Ctrl+K", action: () => togglePalette() },
+      { type: "action", id: "ctx-palette", label: "Command Palette", shortcut: "Ctrl+K", action: () => togglePalette() },
     ]);
   }
 

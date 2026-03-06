@@ -70,11 +70,11 @@
     e.preventDefault();
     e.stopPropagation();
     showContextMenu(e.clientX, e.clientY, [
-      { id: "split-h", label: "Split Horizontal", action: handleSplitH },
-      { id: "split-v", label: "Split Vertical", action: handleSplitV },
-      { id: "tear-off", label: "Tear Off to Window", action: handleTearOff },
-      { id: "sep-1", label: "", separator: true, action: () => {} },
-      { id: "close", label: "Close Widget", action: handleClose },
+      { type: "action", id: "split-h", label: "Split Horizontal", action: handleSplitH },
+      { type: "action", id: "split-v", label: "Split Vertical", action: handleSplitV },
+      { type: "action", id: "tear-off", label: "Tear Off to Window", action: handleTearOff },
+      { type: "separator", id: "sep-1" },
+      { type: "action", id: "close", label: "Close Widget", action: handleClose },
     ]);
   }
 
@@ -83,16 +83,16 @@
     e.preventDefault();
     e.stopPropagation();
     const widgetItems = getWidgetContextItems(node.widgetType);
-    const layoutItems = [
-      { id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
-      { id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
-      { id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
-      { id: "close", label: "Close Widget", icon: "✕", action: handleClose },
+    const layoutItems: import("$lib/types/menu").ContextMenuItem[] = [
+      { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
+      { type: "action", id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
+      { type: "action", id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
+      { type: "action", id: "close", label: "Close Widget", icon: "✕", action: handleClose },
     ];
-    const items = [
+    const items: import("$lib/types/menu").ContextMenuItem[] = [
       ...widgetItems,
       ...(widgetItems.length > 0
-        ? [{ id: "sep-body", label: "", separator: true, action: () => {} }]
+        ? [{ type: "separator" as const, id: "sep-body" }]
         : []),
       ...layoutItems,
     ];

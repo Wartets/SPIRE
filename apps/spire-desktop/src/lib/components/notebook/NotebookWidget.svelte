@@ -24,6 +24,7 @@
     executeCell,
     executeAllCells,
     clearAllOutputs,
+    clearCellOutput,
     resetSession,
     destroySession,
   } from "$lib/stores/notebookDocumentStore";
@@ -77,6 +78,34 @@
     }
   }
 
+  async function handleRunAllAbove(e: CustomEvent<{ index: number }>): Promise<void> {
+    const cells = $notebookDocument.cells;
+    for (let i = 0; i < e.detail.index; i++) {
+      const c = cells[i];
+      if (c.type === "markdown") continue;
+      const result = await executeCell(c.id);
+      if (result && !result.success) break;
+    }
+  }
+
+  async function handleRunAllBelow(e: CustomEvent<{ index: number }>): Promise<void> {
+    const cells = $notebookDocument.cells;
+    for (let i = e.detail.index; i < cells.length; i++) {
+      const c = cells[i];
+      if (c.type === "markdown") continue;
+      const result = await executeCell(c.id);
+      if (result && !result.success) break;
+    }
+  }
+
+  function handleClearOutput(e: CustomEvent<{ id: string }>): void {
+    clearCellOutput(e.detail.id);
+  }
+
+  function handleInsertBelow(e: CustomEvent<{ index: number; type: string }>): void {
+    insertCell(e.detail.type as CellType, e.detail.index);
+  }
+
   // ── Add Cell ──
 
   let showAddMenu = false;
@@ -122,9 +151,11 @@
 
   <!-- Cell List -->
   <div class="nb-cells">
-    {#each $notebookDocument.cells as cell (cell.id)}
+    {#each $notebookDocument.cells as cell, idx (cell.id)}
       <CellRenderer
         {cell}
+        index={idx}
+        totalCells={$notebookDocument.cells.length}
         bind:this={cellRefs[cell.id]}
         on:sourceChange={handleSourceChange}
         on:execute={handleExecute}
@@ -132,6 +163,10 @@
         on:moveUp={handleMoveUp}
         on:moveDown={handleMoveDown}
         on:advanceFocus={handleAdvanceFocus}
+        on:runAllAbove={handleRunAllAbove}
+        on:runAllBelow={handleRunAllBelow}
+        on:clearOutput={handleClearOutput}
+        on:insertBelow={handleInsertBelow}
       />
     {/each}
 

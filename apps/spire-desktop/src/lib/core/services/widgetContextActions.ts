@@ -10,7 +10,8 @@
  * the changes are immediately reactive.
  */
 
-import type { ContextMenuItem } from "$lib/stores/contextMenuStore";
+import type { ContextMenuItem } from "$lib/types/menu";
+import { menuAction, menuSeparator } from "$lib/types/menu";
 import type { WidgetType } from "$lib/stores/notebookStore";
 import { get } from "svelte/store";
 import {
@@ -37,240 +38,100 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
   switch (widgetType) {
     case "model":
       return [
-        {
-          id: "model-sm",
-          label: "Load Standard Model",
-          icon: "⚛",
-          action: () => activeFramework.set("StandardModel"),
-        },
-        {
-          id: "model-qed",
-          label: "Load QED",
-          icon: "γ",
-          action: () => activeFramework.set("QED"),
-        },
-        {
-          id: "model-qcd",
-          label: "Load QCD",
-          icon: "g",
-          action: () => activeFramework.set("QCD"),
-        },
+        menuAction("model-sm", "Load Standard Model", () => activeFramework.set("StandardModel"), { icon: "⚛" }),
+        menuAction("model-qed", "Load QED", () => activeFramework.set("QED"), { icon: "γ" }),
+        menuAction("model-qcd", "Load QCD", () => activeFramework.set("QCD"), { icon: "g" }),
       ];
 
     case "reaction":
       return [
-        {
-          id: "rxn-ee-mumu",
-          label: "e⁺e⁻ → μ⁺μ⁻",
-          icon: "→",
-          action: () => {
-            initialIdsInput.set(["e-", "e+"]);
-            finalIdsInput.set(["mu-", "mu+"]);
-          },
-        },
-        {
-          id: "rxn-ee-tautau",
-          label: "e⁺e⁻ → τ⁺τ⁻",
-          icon: "→",
-          action: () => {
-            initialIdsInput.set(["e-", "e+"]);
-            finalIdsInput.set(["tau-", "tau+"]);
-          },
-        },
-        {
-          id: "rxn-ee-qq",
-          label: "e⁺e⁻ → qq̄",
-          icon: "→",
-          action: () => {
-            initialIdsInput.set(["e-", "e+"]);
-            finalIdsInput.set(["u", "u_bar"]);
-          },
-        },
-        { id: "sep-rxn", label: "", separator: true, action: () => {} },
-        {
-          id: "rxn-sqrt-91",
-          label: "√s = 91.2 GeV (Z pole)",
-          icon: "⚡",
-          action: () => cmsEnergyInput.set(91.1876),
-        },
-        {
-          id: "rxn-sqrt-250",
-          label: "√s = 250 GeV",
-          icon: "⚡",
-          action: () => cmsEnergyInput.set(250),
-        },
-        {
-          id: "rxn-sqrt-13000",
-          label: "√s = 13 TeV (LHC)",
-          icon: "⚡",
-          action: () => cmsEnergyInput.set(13000),
-        },
+        menuAction("rxn-ee-mumu", "e⁺e⁻ → μ⁺μ⁻", () => {
+          initialIdsInput.set(["e-", "e+"]);
+          finalIdsInput.set(["mu-", "mu+"]);
+        }, { icon: "→" }),
+        menuAction("rxn-ee-tautau", "e⁺e⁻ → τ⁺τ⁻", () => {
+          initialIdsInput.set(["e-", "e+"]);
+          finalIdsInput.set(["tau-", "tau+"]);
+        }, { icon: "→" }),
+        menuAction("rxn-ee-qq", "e⁺e⁻ → qq̄", () => {
+          initialIdsInput.set(["e-", "e+"]);
+          finalIdsInput.set(["u", "u_bar"]);
+        }, { icon: "→" }),
+        menuSeparator("sep-rxn"),
+        menuAction("rxn-sqrt-91", "√s = 91.2 GeV (Z pole)", () => cmsEnergyInput.set(91.1876), { icon: "⚡" }),
+        menuAction("rxn-sqrt-250", "√s = 250 GeV", () => cmsEnergyInput.set(250), { icon: "⚡" }),
+        menuAction("rxn-sqrt-13000", "√s = 13 TeV (LHC)", () => cmsEnergyInput.set(13000), { icon: "⚡" }),
       ];
 
     case "diagram":
       return [
-        {
-          id: "diag-count",
-          label: `Diagrams: ${get(generatedDiagrams)?.diagrams?.length ?? 0}`,
-          icon: "📊",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("diag-count", `Diagrams: ${get(generatedDiagrams)?.diagrams?.length ?? 0}`, () => {}, { disabled: true }),
       ];
 
     case "amplitude":
       return [
-        {
-          id: "amp-copy",
-          label: "Copy Amplitude Expression",
-          icon: "📋",
-          disabled: !get(activeAmplitude),
-          action: () => {
-            const expr = get(activeAmplitude);
-            if (expr) navigator.clipboard.writeText(expr);
-          },
-        },
+        menuAction("amp-copy", "Copy Amplitude Expression", () => {
+          const expr = get(activeAmplitude);
+          if (expr) navigator.clipboard.writeText(expr);
+        }, { disabled: !get(activeAmplitude) }),
       ];
 
     case "kinematics":
       return [
-        {
-          id: "kin-info",
-          label: `√s = ${get(cmsEnergyInput)} GeV`,
-          icon: "📐",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("kin-info", `√s = ${get(cmsEnergyInput)} GeV`, () => {}, { disabled: true }),
       ];
 
     case "dalitz":
       return [
-        {
-          id: "dalitz-info",
-          label: "Dalitz Plot Settings",
-          icon: "📈",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("dalitz-info", "Dalitz Plot Settings", () => {}, { disabled: true }),
       ];
 
     case "analysis":
       return [
-        {
-          id: "ana-obs-count",
-          label: `Observables: ${get(observableScripts).length}`,
-          icon: "📊",
-          disabled: true,
-          action: () => {},
-        },
-        {
-          id: "ana-cut-count",
-          label: `Cuts: ${get(cutScripts).length}`,
-          icon: "✂",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("ana-obs-count", `Observables: ${get(observableScripts).length}`, () => {}, { disabled: true }),
+        menuAction("ana-cut-count", `Cuts: ${get(cutScripts).length}`, () => {}, { disabled: true }),
       ];
 
     case "event_display":
       return [
-        {
-          id: "evd-cms-91",
-          label: "Set √s = 91.2 GeV",
-          icon: "⚡",
-          action: () => cmsEnergyInput.set(91.1876),
-        },
-        {
-          id: "evd-cms-13000",
-          label: "Set √s = 13 TeV",
-          icon: "⚡",
-          action: () => cmsEnergyInput.set(13000),
-        },
+        menuAction("evd-cms-91", "Set √s = 91.2 GeV", () => cmsEnergyInput.set(91.1876), { icon: "⚡" }),
+        menuAction("evd-cms-13000", "Set √s = 13 TeV", () => cmsEnergyInput.set(13000), { icon: "⚡" }),
       ];
 
     case "compute_grid":
       return [
-        {
-          id: "cg-1k",
-          label: "1,000 events",
-          icon: "🔢",
-          action: () => appendLog("Set n_events = 1,000"),
-        },
-        {
-          id: "cg-10k",
-          label: "10,000 events",
-          icon: "🔢",
-          action: () => appendLog("Set n_events = 10,000"),
-        },
-        {
-          id: "cg-100k",
-          label: "100,000 events",
-          icon: "🔢",
-          action: () => appendLog("Set n_events = 100,000"),
-        },
+        menuAction("cg-1k", "1,000 events", () => appendLog("Set n_events = 1,000")),
+        menuAction("cg-10k", "10,000 events", () => appendLog("Set n_events = 10,000")),
+        menuAction("cg-100k", "100,000 events", () => appendLog("Set n_events = 100,000")),
       ];
 
     case "log":
       return [
-        {
-          id: "log-clear",
-          label: "Clear Log",
-          icon: "🧹",
-          action: () => logs.set([]),
-        },
-        {
-          id: "log-copy",
-          label: "Copy All",
-          icon: "📋",
-          action: () => {
-            const allLogs = get(logs);
-            navigator.clipboard.writeText(allLogs.join("\n"));
-          },
-        },
+        menuAction("log-clear", "Clear Log", () => logs.set([])),
+        menuAction("log-copy", "Copy All", () => {
+          const allLogs = get(logs);
+          navigator.clipboard.writeText(allLogs.join("\n"));
+        }),
       ];
 
     case "notebook":
       return [
-        {
-          id: "nb-info",
-          label: "Notebook (Rhai scripting)",
-          icon: "📓",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("nb-info", "Notebook (Rhai scripting)", () => {}, { disabled: true }),
       ];
 
     case "parameter_scanner":
       return [
-        {
-          id: "scan-info",
-          label: "Parameter Scanner",
-          icon: "📉",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("scan-info", "Parameter Scanner", () => {}, { disabled: true }),
       ];
 
     case "references":
       return [
-        {
-          id: "ref-info",
-          label: "Auto-generated references",
-          icon: "📚",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("ref-info", "Auto-generated references", () => {}, { disabled: true }),
       ];
 
     case "telemetry":
       return [
-        {
-          id: "telem-info",
-          label: "Performance Profiling",
-          icon: "⏱",
-          disabled: true,
-          action: () => {},
-        },
+        menuAction("telem-info", "Performance Profiling", () => {}, { disabled: true }),
       ];
 
     default:
