@@ -272,7 +272,7 @@ impl WgslCompiler {
     /// Compile a `CasExpr` node into a WGSL expression string.
     ///
     /// For complex sub-expressions, intermediate results are hoisted into
-    /// `let` bindings (via [`emit_let`]) to avoid deeply nested
+    /// `let` bindings (via [`Self::emit_let`]) to avoid deeply nested
     /// expressions and to improve readability of the generated shader.
     fn compile_expr(&mut self, expr: &CasExpr) -> String {
         match expr {
