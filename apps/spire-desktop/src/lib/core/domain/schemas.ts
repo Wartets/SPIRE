@@ -788,9 +788,9 @@ export const TheoreticalModelSchema = z.object({
   vertex_factors: z.array(VertexFactorSchema),
   propagators: z.array(PropagatorSchema),
   gauge_symmetry: GaugeSymmetrySchema.nullable().optional(),
-  spacetime: SpacetimeConfigSchema.nullable().optional(),
-  constants: PhysicalConstantsSchema.nullable().optional(),
-});
+  spacetime: SpacetimeConfigSchema.optional(),
+  constants: PhysicalConstantsSchema.optional(),
+}).passthrough();
 
 // ===========================================================================
 // Parameter Scanner (Phase 44)
