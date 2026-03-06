@@ -36,7 +36,8 @@ export type WidgetType =
   | "parameter_scanner"
   | "decay_calculator"
   | "cosmology"
-  | "flavor_workbench";
+  | "flavor_workbench"
+  | "plugin_manager";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -92,6 +93,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "decay_calculator",  label: "Decay Calculator",   defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "cosmology",          label: "Cosmology",           defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "flavor_workbench",    label: "Flavor Workbench",     defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "plugin_manager",      label: "Plugin Manager",       defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------

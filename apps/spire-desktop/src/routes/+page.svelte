@@ -127,6 +127,7 @@
     "spire.ui.add_diagram_editor",
     "spire.ui.add_references",
     "spire.ui.add_telemetry",
+    "spire.ui.add_plugin_manager",
     "spire.ui.reset_layout",
     "spire.ui.toggle_log",
     "spire.view.toggle_canvas_mode",
@@ -241,6 +242,12 @@
       title: "Add Telemetry Dashboard",
       category: "View",
       execute: () => spawnWidget("telemetry"),
+    });
+    registerCommand({
+      id: "spire.ui.add_plugin_manager",
+      title: "Add Plugin Manager",
+      category: "View",
+      execute: () => spawnWidget("plugin_manager"),
     });
     registerCommand({
       id: "spire.help.tutorial",

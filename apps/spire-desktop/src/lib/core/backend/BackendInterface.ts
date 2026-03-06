@@ -306,4 +306,25 @@ export interface SpireBackend {
     cpu_backend: string;
     gpu_backend: string;
   }>;
+
+  // ── Plugin System (Phase 54) ──────────────────────────────────────
+  loadPlugin(path: string): Promise<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }>;
+
+  listActivePlugins(): Promise<Array<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }>>;
+
+  unloadPlugin(name: string): Promise<void>;
 }

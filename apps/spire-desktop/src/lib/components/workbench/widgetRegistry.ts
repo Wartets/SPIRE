@@ -32,4 +32,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   decay_calculator:  "Decay Calculator",
   cosmology:         "Cosmology",
   flavor_workbench:  "Flavor Workbench",
+  plugin_manager:    "Plugin Manager",
 };

@@ -485,4 +485,30 @@ export class TauriBackend implements SpireBackend {
   }> {
     return tauriInvoke("query_hardware_backends", {});
   }
+
+  async loadPlugin(path: string): Promise<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }> {
+    return tauriInvoke("load_plugin", { path });
+  }
+
+  async listActivePlugins(): Promise<Array<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }>> {
+    return tauriInvoke("list_active_plugins", {});
+  }
+
+  async unloadPlugin(name: string): Promise<void> {
+    return tauriInvoke("unload_plugin", { name });
+  }
 }

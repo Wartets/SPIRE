@@ -662,3 +662,47 @@ export interface HardwareReport {
 export async function queryHardwareBackends(): Promise<HardwareReport> {
   return getBackend().queryHardwareBackends();
 }
+
+// ---------------------------------------------------------------------------
+// Plugin System (Phase 54)
+// ---------------------------------------------------------------------------
+
+/** Plugin information returned by the backend. */
+export interface PluginInfo {
+  /** Human-readable plugin name. */
+  name: string;
+  /** Semver version string. */
+  version: string;
+  /** One-line description. */
+  description: string;
+  /** Plugin author(s). */
+  author: string;
+  /** Declared capabilities (hook names). */
+  capabilities: string[];
+  /** Whether the plugin is currently active. */
+  enabled: boolean;
+}
+
+/**
+ * Load a WASM plugin from the given file path.
+ *
+ * The backend compiles, sandboxes, and validates the plugin before
+ * returning its metadata summary.
+ */
+export async function loadPlugin(path: string): Promise<PluginInfo> {
+  return getBackend().loadPlugin(path);
+}
+
+/**
+ * List all currently loaded and active plugins.
+ */
+export async function listActivePlugins(): Promise<PluginInfo[]> {
+  return getBackend().listActivePlugins();
+}
+
+/**
+ * Unload a plugin by its unique name.
+ */
+export async function unloadPlugin(name: string): Promise<void> {
+  return getBackend().unloadPlugin(name);
+}

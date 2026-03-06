@@ -78,6 +78,9 @@ pub mod shower;
 pub mod telemetry;
 pub mod theory;
 
+#[cfg(feature = "plugins")]
+pub mod plugins;
+
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

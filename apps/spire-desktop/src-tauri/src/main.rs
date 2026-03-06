@@ -24,6 +24,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+#[cfg(feature = "plugins")]
+use std::sync::Mutex;
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
@@ -939,11 +941,129 @@ struct HardwareReport {
 }
 
 // ---------------------------------------------------------------------------
+// Plugin System (Phase 54)
+// ---------------------------------------------------------------------------
+
+/// Serializable plugin summary for IPC.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PluginInfo {
+    name: String,
+    version: String,
+    description: String,
+    author: String,
+    capabilities: Vec<String>,
+    enabled: bool,
+}
+
+/// Managed state wrapping the plugin host engine.
+///
+/// This is the first `.manage()`-ed state in the Tauri backend. The
+/// `PluginHost` lives behind a `Mutex` because WASM stores are `!Send`
+/// on some targets and we need interior mutability for load/unload.
+struct PluginManagerState {
+    #[cfg(feature = "plugins")]
+    host: Mutex<spire_kernel::plugins::PluginHost>,
+}
+
+/// Load a WASM plugin from a file path selected by the user.
+///
+/// Reads the `.wasm` file, compiles and instantiates it in the sandboxed
+/// wasmtime runtime, extracts metadata, validates API version compatibility,
+/// and returns the plugin summary.
+#[tauri::command]
+fn load_plugin(
+    path: String,
+    state: tauri::State<'_, PluginManagerState>,
+) -> Result<PluginInfo, String> {
+    #[cfg(feature = "plugins")]
+    {
+        let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
+        let mut host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let meta = host
+            .load_plugin_from_bytes(&bytes)
+            .map_err(|e| e.to_string())?;
+        Ok(PluginInfo {
+            name: meta.name,
+            version: meta.version.to_string(),
+            description: meta.description,
+            author: meta.author,
+            capabilities: meta
+                .capabilities
+                .iter()
+                .map(|c| format!("{:?}", c))
+                .collect(),
+            enabled: true,
+        })
+    }
+    #[cfg(not(feature = "plugins"))]
+    {
+        let _ = (path, state);
+        Err("Plugin system not compiled (enable the 'plugins' feature)".into())
+    }
+}
+
+/// List all currently loaded plugins.
+#[tauri::command]
+fn list_active_plugins(
+    state: tauri::State<'_, PluginManagerState>,
+) -> Result<Vec<PluginInfo>, String> {
+    #[cfg(feature = "plugins")]
+    {
+        let host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        Ok(host
+            .list_plugins()
+            .into_iter()
+            .map(|s| PluginInfo {
+                name: s.name,
+                version: s.version,
+                description: s.description,
+                author: s.author,
+                capabilities: s.capabilities,
+                enabled: s.enabled,
+            })
+            .collect())
+    }
+    #[cfg(not(feature = "plugins"))]
+    {
+        let _ = state;
+        Ok(vec![])
+    }
+}
+
+/// Unload a plugin by name.
+#[tauri::command]
+fn unload_plugin(
+    name: String,
+    state: tauri::State<'_, PluginManagerState>,
+) -> Result<(), String> {
+    #[cfg(feature = "plugins")]
+    {
+        let mut host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        host.unload_plugin(&name).map_err(|e| e.to_string())
+    }
+    #[cfg(not(feature = "plugins"))]
+    {
+        let _ = (name, state);
+        Err("Plugin system not compiled (enable the 'plugins' feature)".into())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Application Entry Point
 // ---------------------------------------------------------------------------
 
 fn main() {
+    // Initialise plugin manager state
+    let plugin_state = PluginManagerState {
+        #[cfg(feature = "plugins")]
+        host: Mutex::new(
+            spire_kernel::plugins::PluginHost::new()
+                .expect("Failed to initialise WASM plugin engine"),
+        ),
+    };
+
     tauri::Builder::default()
+        .manage(plugin_state)
         .invoke_handler(tauri::generate_handler![
             load_theoretical_model,
             validate_and_reconstruct_reaction,
@@ -985,6 +1105,9 @@ fn main() {
             calculate_b_mixing,
             calculate_b_to_k_ll,
             query_hardware_backends,
+            load_plugin,
+            list_active_plugins,
+            unload_plugin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

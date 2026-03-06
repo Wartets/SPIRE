@@ -4,6 +4,7 @@ members = [
     "crates/spire-kernel",
     "crates/spire-bindings",
     "crates/spire-python",
+    "crates/spire-plugin-api",
     "apps/spire-desktop/src-tauri",
     "apps/spire-cli",
 ]

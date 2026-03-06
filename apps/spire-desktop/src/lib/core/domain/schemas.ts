@@ -938,3 +938,17 @@ export const ShowerToggleConfigSchema = z.object({
   seed: z.number().int(),
 });
 export type ShowerToggleConfig = z.infer<typeof ShowerToggleConfigSchema>;
+
+// ===========================================================================
+// Plugin System (Phase 54)
+// ===========================================================================
+
+export const PluginInfoSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  description: z.string(),
+  author: z.string(),
+  capabilities: z.array(z.string()),
+  enabled: z.boolean(),
+});
+export type PluginInfo = z.infer<typeof PluginInfoSchema>;

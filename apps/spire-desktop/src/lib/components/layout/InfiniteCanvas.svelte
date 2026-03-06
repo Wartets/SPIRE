@@ -47,6 +47,7 @@
   import DecayCalculator from "$lib/components/DecayCalculator.svelte";
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
+  import PluginManager from "$lib/components/PluginManager.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -391,6 +392,8 @@
             <CosmologyPanel />
           {:else if item.widgetType === "flavor_workbench"}
             <FlavorWorkbench />
+          {:else if item.widgetType === "plugin_manager"}
+            <PluginManager />
           {:else}
             <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
           {/if}

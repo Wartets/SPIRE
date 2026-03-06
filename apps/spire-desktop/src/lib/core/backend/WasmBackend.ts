@@ -477,4 +477,30 @@ export class WasmBackend implements SpireBackend {
       gpu_backend: "GPU (not available in WASM mode)",
     };
   }
+
+  async loadPlugin(_path: string): Promise<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }> {
+    throw new Error("Plugin loading is not supported in WASM backend mode");
+  }
+
+  async listActivePlugins(): Promise<Array<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }>> {
+    return [];
+  }
+
+  async unloadPlugin(_name: string): Promise<void> {
+    throw new Error("Plugin unloading is not supported in WASM backend mode");
+  }
 }

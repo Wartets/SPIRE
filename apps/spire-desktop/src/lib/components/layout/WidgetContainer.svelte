@@ -39,6 +39,7 @@
   import DecayCalculator from "$lib/components/DecayCalculator.svelte";
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
+  import PluginManager from "$lib/components/PluginManager.svelte";
 
   export let node: WidgetLeaf;
 
@@ -212,6 +213,8 @@
       <CosmologyPanel />
     {:else if node.widgetType === "flavor_workbench"}
       <FlavorWorkbench />
+    {:else if node.widgetType === "plugin_manager"}
+      <PluginManager />
     {:else}
       <p style="color: var(--hl-error);">Unknown widget: {node.widgetType}</p>
     {/if}

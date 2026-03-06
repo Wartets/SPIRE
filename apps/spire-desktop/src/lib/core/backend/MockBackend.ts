@@ -710,4 +710,39 @@ This is a mock proof document for ${processLabel}.
       gpu_backend: "GPU (WebGPU compute shader)",
     };
   }
+
+  async loadPlugin(path: string): Promise<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }> {
+    await simulateLatency();
+    return {
+      name: path.split("/").pop()?.replace(".wasm", "") ?? "mock-plugin",
+      version: "0.1.0",
+      description: "Mock plugin for development",
+      author: "SPIRE Mock",
+      capabilities: ["KinematicCut"],
+      enabled: true,
+    };
+  }
+
+  async listActivePlugins(): Promise<Array<{
+    name: string;
+    version: string;
+    description: string;
+    author: string;
+    capabilities: string[];
+    enabled: boolean;
+  }>> {
+    await simulateLatency();
+    return [];
+  }
+
+  async unloadPlugin(_name: string): Promise<void> {
+    await simulateLatency();
+  }
 }

@@ -11,10 +11,12 @@ tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
 spire-kernel = { path = "../../../crates/spire-kernel" }
+spire-plugin-api = { path = "../../../crates/spire-plugin-api" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { version = "1.5", features = ["shell-open", "window-all"] }
+tauri = { version = "1.5", features = ["shell-open", "window-all", "dialog-open"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
 gpu = ["spire-kernel/gpu"]
+plugins = ["spire-kernel/plugins"]
