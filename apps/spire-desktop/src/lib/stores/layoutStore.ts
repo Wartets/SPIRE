@@ -730,7 +730,10 @@ export function toggleViewMode(): void {
     // Switching to Docking - sync canvas widgets into docking tree
     const currentCanvas = get(canvasItems);
     if (currentCanvas.length > 0) {
-      // Rebuild docking tree: single column of all canvas widget types
+      // Rebuild a balanced grid layout from the canvas widgets.
+      // Strategy: arrange leaves into rows of up to 3 columns,
+      // then stack the rows vertically.  This mirrors the default
+      // layout aesthetic instead of a flat single-column stack.
       const leaves = currentCanvas.map((ci) =>
         createWidgetLeaf(ci.widgetType, { ...ci.widgetData }),
       );
@@ -738,14 +741,33 @@ export function toggleViewMode(): void {
       if (leaves.length === 1) {
         layoutRoot.set(leaves[0]);
       } else {
-        // Build a balanced column layout
-        const root: ColNode = {
-          id: makeLayoutId(),
-          type: "col",
-          sizes: leaves.map(() => 1),
-          children: leaves,
-        };
-        layoutRoot.set(root);
+        const COLS = Math.min(3, leaves.length);  // max 3 per row
+        const rows: LayoutNode[] = [];
+
+        for (let i = 0; i < leaves.length; i += COLS) {
+          const rowLeaves = leaves.slice(i, i + COLS);
+          if (rowLeaves.length === 1) {
+            rows.push(rowLeaves[0]);
+          } else {
+            rows.push({
+              id: makeLayoutId(),
+              type: "row",
+              sizes: rowLeaves.map(() => 1),
+              children: rowLeaves,
+            } as RowNode);
+          }
+        }
+
+        if (rows.length === 1) {
+          layoutRoot.set(rows[0]);
+        } else {
+          layoutRoot.set({
+            id: makeLayoutId(),
+            type: "col",
+            sizes: rows.map(() => 1),
+            children: rows,
+          } as ColNode);
+        }
       }
     }
   }

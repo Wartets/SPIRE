@@ -271,9 +271,21 @@
   // body the wheel event should scroll the widget content normally.
 
   function handleWheel(event: WheelEvent): void {
-    // Let the wheel scroll inside widget content
+    // Let the wheel scroll inside widget content — but only when the
+    // content actually overflows.  If the widget body has nothing to
+    // scroll, the wheel event should fall through to canvas zoom.
     const target = event.target as HTMLElement | null;
-    if (target?.closest(".cw-body")) return;
+    const cwBody = target?.closest(".cw-body") as HTMLElement | null;
+    if (cwBody) {
+      const hasVerticalScroll = cwBody.scrollHeight > cwBody.clientHeight;
+      const hasHorizontalScroll = cwBody.scrollWidth > cwBody.clientWidth;
+      if (hasVerticalScroll || hasHorizontalScroll) {
+        // Content is scrollable — let the browser handle the wheel
+        // event normally so the widget body scrolls.
+        return;
+      }
+      // Content does NOT overflow → fall through to canvas zoom.
+    }
 
     event.preventDefault();
     const factor = event.deltaY > 0 ? 0.92 : 1.08;

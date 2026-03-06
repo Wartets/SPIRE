@@ -34,6 +34,8 @@ import type {
   DalitzPlotData,
   TheoreticalModel,
   FeynmanDiagram,
+  FeynmanNode,
+  FeynmanEdge,
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
@@ -209,28 +211,180 @@ export class MockBackend implements SpireBackend {
   // ── Feynman Diagrams ───────────────────────────────────────────────────
 
   async generateDiagrams(
-    _reaction: Reaction,
+    reaction: Reaction,
     _model: TheoreticalModel,
     _maxLoopOrder?: number,
   ): Promise<TopologySet> {
     await simulateLatency();
+
+    // Build physically plausible mock Feynman diagrams from the reaction.
+    // For any 2→2 process we generate an s-channel diagram; for others
+    // we generate a single contact-like topology so the UI is never empty.
+
+    const initial = reaction.initial.states;
+    const final_ = reaction.final_state.states;
+
+    const makeField = (id: string, symbol: string, mass: number, spin: number) => ({
+      id, name: id, symbol, mass, width: 0,
+      quantum_numbers: {
+        electric_charge: 0, weak_isospin: 0, hypercharge: 0,
+        baryon_number: 0, lepton_numbers: { electron: 0, muon: 0, tau: 0 },
+        spin, parity: "Even" as const, charge_conjugation: "Undefined" as const,
+        color: "Singlet" as const, weak_multiplet: "Singlet" as const,
+      },
+      interactions: ["Electromagnetic" as const],
+    });
+
+    const mediatorField = makeField("gamma", "γ", 0, 2);
+
+    const diagrams: FeynmanDiagram[] = [];
+
+    // ── S-channel diagram ──
+    const sNodes: FeynmanNode[] = [
+      // Incoming
+      ...initial.map((s, i) => ({
+        id: i,
+        kind: { ExternalIncoming: s.particle },
+        position: [0, i * 2] as [number, number],
+      })),
+      // Internal vertex (production)
+      {
+        id: initial.length,
+        kind: { InternalVertex: {
+          term_id: "mock-vertex-prod",
+          field_ids: [...initial.map((s) => s.particle.field.id), mediatorField.id] as string[],
+          expression: "-ieγ^μ",
+          coupling_value: 0.3028,
+          n_legs: initial.length + 1,
+        }},
+        position: [2, 1] as [number, number],
+      },
+      // Internal vertex (decay)
+      {
+        id: initial.length + 1,
+        kind: { InternalVertex: {
+          term_id: "mock-vertex-dec",
+          field_ids: [mediatorField.id, ...final_.map((s) => s.particle.field.id)] as string[],
+          expression: "-ieγ^μ",
+          coupling_value: 0.3028,
+          n_legs: final_.length + 1,
+        }},
+        position: [4, 1] as [number, number],
+      },
+      // Outgoing
+      ...final_.map((s, i) => ({
+        id: initial.length + 2 + i,
+        kind: { ExternalOutgoing: s.particle },
+        position: [6, i * 2] as [number, number],
+      })),
+    ];
+
+    const vProd = initial.length;       // production vertex id
+    const vDec  = initial.length + 1;   // decay vertex id
+
+    const sEdges: [number, number, FeynmanEdge][] = [
+      // Incoming legs
+      ...initial.map((s, i) => [
+        i, vProd,
+        { field: s.particle.field, propagator: null, momentum_label: `p${i + 1}`, is_external: true },
+      ] as [number, number, FeynmanEdge]),
+      // Internal propagator
+      [
+        vProd, vDec,
+        {
+          field: mediatorField,
+          propagator: {
+            field_id: mediatorField.id, spin: 2, mass: 0, width: 0,
+            expression: "-ig_{μν}/q²", gauge_parameter: null, form: "MasslessVector" as const,
+          },
+          momentum_label: "q", is_external: false,
+        },
+      ],
+      // Outgoing legs
+      ...final_.map((s, i) => [
+        vDec, initial.length + 2 + i,
+        { field: s.particle.field, propagator: null, momentum_label: `k${i + 1}`, is_external: true },
+      ] as [number, number, FeynmanEdge]),
+    ];
+
+    diagrams.push({
+      id: 0,
+      nodes: sNodes,
+      edges: sEdges,
+      channels: ["S"],
+      loop_order: "Tree",
+      symmetry_factor: 1,
+      is_connected: true,
+      is_one_particle_irreducible: true,
+    });
+
+    // ── T-channel diagram (for 2→2 processes) ──
+    if (initial.length === 2 && final_.length === 2) {
+      const tNodes: FeynmanNode[] = [
+        { id: 0, kind: { ExternalIncoming: initial[0].particle }, position: [0, 0] as [number, number] },
+        { id: 1, kind: { ExternalIncoming: initial[1].particle }, position: [0, 4] as [number, number] },
+        { id: 2, kind: { InternalVertex: {
+          term_id: "mock-t-v1", field_ids: [initial[0].particle.field.id, final_[0].particle.field.id, mediatorField.id],
+          expression: "-ieγ^μ", coupling_value: 0.3028, n_legs: 3,
+        }}, position: [3, 0] as [number, number] },
+        { id: 3, kind: { InternalVertex: {
+          term_id: "mock-t-v2", field_ids: [initial[1].particle.field.id, final_[1].particle.field.id, mediatorField.id],
+          expression: "-ieγ^μ", coupling_value: 0.3028, n_legs: 3,
+        }}, position: [3, 4] as [number, number] },
+        { id: 4, kind: { ExternalOutgoing: final_[0].particle }, position: [6, 0] as [number, number] },
+        { id: 5, kind: { ExternalOutgoing: final_[1].particle }, position: [6, 4] as [number, number] },
+      ];
+
+      const tEdges: [number, number, FeynmanEdge][] = [
+        [0, 2, { field: initial[0].particle.field, propagator: null, momentum_label: "p1", is_external: true }],
+        [1, 3, { field: initial[1].particle.field, propagator: null, momentum_label: "p2", is_external: true }],
+        [2, 3, {
+          field: mediatorField,
+          propagator: { field_id: mediatorField.id, spin: 2, mass: 0, width: 0, expression: "-ig_{μν}/t", gauge_parameter: null, form: "MasslessVector" as const },
+          momentum_label: "t", is_external: false,
+        }],
+        [2, 4, { field: final_[0].particle.field, propagator: null, momentum_label: "k1", is_external: true }],
+        [3, 5, { field: final_[1].particle.field, propagator: null, momentum_label: "k2", is_external: true }],
+      ];
+
+      diagrams.push({
+        id: 1,
+        nodes: tNodes,
+        edges: tEdges,
+        channels: ["T"],
+        loop_order: "Tree",
+        symmetry_factor: 1,
+        is_connected: true,
+        is_one_particle_irreducible: true,
+      });
+    }
+
     return {
       reaction_id: "mock-reaction",
       max_loop_order: "Tree",
-      diagrams: [],
-      count: 0,
+      diagrams,
+      count: diagrams.length,
     };
   }
 
   // ── Amplitude ──────────────────────────────────────────────────────────
 
-  async deriveAmplitude(_diagram: FeynmanDiagram): Promise<AmplitudeResult> {
+  async deriveAmplitude(diagram: FeynmanDiagram): Promise<AmplitudeResult> {
     await simulateLatency();
+
+    // Generate a plausible LaTeX amplitude based on the diagram channel.
+    const channel = diagram.channels[0] ?? "S";
+    const expressions: Record<string, string> = {
+      S: "i\\mathcal{M}_s = \\frac{-ie^2}{s} \\bar{u}(k_1)\\gamma^\\mu v(k_2) \\bar{v}(p_2)\\gamma_\\mu u(p_1)",
+      T: "i\\mathcal{M}_t = \\frac{-ie^2}{t} \\bar{u}(k_1)\\gamma^\\mu u(p_1) \\bar{v}(p_2)\\gamma_\\mu v(k_2)",
+      U: "i\\mathcal{M}_u = \\frac{-ie^2}{u} \\bar{u}(k_2)\\gamma^\\mu u(p_1) \\bar{v}(p_2)\\gamma_\\mu v(k_1)",
+    };
+
     return {
-      diagram_id: 0,
-      expression: "i\\mathcal{M} = 0 \\quad \\text{(mock)}",
+      diagram_id: diagram.id,
+      expression: expressions[channel] ?? expressions.S,
       couplings: ["e"],
-      momenta_labels: ["p1", "p2"],
+      momenta_labels: ["p1", "p2", "k1", "k2"],
     };
   }
 
