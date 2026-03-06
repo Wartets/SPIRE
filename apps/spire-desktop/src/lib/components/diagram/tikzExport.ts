@@ -1,0 +1,233 @@
+/**
+ * SPIRE - TikZ / LaTeX Export for Feynman Diagrams
+ *
+ * Generates publication-quality LaTeX code using the `tikz-feynman`
+ * package (which wraps TikZ + the `feynmp` conventions).
+ *
+ * The output can be pasted directly into a LaTeX document:
+ *
+ *   \usepackage{tikz-feynman}
+ *
+ *   \begin{document}
+ *     <paste output here>
+ *   \end{document}
+ *
+ * Supports:
+ *   • Fermion lines (with arrows)
+ *   • Photon (wavy) lines
+ *   • Gluon (curly) lines
+ *   • Scalar (dashed) lines
+ *   • Momentum flow labels
+ *   • Proper vertex placement
+ */
+
+import type {
+  FeynmanDiagram,
+  FeynmanEdge,
+} from "$lib/types/spire";
+
+// ---------------------------------------------------------------------------
+// Line Style Classification (mirrors feynmanRenderer.ts)
+// ---------------------------------------------------------------------------
+
+type TikzLineStyle = "fermion" | "anti fermion" | "photon" | "gluon" | "scalar" | "charged scalar" | "ghost" | "boson";
+
+function classifyTikzStyle(edge: FeynmanEdge): TikzLineStyle {
+  const form = edge.propagator?.form;
+  const spin = edge.field.quantum_numbers?.spin ?? edge.propagator?.spin ?? 0;
+  const mass = edge.field.mass ?? edge.propagator?.mass ?? 0;
+
+  if (form) {
+    switch (form) {
+      case "DiracFermion": return "fermion";
+      case "MasslessVector": return "photon";
+      case "MassiveVector": return "boson";
+      case "Scalar": return "scalar";
+      default: break;
+    }
+  }
+
+  // Heuristic from field name
+  const name = edge.field.name?.toLowerCase() ?? "";
+  const id = edge.field.id?.toLowerCase() ?? "";
+  if (name.includes("gluon") || id === "g") return "gluon";
+  if (name.includes("ghost")) return "ghost";
+  if (name.includes("photon") || id === "gamma" || id === "a") return "photon";
+
+  if (spin === 1) return "fermion";
+  if (spin === 2 && mass === 0) return "photon";
+  if (spin === 2 && mass > 0) return "boson";
+  if (spin === 0) return "scalar";
+
+  return "fermion";
+}
+
+// ---------------------------------------------------------------------------
+// Layout Helpers
+// ---------------------------------------------------------------------------
+
+interface TikzNode {
+  id: string;
+  x: number;
+  y: number;
+  isExternal: boolean;
+  label: string;
+}
+
+function sanitizeId(id: number): string {
+  return `v${id}`;
+}
+
+function sanitizeLabel(s: string): string {
+  // Escape special LaTeX characters, but keep common physics symbols
+  return s
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/#/g, "\\#")
+    .replace(/%/g, "\\%")
+    .replace(/&/g, "\\&")
+    .replace(/_/g, "\\_")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}")
+    // Common particle symbols → LaTeX
+    .replace(/γ/g, "\\gamma")
+    .replace(/μ/g, "\\mu")
+    .replace(/τ/g, "\\tau")
+    .replace(/ν/g, "\\nu")
+    .replace(/⁻/g, "^{-}")
+    .replace(/⁺/g, "^{+}")
+    .replace(/⁰/g, "^{0}")
+    .replace(/e⁻/g, "e^{-}")
+    .replace(/e⁺/g, "e^{+}");
+}
+
+// ---------------------------------------------------------------------------
+// Main Export Function
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a complete tikz-feynman LaTeX snippet for a Feynman diagram.
+ * Returns a string that can be pasted into a LaTeX document.
+ */
+export function generateTikZ(diag: FeynmanDiagram): string {
+  const lines: string[] = [];
+
+  // Classify nodes
+  const incoming: { id: number; label: string }[] = [];
+  const outgoing: { id: number; label: string }[] = [];
+  const internal: number[] = [];
+
+  for (const node of diag.nodes) {
+    if ("ExternalIncoming" in node.kind) {
+      incoming.push({ id: node.id, label: node.kind.ExternalIncoming.field.symbol });
+    } else if ("ExternalOutgoing" in node.kind) {
+      outgoing.push({ id: node.id, label: node.kind.ExternalOutgoing.field.symbol });
+    } else {
+      internal.push(node.id);
+    }
+  }
+
+  // Compute positions (normalized to tikz-feynman scale)
+  // Left-to-right layout: incoming at x=0, internal at x=2-4, outgoing at x=6
+  const nodePositions = new Map<number, [number, number]>();
+
+  const inSpacing = incoming.length > 1 ? 3 / (incoming.length - 1) : 0;
+  const inOff = incoming.length > 1 ? -1.5 : 0;
+  for (let i = 0; i < incoming.length; i++) {
+    nodePositions.set(incoming[i].id, [0, inOff + i * inSpacing]);
+  }
+
+  const outSpacing = outgoing.length > 1 ? 3 / (outgoing.length - 1) : 0;
+  const outOff = outgoing.length > 1 ? -1.5 : 0;
+  for (let i = 0; i < outgoing.length; i++) {
+    nodePositions.set(outgoing[i].id, [6, outOff + i * outSpacing]);
+  }
+
+  if (internal.length === 1) {
+    nodePositions.set(internal[0], [3, 0]);
+  } else if (internal.length === 2) {
+    nodePositions.set(internal[0], [2, 0]);
+    nodePositions.set(internal[1], [4, 0]);
+  } else {
+    for (let i = 0; i < internal.length; i++) {
+      const angle = (2 * Math.PI * i) / internal.length;
+      nodePositions.set(internal[i], [3 + 1.2 * Math.cos(angle), 1.2 * Math.sin(angle)]);
+    }
+  }
+
+  // Header
+  lines.push("% Generated by SPIRE - Feynman Diagram TikZ Export");
+  lines.push(`% Diagram #${diag.id} | ${loopOrderStr(diag.loop_order)} | Channels: ${diag.channels.join(", ") || "-"}`);
+  lines.push("% Requires: \\usepackage{tikz-feynman}");
+  lines.push("");
+  lines.push("\\begin{tikzpicture}");
+  lines.push("  \\begin{feynman}");
+  lines.push("");
+
+  // Node definitions
+  lines.push("    % --- Nodes ---");
+  for (const inc of incoming) {
+    const [x, y] = nodePositions.get(inc.id) ?? [0, 0];
+    lines.push(`    \\vertex (${sanitizeId(inc.id)}) at (${x}, ${y}) {$${sanitizeLabel(inc.label)}$};`);
+  }
+  for (const id of internal) {
+    const [x, y] = nodePositions.get(id) ?? [3, 0];
+    lines.push(`    \\vertex[dot] (${sanitizeId(id)}) at (${x}, ${y}) {};`);
+  }
+  for (const out of outgoing) {
+    const [x, y] = nodePositions.get(out.id) ?? [6, 0];
+    lines.push(`    \\vertex (${sanitizeId(out.id)}) at (${x}, ${y}) {$${sanitizeLabel(out.label)}$};`);
+  }
+
+  lines.push("");
+
+  // Edge definitions
+  lines.push("    % --- Propagators ---");
+  lines.push("    \\diagram* {");
+
+  for (const [src, tgt, edge] of diag.edges) {
+    const style = classifyTikzStyle(edge);
+    const mom = edge.momentum_label;
+    const momStr = mom
+      ? `, edge label'={$${sanitizeMomentum(mom)}$}`
+      : "";
+
+    lines.push(`      (${sanitizeId(src)}) -- [${style}${momStr}] (${sanitizeId(tgt)}),`);
+  }
+
+  lines.push("    };");
+  lines.push("");
+  lines.push("  \\end{feynman}");
+  lines.push("\\end{tikzpicture}");
+
+  return lines.join("\n");
+}
+
+/**
+ * Generate a standalone LaTeX document wrapping the diagram.
+ */
+export function generateTikZDocument(diag: FeynmanDiagram): string {
+  const tikz = generateTikZ(diag);
+  return `\\documentclass[border=10pt]{standalone}
+\\usepackage[compat=1.1.0]{tikz-feynman}
+
+\\begin{document}
+${tikz}
+\\end{document}
+`;
+}
+
+function loopOrderStr(lo: FeynmanDiagram["loop_order"]): string {
+  if (lo === "Tree") return "Tree-level";
+  if (lo === "OneLoop") return "1-loop";
+  if (lo === "TwoLoop") return "2-loop";
+  if (typeof lo === "object" && "NLoop" in lo) return `${lo.NLoop}-loop`;
+  return String(lo);
+}
+
+function sanitizeMomentum(mom: string): string {
+  // Convert momentum labels to proper LaTeX
+  return mom
+    .replace(/p(\d+)/g, "p_{$1}")
+    .replace(/k(\d+)/g, "k_{$1}")
+    .replace(/q(\d*)/g, "q_{$1}");
+}

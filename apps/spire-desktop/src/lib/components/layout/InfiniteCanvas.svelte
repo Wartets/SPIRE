@@ -211,6 +211,42 @@
     }
   }
 
+  // ── RAF-throttled store updates ──
+  // During drag/resize the mouse fires much faster than the display refresh
+  // rate (often 120 Hz+).  Writing the Svelte store on *every* mousemove
+  // allocates a new array and triggers re-renders of ALL canvas widgets.
+  // Instead we accumulate the latest desired position and flush once per
+  // animation frame.
+
+  let _rafPending = false;
+  let _pendingDragPatch: { id: string; x: number; y: number } | null = null;
+  let _pendingResizePatch: { id: string; width: number; height: number } | null = null;
+
+  function flushCanvasUpdates(): void {
+    _rafPending = false;
+    if (_pendingDragPatch) {
+      updateCanvasItem(_pendingDragPatch.id, {
+        x: _pendingDragPatch.x,
+        y: _pendingDragPatch.y,
+      });
+      _pendingDragPatch = null;
+    }
+    if (_pendingResizePatch) {
+      updateCanvasItem(_pendingResizePatch.id, {
+        width: _pendingResizePatch.width,
+        height: _pendingResizePatch.height,
+      });
+      _pendingResizePatch = null;
+    }
+  }
+
+  function scheduleCanvasFlush(): void {
+    if (!_rafPending) {
+      _rafPending = true;
+      requestAnimationFrame(flushCanvasUpdates);
+    }
+  }
+
   function handleCanvasMouseMove(event: MouseEvent): void {
     if (isPanning) {
       panX = panStartPanX + (event.clientX - panStartX);
@@ -225,20 +261,29 @@
       // Track live position for snapping in mouseUp
       dragCurrentX = newX;
       dragCurrentY = newY;
-      updateCanvasItem(dragItemId, { x: newX, y: newY });
+      // Batch — only flush to store at display refresh rate
+      _pendingDragPatch = { id: dragItemId, x: newX, y: newY };
+      scheduleCanvasFlush();
     }
 
     if (isResizing && resizeItemId) {
       const dx = (event.clientX - resizeStartX) / zoom;
       const dy = (event.clientY - resizeStartY) / zoom;
-      updateCanvasItem(resizeItemId, {
+      _pendingResizePatch = {
+        id: resizeItemId,
         width: Math.max(280, resizeStartW + dx),
         height: Math.max(200, resizeStartH + dy),
-      });
+      };
+      scheduleCanvasFlush();
     }
   }
 
   function handleCanvasMouseUp(): void {
+    // Flush any pending RAF updates immediately so snap reads the latest state
+    if (_rafPending) {
+      flushCanvasUpdates();
+    }
+
     if (isPanning) {
       isPanning = false;
       spacePanning = false;
