@@ -40,6 +40,7 @@
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
   import PluginManager from "$lib/components/PluginManager.svelte";
+  import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
 
   export let node: WidgetLeaf;
 
@@ -215,6 +216,8 @@
       <FlavorWorkbench />
     {:else if node.widgetType === "plugin_manager"}
       <PluginManager />
+    {:else if node.widgetType === "global_fit_dashboard"}
+      <GlobalFitDashboard />
     {:else}
       <p style="color: var(--hl-error);">Unknown widget: {node.widgetType}</p>
     {/if}

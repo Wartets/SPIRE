@@ -46,7 +46,8 @@
         "height": 800,
         "resizable": true,
         "title": "SPIRE - Structured Particle Interaction & Reaction Engine",
-        "width": 1200
+        "width": 1200,
+        "fileDropEnabled": false
       }
     ]
   }

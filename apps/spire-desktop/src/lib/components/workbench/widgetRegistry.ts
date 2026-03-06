@@ -33,4 +33,5 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   cosmology:         "Cosmology",
   flavor_workbench:  "Flavor Workbench",
   plugin_manager:    "Plugin Manager",
+  global_fit_dashboard: "Global Fit Dashboard",
 };

@@ -1566,3 +1566,59 @@ export interface FlavorObservableReport {
   /** Experimental ΔMs for comparison (ps⁻¹). */
   exp_delta_m_s: number;
 }
+
+// ---------------------------------------------------------------------------
+// Global Fits & MCMC Engine (Phase 55)
+// ---------------------------------------------------------------------------
+
+/** Which physical property of a field is being floated. */
+export type FitProperty = "Mass" | "Width" | { Coupling: string };
+
+/** A parameter to be floated in the global fit. */
+export interface FitParameter {
+  name: string;
+  min: number;
+  max: number;
+  field_id: string;
+  property: FitProperty;
+}
+
+/** A Gaussian measurement constraint. */
+export interface GaussianConstraint {
+  name: string;
+  observed: number;
+  sigma: number;
+  field_id: string;
+  property: FitProperty;
+}
+
+/** MCMC fit configuration sent to the backend. */
+export interface GlobalFitConfig {
+  parameters: FitParameter[];
+  gaussian_constraints: GaussianConstraint[];
+  n_walkers: number;
+  n_steps: number;
+  burn_in: number;
+}
+
+/** MCMC fit request (model + config). */
+export interface McmcFitRequest {
+  model: TheoreticalModel;
+  config: GlobalFitConfig;
+}
+
+/** MCMC sampler status. */
+export interface McmcStatus {
+  current_step: number;
+  total_steps: number;
+  acceptance_fraction: number;
+  running: boolean;
+  stopped: boolean;
+}
+
+/** MCMC fit status response with optional samples. */
+export interface McmcFitStatus {
+  status: McmcStatus;
+  flat_samples: number[][] | null;
+  param_names: string[];
+}

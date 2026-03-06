@@ -59,6 +59,8 @@ import type {
   WilsonCoefficients,
   BMixingResult,
   FlavorObservableReport,
+  McmcFitRequest,
+  McmcFitStatus,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -327,4 +329,9 @@ export interface SpireBackend {
   }>>;
 
   unloadPlugin(name: string): Promise<void>;
+
+  // ── Global Fits & MCMC (Phase 55) ─────────────────────────────────
+  startMcmcFit(request: McmcFitRequest): Promise<void>;
+  getMcmcStatus(includeSamples: boolean): Promise<McmcFitStatus>;
+  stopMcmcFit(): Promise<void>;
 }

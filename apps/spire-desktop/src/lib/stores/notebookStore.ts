@@ -37,7 +37,8 @@ export type WidgetType =
   | "decay_calculator"
   | "cosmology"
   | "flavor_workbench"
-  | "plugin_manager";
+  | "plugin_manager"
+  | "global_fit_dashboard";
 
 // ---------------------------------------------------------------------------
 // Widget Instance Model
@@ -94,6 +95,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "cosmology",          label: "Cosmology",           defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "flavor_workbench",    label: "Flavor Workbench",     defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "plugin_manager",      label: "Plugin Manager",       defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "global_fit_dashboard", label: "Global Fit Dashboard", defaultColSpan: 2, defaultRowSpan: 3 },
 ];
 
 // ---------------------------------------------------------------------------

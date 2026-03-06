@@ -706,3 +706,43 @@ export async function listActivePlugins(): Promise<PluginInfo[]> {
 export async function unloadPlugin(name: string): Promise<void> {
   return getBackend().unloadPlugin(name);
 }
+
+// ---------------------------------------------------------------------------
+// Global Fits & MCMC (Phase 55)
+// ---------------------------------------------------------------------------
+
+/**
+ * Start a background MCMC global fit.
+ *
+ * The fit runs asynchronously in a dedicated thread. Use `getMcmcStatus()`
+ * to poll progress, and `stopMcmcFit()` to cancel.
+ *
+ * @param request - The model + fit configuration.
+ */
+export async function startMcmcFit(
+  request: import("$lib/types/spire").McmcFitRequest,
+): Promise<void> {
+  return getBackend().startMcmcFit(request);
+}
+
+/**
+ * Poll the current MCMC fit status and optionally retrieve samples.
+ *
+ * @param includeSamples - If true, the response includes the flat
+ *   samples array (burn-in already stripped). Set to false for
+ *   lightweight progress polling.
+ */
+export async function getMcmcStatus(
+  includeSamples: boolean,
+): Promise<import("$lib/types/spire").McmcFitStatus> {
+  return getBackend().getMcmcStatus(includeSamples);
+}
+
+/**
+ * Request the background MCMC fit to stop gracefully.
+ *
+ * Waits for the sampler to finish its current step before returning.
+ */
+export async function stopMcmcFit(): Promise<void> {
+  return getBackend().stopMcmcFit();
+}

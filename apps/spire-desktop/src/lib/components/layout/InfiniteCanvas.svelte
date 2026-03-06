@@ -48,6 +48,7 @@
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
   import PluginManager from "$lib/components/PluginManager.svelte";
+  import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -394,6 +395,8 @@
             <FlavorWorkbench />
           {:else if item.widgetType === "plugin_manager"}
             <PluginManager />
+          {:else if item.widgetType === "global_fit_dashboard"}
+            <GlobalFitDashboard />
           {:else}
             <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
           {/if}

@@ -952,3 +952,56 @@ export const PluginInfoSchema = z.object({
   enabled: z.boolean(),
 });
 export type PluginInfo = z.infer<typeof PluginInfoSchema>;
+
+// ===========================================================================
+// Global Fits & MCMC (Phase 55)
+// ===========================================================================
+
+export const FitPropertySchema = z.union([
+  z.literal("Mass"),
+  z.literal("Width"),
+  z.object({ Coupling: z.string() }),
+]);
+
+export const FitParameterSchema = z.object({
+  name: z.string(),
+  min: z.number(),
+  max: z.number(),
+  field_id: z.string(),
+  property: FitPropertySchema,
+});
+
+export const GaussianConstraintSchema = z.object({
+  name: z.string(),
+  observed: z.number(),
+  sigma: z.number(),
+  field_id: z.string(),
+  property: FitPropertySchema,
+});
+
+export const GlobalFitConfigSchema = z.object({
+  parameters: z.array(FitParameterSchema),
+  gaussian_constraints: z.array(GaussianConstraintSchema),
+  n_walkers: z.number().int(),
+  n_steps: z.number().int(),
+  burn_in: z.number().int(),
+});
+
+export const McmcFitRequestSchema = z.object({
+  model: TheoreticalModelSchema,
+  config: GlobalFitConfigSchema,
+});
+
+export const McmcStatusSchema = z.object({
+  current_step: z.number().int(),
+  total_steps: z.number().int(),
+  acceptance_fraction: z.number(),
+  running: z.boolean(),
+  stopped: z.boolean(),
+});
+
+export const McmcFitStatusSchema = z.object({
+  status: McmcStatusSchema,
+  flat_samples: z.array(z.array(z.number())).nullable(),
+  param_names: z.array(z.string()),
+});

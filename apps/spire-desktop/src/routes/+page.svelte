@@ -128,6 +128,7 @@
     "spire.ui.add_references",
     "spire.ui.add_telemetry",
     "spire.ui.add_plugin_manager",
+    "spire.ui.add_global_fit_dashboard",
     "spire.ui.reset_layout",
     "spire.ui.toggle_log",
     "spire.view.toggle_canvas_mode",
@@ -248,6 +249,12 @@
       title: "Add Plugin Manager",
       category: "View",
       execute: () => spawnWidget("plugin_manager"),
+    });
+    registerCommand({
+      id: "spire.ui.add_global_fit_dashboard",
+      title: "Add Global Fit Dashboard",
+      category: "View",
+      execute: () => spawnWidget("global_fit_dashboard"),
     });
     registerCommand({
       id: "spire.help.tutorial",
@@ -412,7 +419,6 @@
     flex-shrink: 0;
     position: relative;
     flex-wrap: wrap;
-    overflow: hidden;
     min-width: 0;
   }
   .toolbox-toggle {

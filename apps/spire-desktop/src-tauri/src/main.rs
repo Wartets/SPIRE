@@ -24,8 +24,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[cfg(feature = "plugins")]
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
@@ -941,6 +941,235 @@ struct HardwareReport {
 }
 
 // ---------------------------------------------------------------------------
+// Global Fits & MCMC Engine (Phase 55)
+// ---------------------------------------------------------------------------
+
+use spire_kernel::analysis::likelihood::{
+    ExperimentalConstraint, GlobalFitConfig, GlobalLikelihood,
+};
+use spire_kernel::math::mcmc::{EnsembleSampler, McmcConfig, McmcStatus};
+
+/// IPC-serializable MCMC fit request from the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct McmcFitRequest {
+    /// Serialized `TheoreticalModel` (JSON).
+    model: TheoreticalModel,
+    /// The fit configuration.
+    config: GlobalFitConfig,
+}
+
+/// IPC-serializable MCMC status + partial chain data for live updates.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct McmcFitStatus {
+    /// Current sampler status.
+    pub status: McmcStatus,
+    /// Flat samples array (burn-in already discarded): [sample][param].
+    /// Only sent when `include_samples` is true in the poll request.
+    pub flat_samples: Option<Vec<Vec<f64>>>,
+    /// Parameter names (in the same order as samples columns).
+    pub param_names: Vec<String>,
+}
+
+/// Managed state for background MCMC execution.
+struct McmcFitState {
+    /// Handle to the background thread (None when idle).
+    thread: Mutex<Option<std::thread::JoinHandle<()>>>,
+    /// Stop flag shared with the sampler.
+    stop_flag: Arc<AtomicBool>,
+    /// Partial chain data updated by the background thread.
+    chain: Arc<Mutex<Option<spire_kernel::math::mcmc::McmcChain>>>,
+    /// Current sampler status.
+    sampler_status: Arc<Mutex<McmcStatus>>,
+    /// Parameter names from the fit config.
+    param_names: Mutex<Vec<String>>,
+    /// Burn-in steps (to discard when producing flat samples).
+    burn_in: Mutex<usize>,
+}
+
+/// Start an MCMC global fit in a background thread.
+///
+/// Returns immediately. The frontend polls `get_mcmc_status` for progress.
+#[tauri::command]
+fn start_mcmc_fit(
+    request: McmcFitRequest,
+    state: tauri::State<'_, McmcFitState>,
+) -> Result<(), String> {
+    // Check if already running
+    {
+        let thread = state.thread.lock().map_err(|e| format!("Lock: {}", e))?;
+        if thread.is_some() {
+            return Err("An MCMC fit is already running. Stop it first.".into());
+        }
+    }
+
+    // Reset stop flag
+    state.stop_flag.store(false, Ordering::SeqCst);
+
+    // Store param names and burn-in
+    {
+        let mut names = state.param_names.lock().map_err(|e| format!("Lock: {}", e))?;
+        *names = request
+            .config
+            .parameters
+            .iter()
+            .map(|p| p.name.clone())
+            .collect();
+    }
+    {
+        let mut bi = state.burn_in.lock().map_err(|e| format!("Lock: {}", e))?;
+        *bi = request.config.burn_in;
+    }
+
+    // Build the GlobalLikelihood
+    let n_dim = request.config.parameters.len();
+    let n_walkers = request.config.n_walkers;
+    let n_steps = request.config.n_steps;
+
+    let constraints: Vec<Box<dyn ExperimentalConstraint>> = request
+        .config
+        .gaussian_constraints
+        .into_iter()
+        .map(|c| Box::new(c) as Box<dyn ExperimentalConstraint>)
+        .collect();
+
+    let likelihood = Arc::new(GlobalLikelihood::new(
+        request.model,
+        request.config.parameters,
+        constraints,
+    ));
+
+    let mcmc_config = McmcConfig {
+        n_walkers,
+        n_dim,
+        n_steps,
+        stretch_factor: 2.0,
+    };
+
+    // Generate initial positions: uniform random within prior bounds
+    let initial: Vec<Vec<f64>> = {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        (0..n_walkers)
+            .map(|_| {
+                (0..n_dim)
+                    .map(|_| rng.gen_range(0.0..1.0))
+                    .collect()
+            })
+            .collect()
+    };
+
+    // Clones for the background thread
+    let stop_flag = Arc::clone(&state.stop_flag);
+    let chain_slot = Arc::clone(&state.chain);
+    let status_slot = Arc::clone(&state.sampler_status);
+
+    let handle = std::thread::spawn(move || {
+        let mut sampler = EnsembleSampler::new(mcmc_config, initial);
+        sampler.stop_flag().store(false, Ordering::SeqCst);
+
+        // Connect external stop flag
+        let sampler_stop = sampler.stop_flag();
+        let _stop_watcher = std::thread::spawn(move || {
+            while !stop_flag.load(Ordering::SeqCst) {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            sampler_stop.store(true, Ordering::SeqCst);
+        });
+
+        let lk = likelihood;
+        let chain = sampler.run(&|p: &[f64]| lk.log_prob(p));
+
+        // Store final chain
+        if let Ok(mut slot) = chain_slot.lock() {
+            *slot = Some(chain);
+        }
+
+        // Update status to "done"
+        if let Ok(mut s) = status_slot.lock() {
+            s.running = false;
+        }
+    });
+
+    // Store thread handle
+    {
+        let mut thread = state.thread.lock().map_err(|e| format!("Lock: {}", e))?;
+        *thread = Some(handle);
+    }
+
+    // Set running status
+    {
+        let mut s = state
+            .sampler_status
+            .lock()
+            .map_err(|e| format!("Lock: {}", e))?;
+        *s = McmcStatus {
+            current_step: 0,
+            total_steps: n_steps,
+            acceptance_fraction: 0.0,
+            running: true,
+            stopped: false,
+        };
+    }
+
+    Ok(())
+}
+
+/// Poll the current MCMC fit status and optionally retrieve samples.
+#[tauri::command]
+fn get_mcmc_status(
+    include_samples: bool,
+    state: tauri::State<'_, McmcFitState>,
+) -> Result<McmcFitStatus, String> {
+    let status = {
+        let s = state
+            .sampler_status
+            .lock()
+            .map_err(|e| format!("Lock: {}", e))?;
+        s.clone()
+    };
+
+    let param_names = {
+        let names = state.param_names.lock().map_err(|e| format!("Lock: {}", e))?;
+        names.clone()
+    };
+
+    let flat_samples = if include_samples {
+        let chain_guard = state.chain.lock().map_err(|e| format!("Lock: {}", e))?;
+        chain_guard.as_ref().map(|chain| {
+            let burn_in = state.burn_in.lock().map_or(0, |b| *b);
+            chain.flat_samples(burn_in, 1)
+        })
+    } else {
+        None
+    };
+
+    Ok(McmcFitStatus {
+        status,
+        flat_samples,
+        param_names,
+    })
+}
+
+/// Request the MCMC fit to stop gracefully.
+#[tauri::command]
+fn stop_mcmc_fit(state: tauri::State<'_, McmcFitState>) -> Result<(), String> {
+    state.stop_flag.store(true, Ordering::SeqCst);
+
+    // Wait for the thread to finish (with timeout)
+    let handle = {
+        let mut thread = state.thread.lock().map_err(|e| format!("Lock: {}", e))?;
+        thread.take()
+    };
+
+    if let Some(h) = handle {
+        // Give it up to 5 seconds
+        let _ = h.join();
+    }
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // Plugin System (Phase 54)
 // ---------------------------------------------------------------------------
 
@@ -1062,8 +1291,25 @@ fn main() {
         ),
     };
 
+    // Initialise MCMC fit state
+    let mcmc_state = McmcFitState {
+        thread: Mutex::new(None),
+        stop_flag: Arc::new(AtomicBool::new(false)),
+        chain: Arc::new(Mutex::new(None)),
+        sampler_status: Arc::new(Mutex::new(McmcStatus {
+            current_step: 0,
+            total_steps: 0,
+            acceptance_fraction: 0.0,
+            running: false,
+            stopped: false,
+        })),
+        param_names: Mutex::new(vec![]),
+        burn_in: Mutex::new(0),
+    };
+
     tauri::Builder::default()
         .manage(plugin_state)
+        .manage(mcmc_state)
         .invoke_handler(tauri::generate_handler![
             load_theoretical_model,
             validate_and_reconstruct_reaction,
@@ -1108,6 +1354,9 @@ fn main() {
             load_plugin,
             list_active_plugins,
             unload_plugin,
+            start_mcmc_fit,
+            get_mcmc_status,
+            stop_mcmc_fit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

@@ -56,6 +56,8 @@ import type {
   WilsonCoefficients,
   BMixingResult,
   FlavorObservableReport,
+  McmcFitRequest,
+  McmcFitStatus,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -81,6 +83,7 @@ import {
   ScanResult1DSchema,
   ScanResult2DSchema,
   CalcDecayTableSchema,
+  McmcFitStatusSchema,
   validateResponse,
 } from "$lib/core/domain/schemas";
 
@@ -510,5 +513,17 @@ export class TauriBackend implements SpireBackend {
 
   async unloadPlugin(name: string): Promise<void> {
     return tauriInvoke("unload_plugin", { name });
+  }
+
+  async startMcmcFit(request: McmcFitRequest): Promise<void> {
+    return tauriInvoke("start_mcmc_fit", { request });
+  }
+
+  async getMcmcStatus(includeSamples: boolean): Promise<McmcFitStatus> {
+    return tauriInvokeValidated("get_mcmc_status", McmcFitStatusSchema, { includeSamples });
+  }
+
+  async stopMcmcFit(): Promise<void> {
+    return tauriInvoke("stop_mcmc_fit", {});
   }
 }

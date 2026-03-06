@@ -37,6 +37,7 @@
   import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
   import PluginManager from "$lib/components/PluginManager.svelte";
+  import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
 
   let widgetType: WidgetType | null = null;
   let nodeId: string = "";
@@ -118,6 +119,8 @@
       <FlavorWorkbench />
     {:else if widgetType === "plugin_manager"}
       <PluginManager />
+    {:else if widgetType === "global_fit_dashboard"}
+      <GlobalFitDashboard />
     {:else}
       <div class="tearoff-error">
         <p>No widget type specified.</p>

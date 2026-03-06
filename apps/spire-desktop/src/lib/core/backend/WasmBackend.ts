@@ -503,4 +503,16 @@ export class WasmBackend implements SpireBackend {
   async unloadPlugin(_name: string): Promise<void> {
     throw new Error("Plugin unloading is not supported in WASM backend mode");
   }
+
+  async startMcmcFit(_request: import("$lib/types/spire").McmcFitRequest): Promise<void> {
+    throw new Error("MCMC fits are not supported in WASM backend mode");
+  }
+
+  async getMcmcStatus(_includeSamples: boolean): Promise<import("$lib/types/spire").McmcFitStatus> {
+    throw new Error("MCMC fits are not supported in WASM backend mode");
+  }
+
+  async stopMcmcFit(): Promise<void> {
+    throw new Error("MCMC fits are not supported in WASM backend mode");
+  }
 }

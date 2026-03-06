@@ -745,4 +745,27 @@ This is a mock proof document for ${processLabel}.
   async unloadPlugin(_name: string): Promise<void> {
     await simulateLatency();
   }
+
+  async startMcmcFit(_request: import("$lib/types/spire").McmcFitRequest): Promise<void> {
+    await simulateLatency();
+  }
+
+  async getMcmcStatus(_includeSamples: boolean): Promise<import("$lib/types/spire").McmcFitStatus> {
+    await simulateLatency();
+    return {
+      status: {
+        current_step: 0,
+        total_steps: 0,
+        acceptance_fraction: 0.0,
+        running: false,
+        stopped: false,
+      },
+      flat_samples: null,
+      param_names: [],
+    };
+  }
+
+  async stopMcmcFit(): Promise<void> {
+    await simulateLatency();
+  }
 }
