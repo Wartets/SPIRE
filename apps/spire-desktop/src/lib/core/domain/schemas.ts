@@ -220,6 +220,16 @@ export const VertexFactorSchema = z.object({
   n_legs: z.number(),
 });
 
+export const PropagatorFormSchema = z.enum([
+  "Scalar",
+  "DiracFermion",
+  "MasslessVector",
+  "MassiveVector",
+  "RaritaSchwinger",
+  "MasslessSpin2",
+  "MassiveSpin2",
+]);
+
 export const PropagatorSchema = z.object({
   field_id: z.string(),
   spin: SpinSchema,
@@ -227,6 +237,7 @@ export const PropagatorSchema = z.object({
   width: z.number(),
   expression: z.string(),
   gauge_parameter: z.number().nullable(),
+  form: PropagatorFormSchema,
 });
 
 // ===========================================================================

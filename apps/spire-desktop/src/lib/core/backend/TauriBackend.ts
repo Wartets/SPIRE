@@ -468,11 +468,11 @@ export class TauriBackend implements SpireBackend {
     nPoints?: number,
   ): Promise<FlavorObservableReport> {
     return tauriInvoke("calculate_b_to_k_ll", {
-      q2_min: q2Min,
-      q2_max: q2Max,
-      wilson_coeffs: wilsonCoeffs,
+      q2Min,
+      q2Max,
+      wilsonCoeffs,
       lattice,
-      n_points: nPoints ?? 100,
+      nPoints: nPoints ?? 100,
     });
   }
 

@@ -254,56 +254,46 @@
     <section class="tab-content">
       <h3>Decay Constants (FLAG 2023)</h3>
       <div class="form-grid">
-        <label>f<sub>B</sub> (GeV)</label>
-        <input type="number" bind:value={fBValue} step="0.001" />
-        <label>± σ</label>
-        <input type="number" bind:value={fBError} step="0.0001" />
+        <label>f<sub>B</sub> (GeV) <input type="number" bind:value={fBValue} step="0.001" /></label>
+        <label>± σ <input type="number" bind:value={fBError} step="0.0001" /></label>
 
-        <label>f<sub>Bs</sub> (GeV)</label>
-        <input type="number" bind:value={fBsValue} step="0.001" />
-        <label>± σ</label>
-        <input type="number" bind:value={fBsError} step="0.0001" />
+        <label>f<sub>Bs</sub> (GeV) <input type="number" bind:value={fBsValue} step="0.001" /></label>
+        <label>± σ <input type="number" bind:value={fBsError} step="0.0001" /></label>
 
-        <label>f<sub>K</sub> (GeV)</label>
-        <input type="number" bind:value={fKValue} step="0.001" />
-        <label>± σ</label>
-        <input type="number" bind:value={fKError} step="0.0001" />
+        <label>f<sub>K</sub> (GeV) <input type="number" bind:value={fKValue} step="0.001" /></label>
+        <label>± σ <input type="number" bind:value={fKError} step="0.0001" /></label>
       </div>
 
       <h3>Bag Parameters</h3>
       <div class="form-grid">
-        <label>B̂<sub>d</sub></label>
-        <input type="number" bind:value={bHatD} step="0.01" />
-        <label>± σ</label>
-        <input type="number" bind:value={bHatDErr} step="0.01" />
+        <label>B̂<sub>d</sub> <input type="number" bind:value={bHatD} step="0.01" /></label>
+        <label>± σ <input type="number" bind:value={bHatDErr} step="0.01" /></label>
 
-        <label>B̂<sub>s</sub></label>
-        <input type="number" bind:value={bHatS} step="0.01" />
-        <label>± σ</label>
-        <input type="number" bind:value={bHatSErr} step="0.01" />
+        <label>B̂<sub>s</sub> <input type="number" bind:value={bHatS} step="0.01" /></label>
+        <label>± σ <input type="number" bind:value={bHatSErr} step="0.01" /></label>
       </div>
 
       <h3>B → K Form Factors (BCL z-expansion)</h3>
 
       <h4>f<sub>+</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀</label><input type="number" bind:value={fpA0} step="0.01" />
-        <label>a₁</label><input type="number" bind:value={fpA1} step="0.01" />
-        <label>a₂</label><input type="number" bind:value={fpA2} step="0.01" />
+        <label>a₀ <input type="number" bind:value={fpA0} step="0.01" /></label>
+        <label>a₁ <input type="number" bind:value={fpA1} step="0.01" /></label>
+        <label>a₂ <input type="number" bind:value={fpA2} step="0.01" /></label>
       </div>
 
       <h4>f<sub>0</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀</label><input type="number" bind:value={f0A0} step="0.01" />
-        <label>a₁</label><input type="number" bind:value={f0A1} step="0.01" />
-        <label>a₂</label><input type="number" bind:value={f0A2} step="0.01" />
+        <label>a₀ <input type="number" bind:value={f0A0} step="0.01" /></label>
+        <label>a₁ <input type="number" bind:value={f0A1} step="0.01" /></label>
+        <label>a₂ <input type="number" bind:value={f0A2} step="0.01" /></label>
       </div>
 
       <h4>f<sub>T</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀</label><input type="number" bind:value={ftA0} step="0.01" />
-        <label>a₁</label><input type="number" bind:value={ftA1} step="0.01" />
-        <label>a₂</label><input type="number" bind:value={ftA2} step="0.01" />
+        <label>a₀ <input type="number" bind:value={ftA0} step="0.01" /></label>
+        <label>a₁ <input type="number" bind:value={ftA1} step="0.01" /></label>
+        <label>a₂ <input type="number" bind:value={ftA2} step="0.01" /></label>
       </div>
 
       <button class="btn-secondary" on:click={resetDefaults}>Reset to FLAG Defaults</button>
@@ -315,38 +305,28 @@
     <section class="tab-content">
       <h3>SM Wilson Coefficients (μ = m<sub>b</sub>)</h3>
       <div class="form-grid">
-        <label>C<sub>7</sub><sup>eff</sup></label>
-        <input type="number" bind:value={c7Eff} step="0.01" />
-        <label>C<sub>7</sub>'</label>
-        <input type="number" bind:value={c7Prime} step="0.01" />
+        <label>C<sub>7</sub><sup>eff</sup> <input type="number" bind:value={c7Eff} step="0.01" /></label>
+        <label>C<sub>7</sub>' <input type="number" bind:value={c7Prime} step="0.01" /></label>
 
-        <label>C<sub>9</sub><sup>eff</sup></label>
-        <input type="number" bind:value={c9Eff} step="0.01" />
-        <label>C<sub>9</sub>'</label>
-        <input type="number" bind:value={c9Prime} step="0.01" />
+        <label>C<sub>9</sub><sup>eff</sup> <input type="number" bind:value={c9Eff} step="0.01" /></label>
+        <label>C<sub>9</sub>' <input type="number" bind:value={c9Prime} step="0.01" /></label>
 
-        <label>C<sub>10</sub></label>
-        <input type="number" bind:value={c10} step="0.01" />
-        <label>C<sub>10</sub>'</label>
-        <input type="number" bind:value={c10Prime} step="0.01" />
+        <label>C<sub>10</sub> <input type="number" bind:value={c10} step="0.01" /></label>
+        <label>C<sub>10</sub>' <input type="number" bind:value={c10Prime} step="0.01" /></label>
       </div>
 
       <h3>BSM Shifts</h3>
       <div class="slider-group">
-        <label>ΔC<sub>9</sub>: <strong>{deltaC9.toFixed(2)}</strong></label>
-        <input type="range" bind:value={deltaC9} min="-3" max="3" step="0.05" />
+        <label>ΔC<sub>9</sub>: <strong>{deltaC9.toFixed(2)}</strong> <input type="range" bind:value={deltaC9} min="-3" max="3" step="0.05" /></label>
       </div>
       <div class="slider-group">
-        <label>ΔC<sub>10</sub>: <strong>{deltaC10.toFixed(2)}</strong></label>
-        <input type="range" bind:value={deltaC10} min="-3" max="3" step="0.05" />
+        <label>ΔC<sub>10</sub>: <strong>{deltaC10.toFixed(2)}</strong> <input type="range" bind:value={deltaC10} min="-3" max="3" step="0.05" /></label>
       </div>
 
       <h3>q² Integration Window (GeV²)</h3>
       <div class="form-grid">
-        <label>q²<sub>min</sub></label>
-        <input type="number" bind:value={q2Min} step="0.5" min="0.05" />
-        <label>q²<sub>max</sub></label>
-        <input type="number" bind:value={q2Max} step="0.5" max="22.9" />
+        <label>q²<sub>min</sub> <input type="number" bind:value={q2Min} step="0.5" min="0.05" /></label>
+        <label>q²<sub>max</sub> <input type="number" bind:value={q2Max} step="0.5" max="22.9" /></label>
       </div>
     </section>
   {/if}

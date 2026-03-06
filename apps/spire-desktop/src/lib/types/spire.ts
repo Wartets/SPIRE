@@ -268,6 +268,7 @@ export interface Propagator {
   width: number;
   expression: string;
   gauge_parameter: number | null;
+  form: PropagatorForm;
 }
 
 // ---------------------------------------------------------------------------

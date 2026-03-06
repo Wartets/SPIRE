@@ -78,6 +78,7 @@
   }
 </script>
 
+<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
 <span
   class="hover-def"
   class:has-entry={!!entry}

@@ -69,8 +69,9 @@ async function executeTask(task: ComputeTask): Promise<AnalysisResult> {
 
   // --- Attempt 2: WASM kernel ---
   try {
-    // @ts-expect-error — spire-kernel-wasm is an optional dependency built separately
-    const wasm = await import(/* @vite-ignore */ "spire-kernel-wasm");
+    // Use a variable so Vite's static import analysis cannot resolve it at dev time.
+    const wasmModuleId = "spire-kernel-wasm";
+    const wasm = await import(/* @vite-ignore */ wasmModuleId);
     if (typeof wasm.default === "function") {
       await wasm.default(); // wasm-bindgen init
     }
