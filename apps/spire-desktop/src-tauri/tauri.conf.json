@@ -1,7 +1,7 @@
 {
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
+    "beforeDevCommand": "npx vite dev",
+    "beforeBuildCommand": "npx svelte-kit sync && npx vite build",
     "devPath": "http://localhost:5173",
     "distDir": "../build"
   },
