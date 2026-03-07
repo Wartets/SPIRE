@@ -33,6 +33,7 @@
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
   import { tutorialActive } from "$lib/core/services/TutorialService";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { activeWorkspace } from "$lib/stores/layoutStore";
   import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
@@ -83,7 +84,7 @@
   });
 </script>
 
-<div class="app-shell">
+<div class="app-shell" style="--hl-symbol: {$activeWorkspace?.color ?? '#5eb8ff'};">
   <!-- Navigation Bar -->
   <nav class="navbar">
     <div class="navbar-brand">
