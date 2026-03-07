@@ -246,7 +246,29 @@
       panStartY = event.clientY;
       panStartPanX = panX;
       panStartPanY = panY;
+      attachWindowGrabListeners();
     }
+  }
+
+  // ── Window-level grab listeners ──
+  // When the user starts a pan, drag, or resize we attach move/up
+  // listeners to `window` so events keep firing even if the cursor
+  // leaves the canvas boundary.
+
+  let _grabListenersAttached = false;
+
+  function attachWindowGrabListeners(): void {
+    if (_grabListenersAttached) return;
+    _grabListenersAttached = true;
+    window.addEventListener("mousemove", handleCanvasMouseMove);
+    window.addEventListener("mouseup", handleCanvasMouseUp);
+  }
+
+  function detachWindowGrabListeners(): void {
+    if (!_grabListenersAttached) return;
+    _grabListenersAttached = false;
+    window.removeEventListener("mousemove", handleCanvasMouseMove);
+    window.removeEventListener("mouseup", handleCanvasMouseUp);
   }
 
   // ── RAF-throttled store updates ──
@@ -347,6 +369,7 @@
       isResizing = false;
       resizeItemId = null;
     }
+    detachWindowGrabListeners();
   }
 
   // ── Zoom (scroll wheel) ──
@@ -456,9 +479,28 @@
     zMap[item.id] = zCounter;
   }
 
+  /** Bring an item to the foreground by ID (used when items are added). */
+  function bringToFrontById(id: string): void {
+    selectedWidgetId = id;
+    zCounter += 1;
+    zMap[id] = zCounter;
+  }
+
   function zIndexOf(item: CanvasItem): number {
     return zMap[item.id] ?? 1;
   }
+
+  // ── Auto-select newly created widgets ──
+  // Track the previous item count; when it grows, bring the last item to front.
+  let _prevItemCount = 0;
+
+  const unsubCanvasItems = canvasItems.subscribe((items) => {
+    if (items.length > _prevItemCount && items.length > 0) {
+      const newest = items[items.length - 1];
+      bringToFrontById(newest.id);
+    }
+    _prevItemCount = items.length;
+  });
 
   function resetZoom(): void {
     zoom = 1;
@@ -489,6 +531,7 @@
     dragItemStartY = item.y;
     dragCurrentX = item.x;
     dragCurrentY = item.y;
+    attachWindowGrabListeners();
   }
 
   // ── Widget Resize (bottom-right corner) ──
@@ -510,6 +553,7 @@
     resizeStartY = event.clientY;
     resizeStartW = item.width;
     resizeStartH = item.height;
+    attachWindowGrabListeners();
   }
 
   function handleClose(item: CanvasItem): void {
@@ -611,7 +655,9 @@
 
   onDestroy(() => {
     unsubViewport();
+    unsubCanvasItems();
     resizeObserver?.disconnect();
+    detachWindowGrabListeners();
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keyup", handleKeyUp);
     window.removeEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
@@ -629,8 +675,6 @@
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
-  on:mousemove={handleCanvasMouseMove}
-  on:mouseup={handleCanvasMouseUp}
   on:wheel={handleWheel}
   on:contextmenu={handleCanvasContextMenu}
   role="application"

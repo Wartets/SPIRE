@@ -201,7 +201,7 @@
           {/if}
 
           {#if item.icon}
-            <span class="ctx-icon">{item.icon}</span>
+            <span class="ctx-icon" style={item.iconColor ? `color: ${item.iconColor}` : ''}>{item.icon}</span>
           {/if}
 
           <span class="ctx-label">{item.label}</span>
@@ -245,7 +245,8 @@
 
 <style>
   .ctx-list {
-    min-width: 200px;
+    width: max-content;
+    min-width: 100px;
     max-width: 320px;
     max-height: 80vh;
     overflow-y: auto;

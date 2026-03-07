@@ -22,6 +22,8 @@ interface MenuItemBase {
   label: string;
   /** Optional inline SVG string or short identifier for an icon prefix. */
   icon?: string;
+  /** Optional CSS color applied to the icon element. */
+  iconColor?: string;
   /** Optional keyboard shortcut hint (display only, does not bind). */
   shortcut?: string;
   /** Whether this item is currently non-interactive. */

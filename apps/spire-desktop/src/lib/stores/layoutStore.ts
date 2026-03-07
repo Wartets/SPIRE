@@ -122,6 +122,7 @@ export type ViewMode = "docking" | "canvas";
 export interface Workspace {
   id: string;
   name: string;
+  color: string;
   dockingRoot: LayoutNode;
   canvasItemList: CanvasItem[];
   viewport: CanvasViewport;
@@ -625,12 +626,14 @@ export function resetDockingLayout(): void {
  *
  * When x/y are not supplied, the widget is placed at the center
  * of the current viewport (accounting for pan and zoom).
+ *
+ * Returns the new item's ID so callers can select / focus it.
  */
 export function addCanvasItem(
   widgetType: WidgetType,
   x?: number,
   y?: number,
-): void {
+): string {
   const def = WIDGET_DEFINITIONS.find((d) => d.type === widgetType);
   const w = (def?.defaultColSpan ?? 2) * 320;
   const h = (def?.defaultRowSpan ?? 2) * 220;
@@ -643,10 +646,12 @@ export function addCanvasItem(
     y = y ?? (-vp.panY + 300) / (vp.zoom || 1) - h / 2;
   }
 
+  const id = makeLayoutId();
+
   canvasItems.update((items) => [
     ...items,
     {
-      id: makeLayoutId(),
+      id,
       widgetType,
       widgetData: {},
       x,
@@ -655,6 +660,8 @@ export function addCanvasItem(
       height: h,
     },
   ]);
+
+  return id;
 }
 
 /** Remove a canvas item by ID. */
@@ -807,10 +814,29 @@ function makeWorkspaceId(): string {
   return `ws-${_wsCounter}-${Date.now().toString(36)}`;
 }
 
-function createWorkspace(name: string): Workspace {
+/** Accent colours available for workspaces. */
+export const WORKSPACE_COLORS = [
+  "#5eb8ff", // symbol blue
+  "#d4a017", // gold
+  "#2ecc71", // green
+  "#e74c3c", // red
+  "#9b59b6", // purple
+  "#e67e22", // orange
+  "#1abc9c", // teal
+  "#f06292", // pink
+  "#7986cb", // indigo
+  "#4dd0e1", // cyan
+];
+
+function randomWorkspaceColor(): string {
+  return WORKSPACE_COLORS[Math.floor(Math.random() * WORKSPACE_COLORS.length)];
+}
+
+function createWorkspace(name: string, color?: string): Workspace {
   return {
     id: makeWorkspaceId(),
     name,
+    color: color ?? randomWorkspaceColor(),
     dockingRoot: createDefaultLayout(),
     canvasItemList: [],
     viewport: { panX: 0, panY: 0, zoom: 1 },
@@ -819,7 +845,7 @@ function createWorkspace(name: string): Workspace {
 }
 
 /** All workspaces. */
-export const workspaces = writable<Workspace[]>([createWorkspace("Workspace 1")]);
+export const workspaces = writable<Workspace[]>([createWorkspace("Workspace 1", "#5eb8ff")]);
 
 /** ID of the currently active workspace. */
 export const activeWorkspaceId = writable<string>("");
@@ -840,9 +866,22 @@ export const activeWorkspace = derived(
   ([$wsList, $activeId]) => $wsList.find((w) => w.id === $activeId) ?? $wsList[0],
 );
 
+/** Generate the next unique "Workspace N" name that doesn't collide. */
+function nextWorkspaceName(): string {
+  const list = get(workspaces);
+  const usedNumbers = new Set<number>();
+  for (const ws of list) {
+    const match = ws.name.match(/^Workspace\s+(\d+)$/i);
+    if (match) usedNumbers.add(parseInt(match[1], 10));
+  }
+  let n = 1;
+  while (usedNumbers.has(n)) n++;
+  return `Workspace ${n}`;
+}
+
 /** Add a new empty workspace and switch to it. */
 export function addWorkspace(name?: string): void {
-  const ws = createWorkspace(name ?? `Workspace ${get(workspaces).length + 1}`);
+  const ws = createWorkspace(name ?? nextWorkspaceName());
   workspaces.update((list) => [...list, ws]);
   activeWorkspaceId.set(ws.id);
   // Sync the live stores to the new workspace
@@ -912,4 +951,40 @@ export function renameWorkspace(wsId: string, name: string): void {
   workspaces.update((list) =>
     list.map((ws) => (ws.id === wsId ? { ...ws, name } : ws)),
   );
+}
+
+/** Change a workspace's accent colour. */
+export function setWorkspaceColor(wsId: string, color: string): void {
+  workspaces.update((list) =>
+    list.map((ws) => (ws.id === wsId ? { ...ws, color } : ws)),
+  );
+}
+
+/** Duplicate a workspace (deep clone) and switch to the copy. */
+export function duplicateWorkspace(wsId: string): void {
+  const wsList = get(workspaces);
+  const src = wsList.find((w) => w.id === wsId);
+  if (!src) return;
+  saveCurrentWorkspaceState();
+  const newWs: Workspace = {
+    ...structuredClone(src),
+    id: makeWorkspaceId(),
+    name: `${src.name} (copy)`,
+    color: randomWorkspaceColor(),
+  };
+  workspaces.update((list) => [...list, newWs]);
+  switchWorkspace(newWs.id);
+}
+
+/** Reorder workspaces by moving a workspace from one index to another. */
+export function reorderWorkspaces(fromId: string, toId: string): void {
+  workspaces.update((list) => {
+    const fromIdx = list.findIndex((w) => w.id === fromId);
+    const toIdx = list.findIndex((w) => w.id === toId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return list;
+    const next = [...list];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    return next;
+  });
 }
