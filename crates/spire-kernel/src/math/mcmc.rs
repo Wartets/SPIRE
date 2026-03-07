@@ -257,7 +257,7 @@ impl EnsembleSampler {
     /// or if the initial positions array doesn't match the config.
     pub fn new(config: McmcConfig, initial_positions: Vec<Vec<f64>>) -> Self {
         assert!(
-            config.n_walkers % 2 == 0,
+            config.n_walkers.is_multiple_of(2),
             "Number of walkers must be even (got {})",
             config.n_walkers
         );

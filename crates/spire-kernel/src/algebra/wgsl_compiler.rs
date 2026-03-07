@@ -513,7 +513,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {{
         shader.push('\n');
 
         // --- Final result: |M|² ---
-        write!(shader, "    let amplitude = {};\n", result_expr)
+        writeln!(shader, "    let amplitude = {};", result_expr)
             .expect("write to String cannot fail");
         shader.push_str("    results[event_id] = c_norm_sq(amplitude);\n");
         shader.push_str("}\n");
@@ -534,7 +534,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {{
 
         for name in symbols {
             let safe = sanitize_identifier(name);
-            let _ = write!(shader, "    {} : f32,\n", safe);
+            let _ = writeln!(shader, "    {} : f32,", safe);
         }
 
         shader.push_str("}\n");

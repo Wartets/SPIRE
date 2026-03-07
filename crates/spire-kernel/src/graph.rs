@@ -294,7 +294,7 @@ pub struct TopologySet {
 ///   - `"nu_e_bar" → "nu_e"`, `"nu_mu_bar" → "nu_mu"`
 ///   - `"u_bar" → "u"`, `"d_bar" → "d"`
 ///   - Bosons and particles already in canonical form are returned as-is.
-fn vertex_canonical_id<'a>(model: &'a TheoreticalModel, id: &str) -> String {
+fn vertex_canonical_id(model: &TheoreticalModel, id: &str) -> String {
     // Strategy: check whether `id` appears in any vertex definition.
     // If yes, it's already canonical. If not, look for its antiparticle
     // partner in the model (same mass, opposite charge).
