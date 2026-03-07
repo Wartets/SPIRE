@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import type { StackNode, LayoutNode } from "$lib/stores/layoutStore";
-  import { setActiveTab, closeNode } from "$lib/stores/layoutStore";
+  import { setActiveTab, closeNode, moveNode } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
 
   export let node: StackNode;
@@ -32,6 +32,63 @@
     closeNode(child.id);
   }
 
+  // ── Drag-and-Drop State ──
+  let dragTabIndex: number | null = null;
+  let dropTabIndex: number | null = null;
+  let dropEdge: 'left' | 'right' | 'top' | 'bottom' | null = null;
+
+  function handleDragStart(event: DragEvent, index: number): void {
+    dragTabIndex = index;
+    event.dataTransfer?.setData('application/tab', JSON.stringify({
+      widgetId: node.children[index].id,
+      sourceNodeId: node.id,
+    }));
+    event.dataTransfer!.effectAllowed = 'move';
+  }
+
+  function handleDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    dropTabIndex = index;
+    dropEdge = null;
+  }
+
+  function handleDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    const payload = event.dataTransfer?.getData('application/tab');
+    if (!payload) return;
+    const { widgetId } = JSON.parse(payload);
+    // Reorder within stack
+    if (widgetId && dragTabIndex !== null && dropTabIndex !== null && widgetId === node.children[dragTabIndex].id) {
+      if (dragTabIndex !== dropTabIndex) {
+        // True tab reordering: call moveNode with 'center'
+        moveNode(widgetId, node.children[dropTabIndex].id, 'center');
+        setActiveTab(node.id, dropTabIndex);
+      }
+    }
+    dragTabIndex = null;
+    dropTabIndex = null;
+  }
+
+  // ── Edge Drop Zones for Splitting ──
+  function handleEdgeDragOver(event: DragEvent, edge: 'left' | 'right' | 'top' | 'bottom'): void {
+    event.preventDefault();
+    dropEdge = edge;
+  }
+  function handleEdgeDrop(event: DragEvent, edge: 'left' | 'right' | 'top' | 'bottom', index: number): void {
+    event.preventDefault();
+    const payload = event.dataTransfer?.getData('application/tab');
+    if (!payload) return;
+    const { widgetId } = JSON.parse(payload);
+    if (widgetId) {
+      // True pane splitting: call moveNode with edge
+      moveNode(widgetId, node.children[index].id, edge);
+      setActiveTab(node.id, index);
+    }
+    dropEdge = null;
+    dragTabIndex = null;
+    dropTabIndex = null;
+  }
+
   $: activeIndex = Math.min(node.activeIndex, node.children.length - 1);
   $: activeChild = node.children[activeIndex] ?? null;
 </script>
@@ -39,22 +96,32 @@
 <div class="tab-stack">
   <div class="tab-bar">
     {#each node.children as child, i}
-      <button
-        class="tab-btn"
-        class:active={i === activeIndex}
-        on:click={() => handleSelectTab(i)}
-        title={getTabLabel(child)}
-      >
-        <span class="tab-label">{getTabLabel(child)}</span>
-        <span
-          class="tab-close"
-          on:click={(e) => handleCloseTab(i, e)}
-          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCloseTab(i, e); }}
-          role="button"
-          tabindex="-1"
-          aria-label="Close tab"
-        >&times;</span>
-      </button>
+      <div class="tab-drag-wrapper">
+        <button
+          class="tab-btn"
+          class:active={i === activeIndex}
+          draggable="true"
+          on:dragstart={(e) => handleDragStart(e, i)}
+          on:dragover={(e) => handleDragOver(e, i)}
+          on:drop={(e) => handleDrop(e, i)}
+          title={getTabLabel(child)}
+        >
+          <span class="tab-label">{getTabLabel(child)}</span>
+          <span
+            class="tab-close"
+            on:click={(e) => handleCloseTab(i, e)}
+            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleCloseTab(i, e); }}
+            role="button"
+            tabindex="-1"
+            aria-label="Close tab"
+          >&times;</span>
+        </button>
+        <!-- Edge drop zones -->
+        <div class="edge-drop-zone left" on:dragover={(e) => handleEdgeDragOver(e, 'left')} on:drop={(e) => handleEdgeDrop(e, 'left', i)} style="border-left: {dropEdge === 'left' ? '4px solid var(--hl-symbol)' : 'none'}"></div>
+        <div class="edge-drop-zone right" on:dragover={(e) => handleEdgeDragOver(e, 'right')} on:drop={(e) => handleEdgeDrop(e, 'right', i)} style="border-right: {dropEdge === 'right' ? '4px solid var(--hl-symbol)' : 'none'}"></div>
+        <div class="edge-drop-zone top" on:dragover={(e) => handleEdgeDragOver(e, 'top')} on:drop={(e) => handleEdgeDrop(e, 'top', i)} style="border-top: {dropEdge === 'top' ? '4px solid var(--hl-symbol)' : 'none'}"></div>
+        <div class="edge-drop-zone bottom" on:dragover={(e) => handleEdgeDragOver(e, 'bottom')} on:drop={(e) => handleEdgeDrop(e, 'bottom', i)} style="border-bottom: {dropEdge === 'bottom' ? '4px solid var(--hl-symbol)' : 'none'}"></div>
+      </div>
     {/each}
   </div>
   <div class="tab-content">
@@ -83,7 +150,28 @@
     overflow-x: auto;
     overflow-y: hidden;
     min-height: 1.4rem;
+    position: relative;
   }
+
+  .tab-drag-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .edge-drop-zone {
+    position: absolute;
+    width: 20%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: auto;
+    opacity: 0;
+  }
+  .edge-drop-zone.left { left: 0; top: 0; }
+  .edge-drop-zone.right { right: 0; top: 0; }
+  .edge-drop-zone.top { left: 0; top: 0; height: 20%; width: 100%; }
+  .edge-drop-zone.bottom { left: 0; bottom: 0; height: 20%; width: 100%; }
+  .edge-drop-zone[style*="solid"] { opacity: 1; }
 
   .tab-btn {
     display: flex;

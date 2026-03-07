@@ -28,6 +28,7 @@
 import { writable, derived, get } from "svelte/store";
 import type { WidgetType } from "./notebookStore";
 import { WIDGET_DEFINITIONS } from "./notebookStore";
+import { inferDockingTreeFromCanvas } from '../core/layout/spatialInference';
 
 // ===========================================================================
 // Layout Node Types (JSON-serialisable discriminated union)
@@ -210,24 +211,34 @@ export function getDefaultLayout(): LayoutNode {
 }
 
 // ===========================================================================
-// Stores
+// Dual-State Layout Memory
 // ===========================================================================
 
-/** The root of the recursive layout tree (docking mode). */
-export const layoutRoot = writable<LayoutNode>(createDefaultLayout());
+interface DualLayoutMemory {
+  mode: ViewMode;
+  canvasState: {
+    items: CanvasItem[];
+    viewport: CanvasViewport;
+  };
+  dockingState: LayoutNode;
+}
 
-/** Items on the infinite canvas (canvas mode). */
-export const canvasItems = writable<CanvasItem[]>(createDefaultCanvas());
+const defaultDualMemory: DualLayoutMemory = {
+  mode: "docking",
+  canvasState: {
+    items: createDefaultCanvas(),
+    viewport: { panX: 0, panY: 0, zoom: 1 },
+  },
+  dockingState: createDefaultLayout(),
+};
 
-/** Canvas viewport state. */
-export const canvasViewport = writable<CanvasViewport>({
-  panX: 0,
-  panY: 0,
-  zoom: 1,
-});
+export const dualLayoutStore = writable<DualLayoutMemory>(defaultDualMemory);
 
-/** Current view mode: "docking" or "canvas". */
-export const viewMode = writable<ViewMode>("docking");
+// Derived helpers for legacy compatibility
+export const layoutRoot = derived(dualLayoutStore, ($mem) => $mem.dockingState);
+export const canvasItems = derived(dualLayoutStore, ($mem) => $mem.canvasState.items);
+export const canvasViewport = derived(dualLayoutStore, ($mem) => $mem.canvasState.viewport);
+export const viewMode = derived(dualLayoutStore, ($mem) => $mem.mode);
 
 // ===========================================================================
 // Derived Helpers
@@ -376,41 +387,30 @@ export function splitNode(
   direction: "row" | "col",
   newWidgetType: WidgetType,
 ): void {
-  layoutRoot.update((root) => {
-    const tree = cloneTree(root);
-
+  dualLayoutStore.update((mem) => {
+    const tree = cloneTree(mem.dockingState);
     if (tree.id === nodeId) {
-      // Splitting the root: wrap in a new container
       const newContainer: RowNode | ColNode = {
         id: makeLayoutId(),
         type: direction,
         sizes: [1, 1],
         children: [tree, createWidgetLeaf(newWidgetType)],
       } as RowNode | ColNode;
-      return newContainer;
+      return { ...mem, dockingState: newContainer };
     }
-
     const newLeaf = createWidgetLeaf(newWidgetType);
     const newContainer: RowNode | ColNode = {
       id: makeLayoutId(),
       type: direction,
       sizes: [1, 1],
-      children: [], // will be populated below
+      children: [],
     } as RowNode | ColNode;
-
-    // Find the node and replace it with a container
     const found = findNode(tree, nodeId);
-    if (!found || !found.parent) return tree;
-
+    if (!found || !found.parent) return mem;
     const original = found.parent.children[found.index];
     newContainer.children = [original, newLeaf];
-
     found.parent.children[found.index] = newContainer;
-    if ("sizes" in found.parent) {
-      // sizes array length doesn't change; the slot is reused
-    }
-
-    return tree;
+    return { ...mem, dockingState: tree };
   });
 }
 
@@ -419,16 +419,13 @@ export function splitNode(
  * Automatically prunes single-child containers.
  */
 export function closeNode(nodeId: string): void {
-  layoutRoot.update((root) => {
-    const tree = cloneTree(root);
-
+  dualLayoutStore.update((mem) => {
+    const tree = cloneTree(mem.dockingState);
     if (tree.id === nodeId) {
-      // Closing the root → reset to default
-      return createDefaultLayout();
+      return { ...mem, dockingState: createDefaultLayout() };
     }
-
     const result = removeNode(tree, nodeId);
-    return result ?? createDefaultLayout();
+    return { ...mem, dockingState: result ?? createDefaultLayout() };
   });
 }
 
@@ -436,19 +433,17 @@ export function closeNode(nodeId: string): void {
  * Update the flex-grow proportions of a container's children.
  */
 export function resizePanes(nodeId: string, sizes: number[]): void {
-  layoutRoot.update((root) => {
-    const tree = cloneTree(root);
-
+  dualLayoutStore.update((mem) => {
+    const tree = cloneTree(mem.dockingState);
     if (tree.id === nodeId && tree.type !== "widget") {
       (tree as RowNode | ColNode).sizes = sizes;
-      return tree;
+      return { ...mem, dockingState: tree };
     }
-
     const found = findNode(tree, nodeId);
     if (found && found.node.type !== "widget") {
       (found.node as RowNode | ColNode).sizes = sizes;
     }
-    return tree;
+    return { ...mem, dockingState: tree };
   });
 }
 
@@ -456,8 +451,8 @@ export function resizePanes(nodeId: string, sizes: number[]): void {
  * Set the active tab index of a stack node.
  */
 export function setActiveTab(stackId: string, index: number): void {
-  layoutRoot.update((root) => {
-    const tree = cloneTree(root);
+  dualLayoutStore.update((mem) => {
+    const tree = cloneTree(mem.dockingState);
     const found = findNode(tree, stackId);
     if (found && found.node.type === "stack") {
       const stack = found.node as StackNode;
@@ -468,7 +463,7 @@ export function setActiveTab(stackId: string, index: number): void {
         Math.min(index, (tree as StackNode).children.length - 1),
       );
     }
-    return tree;
+    return { ...mem, dockingState: tree };
   });
 }
 
@@ -480,9 +475,8 @@ export function addWidgetToLayout(
   widgetType: WidgetType,
   direction: "row" | "col" = "row",
 ): void {
-  const root = get(layoutRoot);
-
-  // Find the first widget leaf to split
+  const mem = get(dualLayoutStore);
+  const root = mem.dockingState;
   function findFirstLeaf(node: LayoutNode): string | null {
     if (node.type === "widget") return node.id;
     for (const child of (node as ContainerNode).children) {
@@ -491,7 +485,6 @@ export function addWidgetToLayout(
     }
     return null;
   }
-
   const leafId = findFirstLeaf(root);
   if (leafId) {
     splitNode(leafId, direction, widgetType);
@@ -503,7 +496,7 @@ export function addWidgetToLayout(
  * Used by workspace import and layout presets.
  */
 export function setLayoutRoot(root: LayoutNode): void {
-  layoutRoot.set(root);
+  dualLayoutStore.update((mem) => ({ ...mem, dockingState: root }));
 }
 
 // ===========================================================================
@@ -539,82 +532,63 @@ export function moveNode(
   position: DropPosition,
 ): void {
   if (sourceId === targetId) return;
-
-  layoutRoot.update((root) => {
-    const tree = cloneTree(root);
-
-    // Phase 1: Extract the source node
+  dualLayoutStore.update((mem) => {
+    const tree = cloneTree(mem.dockingState);
     const sourceFound = findNode(tree, sourceId);
-    if (!sourceFound) return tree;
-
-    // Deep-clone the source node before removal
+    if (!sourceFound) return mem;
     const sourceNode = cloneTree(sourceFound.node);
-
-    // Remove source from tree
     let pruned: LayoutNode | null;
     if (tree.id === sourceId) {
-      // Cannot move the root itself
-      return tree;
+      return mem;
     }
     pruned = removeNode(tree, sourceId);
-    if (!pruned) return tree;
-
-    // Phase 2: Locate the target in the pruned tree
+    if (!pruned) return mem;
     if (pruned.id === targetId) {
-      // Target is the new root - wrap it
       const direction: "row" | "col" =
         position === "left" || position === "right" ? "row" : "col";
       const children =
         position === "left" || position === "top"
           ? [sourceNode, pruned]
           : position === "center"
-            ? [pruned] // center: no-op for now
+            ? [pruned]
             : [pruned, sourceNode];
-
-      if (position === "center") return pruned;
-
+      if (position === "center") return { ...mem, dockingState: pruned };
       return {
-        id: makeLayoutId(),
-        type: direction,
-        sizes: Array(children.length).fill(1),
-        children,
-      } as RowNode | ColNode;
+        ...mem,
+        dockingState: {
+          id: makeLayoutId(),
+          type: direction,
+          sizes: Array(children.length).fill(1),
+          children,
+        } as RowNode | ColNode,
+      };
     }
-
     const targetFound = findNode(pruned, targetId);
-    if (!targetFound || !targetFound.parent) return pruned;
-
-    // Phase 3: Insert source relative to target
+    if (!targetFound || !targetFound.parent) return { ...mem, dockingState: pruned };
     if (position === "center") {
-      // Replace the target with the source (swap)
       targetFound.parent.children[targetFound.index] = sourceNode;
-      return pruned;
+      return { ...mem, dockingState: pruned };
     }
-
     const direction: "row" | "col" =
       position === "left" || position === "right" ? "row" : "col";
     const children =
       position === "left" || position === "top"
         ? [sourceNode, targetFound.node]
         : [targetFound.node, sourceNode];
-
     const newContainer: RowNode | ColNode = {
       id: makeLayoutId(),
       type: direction,
       sizes: [1, 1],
       children,
     } as RowNode | ColNode;
-
     targetFound.parent.children[targetFound.index] = newContainer;
-    // sizes array length doesn't change; the slot is reused.
-
-    return pruned;
+    return { ...mem, dockingState: pruned };
   });
 }
 
 /** Reset the docking layout to the default arrangement. */
 export function resetDockingLayout(): void {
-  layoutRoot.set(createDefaultLayout());
+  dualLayoutStore.update((mem) => ({ ...mem, dockingState: createDefaultLayout() }));
 }
 
 // ===========================================================================
@@ -637,36 +611,46 @@ export function addCanvasItem(
   const def = WIDGET_DEFINITIONS.find((d) => d.type === widgetType);
   const w = (def?.defaultColSpan ?? 2) * 320;
   const h = (def?.defaultRowSpan ?? 2) * 220;
-
-  // Default to viewport center if no coordinates specified
-  if (x === undefined || y === undefined) {
-    const vp = get(canvasViewport);
-    // Assume a ~900×600 visible area (reasonable default)
-    x = x ?? (-vp.panX + 450) / (vp.zoom || 1) - w / 2;
-    y = y ?? (-vp.panY + 300) / (vp.zoom || 1) - h / 2;
-  }
-
-  const id = makeLayoutId();
-
-  canvasItems.update((items) => [
-    ...items,
-    {
-      id,
-      widgetType,
-      widgetData: {},
-      x,
-      y,
-      width: w,
-      height: h,
-    },
-  ]);
-
-  return id;
+  dualLayoutStore.update((mem) => {
+    let px = x, py = y;
+    if (px === undefined || py === undefined) {
+      const vp = mem.canvasState.viewport;
+      px = px ?? (-vp.panX + 450) / (vp.zoom || 1) - w / 2;
+      py = py ?? (-vp.panY + 300) / (vp.zoom || 1) - h / 2;
+    }
+    const id = makeLayoutId();
+    return {
+      ...mem,
+      canvasState: {
+        ...mem.canvasState,
+        items: [
+          ...mem.canvasState.items,
+          {
+            id,
+            widgetType,
+            widgetData: {},
+            x: px,
+            y: py,
+            width: w,
+            height: h,
+          },
+        ],
+      },
+    };
+  });
+  // Return a new id (not tracked here, but for API compatibility)
+  return makeLayoutId();
 }
 
 /** Remove a canvas item by ID. */
 export function removeCanvasItem(id: string): void {
-  canvasItems.update((items) => items.filter((i) => i.id !== id));
+  dualLayoutStore.update((mem) => ({
+    ...mem,
+    canvasState: {
+      ...mem.canvasState,
+      items: mem.canvasState.items.filter((i) => i.id !== id),
+    },
+  }));
 }
 
 /** Update a canvas item's position or size. */
@@ -674,112 +658,66 @@ export function updateCanvasItem(
   id: string,
   patch: Partial<Pick<CanvasItem, "x" | "y" | "width" | "height">>,
 ): void {
-  canvasItems.update((items) =>
-    items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
-  );
+  dualLayoutStore.update((mem) => ({
+    ...mem,
+    canvasState: {
+      ...mem.canvasState,
+      items: mem.canvasState.items.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+    },
+  }));
 }
 
 /** Reset canvas to empty. */
 export function clearCanvas(): void {
-  canvasItems.set([]);
-  canvasViewport.set({ panX: 0, panY: 0, zoom: 1 });
+  dualLayoutStore.update((mem) => ({
+    ...mem,
+    canvasState: {
+      items: [],
+      viewport: { panX: 0, panY: 0, zoom: 1 },
+    },
+  }));
 }
 
 // ===========================================================================
 // View Mode Toggle
 // ===========================================================================
 
-/** Toggle between docking and canvas view modes.
- *
- * When switching paradigms, synchronise the widget set:
- * - Docking → Canvas: populate canvas items from the docking tree leaves
- *   (if canvas is currently empty), preserving widgetType and widgetData.
- * - Canvas → Docking: rebuild a docking tree from the canvas items
- *   (if the docking tree contains only the default layout).
- *
- * This ensures the researcher never loses widgets when changing views.
+/** Toggle between docking and canvas view modes with dual-state memory.
+ * Preserves independent snapshots for each mode.
+ * If switching to docking and dockingState is empty or mismatched, rebuild using spatial inference.
  */
 export function toggleViewMode(): void {
-  const current = get(viewMode);
-
-  if (current === "docking") {
-    // Switching to Canvas - sync docking widgets into canvas
-    const currentCanvas = get(canvasItems);
-    if (currentCanvas.length === 0) {
-      const leaves = collectWidgetLeaves(get(layoutRoot));
-      const vp = get(canvasViewport);
-      // Arrange in a grid around the viewport center
-      const centerX = (-vp.panX + 400) / (vp.zoom || 1);
-      const centerY = (-vp.panY + 300) / (vp.zoom || 1);
-      const cols = Math.max(2, Math.ceil(Math.sqrt(leaves.length)));
-      const spacingX = 420;
-      const spacingY = 360;
-
-      const newItems: CanvasItem[] = leaves.map((leaf, i) => {
-        const def = WIDGET_DEFINITIONS.find((d) => d.type === leaf.widgetType);
-        const w = (def?.defaultColSpan ?? 2) * 200;
-        const h = (def?.defaultRowSpan ?? 2) * 160;
-        const col = i % cols;
-        const row = Math.floor(i / cols);
+  dualLayoutStore.update((mem) => {
+    const current = mem.mode;
+    if (current === "docking") {
+      // Switching to Canvas: restore last canvasState
+      return {
+        ...mem,
+        mode: "canvas",
+      };
+    } else {
+      // Switching to Docking: restore last dockingState
+      // If dockingState is empty or widget count mismatches, rebuild
+      const canvasWidgets = mem.canvasState.items;
+      const dockingWidgets = collectWidgetLeaves(mem.dockingState);
+      if (
+        !mem.dockingState ||
+        dockingWidgets.length !== canvasWidgets.length ||
+        dockingWidgets.length === 0
+      ) {
+        // Use spatial inference engine to reconstruct docking tree
         return {
-          id: leaf.id,
-          widgetType: leaf.widgetType,
-          widgetData: { ...leaf.widgetData },
-          x: centerX + col * spacingX,
-          y: centerY + row * spacingY,
-          width: w,
-          height: h,
+          ...mem,
+          mode: "docking",
+          dockingState: inferDockingTreeFromCanvas(canvasWidgets),
         };
-      });
-      canvasItems.set(newItems);
-    }
-  } else {
-    // Switching to Docking - sync canvas widgets into docking tree
-    const currentCanvas = get(canvasItems);
-    if (currentCanvas.length > 0) {
-      // Rebuild a balanced grid layout from the canvas widgets.
-      // Strategy: arrange leaves into rows of up to 3 columns,
-      // then stack the rows vertically.  This mirrors the default
-      // layout aesthetic instead of a flat single-column stack.
-      const leaves = currentCanvas.map((ci) =>
-        createWidgetLeaf(ci.widgetType, { ...ci.widgetData }),
-      );
-
-      if (leaves.length === 1) {
-        layoutRoot.set(leaves[0]);
-      } else {
-        const COLS = Math.min(3, leaves.length);  // max 3 per row
-        const rows: LayoutNode[] = [];
-
-        for (let i = 0; i < leaves.length; i += COLS) {
-          const rowLeaves = leaves.slice(i, i + COLS);
-          if (rowLeaves.length === 1) {
-            rows.push(rowLeaves[0]);
-          } else {
-            rows.push({
-              id: makeLayoutId(),
-              type: "row",
-              sizes: rowLeaves.map(() => 1),
-              children: rowLeaves,
-            } as RowNode);
-          }
-        }
-
-        if (rows.length === 1) {
-          layoutRoot.set(rows[0]);
-        } else {
-          layoutRoot.set({
-            id: makeLayoutId(),
-            type: "col",
-            sizes: rows.map(() => 1),
-            children: rows,
-          } as ColNode);
-        }
       }
+      return {
+        ...mem,
+        mode: "docking",
+      };
     }
-  }
-
-  viewMode.set(current === "docking" ? "canvas" : "docking");
+  });
 }
 
 // ===========================================================================
@@ -885,10 +823,14 @@ export function addWorkspace(name?: string): void {
   workspaces.update((list) => [...list, ws]);
   activeWorkspaceId.set(ws.id);
   // Sync the live stores to the new workspace
-  layoutRoot.set(ws.dockingRoot);
-  canvasItems.set(ws.canvasItemList);
-  canvasViewport.set(ws.viewport);
-  viewMode.set(ws.mode);
+  dualLayoutStore.set({
+    mode: ws.mode,
+    canvasState: {
+      items: ws.canvasItemList,
+      viewport: ws.viewport,
+    },
+    dockingState: ws.dockingRoot,
+  });
 }
 
 /** Switch to a workspace by ID, saving the current workspace first. */
@@ -905,24 +847,29 @@ export function switchWorkspace(targetId: string): void {
   if (!target) return;
 
   activeWorkspaceId.set(targetId);
-  layoutRoot.set(target.dockingRoot);
-  canvasItems.set(target.canvasItemList);
-  canvasViewport.set(target.viewport);
-  viewMode.set(target.mode);
+  dualLayoutStore.set({
+    mode: target.mode,
+    canvasState: {
+      items: target.canvasItemList,
+      viewport: target.viewport,
+    },
+    dockingState: target.dockingRoot,
+  });
 }
 
 /** Persist current live store state back into the workspace array. */
 export function saveCurrentWorkspaceState(): void {
   const currentId = get(activeWorkspaceId);
+  const mem = get(dualLayoutStore);
   workspaces.update((list) =>
     list.map((ws) =>
       ws.id === currentId
         ? {
             ...ws,
-            dockingRoot: get(layoutRoot),
-            canvasItemList: get(canvasItems),
-            viewport: get(canvasViewport),
-            mode: get(viewMode),
+            dockingRoot: mem.dockingState,
+            canvasItemList: mem.canvasState.items,
+            viewport: mem.canvasState.viewport,
+            mode: mem.mode,
           }
         : ws,
     ),

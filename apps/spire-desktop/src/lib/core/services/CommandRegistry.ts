@@ -1,3 +1,23 @@
+import { applyLayoutPreset, saveCustomPreset, loadCustomPreset } from '$lib/services/PresetService';
+// Register layout preset commands
+registerCommand({
+  id: 'spire.layout.apply_preset',
+  title: 'Apply Layout Preset',
+  category: 'Layout',
+  execute: () => applyLayoutPreset('analysis-focus'), // Default example, palette can pass presetId
+});
+registerCommand({
+  id: 'spire.layout.save_preset',
+  title: 'Save Current Layout as Preset',
+  category: 'Layout',
+  execute: () => saveCustomPreset('custom'), // Palette can prompt for name
+});
+registerCommand({
+  id: 'spire.layout.load_preset',
+  title: 'Load Custom Layout Preset',
+  category: 'Layout',
+  execute: () => loadCustomPreset('custom'), // Palette can prompt for name
+});
 /**
  * SPIRE - Command Registry
  *
