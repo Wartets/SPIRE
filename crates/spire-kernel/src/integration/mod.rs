@@ -110,21 +110,16 @@ impl IntegrationResult {
 /// available (or the `gpu` feature is not compiled in), the integration
 /// functions transparently fall back to [`IntegratorBackend::Cpu`] and
 /// emit a diagnostic warning.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum IntegratorBackend {
     /// Evaluate amplitudes on the CPU using Rayon parallelism.
+    #[default]
     Cpu,
     /// Evaluate amplitudes on the GPU using a WGSL compute shader.
     ///
     /// Requires the `gpu` feature to be enabled at compile time and a
     /// compatible GPU adapter at runtime.
     Gpu,
-}
-
-impl Default for IntegratorBackend {
-    fn default() -> Self {
-        Self::Cpu
-    }
 }
 
 impl IntegratorBackend {
