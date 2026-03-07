@@ -31,8 +31,6 @@ pub fn to_py_err(e: SpireError) -> PyErr {
             PyValueError::new_err(format!("Group theory error: {msg}"))
         }
         SpireError::AlgebraError(msg) => PyRuntimeError::new_err(format!("Algebra error: {msg}")),
-        SpireError::InternalError(msg) => {
-            PyRuntimeError::new_err(format!("Internal error: {msg}"))
-        }
+        SpireError::InternalError(msg) => PyRuntimeError::new_err(format!("Internal error: {msg}")),
     }
 }

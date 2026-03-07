@@ -85,8 +85,7 @@ impl PyDecayTable {
     ///     The identifier of the parent particle (e.g. ``"Z0"``, ``"H0"``).
     #[staticmethod]
     fn calculate(model: &PyModel, particle_id: &str) -> PyResult<Self> {
-        let table =
-            decay::calculate_decay_table(&model.inner, particle_id).map_err(to_py_err)?;
+        let table = decay::calculate_decay_table(&model.inner, particle_id).map_err(to_py_err)?;
         Ok(Self { inner: table })
     }
 

@@ -347,9 +347,8 @@ fn extract_property(model: &TheoreticalModel, field_id: &str, property: &FitProp
 mod tests {
     use super::*;
     use crate::ontology::{
-        BaryonNumber, ChargeConjugation, ColorRepresentation, ElectricCharge, Field,
-        Hypercharge, InteractionType, LeptonNumbers, Parity, QuantumNumbers, Spin, WeakIsospin,
-        WeakMultiplet,
+        BaryonNumber, ChargeConjugation, ColorRepresentation, ElectricCharge, Field, Hypercharge,
+        InteractionType, LeptonNumbers, Parity, QuantumNumbers, Spin, WeakIsospin, WeakMultiplet,
     };
 
     /// Build a zero-charged scalar quantum number set suitable for test fields.
@@ -457,10 +456,7 @@ mod tests {
 
         // Value outside prior
         let lp_out = likelihood.log_prob(&[200.0]);
-        assert!(
-            lp_out == f64::NEG_INFINITY,
-            "Should be -∞ outside prior"
-        );
+        assert!(lp_out == f64::NEG_INFINITY, "Should be -∞ outside prior");
     }
 
     #[test]

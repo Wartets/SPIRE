@@ -205,10 +205,7 @@ impl PyParticle {
 
     fn __repr__(&self) -> String {
         let anti_str = if self.inner.is_anti { "anti-" } else { "" };
-        format!(
-            "Particle({}{})",
-            anti_str, self.inner.field.name,
-        )
+        format!("Particle({}{})", anti_str, self.inner.field.name,)
     }
 
     fn __str__(&self) -> String {
@@ -227,11 +224,7 @@ impl PyParticle {
             "<span style=\"font-family:'Segoe UI',sans-serif; font-size:13px;\">\
              <b>{}{}</b> ({}) - {} | mass = {:.6} GeV\
              </span>",
-            anti,
-            self.inner.field.name,
-            self.inner.field.symbol,
-            shell,
-            self.inner.field.mass,
+            anti, self.inner.field.name, self.inner.field.symbol, shell, self.inner.field.mass,
         )
     }
 }

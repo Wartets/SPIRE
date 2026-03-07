@@ -300,27 +300,28 @@ fn vertex_canonical_id<'a>(model: &'a TheoreticalModel, id: &str) -> String {
     // partner in the model (same mass, opposite charge).
 
     // Fast path: if any vertex already uses this id, return as-is.
-    let in_vertex = model.vertex_factors.iter().any(|vf| {
-        vf.field_ids.iter().any(|fid| fid == id)
-    });
+    let in_vertex = model
+        .vertex_factors
+        .iter()
+        .any(|vf| vf.field_ids.iter().any(|fid| fid == id));
     if in_vertex {
         return id.to_string();
     }
 
     // Explicit antiparticle → particle mapping based on naming conventions.
     let canonical = match id {
-        "e+"        => "e-",
-        "mu+"       => "mu-",
-        "tau+"      => "tau-",
-        "nu_e_bar"  => "nu_e",
+        "e+" => "e-",
+        "mu+" => "mu-",
+        "tau+" => "tau-",
+        "nu_e_bar" => "nu_e",
         "nu_mu_bar" => "nu_mu",
-        "nu_tau_bar"=> "nu_tau",
-        "u_bar"     => "u",
-        "d_bar"     => "d",
-        "s_bar"     => "s",
-        "c_bar"     => "c",
-        "b_bar"     => "b",
-        "t_bar"     => "t",
+        "nu_tau_bar" => "nu_tau",
+        "u_bar" => "u",
+        "d_bar" => "d",
+        "s_bar" => "s",
+        "c_bar" => "c",
+        "b_bar" => "b",
+        "t_bar" => "t",
         _ => id,
     };
 

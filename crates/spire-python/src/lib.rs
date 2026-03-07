@@ -71,7 +71,10 @@ fn _native(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
 
     // ── Kinematics utilities ─────────────────────────────────────────
     m.add_function(wrap_pyfunction!(kinematics_mod::calculate_threshold, m)?)?;
-    m.add_function(wrap_pyfunction!(kinematics_mod::is_kinematically_allowed, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        kinematics_mod::is_kinematically_allowed,
+        m
+    )?)?;
 
     Ok(())
 }

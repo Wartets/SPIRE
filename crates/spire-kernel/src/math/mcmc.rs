@@ -334,11 +334,7 @@ impl EnsembleSampler {
         let a = self.config.stretch_factor;
 
         // Initialise log-probs for all walkers (parallel)
-        self.log_probs = self
-            .positions
-            .par_iter()
-            .map(|pos| log_prob(pos))
-            .collect();
+        self.log_probs = self.positions.par_iter().map(|pos| log_prob(pos)).collect();
 
         // Pre-allocate chain storage
         self.chain_positions = Vec::with_capacity(n_steps);
@@ -400,8 +396,7 @@ impl EnsembleSampler {
                         let new_lp = log_prob(&proposal);
 
                         // Acceptance criterion
-                        let log_accept =
-                            (n_dim as f64 - 1.0) * z.ln() + new_lp - current_lp;
+                        let log_accept = (n_dim as f64 - 1.0) * z.ln() + new_lp - current_lp;
 
                         let u: f64 = rng.gen();
                         if log_accept.is_finite() && u.ln() < log_accept {
@@ -499,11 +494,7 @@ mod tests {
         let chain = sampler.run(&log_prob);
 
         let means = chain.parameter_means(500);
-        assert!(
-            means[0].abs() < 0.2,
-            "Mean should be ~0, got {}",
-            means[0]
-        );
+        assert!(means[0].abs() < 0.2, "Mean should be ~0, got {}", means[0]);
 
         let cov = chain.covariance_matrix(500);
         assert!(

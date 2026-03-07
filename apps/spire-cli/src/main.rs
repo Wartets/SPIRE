@@ -172,7 +172,10 @@ fn print_hardware_info() {
         println!("║  GPU status:             Build with --features gpu   ║");
     }
 
-    println!("║  SPIRE kernel version:   {}                    ║", env!("CARGO_PKG_VERSION"));
+    println!(
+        "║  SPIRE kernel version:   {}                    ║",
+        env!("CARGO_PKG_VERSION")
+    );
     println!("╚══════════════════════════════════════════════════════╝");
 }
 
@@ -196,9 +199,7 @@ fn execute_run(config: &SpireRunConfig, quiet: bool) -> Result<(), Box<dyn std::
     if !quiet {
         eprintln!(
             "[SPIRE] Loading model '{}' from {:?} + {:?}",
-            config.process.model_name,
-            config.process.particles_toml,
-            config.process.vertices_toml
+            config.process.model_name, config.process.particles_toml, config.process.vertices_toml
         );
     }
 
@@ -215,7 +216,8 @@ fn execute_run(config: &SpireRunConfig, quiet: bool) -> Result<(), Box<dyn std::
         )
     })?;
 
-    let model = data_loader::build_model(&particles_toml, &vertices_toml, &config.process.model_name)?;
+    let model =
+        data_loader::build_model(&particles_toml, &vertices_toml, &config.process.model_name)?;
 
     if !quiet {
         eprintln!(
@@ -228,8 +230,18 @@ fn execute_run(config: &SpireRunConfig, quiet: bool) -> Result<(), Box<dyn std::
     // -----------------------------------------------------------------------
     // Step 2: Construct and validate the reaction
     // -----------------------------------------------------------------------
-    let initial_refs: Vec<&str> = config.process.initial_state.iter().map(|s| s.as_str()).collect();
-    let final_refs: Vec<&str> = config.process.final_state.iter().map(|s| s.as_str()).collect();
+    let initial_refs: Vec<&str> = config
+        .process
+        .initial_state
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
+    let final_refs: Vec<&str> = config
+        .process
+        .final_state
+        .iter()
+        .map(|s| s.as_str())
+        .collect();
     let reaction = s_matrix::construct_reaction(
         &initial_refs,
         &final_refs,
@@ -297,7 +309,10 @@ fn execute_run(config: &SpireRunConfig, quiet: bool) -> Result<(), Box<dyn std::
             "[SPIRE] Uncertainty:    {:.6e} GeV⁻²  ({:.6e} pb)",
             result.error, result_pb.error
         );
-        eprintln!("[SPIRE] Relative error: {:.4}%", result.relative_error * 100.0);
+        eprintln!(
+            "[SPIRE] Relative error: {:.4}%",
+            result.relative_error * 100.0
+        );
         eprintln!("[SPIRE] Events:         {}", result.events_evaluated);
         eprintln!("[SPIRE] Efficiency:     {:.4}%", result.efficiency * 100.0);
         eprintln!(
@@ -313,10 +328,7 @@ fn execute_run(config: &SpireRunConfig, quiet: bool) -> Result<(), Box<dyn std::
 
     let t_total = t_start.elapsed();
     if !quiet {
-        eprintln!(
-            "[SPIRE] Total elapsed:  {:.3}s",
-            t_total.as_secs_f64()
-        );
+        eprintln!("[SPIRE] Total elapsed:  {:.3}s", t_total.as_secs_f64());
         eprintln!("[SPIRE] Done.");
     }
 
@@ -432,7 +444,10 @@ fn write_output(
             writer.finish()?;
 
             if !quiet {
-                eprintln!("[SPIRE] LHE output written to {:?} ({} events)", path, n_write);
+                eprintln!(
+                    "[SPIRE] LHE output written to {:?} ({} events)",
+                    path, n_write
+                );
             }
         }
         "stdout" => {
@@ -446,7 +461,11 @@ fn write_output(
             println!("efficiency         = {:.10e}", result.efficiency);
         }
         other => {
-            return Err(format!("Unknown output format '{}'. Use 'lhe', 'json', or 'stdout'.", other).into());
+            return Err(format!(
+                "Unknown output format '{}'. Use 'lhe', 'json', or 'stdout'.",
+                other
+            )
+            .into());
         }
     }
     Ok(())
@@ -565,7 +584,10 @@ fn main() {
     let config_str = match fs::read_to_string(&args.config) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("[SPIRE] Error: Failed to read config file {:?}: {}", args.config, e);
+            eprintln!(
+                "[SPIRE] Error: Failed to read config file {:?}: {}",
+                args.config, e
+            );
             std::process::exit(1);
         }
     };
@@ -701,6 +723,9 @@ format = "lhe"
 file = "output.lhe"
 "#;
         let config: SpireRunConfig = toml::from_str(toml_str).unwrap();
-        assert_eq!(config.output.file.as_ref().unwrap().to_str().unwrap(), "output.lhe");
+        assert_eq!(
+            config.output.file.as_ref().unwrap().to_str().unwrap(),
+            "output.lhe"
+        );
     }
 }

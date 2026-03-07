@@ -46,9 +46,8 @@ impl PyModel {
     /// and propagators.
     #[staticmethod]
     fn standard_model() -> PyResult<Self> {
-        let model =
-            data_loader::build_model(SM_PARTICLES_TOML, SM_VERTICES_TOML, "Standard Model")
-                .map_err(to_py_err)?;
+        let model = data_loader::build_model(SM_PARTICLES_TOML, SM_VERTICES_TOML, "Standard Model")
+            .map_err(to_py_err)?;
         Ok(Self { inner: model })
     }
 
@@ -65,7 +64,8 @@ impl PyModel {
     #[staticmethod]
     #[pyo3(signature = (particles_toml, vertices_toml, name="Custom Model"))]
     fn from_toml(particles_toml: &str, vertices_toml: &str, name: &str) -> PyResult<Self> {
-        let model = data_loader::build_model(particles_toml, vertices_toml, name).map_err(to_py_err)?;
+        let model =
+            data_loader::build_model(particles_toml, vertices_toml, name).map_err(to_py_err)?;
         Ok(Self { inner: model })
     }
 
@@ -101,9 +101,7 @@ impl PyModel {
         self.inner
             .fields
             .iter()
-            .map(|f| PyField {
-                inner: f.clone(),
-            })
+            .map(|f| PyField { inner: f.clone() })
             .collect()
     }
 
@@ -117,9 +115,7 @@ impl PyModel {
             .fields
             .iter()
             .find(|f| f.id == field_id)
-            .map(|f| PyField {
-                inner: f.clone(),
-            })
+            .map(|f| PyField { inner: f.clone() })
             .ok_or_else(|| {
                 PyValueError::new_err(format!(
                     "Unknown field '{}'. Available: [{}]",

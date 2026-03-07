@@ -926,8 +926,12 @@ fn query_hardware_backends() -> HardwareReport {
         gpu_feature_compiled: gpu_compiled,
         gpu_adapter_available: gpu_available,
         adapter_name,
-        cpu_backend: spire_kernel::integration::IntegratorBackend::Cpu.description().to_string(),
-        gpu_backend: spire_kernel::integration::IntegratorBackend::Gpu.description().to_string(),
+        cpu_backend: spire_kernel::integration::IntegratorBackend::Cpu
+            .description()
+            .to_string(),
+        gpu_backend: spire_kernel::integration::IntegratorBackend::Gpu
+            .description()
+            .to_string(),
     }
 }
 
@@ -1013,7 +1017,10 @@ fn start_mcmc_fit(
 
     // Store param names and burn-in
     {
-        let mut names = state.param_names.lock().map_err(|e| format!("Lock: {}", e))?;
+        let mut names = state
+            .param_names
+            .lock()
+            .map_err(|e| format!("Lock: {}", e))?;
         *names = request
             .config
             .parameters
@@ -1056,11 +1063,7 @@ fn start_mcmc_fit(
         use rand::Rng;
         let mut rng = rand::thread_rng();
         (0..n_walkers)
-            .map(|_| {
-                (0..n_dim)
-                    .map(|_| rng.gen_range(0.0..1.0))
-                    .collect()
-            })
+            .map(|_| (0..n_dim).map(|_| rng.gen_range(0.0..1.0)).collect())
             .collect()
     };
 
@@ -1135,7 +1138,10 @@ fn get_mcmc_status(
     };
 
     let param_names = {
-        let names = state.param_names.lock().map_err(|e| format!("Lock: {}", e))?;
+        let names = state
+            .param_names
+            .lock()
+            .map_err(|e| format!("Lock: {}", e))?;
         names.clone()
     };
 
@@ -1213,7 +1219,10 @@ fn load_plugin(
     #[cfg(feature = "plugins")]
     {
         let bytes = std::fs::read(&path).map_err(|e| format!("Failed to read {}: {}", path, e))?;
-        let mut host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let mut host = state
+            .host
+            .lock()
+            .map_err(|e| format!("Lock poisoned: {}", e))?;
         let meta = host
             .load_plugin_from_bytes(&bytes)
             .map_err(|e| e.to_string())?;
@@ -1244,7 +1253,10 @@ fn list_active_plugins(
 ) -> Result<Vec<PluginInfo>, String> {
     #[cfg(feature = "plugins")]
     {
-        let host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let host = state
+            .host
+            .lock()
+            .map_err(|e| format!("Lock poisoned: {}", e))?;
         Ok(host
             .list_plugins()
             .into_iter()
@@ -1267,13 +1279,13 @@ fn list_active_plugins(
 
 /// Unload a plugin by name.
 #[tauri::command]
-fn unload_plugin(
-    name: String,
-    state: tauri::State<'_, PluginManagerState>,
-) -> Result<(), String> {
+fn unload_plugin(name: String, state: tauri::State<'_, PluginManagerState>) -> Result<(), String> {
     #[cfg(feature = "plugins")]
     {
-        let mut host = state.host.lock().map_err(|e| format!("Lock poisoned: {}", e))?;
+        let mut host = state
+            .host
+            .lock()
+            .map_err(|e| format!("Lock poisoned: {}", e))?;
         host.unload_plugin(&name).map_err(|e| e.to_string())
     }
     #[cfg(not(feature = "plugins"))]

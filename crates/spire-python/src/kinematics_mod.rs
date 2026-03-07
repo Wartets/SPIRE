@@ -22,12 +22,8 @@ use crate::errors::to_py_err;
 ///     ``lab_energy`` (float or None), and ``final_masses`` (list[float]).
 #[pyfunction]
 #[pyo3(signature = (final_masses, target_mass=None))]
-pub fn calculate_threshold(
-    final_masses: Vec<f64>,
-    target_mass: Option<f64>,
-) -> PyResult<PyObject> {
-    let result =
-        kinematics::calculate_thresholds(&final_masses, target_mass).map_err(to_py_err)?;
+pub fn calculate_threshold(final_masses: Vec<f64>, target_mass: Option<f64>) -> PyResult<PyObject> {
+    let result = kinematics::calculate_thresholds(&final_masses, target_mass).map_err(to_py_err)?;
 
     Python::with_gil(|py| {
         let dict = pyo3::types::PyDict::new(py);

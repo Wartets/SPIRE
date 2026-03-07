@@ -114,10 +114,7 @@ impl GpuIntegrator {
             .await?;
 
         let info = adapter.get_info();
-        let adapter_info = format!(
-            "{} ({:?}, {:?})",
-            info.name, info.backend, info.device_type
-        );
+        let adapter_info = format!("{} ({:?}, {:?})", info.name, info.backend, info.device_type);
 
         let (device, queue) = adapter
             .request_device(
@@ -300,13 +297,13 @@ impl GpuIntegrator {
                     ],
                 });
 
-        let pipeline_layout =
-            self.device
-                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("integrator_pipeline_layout"),
-                    bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
-                });
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("integrator_pipeline_layout"),
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let pipeline = self
             .device
@@ -424,9 +421,7 @@ impl GpuIntegrator {
         });
 
         self.device.poll(wgpu::Maintain::Wait);
-        rx.recv()
-            .expect("channel recv")
-            .expect("buffer map failed");
+        rx.recv().expect("channel recv").expect("buffer map failed");
 
         let data = slice.get_mapped_range();
         let results: Vec<f32> = bytemuck::cast_slice(&data).to_vec();

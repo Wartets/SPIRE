@@ -219,7 +219,11 @@ impl PyEventGenerator {
 
     /// Jupyter rich HTML representation.
     fn _repr_html_(&self) -> String {
-        let masses_str: Vec<String> = self.final_masses.iter().map(|m| format!("{m:.4}")).collect();
+        let masses_str: Vec<String> = self
+            .final_masses
+            .iter()
+            .map(|m| format!("{m:.4}"))
+            .collect();
         format!(
             "<div style=\"font-family:'Segoe UI',sans-serif; font-size:13px;\">\
              <h4 style=\"margin:0 0 6px 0;\">🎲 Event Generator (RAMBO)</h4>\

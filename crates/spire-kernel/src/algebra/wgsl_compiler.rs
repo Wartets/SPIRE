@@ -357,7 +357,10 @@ impl WgslCompiler {
                 // 1 / (p² - m² + iε)
                 // We use a small imaginary part for numerical stability.
                 let p_idx = self.momentum_index(momentum);
-                let p_sq = format!("dot4(momenta[base + {}u], momenta[base + {}u])", p_idx, p_idx);
+                let p_sq = format!(
+                    "dot4(momenta[base + {}u], momenta[base + {}u])",
+                    p_idx, p_idx
+                );
                 let denom_re = format!("({} - {:.8})", p_sq, mass_sq);
                 let denom = format!("c_new({}, 1.0e-6)", denom_re);
                 let tmp = self.emit_let(&format!("c_div(c_one(), {})", denom));
@@ -510,12 +513,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {{
         shader.push('\n');
 
         // --- Final result: |M|² ---
-        write!(
-            shader,
-            "    let amplitude = {};\n",
-            result_expr
-        )
-        .expect("write to String cannot fail");
+        write!(shader, "    let amplitude = {};\n", result_expr)
+            .expect("write to String cannot fail");
         shader.push_str("    results[event_id] = c_norm_sq(amplitude);\n");
         shader.push_str("}\n");
 
@@ -621,10 +620,7 @@ mod tests {
     #[test]
     fn mul_generates_c_mul_chain() {
         let mut c = WgslCompiler::new(0, &[]);
-        let expr = CasExpr::Mul(vec![
-            CasExpr::Scalar(2.0),
-            CasExpr::Scalar(3.0),
-        ]);
+        let expr = CasExpr::Mul(vec![CasExpr::Scalar(2.0), CasExpr::Scalar(3.0)]);
         let code = c.compile_expression_only(&expr);
         assert!(code.starts_with("tmp_"));
     }

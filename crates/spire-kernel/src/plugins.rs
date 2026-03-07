@@ -232,9 +232,9 @@ impl PluginHost {
 
     /// Unload a plugin by name.
     pub fn unload_plugin(&mut self, name: &str) -> Result<(), SpireError> {
-        self.plugins.remove(name).ok_or_else(|| {
-            SpireError::InternalError(format!("Plugin '{}' not found", name))
-        })?;
+        self.plugins
+            .remove(name)
+            .ok_or_else(|| SpireError::InternalError(format!("Plugin '{}' not found", name)))?;
         Ok(())
     }
 
@@ -251,9 +251,8 @@ impl PluginHost {
     /// Returns `true` if the event is accepted by **all** plugins
     /// (logical AND). If any plugin rejects, returns `false`.
     pub fn dispatch_kinematic_cut(&mut self, event: &KinematicEvent) -> Result<bool, SpireError> {
-        let json = serde_json::to_string(event).map_err(|e| {
-            SpireError::InternalError(format!("Failed to serialize event: {}", e))
-        })?;
+        let json = serde_json::to_string(event)
+            .map_err(|e| SpireError::InternalError(format!("Failed to serialize event: {}", e)))?;
 
         let names: Vec<String> = self
             .plugins
@@ -292,9 +291,8 @@ impl PluginHost {
         plugin_name: &str,
         event: &KinematicEvent,
     ) -> Result<f64, SpireError> {
-        let json = serde_json::to_string(event).map_err(|e| {
-            SpireError::InternalError(format!("Failed to serialize event: {}", e))
-        })?;
+        let json = serde_json::to_string(event)
+            .map_err(|e| SpireError::InternalError(format!("Failed to serialize event: {}", e)))?;
 
         let result = self.call_hook(plugin_name, EXPORT_CUSTOM_OBSERVABLE, &json)?;
         match result {
@@ -316,9 +314,8 @@ impl PluginHost {
         plugin_name: &str,
         event: &KinematicEvent,
     ) -> Result<f64, SpireError> {
-        let json = serde_json::to_string(event).map_err(|e| {
-            SpireError::InternalError(format!("Failed to serialize event: {}", e))
-        })?;
+        let json = serde_json::to_string(event)
+            .map_err(|e| SpireError::InternalError(format!("Failed to serialize event: {}", e)))?;
 
         let result = self.call_hook(plugin_name, EXPORT_CUSTOM_MATRIX_ELEMENT, &json)?;
         match result {
@@ -381,10 +378,7 @@ impl PluginHost {
         let input_ptr = alloc_fn
             .call(&mut plugin.store, input_bytes.len() as i32)
             .map_err(|e| {
-                SpireError::InternalError(format!(
-                    "Plugin '{}' alloc failed: {}",
-                    plugin_name, e
-                ))
+                SpireError::InternalError(format!("Plugin '{}' alloc failed: {}", plugin_name, e))
             })?;
 
         // Write input JSON into guest memory
@@ -418,10 +412,7 @@ impl PluginHost {
             })?;
 
         let packed_result = hook_fn
-            .call(
-                &mut plugin.store,
-                (input_ptr, input_bytes.len() as i32),
-            )
+            .call(&mut plugin.store, (input_ptr, input_bytes.len() as i32))
             .map_err(|e| {
                 SpireError::InternalError(format!(
                     "Plugin '{}' hook '{}' trapped: {}",
