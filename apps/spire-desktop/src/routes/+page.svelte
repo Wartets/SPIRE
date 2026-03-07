@@ -21,6 +21,9 @@
     resetDockingLayout,
     clearCanvas,
     toggleViewMode,
+    canvasViewport,
+    canvasItems,
+    removeCanvasItem,
     workspaces,
     activeWorkspaceId,
     addWorkspace,
@@ -40,8 +43,15 @@
     unregisterCommand,
     openPalette,
   } from "$lib/core/services/CommandRegistry";
+  import {
+    cheatSheetOpen,
+    keybindPanelOpen,
+  } from "$lib/core/services/ShortcutService";
   import { startTutorial } from "$lib/core/services/TutorialService";
   import { clearCitations } from "$lib/core/services/CitationRegistry";
+  import {
+    executeAllCells,
+  } from "$lib/stores/notebookDocumentStore";
   import { generateMathematicalProof, loadProvenanceState } from "$lib/api";
   import LayoutRenderer from "$lib/components/layout/LayoutRenderer.svelte";
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
@@ -133,12 +143,27 @@
     "spire.ui.toggle_log",
     "spire.view.toggle_canvas_mode",
     "spire.workspace.save",
+    "spire.workspace.save_as",
     "spire.workspace.reset",
     "spire.palette.open",
+    "spire.shortcut.cheatsheet",
     "spire.help.tutorial",
     "spire.references.clear_all",
     "spire.export.proof_latex",
     "spire.provenance.load",
+    "spire.canvas.add_widget",
+    "spire.canvas.zoom_in",
+    "spire.canvas.zoom_out",
+    "spire.canvas.reset_zoom",
+    "spire.canvas.delete_selected",
+    "spire.canvas.duplicate",
+    "spire.canvas.select_all",
+    "spire.notebook.run_cell",
+    "spire.notebook.run_all",
+    "spire.edit.undo",
+    "spire.edit.redo",
+    "spire.search.focus",
+    "spire.settings.keybinds",
   ];
 
   function registerGlobalCommands(): void {
@@ -170,7 +195,7 @@
       id: "spire.view.toggle_canvas_mode",
       title: "Toggle Canvas / Docking Mode",
       category: "View",
-      shortcut: "Mod+Shift+C",
+      shortcut: "Mod+E",
       execute: () => toggleViewMode(),
     });
     registerCommand({
@@ -281,6 +306,148 @@
       title: "Load Provenance State",
       category: "File",
       execute: () => loadProvenanceFromClipboard(),
+    });
+
+    // ── Canvas Commands ──
+    registerCommand({
+      id: "spire.canvas.add_widget",
+      title: "Add Widget",
+      category: "Canvas",
+      shortcut: "Mod+N",
+      execute: () => spawnWidget("notebook"),
+      icon: "+",
+    });
+    registerCommand({
+      id: "spire.canvas.zoom_in",
+      title: "Zoom In",
+      category: "Canvas",
+      shortcut: "Mod+=",
+      execute: () => {
+        canvasViewport.update((vp) => ({
+          ...vp,
+          zoom: Math.min(5, vp.zoom * 1.15),
+        }));
+      },
+    });
+    registerCommand({
+      id: "spire.canvas.zoom_out",
+      title: "Zoom Out",
+      category: "Canvas",
+      shortcut: "Mod+-",
+      execute: () => {
+        canvasViewport.update((vp) => ({
+          ...vp,
+          zoom: Math.max(0.15, vp.zoom / 1.15),
+        }));
+      },
+    });
+    registerCommand({
+      id: "spire.canvas.reset_zoom",
+      title: "Reset Zoom",
+      category: "Canvas",
+      shortcut: "Mod+0",
+      execute: () => {
+        canvasViewport.update((vp) => ({ ...vp, zoom: 1 }));
+      },
+    });
+    registerCommand({
+      id: "spire.canvas.delete_selected",
+      title: "Delete Selected Widget",
+      category: "Canvas",
+      shortcut: "Delete",
+      execute: () => {
+        // Canvas selection is managed locally by InfiniteCanvas;
+        // this dispatches a custom event for the canvas to handle.
+        window.dispatchEvent(new CustomEvent("spire:canvas:delete-selected"));
+      },
+    });
+    registerCommand({
+      id: "spire.canvas.duplicate",
+      title: "Duplicate Widget",
+      category: "Canvas",
+      shortcut: "Mod+D",
+      execute: () => {
+        window.dispatchEvent(new CustomEvent("spire:canvas:duplicate-selected"));
+      },
+    });
+    registerCommand({
+      id: "spire.canvas.select_all",
+      title: "Select All Widgets",
+      category: "Canvas",
+      shortcut: "Mod+A",
+      execute: () => {
+        window.dispatchEvent(new CustomEvent("spire:canvas:select-all"));
+      },
+    });
+
+    // ── Notebook Commands ──
+    registerCommand({
+      id: "spire.notebook.run_cell",
+      title: "Run Cell & Advance",
+      category: "Notebook",
+      shortcut: "Mod+Enter",
+      execute: () => {
+        // Notebook cells handle Shift+Enter locally; this is a global
+        // fallback that broadcasts to the focused cell.
+        window.dispatchEvent(new CustomEvent("spire:notebook:run-cell"));
+      },
+    });
+    registerCommand({
+      id: "spire.notebook.run_all",
+      title: "Run All Cells",
+      category: "Notebook",
+      shortcut: "Mod+Shift+Enter",
+      execute: () => executeAllCells(),
+    });
+
+    // ── Navigation ──
+    registerCommand({
+      id: "spire.shortcut.cheatsheet",
+      title: "Keyboard Shortcuts",
+      category: "Navigation",
+      shortcut: "Mod+/",
+      execute: () => cheatSheetOpen.update((v) => !v),
+      icon: "⌨",
+    });
+
+    registerCommand({
+      id: "spire.settings.keybinds",
+      title: "Customize Keyboard Shortcuts",
+      category: "Navigation",
+      execute: () => keybindPanelOpen.update((v) => !v),
+      icon: "⚙",
+    });
+
+    // ── Edit Commands ──
+    registerCommand({
+      id: "spire.edit.undo",
+      title: "Undo",
+      category: "Edit",
+      shortcut: "Mod+Z",
+      execute: () => document.execCommand("undo"),
+    });
+    registerCommand({
+      id: "spire.edit.redo",
+      title: "Redo",
+      category: "Edit",
+      shortcut: "Mod+Shift+Z",
+      execute: () => document.execCommand("redo"),
+    });
+    registerCommand({
+      id: "spire.search.focus",
+      title: "Search",
+      category: "Edit",
+      shortcut: "Mod+F",
+      execute: () => openPalette(),
+    });
+
+    // ── Chord: Save As ──
+    registerCommand({
+      id: "spire.workspace.save_as",
+      title: "Save Workspace As…",
+      category: "File",
+      shortcut: "Mod+K Mod+S",
+      execute: () => downloadWorkspace(),
     });
   }
 

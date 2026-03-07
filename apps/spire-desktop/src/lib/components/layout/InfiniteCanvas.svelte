@@ -559,6 +559,31 @@
     ]);
   }
 
+  // ── Global Shortcut Event Handlers ──
+
+  function handleDeleteSelected(): void {
+    if (selectedWidgetId) {
+      removeCanvasItem(selectedWidgetId);
+      selectedWidgetId = null;
+    }
+  }
+
+  function handleDuplicateSelected(): void {
+    if (!selectedWidgetId) return;
+    const items = get(canvasItems);
+    const src = items.find((i) => i.id === selectedWidgetId);
+    if (!src) return;
+    addCanvasItem(src.widgetType, src.x + 30, src.y + 30);
+  }
+
+  function handleSelectAll(): void {
+    // In single-select mode, select the first item as a starting point.
+    const items = get(canvasItems);
+    if (items.length > 0) {
+      selectedWidgetId = items[0].id;
+    }
+  }
+
   // ── Lifecycle ──
 
   let resizeObserver: ResizeObserver | null = null;
@@ -566,6 +591,9 @@
   onMount(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
+    window.addEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
+    window.addEventListener("spire:canvas:select-all", handleSelectAll as EventListener);
 
     // Track canvas element dimensions for frustum culling
     if (canvasEl) {
@@ -586,6 +614,9 @@
     resizeObserver?.disconnect();
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
+    window.removeEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
+    window.removeEventListener("spire:canvas:select-all", handleSelectAll as EventListener);
   });
 </script>
 

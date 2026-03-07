@@ -16,15 +16,20 @@
   } from "$lib/stores/physicsStore";
   import { backendKind, backendLabel } from "$lib/core/backend";
   import {
-    commands,
-    findCommandByShortcut,
     paletteOpen,
     togglePalette,
-    parseShortcut,
-    matchesShortcut,
   } from "$lib/core/services/CommandRegistry";
+  import {
+    initShortcutService,
+    destroyShortcutService,
+    chordIndicator,
+    cheatSheetOpen,
+    keybindPanelOpen,
+  } from "$lib/core/services/ShortcutService";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
+  import CheatSheetOverlay from "$lib/components/ui/CheatSheetOverlay.svelte";
+  import KeybindPanel from "$lib/components/settings/KeybindPanel.svelte";
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
   import { tutorialActive } from "$lib/core/services/TutorialService";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
@@ -37,42 +42,10 @@
   }
 
   // ── Global Keybind Handler ─────────────────────────────────
-  const paletteShortcut = parseShortcut("Mod+K");
-
-  function handleGlobalKeydown(event: KeyboardEvent): void {
-    // Ignore keystrokes when the user is typing in an input or textarea,
-    // UNLESS it is the palette trigger (Mod+K) or Escape.
-    const target = event.target as HTMLElement;
-    const isInput =
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.tagName === "SELECT" ||
-      target.isContentEditable;
-
-    // Always handle palette toggle
-    if (matchesShortcut(event, paletteShortcut)) {
-      event.preventDefault();
-      togglePalette();
-      return;
-    }
-
-    // Always handle Escape to close palette
-    if (event.key === "Escape" && $paletteOpen) {
-      event.preventDefault();
-      paletteOpen.set(false);
-      return;
-    }
-
-    // Skip shortcut resolution when palette is open or user is in an input
-    if ($paletteOpen || isInput) return;
-
-    // Resolve registered command shortcuts
-    const cmd = findCommandByShortcut(event, $commands);
-    if (cmd) {
-      event.preventDefault();
-      cmd.execute();
-    }
-  }
+  // Keyboard shortcuts are now managed by ShortcutService.ts which
+  // owns a single capture-phase keydown listener.  This replaces
+  // the previous inline handler with a centralised, chord-aware,
+  // user-customisable engine.
 
   // ── Global Context Menu Interceptor ─────────────────────────────
   function handleGlobalContextMenu(event: MouseEvent): void {
@@ -93,7 +66,7 @@
     window.location.pathname.startsWith("/window");
 
   onMount(async () => {
-    window.addEventListener("keydown", handleGlobalKeydown, { capture: true });
+    initShortcutService();
     window.addEventListener("contextmenu", handleGlobalContextMenu);
 
     // Only the main window acts as the state authority.
@@ -104,7 +77,7 @@
   });
 
   onDestroy(() => {
-    window.removeEventListener("keydown", handleGlobalKeydown, { capture: true });
+    destroyShortcutService();
     window.removeEventListener("contextmenu", handleGlobalContextMenu);
     stopMainSync?.();
   });
@@ -170,9 +143,30 @@
   <!-- Global Context Menu Overlay -->
   <ContextMenu />
 
+  <!-- Shortcut Cheat Sheet -->
+  {#if $cheatSheetOpen}
+    <CheatSheetOverlay />
+  {/if}
+
+  <!-- Keybind Customisation Panel -->
+  {#if $keybindPanelOpen}
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="keybind-panel-overlay" on:mousedown={() => keybindPanelOpen.set(false)}>
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div class="keybind-panel-drawer" on:mousedown|stopPropagation>
+        <KeybindPanel onClose={() => keybindPanelOpen.set(false)} />
+      </div>
+    </div>
+  {/if}
+
   <!-- Tutorial Overlay -->
   {#if $tutorialActive}
     <TutorialOverlay />
+  {/if}
+
+  <!-- Chord Indicator -->
+  {#if $chordIndicator}
+    <div class="chord-indicator">{$chordIndicator}</div>
   {/if}
 
   <!-- Main Content Area -->
@@ -431,5 +425,50 @@
     .nav-label { font-size: 0.6rem; }
     .nav-select { font-size: 0.68rem; padding: 0.15rem 0.3rem; }
     .main-content { padding: 0.25rem; }
+  }
+
+  /* ── Chord Indicator ──────────────────────────────────────── */
+  .chord-indicator {
+    position: fixed;
+    bottom: 1.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-surface, #1a1a1a);
+    color: var(--hl-value, #d4a017);
+    border: 1px solid var(--hl-value, #d4a017);
+    padding: 0.35rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    z-index: 11000;
+    pointer-events: none;
+    animation: chord-fadein 0.12s ease-out;
+    white-space: nowrap;
+  }
+  @keyframes chord-fadein {
+    from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  /* ── Keybind Customisation Panel ──────────────────────────── */
+  .keybind-panel-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 12500;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    justify-content: flex-end;
+  }
+  .keybind-panel-drawer {
+    width: min(520px, 85vw);
+    height: 100%;
+    background: var(--bg-primary, #121212);
+    border-left: 1px solid var(--border, #333);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+    animation: drawer-slide-in 0.15s ease-out;
+  }
+  @keyframes drawer-slide-in {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
   }
 </style>
