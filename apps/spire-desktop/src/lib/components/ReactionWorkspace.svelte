@@ -55,6 +55,7 @@
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import { selectionBus, clearSelectionBus } from "$lib/stores/selectionBus";
 
   // --- Command Registration ---
   const REACTION_CMD_IDS = [
@@ -114,9 +115,39 @@
 
   let unsubAtlasSelection: (() => void) | null = null;
 
+  // --- Listen-mode: auto-fills initial state from Atlas selectionBus ---
+  let listenMode = false;
+  let unsubListenBus: (() => void) | null = null;
+
+  function enableListenMode(): void {
+    listenMode = true;
+    unsubListenBus = selectionBus.subscribe((payload) => {
+      if (!payload || !listenMode) return;
+      if (payload.type === "PARTICLE_SELECTED") {
+        initialIdsInput.update((prev) =>
+          prev.includes(payload.data.id) ? prev : [...prev, payload.data.id],
+        );
+        appendLog(`Listen mode: appended ${payload.data.id} to initial state.`);
+        clearSelectionBus();
+      }
+    });
+  }
+
+  function disableListenMode(): void {
+    listenMode = false;
+    unsubListenBus?.();
+    unsubListenBus = null;
+  }
+
+  function toggleListenMode(): void {
+    if (listenMode) disableListenMode();
+    else enableListenMode();
+  }
+
   onDestroy(() => {
     for (const id of REACTION_CMD_IDS) unregisterCommand(id);
     unsubAtlasSelection?.();
+    unsubListenBus?.();
   });
 
   // --- UI state ---
@@ -400,7 +431,18 @@
   {:else}
     <!-- Initial State -->
     <fieldset class="state-group">
-      <legend>Initial State</legend>
+      <legend>
+        Initial State
+        <button
+          class="listen-btn"
+          class:listen-active={listenMode}
+          on:click={toggleListenMode}
+          use:tooltip={{ text: listenMode ? "Stop listening to Atlas selections" : "Auto-fill from Atlas particle clicks" }}
+          aria-pressed={listenMode}
+        >
+          {listenMode ? "● Listening" : "⊙ Listen"}
+        </button>
+      </legend>
       <div class="particle-tags">
         {#each $initialIdsInput as id, idx}
           <span class="tag">
@@ -626,6 +668,37 @@
     text-transform: uppercase;
     color: var(--fg-secondary);
     letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .listen-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.1rem 0.35rem;
+    font-size: 0.64rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .listen-btn:hover {
+    border-color: var(--hl-symbol);
+    color: var(--fg-primary);
+  }
+
+  .listen-btn.listen-active {
+    border-color: var(--hl-success, #4ade80);
+    color: var(--hl-success, #4ade80);
+    animation: listen-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes listen-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.55; }
   }
   .particle-tags {
     display: flex;

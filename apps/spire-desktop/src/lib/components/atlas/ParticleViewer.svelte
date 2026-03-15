@@ -7,6 +7,8 @@
     resolveDecayChannels,
     type DecayChannelPreset,
   } from "$lib/core/physics/composites";
+  import type { IsotopeData, ElementData } from "$lib/core/physics/nuclearDataLoader";
+  import { formatHalfLife, bindingEnergyPerNucleon } from "$lib/core/physics/nuclearDataLoader";
   import CompositionSvg from "$lib/components/atlas/CompositionSvg.svelte";
   import DecayTree from "$lib/components/atlas/DecayTree.svelte";
 
@@ -16,7 +18,21 @@
     label: string;
   }
 
-  export let particle: Field;
+  /** Standard particle view (exclusive with `isotope`). */
+  export let particle: Field | null = null;
+
+  /**
+   * Nuclear isotope view.  When set, renders nuclear droplet + isotope decay
+   * tree instead of the hadronic schematic.
+   */
+  export let isotope: {
+    Z: number;
+    A: number;
+    symbol: string;
+    name: string;
+    isotopeData: IsotopeData;
+    element: ElementData;
+  } | null = null;
 
   type ViewerMode = "schematic" | "quantum" | "feynman";
 
@@ -24,6 +40,9 @@
   const HBAR_GEV_S = 6.582119569e-25;
 
   let mode: ViewerMode = "schematic";
+
+  // reset tab to schematic whenever the viewed item changes
+  $: if (particle || isotope) mode = "schematic";
 
   function toSpinLabel(twiceSpin: number): string {
     if (!Number.isFinite(twiceSpin)) return "n/a";
@@ -47,83 +66,137 @@
     dispatch("decaySelect", e.detail);
   }
 
-  $: composite = resolveCompositeState(particle);
-  $: valence = composite ? assignColorSinglet(composite.valence) : [];
-  $: decayChannels = resolveDecayChannels(particle);
+  $: composite   = particle ? resolveCompositeState(particle) : null;
+  $: valence     = composite ? assignColorSinglet(composite.valence) : [];
+  $: decayChannels = particle ? resolveDecayChannels(particle) : [];
   $: dominantDecay = decayChannels.length > 0 ? decayChannels[0] : null;
-  $: qn = particle.quantum_numbers;
-  $: jpc = `${toSpinLabel(qn.spin)}^{${qn.parity === "Even" ? "+" : "-"}${qn.charge_conjugation === "Even" ? "+" : qn.charge_conjugation === "Odd" ? "-" : "?"}}`;
-  $: isospin = `${(qn.weak_isospin / 2).toFixed(1)}`;
+  $: qn = particle?.quantum_numbers;
+  $: jpc = qn
+    ? `${toSpinLabel(qn.spin)}^{${qn.parity === "Even" ? "+" : "-"}${qn.charge_conjugation === "Even" ? "+" : qn.charge_conjugation === "Odd" ? "-" : "?"}}`
+    : "n/a";
+  $: isospin = qn ? `${(qn.weak_isospin / 2).toFixed(1)}` : "n/a";
+
+  // Nuclear-mode derived values
+  $: isoN = isotope ? isotope.A - isotope.Z : 0;
+  $: isoBA = isotope ? bindingEnergyPerNucleon(isotope.Z, isotope.A) : 0;
+  $: isoHL = isotope ? formatHalfLife(isotope.isotopeData.half_life_s) : "";
+  $: isotopeDecayArg = isotope
+    ? { Z: isotope.Z, A: isotope.A, symbol: isotope.symbol, isotope: isotope.isotopeData }
+    : null;
+
+  // Display name / symbol for the header
+  $: displaySymbol = particle ? particle.symbol : isotope ? `${isotope.symbol}-${isotope.A}` : "";
+  $: displayName   = particle ? `${particle.name} · ${particle.id}` : isotope ? `${isotope.name}, Z=${isotope.Z}` : "";
 </script>
 
 <div class="viewer">
   <header class="viewer-header">
     <div class="title-block">
-      <strong>{particle.symbol}</strong>
-      <span>{particle.name} · {particle.id}</span>
+      <strong>{displaySymbol}</strong>
+      <span>{displayName}</span>
     </div>
     <div class="mode-tabs">
       <button class:active={mode === "schematic"} on:click={() => (mode = "schematic")}>Schematic</button>
-      <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>Quantum Numbers</button>
-      <button class:active={mode === "feynman"} on:click={() => (mode = "feynman")}>Feynman Vertex</button>
+      {#if particle}
+        <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>Quantum Numbers</button>
+        <button class:active={mode === "feynman"} on:click={() => (mode = "feynman")}>Feynman Vertex</button>
+      {:else if isotope}
+        <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>Nuclear Data</button>
+      {/if}
     </div>
   </header>
 
-  {#if mode === "schematic"}
-    {#if composite}
-      <CompositionSvg valence={valence} label={`${composite.label}: ${composite.valence.join(" ")}`} />
-    {:else}
-      <div class="empty">No valence-composition preset is registered for this particle.</div>
+  {#if isotope}
+    <!-- ── Nuclear / isotope mode ─────────────────────────── -->
+    {#if mode === "schematic"}
+      <CompositionSvg
+        mode="nucleus"
+        protons={isotope.Z}
+        neutrons={isoN}
+        label={`${isotope.symbol}-${isotope.A}: ${isotope.Z}p ${isoN}n`}
+        valence={[]}
+      />
+      <section class="decay-section">
+        <h5>Nuclear Decay Channels</h5>
+        <DecayTree isotopeDecay={isotopeDecayArg} />
+      </section>
+    {:else if mode === "quantum"}
+      <section class="qn-card">
+        <div><span>Nuclide</span><strong>{isotope.symbol}-{isotope.A}</strong></div>
+        <div><span>Z (protons)</span><strong>{isotope.Z}</strong></div>
+        <div><span>N (neutrons)</span><strong>{isoN}</strong></div>
+        <div><span>A (mass number)</span><strong>{isotope.A}</strong></div>
+        <div><span>Spin / Parity</span><strong>{isotope.isotopeData.spin_parity ?? "n/a"}</strong></div>
+        <div><span>Half-life</span><strong>{isoHL}</strong></div>
+        <div><span>B/A (MeV)</span><strong>{isoBA.toFixed(3)}</strong></div>
+        <div><span>Abundance</span><strong>{isotope.isotopeData.abundance_percent != null ? `${isotope.isotopeData.abundance_percent}%` : "n/a"}</strong></div>
+        <div><span>Mass excess (keV)</span><strong>{isotope.isotopeData.mass_excess_kev?.toFixed(1) ?? "n/a"}</strong></div>
+        <div><span>Category</span><strong>{isotope.element.category}</strong></div>
+        <div><span>Period / Group</span><strong>{isotope.element.period} / {isotope.element.group ?? "f-block"}</strong></div>
+        <div><span>Electron config</span><strong class="mono">{isotope.element.electron_configuration}</strong></div>
+      </section>
     {/if}
 
-    <section class="decay-section">
-      <h5>Decay Modes</h5>
-      <DecayTree
-        parentId={particle.id}
-        channels={decayChannels}
-        on:select={emitDecaySelect}
-      />
-    </section>
-  {:else if mode === "quantum"}
-    <section class="qn-card">
-      <div><span>Mass</span><strong>{formatMaybe(particle.mass)} GeV</strong></div>
-      <div><span>Width</span><strong>{formatMaybe(particle.width)} GeV</strong></div>
-      <div><span>Lifetime</span><strong>{inferLifetime(particle.width)}</strong></div>
-      <div><span>J^PC</span><strong>{jpc}</strong></div>
-      <div><span>I</span><strong>{isospin}</strong></div>
-      <div><span>G-parity</span><strong>n/a</strong></div>
-      <div><span>Electric charge Q</span><strong>{qn.electric_charge}</strong></div>
-      <div><span>Baryon number B</span><strong>{qn.baryon_number}</strong></div>
-      <div><span>Lepton numbers</span><strong>{qn.lepton_numbers.electron}/{qn.lepton_numbers.muon}/{qn.lepton_numbers.tau}</strong></div>
-      <div><span>Color rep</span><strong>{qn.color}</strong></div>
-      <div><span>Weak isospin T3</span><strong>{qn.weak_isospin}</strong></div>
-      <div><span>Hypercharge Y</span><strong>{qn.hypercharge}</strong></div>
-    </section>
+  {:else if particle}
+    <!-- ── Standard hadronic / EW particle mode ──────────── -->
+    {#if mode === "schematic"}
+      {#if composite}
+        <CompositionSvg valence={valence} label={`${composite.label}: ${composite.valence.join(" ")}`} />
+      {:else}
+        <div class="empty">No valence-composition preset is registered for this particle.</div>
+      {/if}
+
+      <section class="decay-section">
+        <h5>Decay Modes</h5>
+        <DecayTree
+          parentId={particle.id}
+          channels={decayChannels}
+          on:select={emitDecaySelect}
+        />
+      </section>
+    {:else if mode === "quantum"}
+      <section class="qn-card">
+        <div><span>Mass</span><strong>{formatMaybe(particle.mass)} GeV</strong></div>
+        <div><span>Width</span><strong>{formatMaybe(particle.width)} GeV</strong></div>
+        <div><span>Lifetime</span><strong>{inferLifetime(particle.width)}</strong></div>
+        <div><span>J^PC</span><strong>{jpc}</strong></div>
+        <div><span>I</span><strong>{isospin}</strong></div>
+        <div><span>G-parity</span><strong>n/a</strong></div>
+        <div><span>Electric charge Q</span><strong>{qn?.electric_charge}</strong></div>
+        <div><span>Baryon number B</span><strong>{qn?.baryon_number}</strong></div>
+        <div><span>Lepton numbers</span><strong>{qn?.lepton_numbers.electron}/{qn?.lepton_numbers.muon}/{qn?.lepton_numbers.tau}</strong></div>
+        <div><span>Color rep</span><strong>{qn?.color}</strong></div>
+        <div><span>Weak isospin T3</span><strong>{qn?.weak_isospin}</strong></div>
+        <div><span>Hypercharge Y</span><strong>{qn?.hypercharge}</strong></div>
+      </section>
+    {:else}
+      <section class="feynman">
+        <svg viewBox="0 0 520 210" role="img" aria-label="Dominant vertex diagram">
+          <line class="line" x1="48" y1="105" x2="250" y2="105" />
+          <text class="lbl" x="30" y="105">{particle.symbol}</text>
+
+          <line class="line" x1="250" y1="105" x2="440" y2="56" />
+          <line class="line" x1="250" y1="105" x2="440" y2="154" />
+
+          <circle class="vertex" cx="250" cy="105" r="4.8" />
+
+          {#if dominantDecay}
+            <text class="lbl" x="452" y="56">{dominantDecay.finalStateIds[0] ?? "f1"}</text>
+            <text class="lbl" x="452" y="154">{dominantDecay.finalStateIds[1] ?? "f2"}</text>
+            <text class="coupling" x="260" y="94">
+              g_{dominantDecay.interaction} · BR={(dominantDecay.branchingRatio * 100).toFixed(2)}%
+            </text>
+          {:else}
+            <text class="lbl" x="452" y="56">f₁</text>
+            <text class="lbl" x="452" y="154">f₂</text>
+            <text class="coupling" x="260" y="94">g_eff</text>
+          {/if}
+        </svg>
+        <p class="hint">Minimal effective vertex for the dominant listed process.</p>
+      </section>
+    {/if}
   {:else}
-    <section class="feynman">
-      <svg viewBox="0 0 520 210" role="img" aria-label="Dominant vertex diagram">
-        <line class="line" x1="48" y1="105" x2="250" y2="105" />
-        <text class="lbl" x="30" y="105">{particle.symbol}</text>
-
-        <line class="line" x1="250" y1="105" x2="440" y2="56" />
-        <line class="line" x1="250" y1="105" x2="440" y2="154" />
-
-        <circle class="vertex" cx="250" cy="105" r="4.8" />
-
-        {#if dominantDecay}
-          <text class="lbl" x="452" y="56">{dominantDecay.finalStateIds[0] ?? "f1"}</text>
-          <text class="lbl" x="452" y="154">{dominantDecay.finalStateIds[1] ?? "f2"}</text>
-          <text class="coupling" x="260" y="94">
-            g_{dominantDecay.interaction} · BR={(dominantDecay.branchingRatio * 100).toFixed(2)}%
-          </text>
-        {:else}
-          <text class="lbl" x="452" y="56">f₁</text>
-          <text class="lbl" x="452" y="154">f₂</text>
-          <text class="coupling" x="260" y="94">g_eff</text>
-        {/if}
-      </svg>
-      <p class="hint">Minimal effective vertex for the dominant listed process.</p>
-    </section>
+    <div class="empty">No item selected.</div>
   {/if}
 </div>
 
@@ -276,5 +349,11 @@
     border: 1px dashed var(--color-border, var(--border));
     padding: 0.45rem;
     background: var(--color-bg-inset, var(--bg-inset));
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    word-break: break-all;
   }
 </style>

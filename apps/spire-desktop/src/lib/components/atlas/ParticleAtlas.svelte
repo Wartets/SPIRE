@@ -13,14 +13,42 @@
   } from "$lib/stores/atlasSelectionStore";
   import { appendLog } from "$lib/stores/physicsStore";
   import { initialIdsInput, finalIdsInput } from "$lib/stores/workspaceInputsStore";
+  import { broadcastSelection, selectionBus } from "$lib/stores/selectionBus";
+  import {
+    getElementByZ,
+    type IsotopeData,
+    type ElementData,
+  } from "$lib/core/physics/nuclearDataLoader";
 
   type AtlasMode = "taxonomy" | "periodic";
 
   let mode: AtlasMode = "taxonomy";
   let customOpen = false;
   let selectedParticle: Field | null = null;
+  let flashId: string | null = null;
+  let selectedIsotopeForViewer: {
+    Z: number; A: number; symbol: string; name: string;
+    isotopeData: IsotopeData; element: ElementData;
+  } | null = null;
 
   $: taxonomy = categorizeParticles($theoreticalModel);
+
+  // Subscribe to selectionBus to capture isotope selections from PeriodicTable
+  $: if ($selectionBus?.type === "ISOTOPE_SELECTED") {
+    const d = $selectionBus.data;
+    const el = getElementByZ(d.Z);
+    if (el) {
+      selectedIsotopeForViewer = {
+        Z: d.Z, A: d.A, symbol: d.symbol, name: d.name,
+        isotopeData: d.isotope, element: el,
+      };
+    }
+  }
+
+  function triggerFlash(id: string): void {
+    flashId = id;
+    setTimeout(() => { if (flashId === id) flashId = null; }, 820);
+  }
 
   function handleParticleSelect(field: Field): void {
     if ($atlasSelectionRequest.pending && $atlasSelectionRequest.target) {
@@ -29,6 +57,8 @@
       return;
     }
     selectedParticle = field;
+    broadcastSelection({ type: "PARTICLE_SELECTED", data: field });
+    triggerFlash(field.id);
     appendLog(`Atlas particle inspected: ${field.id}`);
   }
 
@@ -62,7 +92,16 @@
   {/if}
 
   {#if mode === "periodic"}
-    <PeriodicTable />
+    <div class="periodic-layout">
+      <div class="periodic-table-col">
+        <PeriodicTable />
+      </div>
+      {#if selectedIsotopeForViewer}
+        <aside class="viewer-col">
+          <ParticleViewer isotope={selectedIsotopeForViewer} />
+        </aside>
+      {/if}
+    </div>
   {:else if !$theoreticalModel}
     <p class="empty">Load a model to build the particle taxonomy.</p>
   {:else}
@@ -83,6 +122,7 @@
                       <ParticleCell
                         particle={particle}
                         selectable={$atlasSelectionRequest.pending}
+                        flashing={flashId === particle.id}
                         on:select={(e) => handleParticleSelect(e.detail)}
                       />
                     {/each}
@@ -121,7 +161,7 @@
     gap: 0.45rem;
     height: 100%;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
   }
 
   .atlas-header {
@@ -192,9 +232,27 @@
 
   .taxonomy-layout {
     display: grid;
-    grid-template-columns: minmax(360px, 1.1fr) minmax(300px, 0.9fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     gap: 0.45rem;
+    flex: 1 1 0;
     min-height: 0;
+    overflow: hidden;
+  }
+
+  .periodic-layout {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 340px);
+    gap: 0.45rem;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .periodic-table-col {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   .taxonomy-grid-col {
@@ -202,10 +260,12 @@
     flex-direction: column;
     gap: 0.35rem;
     min-height: 0;
+    overflow-y: auto;
   }
 
   .viewer-col {
     min-height: 0;
+    overflow-y: auto;
   }
 
   .viewer-empty {

@@ -1,0 +1,155 @@
+{
+  "1": [
+    {"A":1,"mass_excess_kev":7288.97,"half_life_s":null,"spin_parity":"1/2+","abundance_percent":99.9885,"decay_modes":[]},
+    {"A":2,"mass_excess_kev":13135.72,"half_life_s":null,"spin_parity":"1+","abundance_percent":0.0115,"decay_modes":[]},
+    {"A":3,"mass_excess_kev":14949.79,"half_life_s":3.888e8,"spin_parity":"1/2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":2,"daughter_A":3}]}
+  ],
+  "2": [
+    {"A":3,"mass_excess_kev":14931.22,"half_life_s":null,"spin_parity":"1/2+","abundance_percent":0.000137,"decay_modes":[]},
+    {"A":4,"mass_excess_kev":2424.92,"half_life_s":null,"spin_parity":"0+","abundance_percent":99.999863,"decay_modes":[]},
+    {"A":6,"mass_excess_kev":17592.1,"half_life_s":0.8067,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":3,"daughter_A":6}]}
+  ],
+  "3": [
+    {"A":6,"mass_excess_kev":14086.79,"half_life_s":null,"spin_parity":"1+","abundance_percent":7.59,"decay_modes":[]},
+    {"A":7,"mass_excess_kev":14908.14,"half_life_s":null,"spin_parity":"3/2-","abundance_percent":92.41,"decay_modes":[]},
+    {"A":8,"mass_excess_kev":20946.9,"half_life_s":0.840,"spin_parity":"2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":4,"daughter_A":8}]}
+  ],
+  "4": [
+    {"A":7,"mass_excess_kev":15769.0,"half_life_s":4.597e6,"spin_parity":"3/2-","abundance_percent":0.0,"decay_modes":[{"mode":"ec","fraction":1.0,"daughter_Z":3,"daughter_A":7}]},
+    {"A":9,"mass_excess_kev":11347.6,"half_life_s":null,"spin_parity":"3/2-","abundance_percent":100.0,"decay_modes":[]},
+    {"A":10,"mass_excess_kev":12606.9,"half_life_s":4.51e13,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":5,"daughter_A":10}]}
+  ],
+  "5": [
+    {"A":10,"mass_excess_kev":12050.7,"half_life_s":null,"spin_parity":"3+","abundance_percent":19.9,"decay_modes":[]},
+    {"A":11,"mass_excess_kev":8667.9,"half_life_s":null,"spin_parity":"3/2-","abundance_percent":80.1,"decay_modes":[]},
+    {"A":12,"mass_excess_kev":13368.9,"half_life_s":0.0202,"spin_parity":"1+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":6,"daughter_A":12}]}
+  ],
+  "6": [
+    {"A":12,"mass_excess_kev":0.0,"half_life_s":null,"spin_parity":"0+","abundance_percent":98.93,"decay_modes":[]},
+    {"A":13,"mass_excess_kev":3124.99,"half_life_s":null,"spin_parity":"1/2-","abundance_percent":1.07,"decay_modes":[]},
+    {"A":14,"mass_excess_kev":3019.89,"half_life_s":1.8084e11,"spin_parity":"0+","abundance_percent":1.2e-10,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":7,"daughter_A":14}]},
+    {"A":11,"mass_excess_kev":10650.3,"half_life_s":1220.1,"spin_parity":"3/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":0.998,"daughter_Z":5,"daughter_A":11}]}
+  ],
+  "7": [
+    {"A":14,"mass_excess_kev":2863.42,"half_life_s":null,"spin_parity":"1+","abundance_percent":99.632,"decay_modes":[]},
+    {"A":15,"mass_excess_kev":101.44,"half_life_s":null,"spin_parity":"1/2-","abundance_percent":0.368,"decay_modes":[]},
+    {"A":13,"mass_excess_kev":5345.5,"half_life_s":597.9,"spin_parity":"1/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":1.0,"daughter_Z":6,"daughter_A":13}]}
+  ],
+  "8": [
+    {"A":16,"mass_excess_kev":-4737.00,"half_life_s":null,"spin_parity":"0+","abundance_percent":99.757,"decay_modes":[]},
+    {"A":17,"mass_excess_kev":-808.08,"half_life_s":null,"spin_parity":"5/2+","abundance_percent":0.038,"decay_modes":[]},
+    {"A":18,"mass_excess_kev":-781.56,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.205,"decay_modes":[]},
+    {"A":15,"mass_excess_kev":2855.6,"half_life_s":122.24,"spin_parity":"1/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":1.0,"daughter_Z":7,"daughter_A":15}]}
+  ],
+  "9": [
+    {"A":19,"mass_excess_kev":-1487.41,"half_life_s":null,"spin_parity":"1/2+","abundance_percent":100.0,"decay_modes":[]},
+    {"A":18,"mass_excess_kev":873.3,"half_life_s":6586.2,"spin_parity":"1+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":0.967,"daughter_Z":8,"daughter_A":18},{"mode":"ec","fraction":0.033,"daughter_Z":8,"daughter_A":18}]}
+  ],
+  "10": [
+    {"A":20,"mass_excess_kev":-7041.9,"half_life_s":null,"spin_parity":"0+","abundance_percent":90.48,"decay_modes":[]},
+    {"A":21,"mass_excess_kev":-5731.8,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":0.27,"decay_modes":[]},
+    {"A":22,"mass_excess_kev":-8024.7,"half_life_s":null,"spin_parity":"0+","abundance_percent":9.25,"decay_modes":[]},
+    {"A":23,"mass_excess_kev":-5154.3,"half_life_s":37.24,"spin_parity":"5/2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":11,"daughter_A":23}]}
+  ],
+  "11": [
+    {"A":23,"mass_excess_kev":-9529.8,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":100.0,"decay_modes":[]},
+    {"A":22,"mass_excess_kev":-5181.6,"half_life_s":2.6019,"spin_parity":"3+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":0.9994,"daughter_Z":10,"daughter_A":22}]},
+    {"A":24,"mass_excess_kev":-8418.2,"half_life_s":54060.0,"spin_parity":"4+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":12,"daughter_A":24}]}
+  ],
+  "12": [
+    {"A":24,"mass_excess_kev":-13933.6,"half_life_s":null,"spin_parity":"0+","abundance_percent":78.99,"decay_modes":[]},
+    {"A":25,"mass_excess_kev":-13193.5,"half_life_s":null,"spin_parity":"5/2+","abundance_percent":10.00,"decay_modes":[]},
+    {"A":26,"mass_excess_kev":-16214.6,"half_life_s":null,"spin_parity":"0+","abundance_percent":11.01,"decay_modes":[]},
+    {"A":27,"mass_excess_kev":-14587.4,"half_life_s":56834.4,"spin_parity":"1/2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":13,"daughter_A":27}]}
+  ],
+  "13": [
+    {"A":27,"mass_excess_kev":-17196.6,"half_life_s":null,"spin_parity":"5/2+","abundance_percent":100.0,"decay_modes":[]},
+    {"A":26,"mass_excess_kev":-12210.4,"half_life_s":2.27e13,"spin_parity":"5+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-plus","fraction":0.818,"daughter_Z":12,"daughter_A":26},{"mode":"ec","fraction":0.182,"daughter_Z":12,"daughter_A":26}]},
+    {"A":28,"mass_excess_kev":-16850.5,"half_life_s":134.1,"spin_parity":"3+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":14,"daughter_A":28}]}
+  ],
+  "14": [
+    {"A":28,"mass_excess_kev":-21492.3,"half_life_s":null,"spin_parity":"0+","abundance_percent":92.223,"decay_modes":[]},
+    {"A":29,"mass_excess_kev":-21895.0,"half_life_s":null,"spin_parity":"1/2+","abundance_percent":4.685,"decay_modes":[]},
+    {"A":30,"mass_excess_kev":-24432.0,"half_life_s":null,"spin_parity":"0+","abundance_percent":3.092,"decay_modes":[]},
+    {"A":32,"mass_excess_kev":-24077.7,"half_life_s":4.78e9,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":15,"daughter_A":32}]}
+  ],
+  "15": [
+    {"A":31,"mass_excess_kev":-24441.1,"half_life_s":null,"spin_parity":"1/2+","abundance_percent":100.0,"decay_modes":[]},
+    {"A":32,"mass_excess_kev":-24304.8,"half_life_s":1.23e6,"spin_parity":"1+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":16,"daughter_A":32}]},
+    {"A":33,"mass_excess_kev":-26337.8,"half_life_s":2.19e6,"spin_parity":"1/2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":16,"daughter_A":33}]}
+  ],
+  "16": [
+    {"A":32,"mass_excess_kev":-26015.5,"half_life_s":null,"spin_parity":"0+","abundance_percent":94.99,"decay_modes":[]},
+    {"A":33,"mass_excess_kev":-26585.7,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":0.75,"decay_modes":[]},
+    {"A":34,"mass_excess_kev":-29931.8,"half_life_s":null,"spin_parity":"0+","abundance_percent":4.25,"decay_modes":[]},
+    {"A":35,"mass_excess_kev":-28846.5,"half_life_s":7560000.0,"spin_parity":"3/2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":17,"daughter_A":35}]},
+    {"A":36,"mass_excess_kev":-30664.1,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.01,"decay_modes":[]}
+  ],
+  "17": [
+    {"A":35,"mass_excess_kev":-29013.2,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":75.76,"decay_modes":[]},
+    {"A":37,"mass_excess_kev":-31762.0,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":24.24,"decay_modes":[]},
+    {"A":36,"mass_excess_kev":-29521.7,"half_life_s":9.50e12,"spin_parity":"2+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":0.982,"daughter_Z":18,"daughter_A":36},{"mode":"ec","fraction":0.018,"daughter_Z":16,"daughter_A":36}]},
+    {"A":38,"mass_excess_kev":-29798.5,"half_life_s":2234.0,"spin_parity":"2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":18,"daughter_A":38}]}
+  ],
+  "18": [
+    {"A":36,"mass_excess_kev":-30231.5,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.3336,"decay_modes":[]},
+    {"A":38,"mass_excess_kev":-34715.4,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.0629,"decay_modes":[]},
+    {"A":40,"mass_excess_kev":-35039.9,"half_life_s":null,"spin_parity":"0+","abundance_percent":99.6035,"decay_modes":[]},
+    {"A":39,"mass_excess_kev":-33241.5,"half_life_s":8.49,"spin_parity":"7/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":19,"daughter_A":39}]},
+    {"A":41,"mass_excess_kev":-33067.2,"half_life_s":6581.0,"spin_parity":"7/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":19,"daughter_A":41}]}
+  ],
+  "19": [
+    {"A":39,"mass_excess_kev":-33806.7,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":93.2581,"decay_modes":[]},
+    {"A":40,"mass_excess_kev":-33535.0,"half_life_s":3.938e16,"spin_parity":"4-","abundance_percent":0.0117,"decay_modes":[{"mode":"beta-minus","fraction":0.8928,"daughter_Z":20,"daughter_A":40},{"mode":"ec","fraction":0.1072,"daughter_Z":18,"daughter_A":40}]},
+    {"A":41,"mass_excess_kev":-35558.6,"half_life_s":null,"spin_parity":"3/2+","abundance_percent":6.7302,"decay_modes":[]},
+    {"A":42,"mass_excess_kev":-35021.7,"half_life_s":44484.0,"spin_parity":"2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":20,"daughter_A":42}]}
+  ],
+  "20": [
+    {"A":40,"mass_excess_kev":-34846.4,"half_life_s":null,"spin_parity":"0+","abundance_percent":96.941,"decay_modes":[]},
+    {"A":42,"mass_excess_kev":-38547.2,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.647,"decay_modes":[]},
+    {"A":43,"mass_excess_kev":-38408.6,"half_life_s":null,"spin_parity":"7/2-","abundance_percent":0.135,"decay_modes":[]},
+    {"A":44,"mass_excess_kev":-41468.6,"half_life_s":null,"spin_parity":"0+","abundance_percent":2.086,"decay_modes":[]},
+    {"A":46,"mass_excess_kev":-43135.5,"half_life_s":null,"spin_parity":"0+","abundance_percent":0.004,"decay_modes":[]},
+    {"A":48,"mass_excess_kev":-44215.2,"half_life_s":1.88e27,"spin_parity":"0+","abundance_percent":0.187,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":21,"daughter_A":48}]},
+    {"A":41,"mass_excess_kev":-35138.1,"half_life_s":79.05,"spin_parity":"7/2-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":21,"daughter_A":41}]}
+  ],
+  "92": [
+    {"A":235,"mass_excess_kev":40915.6,"half_life_s":2.22e16,"spin_parity":"7/2-","abundance_percent":0.720,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":90,"daughter_A":231}]},
+    {"A":238,"mass_excess_kev":47304.0,"half_life_s":1.41e17,"spin_parity":"0+","abundance_percent":99.2745,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":90,"daughter_A":234}]},
+    {"A":234,"mass_excess_kev":38141.0,"half_life_s":7.74e12,"spin_parity":"0+","abundance_percent":0.0054,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":90,"daughter_A":230}]}
+  ],
+  "90": [
+    {"A":234,"mass_excess_kev":40612.0,"half_life_s":2.08e6,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":91,"daughter_A":234}]},
+    {"A":230,"mass_excess_kev":33817.0,"half_life_s":2.38e12,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":88,"daughter_A":226}]},
+    {"A":232,"mass_excess_kev":35447.0,"half_life_s":4.43e17,"spin_parity":"0+","abundance_percent":100.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":88,"daughter_A":228}]}
+  ],
+  "91": [
+    {"A":234,"mass_excess_kev":40340.0,"half_life_s":23868.0,"spin_parity":"4-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":92,"daughter_A":234}]}
+  ],
+  "88": [
+    {"A":226,"mass_excess_kev":23678.0,"half_life_s":5.05e10,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":86,"daughter_A":222}]},
+    {"A":228,"mass_excess_kev":28938.0,"half_life_s":1.81e8,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":89,"daughter_A":228}]}
+  ],
+  "86": [
+    {"A":222,"mass_excess_kev":16367.0,"half_life_s":330480.0,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":84,"daughter_A":218}]}
+  ],
+  "84": [
+    {"A":218,"mass_excess_kev":8353.0,"half_life_s":186.0,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":0.9998,"daughter_Z":82,"daughter_A":214}]},
+    {"A":214,"mass_excess_kev":0.0,"half_life_s":163.68,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":82,"daughter_A":210}]}
+  ],
+  "82": [
+    {"A":214,"mass_excess_kev":-575.0,"half_life_s":1614.0,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":83,"daughter_A":214}]},
+    {"A":210,"mass_excess_kev":-14742.0,"half_life_s":6.7e8,"spin_parity":"0+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":83,"daughter_A":210}]},
+    {"A":206,"mass_excess_kev":-23784.0,"half_life_s":null,"spin_parity":"0+","abundance_percent":24.1,"decay_modes":[]},
+    {"A":207,"mass_excess_kev":-22451.0,"half_life_s":null,"spin_parity":"1/2-","abundance_percent":22.1,"decay_modes":[]},
+    {"A":208,"mass_excess_kev":-21748.0,"half_life_s":null,"spin_parity":"0+","abundance_percent":52.4,"decay_modes":[]}
+  ],
+  "83": [
+    {"A":214,"mass_excess_kev":-836.0,"half_life_s":1194.0,"spin_parity":"1-","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":0.9998,"daughter_Z":81,"daughter_A":210}]},
+    {"A":210,"mass_excess_kev":-14797.0,"half_life_s":4.33e8,"spin_parity":"1-","abundance_percent":0.0,"decay_modes":[{"mode":"alpha","fraction":1.0,"daughter_Z":81,"daughter_A":206}]}
+  ],
+  "81": [
+    {"A":210,"mass_excess_kev":-14421.0,"half_life_s":185.0,"spin_parity":"5+","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":82,"daughter_A":210}]},
+    {"A":206,"mass_excess_kev":-23067.0,"half_life_s":252.0,"spin_parity":"0-","abundance_percent":0.0,"decay_modes":[{"mode":"beta-minus","fraction":1.0,"daughter_Z":82,"daughter_A":206}]}
+  ]
+}

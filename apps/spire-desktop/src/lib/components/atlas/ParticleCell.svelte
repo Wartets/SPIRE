@@ -5,6 +5,7 @@
 
   export let particle: Field;
   export let selectable = false;
+  export let flashing = false;
 
   const dispatch = createEventDispatcher<{ select: Field }>();
 
@@ -29,6 +30,7 @@
 <button
   class="particle-cell"
   class:selectable
+  class:flashing
   on:click={handleClick}
   use:tooltip={{ text: qnSummary(particle), maxWidth: 460 }}
   aria-label={`Particle ${particle.name}`}
@@ -60,6 +62,16 @@
   .particle-cell:hover {
     border-color: var(--hl-symbol);
     background: rgba(var(--color-accent-rgb), 0.08);
+  }
+
+  .particle-cell.flashing {
+    animation: flash-pulse 0.8s ease-out;
+  }
+
+  @keyframes flash-pulse {
+    0%   { border-color: var(--hl-success, #4ade80); box-shadow: 0 0 6px var(--hl-success, #4ade80); }
+    60%  { border-color: var(--hl-success, #4ade80); box-shadow: 0 0 2px var(--hl-success, #4ade80); }
+    100% { border-color: var(--border); box-shadow: none; }
   }
 
   .symbol {
