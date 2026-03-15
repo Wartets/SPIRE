@@ -5,17 +5,20 @@
   import ParticleCell from "$lib/components/atlas/ParticleCell.svelte";
   import CustomParticleModal from "$lib/components/atlas/CustomParticleModal.svelte";
   import PeriodicTable from "$lib/components/atlas/PeriodicTable.svelte";
+  import ParticleViewer from "$lib/components/atlas/ParticleViewer.svelte";
   import {
     atlasSelectionRequest,
     submitAtlasSelection,
     clearAtlasSelectionRequest,
   } from "$lib/stores/atlasSelectionStore";
   import { appendLog } from "$lib/stores/physicsStore";
+  import { initialIdsInput, finalIdsInput } from "$lib/stores/workspaceInputsStore";
 
   type AtlasMode = "taxonomy" | "periodic";
 
   let mode: AtlasMode = "taxonomy";
   let customOpen = false;
+  let selectedParticle: Field | null = null;
 
   $: taxonomy = categorizeParticles($theoreticalModel);
 
@@ -25,7 +28,17 @@
       appendLog(`Atlas picker selected ${field.id} for ${$atlasSelectionRequest.target} state.`);
       return;
     }
+    selectedParticle = field;
     appendLog(`Atlas particle inspected: ${field.id}`);
+  }
+
+  function handleDecaySelect(
+    event: CustomEvent<{ parentId: string; finalStateIds: string[]; label: string }>,
+  ): void {
+    const detail = event.detail;
+    initialIdsInput.set([detail.parentId]);
+    finalIdsInput.set([...detail.finalStateIds]);
+    appendLog(`Decay branch loaded into Reaction Workspace: ${detail.label}`);
   }
 </script>
 
@@ -55,28 +68,40 @@
   {:else}
     <div class="summary">{taxonomy.total} total fields in active model</div>
 
-    {#each taxonomy.groups as group (group.key)}
-      {#if group.count > 0}
-        <section class="group">
-          <h4>{group.label} <span>({group.count})</span></h4>
+    <div class="taxonomy-layout">
+      <div class="taxonomy-grid-col">
+        {#each taxonomy.groups as group (group.key)}
+          {#if group.count > 0}
+            <section class="group">
+              <h4>{group.label} <span>({group.count})</span></h4>
 
-          {#each group.buckets as bucket (bucket.key)}
-            <div class="bucket">
-              <div class="bucket-title">{bucket.label}</div>
-              <div class="grid">
-                {#each bucket.particles as particle (particle.id)}
-                  <ParticleCell
-                    particle={particle}
-                    selectable={$atlasSelectionRequest.pending}
-                    on:select={(e) => handleParticleSelect(e.detail)}
-                  />
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </section>
-      {/if}
-    {/each}
+              {#each group.buckets as bucket (bucket.key)}
+                <div class="bucket">
+                  <div class="bucket-title">{bucket.label}</div>
+                  <div class="grid">
+                    {#each bucket.particles as particle (particle.id)}
+                      <ParticleCell
+                        particle={particle}
+                        selectable={$atlasSelectionRequest.pending}
+                        on:select={(e) => handleParticleSelect(e.detail)}
+                      />
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+            </section>
+          {/if}
+        {/each}
+      </div>
+
+      <aside class="viewer-col">
+        {#if selectedParticle}
+          <ParticleViewer particle={selectedParticle} on:decaySelect={handleDecaySelect} />
+        {:else}
+          <div class="viewer-empty">Select a particle to open the schematic composition viewer.</div>
+        {/if}
+      </aside>
+    </div>
   {/if}
 
   <CustomParticleModal
@@ -165,6 +190,33 @@
     color: var(--fg-secondary);
   }
 
+  .taxonomy-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 1.1fr) minmax(300px, 0.9fr);
+    gap: 0.45rem;
+    min-height: 0;
+  }
+
+  .taxonomy-grid-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 0;
+  }
+
+  .viewer-col {
+    min-height: 0;
+  }
+
+  .viewer-empty {
+    border: 1px dashed var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    font-size: 0.74rem;
+    font-style: italic;
+    padding: 0.45rem;
+  }
+
   .group {
     border: 1px solid var(--border);
     padding: 0.35rem;
@@ -207,5 +259,11 @@
     color: var(--fg-secondary);
     font-style: italic;
     font-size: 0.8rem;
+  }
+
+  @media (max-width: 1240px) {
+    .taxonomy-layout {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

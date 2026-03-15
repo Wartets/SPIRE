@@ -22,7 +22,6 @@
   }
 
   function handleClick(): void {
-    if (!selectable) return;
     dispatch("select", particle);
   }
 </script>
@@ -54,11 +53,11 @@
     font-family: var(--font-mono);
   }
 
-  .particle-cell.selectable {
+  .particle-cell {
     cursor: pointer;
   }
 
-  .particle-cell.selectable:hover {
+  .particle-cell:hover {
     border-color: var(--hl-symbol);
     background: rgba(var(--color-accent-rgb), 0.08);
   }
