@@ -176,8 +176,3 @@
 {/if}
 </div>
 
-<style>
-  .cell-renderer-wrapper {
-    /* Transparent wrapper; just intercepts contextmenu. */
-  }
-</style>

@@ -8,6 +8,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
+  import { tooltip } from "$lib/actions/tooltip";
 
   export let cell: CellData;
 
@@ -66,12 +67,12 @@
 <div class="script-cell" class:error={hasError} class:running={cell.running}>
   <div class="sc-toolbar">
     <span class="sc-badge">Script</span>
-    <span class="sc-exec-count" title="Execution count">{executionLabel}</span>
+    <span class="sc-exec-count" use:tooltip={{ text: "Execution count" }}>{executionLabel}</span>
     <button
       class="sc-run"
       on:click={() => dispatch("execute")}
       disabled={cell.running}
-      title="Run Cell (Shift+Enter)"
+      use:tooltip={{ text: "Run Cell (Shift+Enter)" }}
     >
       {#if cell.running}
         ⏳
@@ -80,9 +81,9 @@
       {/if}
     </button>
     <div class="sc-actions">
-      <button class="sc-btn" on:click={() => dispatch("moveUp")} title="Move Up">↑</button>
-      <button class="sc-btn" on:click={() => dispatch("moveDown")} title="Move Down">↓</button>
-      <button class="sc-btn sc-delete" on:click={() => dispatch("delete")} title="Delete Cell">✕</button>
+      <button class="sc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}>↑</button>
+      <button class="sc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}>↓</button>
+      <button class="sc-btn sc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}>✕</button>
     </div>
   </div>
 

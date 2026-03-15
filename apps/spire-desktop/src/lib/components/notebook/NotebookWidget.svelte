@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import type { CellType } from "$lib/core/domain/notebook";
   import {
     getWidgetUiSnapshot,
@@ -178,17 +179,17 @@
         class="nb-action"
         on:click={() => executeAllCells()}
         disabled={$isExecuting}
-        title="Run All Cells"
+        use:tooltip={{ text: "Run All Cells" }}
       >▶▶ Run All</button>
       <button
         class="nb-action"
         on:click={() => clearAllOutputs()}
-        title="Clear All Outputs"
+        use:tooltip={{ text: "Clear All Outputs" }}
       >⌧ Clear</button>
       <button
         class="nb-action"
         on:click={() => resetSession()}
-        title="Reset Session (clears scope and model)"
+        use:tooltip={{ text: "Reset Session (clears scope and model)" }}
       >↺ Reset</button>
     </div>
 

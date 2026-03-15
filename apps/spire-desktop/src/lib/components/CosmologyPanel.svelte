@@ -13,6 +13,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { calculateRelicDensity } from "$lib/api";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import type { RelicConfig, RelicDensityReport, FreezeOutPoint } from "$lib/types/spire";
 
   // ── State ──
@@ -160,22 +161,22 @@
 
     <div class="form-grid">
       <label for="dm-mass">Mass (GeV)</label>
-      <input id="dm-mass" type="number" bind:value={dmMass} min="1" step="10" />
+      <SpireNumberInput inputId="dm-mass" bind:value={dmMass} min={1} step={10} ariaLabel="Dark matter mass" />
 
       <label for="sigma-a">σv (s-wave) [cm³/s]</label>
-      <input id="sigma-a" type="number" bind:value={sigmaVA} step="1e-27" />
+      <SpireNumberInput inputId="sigma-a" bind:value={sigmaVA} step={1e-27} ariaLabel="s-wave cross section" />
 
       <label for="sigma-b">σv (p-wave) [cm³/s]</label>
-      <input id="sigma-b" type="number" bind:value={sigmaVB} step="1e-27" />
+      <SpireNumberInput inputId="sigma-b" bind:value={sigmaVB} step={1e-27} ariaLabel="p-wave cross section" />
 
       <label for="g-dm">g_DM (d.o.f.)</label>
-      <input id="g-dm" type="number" bind:value={gDm} min="1" step="1" />
+      <SpireNumberInput inputId="g-dm" bind:value={gDm} min={1} step={1} ariaLabel="Dark matter degrees of freedom" />
 
       <label for="g-star">g_* (energy)</label>
-      <input id="g-star" type="number" bind:value={gStar} step="0.25" />
+      <SpireNumberInput inputId="g-star" bind:value={gStar} step={0.25} ariaLabel="Energy degrees of freedom" />
 
       <label for="g-star-s">g_*s (entropy)</label>
-      <input id="g-star-s" type="number" bind:value={gStarS} step="0.25" />
+      <SpireNumberInput inputId="g-star-s" bind:value={gStarS} step={0.25} ariaLabel="Entropy degrees of freedom" />
     </div>
 
     <button class="btn-compute" on:click={compute} disabled={loading}>
@@ -270,14 +271,8 @@
     color: var(--fg-secondary, #bbb);
   }
 
-  .form-grid input {
-    background: var(--bg-input, #1e1e2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 4px;
-    color: var(--fg-primary, #eee);
-    padding: 0.3rem 0.5rem;
+  .form-grid :global(.spire-number-input) {
     font-size: 0.8rem;
-    font-family: inherit;
   }
 
   .btn-compute {

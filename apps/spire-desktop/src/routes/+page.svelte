@@ -68,6 +68,7 @@
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
   import QuickToolbar from "$lib/components/ui/QuickToolbar.svelte";
   import WorkspaceTabs from "$lib/components/workspace/WorkspaceTabs.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
 
 
   let toolboxOpen = false;
@@ -594,7 +595,7 @@
     <button
       class="toolbox-mode-toggle"
       on:click={toggleViewMode}
-      title="Toggle Canvas / Docking (Ctrl+Shift+C)"
+      use:tooltip={{ text: "Toggle Canvas / Docking (Ctrl+Shift+C)" }}
     >
       {$viewMode === "docking" ? "⊞ Docking" : "◎ Canvas"}
     </button>
@@ -610,7 +611,7 @@
     <button
       class="toolbox-reset"
       on:click={() => { resetDockingLayout(); clearCanvas(); }}
-      title="Reset to default layout"
+      use:tooltip={{ text: "Reset to default layout" }}
     >
       Reset Layout
     </button>

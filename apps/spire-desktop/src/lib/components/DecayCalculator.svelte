@@ -9,6 +9,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { get } from "svelte/store";
   import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
   import { calculateDecayTable, exportDecaySlha } from "$lib/api";
@@ -366,10 +367,10 @@
 
       <!-- SLHA Export -->
       <div class="export-row">
-        <button class="export-btn" on:click={copySlha} title="Copy SLHA DECAY block to clipboard">
+        <button class="export-btn" on:click={copySlha} use:tooltip={{ text: "Copy SLHA DECAY block to clipboard" }}>
           📋 Copy SLHA
         </button>
-        <button class="export-btn" on:click={downloadSlha} title="Download SLHA DECAY block as .slha file">
+        <button class="export-btn" on:click={downloadSlha} use:tooltip={{ text: "Download SLHA DECAY block as .slha file" }}>
           💾 Download .slha
         </button>
       </div>

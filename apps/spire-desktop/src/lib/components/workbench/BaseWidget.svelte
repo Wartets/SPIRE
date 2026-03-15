@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
 
   export let title: string = "Widget";
   export let widgetId: string = "";
@@ -39,7 +40,7 @@
         class="widget-close"
         on:click={handleClose}
         aria-label="Close {title}"
-        title="Close widget"
+        use:tooltip={{ text: "Close widget" }}
       >&times;</button>
     {/if}
   </header>

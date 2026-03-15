@@ -10,6 +10,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
+  import { tooltip } from "$lib/actions/tooltip";
 
   export let cell: CellData;
 
@@ -63,12 +64,12 @@
 <div class="config-cell" class:error={hasError} class:running={cell.running}>
   <div class="cc-toolbar">
     <span class="cc-badge">Config</span>
-    <span class="cc-exec-count" title="Execution count">{executionLabel}</span>
+    <span class="cc-exec-count" use:tooltip={{ text: "Execution count" }}>{executionLabel}</span>
     <button
       class="cc-run"
       on:click={() => dispatch("execute")}
       disabled={cell.running}
-      title="Load Model (Shift+Enter)"
+      use:tooltip={{ text: "Load Model (Shift+Enter)" }}
     >
       {#if cell.running}
         ⏳
@@ -77,9 +78,9 @@
       {/if}
     </button>
     <div class="cc-actions">
-      <button class="cc-btn" on:click={() => dispatch("moveUp")} title="Move Up">↑</button>
-      <button class="cc-btn" on:click={() => dispatch("moveDown")} title="Move Down">↓</button>
-      <button class="cc-btn cc-delete" on:click={() => dispatch("delete")} title="Delete Cell">✕</button>
+      <button class="cc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}>↑</button>
+      <button class="cc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}>↓</button>
+      <button class="cc-btn cc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}>✕</button>
     </div>
   </div>
 

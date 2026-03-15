@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { get } from "svelte/store";
   import {
     canvasItems,
@@ -728,7 +729,7 @@
                 class="cw-close"
                 on:click={() => handleClose(item)}
                 on:mousedown|stopPropagation
-                title="Close"
+                use:tooltip={{ text: "Close" }}
               >&times;</button>
             </header>
           {/if}
@@ -839,7 +840,7 @@
   </div>
 
   <!-- Zoom indicator (click to reset to 100%) -->
-  <button class="zoom-indicator" on:click={resetZoom} title="Reset zoom to 100%">
+  <button class="zoom-indicator" on:click={resetZoom} use:tooltip={{ text: "Reset zoom to 100%" }}>
     {Math.round(zoom * 100)}%
     {#if lodLevel !== "full"}
       <span class="lod-badge">{lodLevel === "summary" ? "SUM" : "MIN"}</span>

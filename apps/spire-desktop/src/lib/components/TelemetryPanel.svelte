@@ -15,6 +15,7 @@
   4. **History** - scrollable list of the last 20 profiled runs.
 -->
 <script lang="ts">
+  import { tooltip } from "$lib/actions/tooltip";
   import {
     latestProfile,
     latestLabel,
@@ -168,7 +169,7 @@
         <div class="bar-chart">
           {#each $stageTimings as [name, ms]}
             <div class="bar-row">
-              <span class="bar-label" title={name}>{name}</span>
+              <span class="bar-label" use:tooltip={{ text: name }}>{name}</span>
               <div class="bar-track">
                 <div
                   class="bar-fill"

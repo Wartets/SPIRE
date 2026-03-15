@@ -31,6 +31,7 @@
 
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
 
   // ── Default Standard Model Particle Catalog ──
 
@@ -131,7 +132,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} - {p.mass}, Q = {p.charge}"
+            use:tooltip={{ text: `${p.name} - ${p.mass}, Q = ${p.charge}` }}
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -149,7 +150,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} - {p.mass}, Q = {p.charge}"
+            use:tooltip={{ text: `${p.name} - ${p.mass}, Q = ${p.charge}` }}
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -167,7 +168,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} - {p.mass}, Q = {p.charge}"
+            use:tooltip={{ text: `${p.name} - ${p.mass}, Q = ${p.charge}` }}
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -185,7 +186,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} - {p.mass}, Q = {p.charge}"
+            use:tooltip={{ text: `${p.name} - ${p.mass}, Q = ${p.charge}` }}
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>
@@ -203,7 +204,7 @@
             class:selected={selected === p.id}
             style="background: {categoryColor(p.category)}; border-color: {selected === p.id ? 'var(--fg-accent)' : categoryBorder(p.category)};"
             on:click={() => handleSelect(p.id)}
-            title="{p.name} - {p.mass}, Q = {p.charge}"
+            use:tooltip={{ text: `${p.name} - ${p.mass}, Q = ${p.charge}` }}
           >
             <span class="pt-symbol">{p.symbol}</span>
             <span class="pt-mass">{p.mass}</span>

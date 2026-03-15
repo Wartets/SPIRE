@@ -18,6 +18,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { gridManager, gridSnapshot } from "$lib/services/ComputeGrid";
   import type { GridJobSnapshot, ConvergencePoint } from "$lib/types/compute";
   import type { AnalysisResult } from "$lib/types/spire";
@@ -287,34 +288,34 @@
     <div class="field-row">
       <div class="field compact">
         <label for="grid-cms">√s (GeV):</label>
-        <input id="grid-cms" type="number" bind:value={cmsEnergy} min="0.1" step="any" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-cms" bind:value={cmsEnergy} min={0.1} step={0.1} disabled={isRunning} ariaLabel="Grid CMS energy" />
       </div>
       <div class="field compact">
         <label for="grid-events">Total Events:</label>
-        <input id="grid-events" type="number" bind:value={numEvents} min="1" max="10000000" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-events" bind:value={numEvents} min={1} max={10000000} step={100} disabled={isRunning} ariaLabel="Total events" />
       </div>
       <div class="field compact">
         <label for="grid-final">Final N:</label>
-        <input id="grid-final" type="number" bind:value={nFinalState} min="2" max="8" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-final" bind:value={nFinalState} min={2} max={8} step={1} disabled={isRunning} ariaLabel="Final-state multiplicity" />
       </div>
     </div>
 
     <div class="field-row">
       <div class="field compact">
         <label for="grid-workers">Max Workers:</label>
-        <input id="grid-workers" type="number" bind:value={maxWorkers} min="1" max="32" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-workers" bind:value={maxWorkers} min={1} max={32} step={1} disabled={isRunning} ariaLabel="Max workers" />
       </div>
       <div class="field compact">
         <label for="grid-chunk">Chunk Size:</label>
-        <input id="grid-chunk" type="number" bind:value={maxChunkSize} min="100" max="1000000" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-chunk" bind:value={maxChunkSize} min={100} max={1000000} step={100} disabled={isRunning} ariaLabel="Chunk size" />
       </div>
       <div class="field compact">
         <label for="grid-timeout">Timeout (ms):</label>
-        <input id="grid-timeout" type="number" bind:value={taskTimeoutMs} min="1000" max="300000" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-timeout" bind:value={taskTimeoutMs} min={1000} max={300000} step={1000} disabled={isRunning} ariaLabel="Task timeout" />
       </div>
       <div class="field compact">
         <label for="grid-retries">Max Retries:</label>
-        <input id="grid-retries" type="number" bind:value={maxRetries} min="0" max="10" disabled={isRunning} />
+        <SpireNumberInput inputId="grid-retries" bind:value={maxRetries} min={0} max={10} step={1} disabled={isRunning} ariaLabel="Max retries" />
       </div>
     </div>
 
@@ -472,17 +473,7 @@
     font-size: 0.75rem;
   }
 
-  input {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    color: #e0e0e0;
-    padding: 0.3rem 0.5rem;
-    font-family: "JetBrains Mono", "Fira Code", monospace;
-    font-size: 0.8rem;
-  }
-
-  input:disabled {
+  :global(.spire-number-input):disabled {
     opacity: 0.4;
   }
 

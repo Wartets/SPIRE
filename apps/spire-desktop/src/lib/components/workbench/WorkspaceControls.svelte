@@ -6,6 +6,7 @@
   designed to sit inside the workbench toolbox bar.
 -->
 <script lang="ts">
+  import { tooltip } from "$lib/actions/tooltip";
   import {
     downloadWorkspace,
     importFromFile,
@@ -110,14 +111,14 @@
     <button
       class="ctrl-btn"
       on:click={() => (showSaveDialog = true)}
-      title="Export workspace to .spire.json"
+      use:tooltip={{ text: "Export workspace to .spire.json" }}
     >
       Save
     </button>
   {/if}
 
   <!-- Load -->
-  <button class="ctrl-btn" on:click={triggerFileLoad} title="Import workspace from .spire.json">
+  <button class="ctrl-btn" on:click={triggerFileLoad} use:tooltip={{ text: "Import workspace from .spire.json" }}>
     Load
   </button>
 
@@ -126,7 +127,7 @@
     class="ctrl-btn"
     class:danger={confirmReset}
     on:click={handleReset}
-    title={confirmReset ? "Click again to confirm reset" : "Reset workspace to defaults"}
+    use:tooltip={{ text: confirmReset ? "Click again to confirm reset" : "Reset workspace to defaults" }}
   >
     {confirmReset ? "Confirm?" : "Reset All"}
   </button>

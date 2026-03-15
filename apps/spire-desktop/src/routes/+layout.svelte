@@ -41,6 +41,7 @@
   } from "$lib/stores/workspaceStore";
   import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
   import type { TheoreticalFramework } from "$lib/types/spire";
+  import { tooltip } from "$lib/actions/tooltip";
 
   function onFrameworkChange(e: Event): void {
     const val = (e.target as HTMLSelectElement).value as TheoreticalFramework;
@@ -126,7 +127,7 @@
         class:backend-native={$backendKind === "tauri"}
         class:backend-wasm={$backendKind === "wasm"}
         class:backend-mock={$backendKind === "mock"}
-        title="Execution environment: {$backendLabel}"
+        use:tooltip={{ text: `Execution environment: ${$backendLabel}` }}
       >
         <span class="backend-dot"></span>
         {$backendLabel}
@@ -136,7 +137,7 @@
       <button
         class="palette-hint"
         on:click={() => togglePalette()}
-        title="Open Command Palette (Ctrl+K)"
+        use:tooltip={{ text: "Open Command Palette (Ctrl+K)" }}
       >
         Ctrl+K
       </button>

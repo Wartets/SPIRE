@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import {
     activeCitations,
     activeCitationCount,
@@ -90,7 +91,7 @@
         class="ref-btn"
         on:click={handleCopyAll}
         disabled={$activeCitationCount === 0}
-        title="Copy all references to clipboard"
+        use:tooltip={{ text: "Copy all references to clipboard" }}
       >
         Copy
       </button>
@@ -98,7 +99,7 @@
         class="ref-btn ref-btn-clear"
         on:click={handleClear}
         disabled={$activeCitationCount === 0}
-        title="Clear active references"
+        use:tooltip={{ text: "Clear active references" }}
       >
         Clear
       </button>

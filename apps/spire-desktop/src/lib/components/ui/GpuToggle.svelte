@@ -19,6 +19,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { queryHardwareBackends, type HardwareReport } from "$lib/api";
 
   /** The currently selected backend ("cpu" or "gpu"). Bindable. */
@@ -66,7 +67,7 @@
           : "GPU available";
 </script>
 
-<div class="gpu-toggle" title={tooltipText}>
+<div class="gpu-toggle" use:tooltip={{ text: tooltipText }}>
   <span class="label">Backend:</span>
 
   <button
@@ -104,7 +105,7 @@
   </button>
 
   {#if error}
-    <span class="error" title={error}>⚠</span>
+    <span class="error" use:tooltip={{ text: error }}>⚠</span>
   {/if}
 </div>
 

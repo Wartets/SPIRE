@@ -23,6 +23,7 @@
 -->
 <script lang="ts">
   import { onMount, tick } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { generatedDiagrams } from "$lib/stores/physicsStore";
   import type {
     FeynmanDiagram,
@@ -308,9 +309,9 @@
     <h3>Feynman Diagrams</h3>
     {#if diagrams.length > 0}
       <div class="dv-zoom">
-        <button class="icon-btn" on:click={zoomOut} title="Zoom Out">−</button>
-        <button class="icon-btn zoom-label" on:click={zoomReset} title="Reset Zoom">{Math.round(diagramZoom * 100)}%</button>
-        <button class="icon-btn" on:click={zoomIn} title="Zoom In">+</button>
+        <button class="icon-btn" on:click={zoomOut} use:tooltip={{ text: "Zoom Out" }}>−</button>
+        <button class="icon-btn zoom-label" on:click={zoomReset} use:tooltip={{ text: "Reset Zoom" }}>{Math.round(diagramZoom * 100)}%</button>
+        <button class="icon-btn" on:click={zoomIn} use:tooltip={{ text: "Zoom In" }}>+</button>
       </div>
     {/if}
   </div>
@@ -335,11 +336,11 @@
         </button>
       </div>
       <div class="export-btns">
-        <button class="export-btn" on:click={() => { showTikzExport = !showTikzExport; }} title="LaTeX TikZ Export">
+        <button class="export-btn" on:click={() => { showTikzExport = !showTikzExport; }} use:tooltip={{ text: "LaTeX TikZ Export" }}>
           TikZ
         </button>
         {#if viewMode === "feynman" || viewMode === "worldsheet"}
-          <button class="export-btn" on:click={exportSvg} title="Download SVG">
+          <button class="export-btn" on:click={exportSvg} use:tooltip={{ text: "Download SVG" }}>
             SVG ↓
           </button>
         {/if}

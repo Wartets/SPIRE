@@ -48,6 +48,8 @@
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
 
   // --- Command Registration ---
   const REACTION_CMD_IDS = [
@@ -410,11 +412,11 @@
     <div class="params-row">
       <label class="field-label">
         <HoverDef term="mandelstam_s">Centre-of-Mass Energy</HoverDef> (GeV)
-        <input type="number" bind:value={$cmsEnergyInput} min="0" step="0.1" />
+        <SpireNumberInput bind:value={$cmsEnergyInput} min={0} step={0.1} ariaLabel="Centre-of-Mass Energy" />
       </label>
       <label class="field-label">
         Max Loop Order
-        <input type="number" bind:value={$maxLoopOrderInput} min="0" max="3" step="1" />
+        <SpireNumberInput bind:value={$maxLoopOrderInput} min={0} max={3} step={1} ariaLabel="Max Loop Order" />
       </label>
     </div>
 
@@ -484,7 +486,7 @@
         <div class="preset-row">
           <span class="preset-label">Presets:</span>
           {#each OBSERVABLE_PRESETS as preset}
-            <button class="preset-btn" on:click={() => applyObsPreset(preset)} title={preset.script}>
+            <button class="preset-btn" on:click={() => applyObsPreset(preset)} use:tooltip={{ text: preset.script }}>
               {preset.label}
             </button>
           {/each}
@@ -500,7 +502,7 @@
         <div class="preset-row">
           <span class="preset-label">Presets:</span>
           {#each CUT_PRESETS as preset}
-            <button class="preset-btn" on:click={() => applyCutPreset(preset)} title={preset.script}>
+            <button class="preset-btn" on:click={() => applyCutPreset(preset)} use:tooltip={{ text: preset.script }}>
               {preset.label}
             </button>
           {/each}
@@ -656,13 +658,8 @@
     letter-spacing: 0.05em;
     flex: 1;
   }
-  .field-label input {
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    color: var(--fg-primary);
-    padding: 0.3rem 0.5rem;
+  .field-label :global(.spire-number-input) {
     font-size: 0.85rem;
-    font-family: var(--font-mono);
   }
   .actions {
     display: flex;

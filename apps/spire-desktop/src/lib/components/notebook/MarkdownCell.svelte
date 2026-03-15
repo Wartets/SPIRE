@@ -10,6 +10,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
+  import { tooltip } from "$lib/actions/tooltip";
 
   export let cell: CellData;
 
@@ -92,9 +93,9 @@
   <div class="md-toolbar">
     <span class="md-badge">Markdown</span>
     <div class="md-actions">
-      <button class="md-btn" on:click={() => dispatch("moveUp")} title="Move Up">↑</button>
-      <button class="md-btn" on:click={() => dispatch("moveDown")} title="Move Down">↓</button>
-      <button class="md-btn md-delete" on:click={() => dispatch("delete")} title="Delete Cell">✕</button>
+      <button class="md-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}>↑</button>
+      <button class="md-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}>↓</button>
+      <button class="md-btn md-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}>✕</button>
     </div>
   </div>
 

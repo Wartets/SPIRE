@@ -14,6 +14,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import {
     startMcmcFit,
     getMcmcStatus,
@@ -427,8 +428,8 @@
                 <option value="Width">Width</option>
               </select>
             </td>
-            <td><input type="number" bind:value={p.min} class="input-sm" step="any" /></td>
-            <td><input type="number" bind:value={p.max} class="input-sm" step="any" /></td>
+            <td><SpireNumberInput bind:value={p.min} step={0.1} ariaLabel="Parameter minimum" /></td>
+            <td><SpireNumberInput bind:value={p.max} step={0.1} ariaLabel="Parameter maximum" /></td>
             <td>
               <button class="btn-remove" on:click={() => removeParameter(i)}>✕</button>
             </td>
@@ -457,8 +458,8 @@
           <tr>
             <td><input bind:value={c.name} class="input-sm" /></td>
             <td><input bind:value={c.field_id} class="input-sm" /></td>
-            <td><input type="number" bind:value={c.observed} class="input-sm" step="any" /></td>
-            <td><input type="number" bind:value={c.sigma} class="input-sm" step="any" /></td>
+            <td><SpireNumberInput bind:value={c.observed} step={0.1} ariaLabel="Observed value" /></td>
+            <td><SpireNumberInput bind:value={c.sigma} step={0.1} ariaLabel="Constraint sigma" /></td>
             <td>
               <button class="btn-remove" on:click={() => removeConstraint(i)}>✕</button>
             </td>
@@ -475,15 +476,15 @@
     <div class="settings-row">
       <label>
         Walkers
-        <input type="number" bind:value={nWalkers} min="4" step="2" class="input-sm" />
+        <SpireNumberInput bind:value={nWalkers} min={4} step={2} ariaLabel="Number of walkers" />
       </label>
       <label>
         Steps
-        <input type="number" bind:value={nSteps} min="100" step="100" class="input-sm" />
+        <SpireNumberInput bind:value={nSteps} min={100} step={100} ariaLabel="MCMC steps" />
       </label>
       <label>
         Burn-in
-        <input type="number" bind:value={burnIn} min="0" step="100" class="input-sm" />
+        <SpireNumberInput bind:value={burnIn} min={0} step={100} ariaLabel="Burn-in steps" />
       </label>
     </div>
 
@@ -647,10 +648,6 @@
     gap: 2px;
     font-size: 0.8rem;
     color: var(--text-secondary, #a6adc8);
-  }
-
-  .settings-row .input-sm {
-    width: 100px;
   }
 
   .action-row {

@@ -13,6 +13,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import {
     activeKeybindings,
     formatBindingLabel,
@@ -194,7 +195,7 @@
       placeholder="Filter shortcuts…"
       bind:value={searchQuery}
     />
-    <button class="kp-reset-all" on:click={resetAllBindings} title="Reset all to defaults">
+    <button class="kp-reset-all" on:click={resetAllBindings} use:tooltip={{ text: "Reset all to defaults" }}>
       Reset All
     </button>
     {#if onClose}
@@ -226,13 +227,13 @@
                   <button
                     class="kp-btn"
                     on:click={() => startCapture(row.binding)}
-                    title="Edit shortcut"
+                    use:tooltip={{ text: "Edit shortcut" }}
                   >✎</button>
                   {#if !row.isDefault}
                     <button
                       class="kp-btn kp-btn-reset"
                       on:click={() => resetBinding(row.binding.commandId)}
-                      title="Reset to default"
+                      use:tooltip={{ text: "Reset to default" }}
                     >↺</button>
                   {/if}
                 </td>

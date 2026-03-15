@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
   import { tick } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { hideContextMenu } from "$lib/stores/contextMenuStore";
   import type { ContextMenuItem } from "$lib/types/menu";
 
@@ -175,7 +176,7 @@
   }
 </script>
 
-<div class="ctx-list" bind:this={listEl} role="menu">
+<div class="ctx-list" class:ctx-has-focus={hasFocus} bind:this={listEl} role="menu">
   {#each items as item, idx (item.id)}
     {#if item.type === "separator"}
       <div class="ctx-separator" role="separator"></div>
@@ -194,7 +195,7 @@
           on:click={() => activateItem(item)}
           role="menuitem"
           aria-disabled={item.disabled ?? false}
-          title={item.disabled && item.tooltip ? item.tooltip : ""}
+          use:tooltip={{ text: item.disabled && item.tooltip ? item.tooltip : "" }}
         >
           {#if item.type === "toggle"}
             <span class="ctx-check">{item.checked ? "☑" : "☐"}</span>

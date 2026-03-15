@@ -11,6 +11,7 @@
   of the commands it displays.
 -->
 <script lang="ts">
+  import { tooltip } from "$lib/actions/tooltip";
   import {
     pinnedCommands,
     openPalette,
@@ -28,7 +29,7 @@
       <button
         class="qt-button"
         on:click={() => invoke(cmd)}
-        title="{cmd.title}{cmd.shortcut ? ` (${cmd.shortcut})` : ''}"
+        use:tooltip={{ text: `${cmd.title}${cmd.shortcut ? ` (${cmd.shortcut})` : ""}` }}
       >
         {#if cmd.icon}
           <span class="qt-icon">{cmd.icon}</span>
@@ -42,7 +43,7 @@
     <button
       class="qt-button qt-palette-btn"
       on:click={() => openPalette()}
-      title="Command Palette (Ctrl+K)"
+      use:tooltip={{ text: "Command Palette (Ctrl+K)" }}
     >
       <span class="qt-label">Ctrl+K</span>
     </button>

@@ -16,6 +16,8 @@
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import WebglHeatmap from "./WebglHeatmap.svelte";
@@ -662,7 +664,7 @@
         {#each PRESETS as preset}
           <button
             class="preset-btn"
-            title={preset.description}
+            use:tooltip={{ text: preset.description }}
             on:click={() => applyPreset(preset)}
           >
             {preset.label}
@@ -695,15 +697,15 @@
       </div>
       <div class="field compact">
         <label for="n-bins">Bins:</label>
-        <input id="n-bins" type="number" bind:value={nBins} min="1" max="1000" />
+        <SpireNumberInput inputId="n-bins" bind:value={nBins} min={1} max={1000} step={1} ariaLabel="Histogram bins" />
       </div>
       <div class="field compact">
         <label for="hist-min">Min:</label>
-        <input id="hist-min" type="number" bind:value={histMin} step="any" />
+        <SpireNumberInput inputId="hist-min" bind:value={histMin} step={0.1} ariaLabel="Histogram minimum" />
       </div>
       <div class="field compact">
         <label for="hist-max">Max:</label>
-        <input id="hist-max" type="number" bind:value={histMax} step="any" />
+        <SpireNumberInput inputId="hist-max" bind:value={histMax} step={0.1} ariaLabel="Histogram maximum" />
       </div>
     </div>
 
@@ -715,7 +717,7 @@
         {#each PRESETS_2D as p2d}
           <button
             class="preset-btn"
-            title={p2d.description}
+            use:tooltip={{ text: p2d.description }}
             on:click={() => apply2DPreset(p2d)}
           >{p2d.label}</button>
         {/each}
@@ -749,30 +751,30 @@
       </div>
       <div class="field compact">
         <label for="nx-bins">X Bins:</label>
-        <input id="nx-bins" type="number" bind:value={nx2D} min="1" max="500" />
+        <SpireNumberInput inputId="nx-bins" bind:value={nx2D} min={1} max={500} step={1} ariaLabel="2D X bins" />
       </div>
       <div class="field compact">
         <label for="ny-bins">Y Bins:</label>
-        <input id="ny-bins" type="number" bind:value={ny2D} min="1" max="500" />
+        <SpireNumberInput inputId="ny-bins" bind:value={ny2D} min={1} max={500} step={1} ariaLabel="2D Y bins" />
       </div>
     </div>
 
     <div class="field-row">
       <div class="field compact">
         <label for="x-min-2d">X Min:</label>
-        <input id="x-min-2d" type="number" bind:value={xMin2D} step="any" />
+        <SpireNumberInput inputId="x-min-2d" bind:value={xMin2D} step={0.1} ariaLabel="2D X minimum" />
       </div>
       <div class="field compact">
         <label for="x-max-2d">X Max:</label>
-        <input id="x-max-2d" type="number" bind:value={xMax2D} step="any" />
+        <SpireNumberInput inputId="x-max-2d" bind:value={xMax2D} step={0.1} ariaLabel="2D X maximum" />
       </div>
       <div class="field compact">
         <label for="y-min-2d">Y Min:</label>
-        <input id="y-min-2d" type="number" bind:value={yMin2D} step="any" />
+        <SpireNumberInput inputId="y-min-2d" bind:value={yMin2D} step={0.1} ariaLabel="2D Y minimum" />
       </div>
       <div class="field compact">
         <label for="y-max-2d">Y Max:</label>
-        <input id="y-max-2d" type="number" bind:value={yMax2D} step="any" />
+        <SpireNumberInput inputId="y-max-2d" bind:value={yMax2D} step={0.1} ariaLabel="2D Y maximum" />
       </div>
     </div>
     {/if}
@@ -781,15 +783,15 @@
     <div class="field-row">
       <div class="field compact">
         <label for="cms-energy"><HoverDef term="cross_section">√s</HoverDef> (GeV):</label>
-        <input id="cms-energy" type="number" bind:value={cmsEnergy} min="0.1" step="any" />
+        <SpireNumberInput inputId="cms-energy" bind:value={cmsEnergy} min={0.1} step={0.1} ariaLabel="CMS energy" />
       </div>
       <div class="field compact">
         <label for="num-events">Events:</label>
-        <input id="num-events" type="number" bind:value={numEvents} min="1" max="1000000" />
+        <SpireNumberInput inputId="num-events" bind:value={numEvents} min={1} max={1000000} step={100} ariaLabel="Event count" />
       </div>
       <div class="field compact">
         <label for="n-final">Final-state N:</label>
-        <input id="n-final" type="number" bind:value={nFinalState} min="2" max="8" />
+        <SpireNumberInput inputId="n-final" bind:value={nFinalState} min={2} max={8} step={1} ariaLabel="Final-state multiplicity" />
       </div>
     </div>
 
@@ -846,7 +848,7 @@
           {#each RECO_PRESETS as rp}
             <button
               class="preset-btn"
-              title={rp.description}
+              use:tooltip={{ text: rp.description }}
               on:click={() => applyPreset(rp)}
             >{rp.label}</button>
           {/each}
@@ -872,7 +874,7 @@
           </div>
           <div class="sub-field">
             <label for="nlo-alpha">α parameter:</label>
-            <input id="nlo-alpha" type="number" step="0.1" min="0" max="2" bind:value={nloAlpha} />
+            <SpireNumberInput inputId="nlo-alpha" step={0.1} min={0} max={2} bind:value={nloAlpha} ariaLabel="NLO alpha parameter" />
           </div>
         </div>
       {/if}
@@ -1341,13 +1343,9 @@
   }
 
   .sub-field select,
-  .sub-field input[type="number"] {
+  .sub-field :global(.spire-number-input) {
     font-size: 0.75rem;
-    padding: 0.15rem 0.3rem;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
-    color: var(--fg-primary, #e8e8e8);
   }
 
   .sub-toggle {

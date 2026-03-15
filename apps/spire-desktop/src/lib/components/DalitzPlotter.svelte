@@ -9,6 +9,8 @@
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { computeDalitzData } from "$lib/api";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import type { DalitzPlotData } from "$lib/types/spire";
   import {
     Chart,
@@ -188,7 +190,7 @@
   <!-- Preset Buttons -->
   <div class="presets">
     {#each PRESETS as preset}
-      <button class="preset-btn" on:click={() => applyPreset(preset)} title={preset.description}>
+      <button class="preset-btn" on:click={() => applyPreset(preset)} use:tooltip={{ text: preset.description }}>
         {preset.label}
       </button>
     {/each}
@@ -198,23 +200,23 @@
   <div class="input-grid">
     <label>
       <span class="input-label">M (parent)</span>
-      <input type="number" bind:value={motherMass} step="0.001" min="0" />
+      <SpireNumberInput bind:value={motherMass} step={0.001} min={0} ariaLabel="Parent mass" />
     </label>
     <label>
       <span class="input-label">m_a</span>
-      <input type="number" bind:value={mA} step="0.001" min="0" />
+      <SpireNumberInput bind:value={mA} step={0.001} min={0} ariaLabel="Daughter mass a" />
     </label>
     <label>
       <span class="input-label">m_b</span>
-      <input type="number" bind:value={mB} step="0.001" min="0" />
+      <SpireNumberInput bind:value={mB} step={0.001} min={0} ariaLabel="Daughter mass b" />
     </label>
     <label>
       <span class="input-label">m_c</span>
-      <input type="number" bind:value={mC} step="0.001" min="0" />
+      <SpireNumberInput bind:value={mC} step={0.001} min={0} ariaLabel="Daughter mass c" />
     </label>
     <label>
       <span class="input-label">Points</span>
-      <input type="number" bind:value={nPoints} step="500" min="100" max="50000" />
+      <SpireNumberInput bind:value={nPoints} step={500} min={100} max={50000} ariaLabel="Dalitz point count" />
     </label>
   </div>
 
@@ -296,19 +298,8 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .input-grid input {
-    width: 100%;
-    padding: 0.25rem 0.35rem;
-    background: var(--bg-inset);
-    color: var(--fg-primary);
-    border: 1px solid var(--border);
-    font-family: var(--font-mono);
+  .input-grid :global(.spire-number-input) {
     font-size: 0.78rem;
-    box-sizing: border-box;
-  }
-  .input-grid input:focus {
-    outline: none;
-    border-color: var(--border-focus);
   }
 
   /* Generate Button */

@@ -14,6 +14,8 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { calculateBToKll } from "$lib/api";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import SpireSlider from "$lib/components/ui/SpireSlider.svelte";
   import type {
     LatticeInputs,
     WilsonCoefficients,
@@ -254,46 +256,46 @@
     <section class="tab-content">
       <h3>Decay Constants (FLAG 2023)</h3>
       <div class="form-grid">
-        <label>f<sub>B</sub> (GeV) <input type="number" bind:value={fBValue} step="0.001" /></label>
-        <label>± σ <input type="number" bind:value={fBError} step="0.0001" /></label>
+        <label>f<sub>B</sub> (GeV) <SpireNumberInput bind:value={fBValue} step={0.001} ariaLabel="fB" /></label>
+        <label>± σ <SpireNumberInput bind:value={fBError} step={0.0001} ariaLabel="fB uncertainty" /></label>
 
-        <label>f<sub>Bs</sub> (GeV) <input type="number" bind:value={fBsValue} step="0.001" /></label>
-        <label>± σ <input type="number" bind:value={fBsError} step="0.0001" /></label>
+        <label>f<sub>Bs</sub> (GeV) <SpireNumberInput bind:value={fBsValue} step={0.001} ariaLabel="fBs" /></label>
+        <label>± σ <SpireNumberInput bind:value={fBsError} step={0.0001} ariaLabel="fBs uncertainty" /></label>
 
-        <label>f<sub>K</sub> (GeV) <input type="number" bind:value={fKValue} step="0.001" /></label>
-        <label>± σ <input type="number" bind:value={fKError} step="0.0001" /></label>
+        <label>f<sub>K</sub> (GeV) <SpireNumberInput bind:value={fKValue} step={0.001} ariaLabel="fK" /></label>
+        <label>± σ <SpireNumberInput bind:value={fKError} step={0.0001} ariaLabel="fK uncertainty" /></label>
       </div>
 
       <h3>Bag Parameters</h3>
       <div class="form-grid">
-        <label>B̂<sub>d</sub> <input type="number" bind:value={bHatD} step="0.01" /></label>
-        <label>± σ <input type="number" bind:value={bHatDErr} step="0.01" /></label>
+        <label>B̂<sub>d</sub> <SpireNumberInput bind:value={bHatD} step={0.01} ariaLabel="Bhat d" /></label>
+        <label>± σ <SpireNumberInput bind:value={bHatDErr} step={0.01} ariaLabel="Bhat d uncertainty" /></label>
 
-        <label>B̂<sub>s</sub> <input type="number" bind:value={bHatS} step="0.01" /></label>
-        <label>± σ <input type="number" bind:value={bHatSErr} step="0.01" /></label>
+        <label>B̂<sub>s</sub> <SpireNumberInput bind:value={bHatS} step={0.01} ariaLabel="Bhat s" /></label>
+        <label>± σ <SpireNumberInput bind:value={bHatSErr} step={0.01} ariaLabel="Bhat s uncertainty" /></label>
       </div>
 
       <h3>B → K Form Factors (BCL z-expansion)</h3>
 
       <h4>f<sub>+</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀ <input type="number" bind:value={fpA0} step="0.01" /></label>
-        <label>a₁ <input type="number" bind:value={fpA1} step="0.01" /></label>
-        <label>a₂ <input type="number" bind:value={fpA2} step="0.01" /></label>
+        <label>a₀ <SpireNumberInput bind:value={fpA0} step={0.01} ariaLabel="fplus a0" /></label>
+        <label>a₁ <SpireNumberInput bind:value={fpA1} step={0.01} ariaLabel="fplus a1" /></label>
+        <label>a₂ <SpireNumberInput bind:value={fpA2} step={0.01} ariaLabel="fplus a2" /></label>
       </div>
 
       <h4>f<sub>0</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀ <input type="number" bind:value={f0A0} step="0.01" /></label>
-        <label>a₁ <input type="number" bind:value={f0A1} step="0.01" /></label>
-        <label>a₂ <input type="number" bind:value={f0A2} step="0.01" /></label>
+        <label>a₀ <SpireNumberInput bind:value={f0A0} step={0.01} ariaLabel="fzero a0" /></label>
+        <label>a₁ <SpireNumberInput bind:value={f0A1} step={0.01} ariaLabel="fzero a1" /></label>
+        <label>a₂ <SpireNumberInput bind:value={f0A2} step={0.01} ariaLabel="fzero a2" /></label>
       </div>
 
       <h4>f<sub>T</sub>(q²)</h4>
       <div class="form-grid three-col">
-        <label>a₀ <input type="number" bind:value={ftA0} step="0.01" /></label>
-        <label>a₁ <input type="number" bind:value={ftA1} step="0.01" /></label>
-        <label>a₂ <input type="number" bind:value={ftA2} step="0.01" /></label>
+        <label>a₀ <SpireNumberInput bind:value={ftA0} step={0.01} ariaLabel="ft a0" /></label>
+        <label>a₁ <SpireNumberInput bind:value={ftA1} step={0.01} ariaLabel="ft a1" /></label>
+        <label>a₂ <SpireNumberInput bind:value={ftA2} step={0.01} ariaLabel="ft a2" /></label>
       </div>
 
       <button class="btn-secondary" on:click={resetDefaults}>Reset to FLAG Defaults</button>
@@ -305,28 +307,28 @@
     <section class="tab-content">
       <h3>SM Wilson Coefficients (μ = m<sub>b</sub>)</h3>
       <div class="form-grid">
-        <label>C<sub>7</sub><sup>eff</sup> <input type="number" bind:value={c7Eff} step="0.01" /></label>
-        <label>C<sub>7</sub>' <input type="number" bind:value={c7Prime} step="0.01" /></label>
+        <label>C<sub>7</sub><sup>eff</sup> <SpireNumberInput bind:value={c7Eff} step={0.01} ariaLabel="C7 eff" /></label>
+        <label>C<sub>7</sub>' <SpireNumberInput bind:value={c7Prime} step={0.01} ariaLabel="C7 prime" /></label>
 
-        <label>C<sub>9</sub><sup>eff</sup> <input type="number" bind:value={c9Eff} step="0.01" /></label>
-        <label>C<sub>9</sub>' <input type="number" bind:value={c9Prime} step="0.01" /></label>
+        <label>C<sub>9</sub><sup>eff</sup> <SpireNumberInput bind:value={c9Eff} step={0.01} ariaLabel="C9 eff" /></label>
+        <label>C<sub>9</sub>' <SpireNumberInput bind:value={c9Prime} step={0.01} ariaLabel="C9 prime" /></label>
 
-        <label>C<sub>10</sub> <input type="number" bind:value={c10} step="0.01" /></label>
-        <label>C<sub>10</sub>' <input type="number" bind:value={c10Prime} step="0.01" /></label>
+        <label>C<sub>10</sub> <SpireNumberInput bind:value={c10} step={0.01} ariaLabel="C10" /></label>
+        <label>C<sub>10</sub>' <SpireNumberInput bind:value={c10Prime} step={0.01} ariaLabel="C10 prime" /></label>
       </div>
 
       <h3>BSM Shifts</h3>
       <div class="slider-group">
-        <label>ΔC<sub>9</sub>: <strong>{deltaC9.toFixed(2)}</strong> <input type="range" bind:value={deltaC9} min="-3" max="3" step="0.05" /></label>
+        <label>ΔC<sub>9</sub>: <strong>{deltaC9.toFixed(2)}</strong> <SpireSlider bind:value={deltaC9} min={-3} max={3} step={0.05} ariaLabel="Delta C9" /></label>
       </div>
       <div class="slider-group">
-        <label>ΔC<sub>10</sub>: <strong>{deltaC10.toFixed(2)}</strong> <input type="range" bind:value={deltaC10} min="-3" max="3" step="0.05" /></label>
+        <label>ΔC<sub>10</sub>: <strong>{deltaC10.toFixed(2)}</strong> <SpireSlider bind:value={deltaC10} min={-3} max={3} step={0.05} ariaLabel="Delta C10" /></label>
       </div>
 
       <h3>q² Integration Window (GeV²)</h3>
       <div class="form-grid">
-        <label>q²<sub>min</sub> <input type="number" bind:value={q2Min} step="0.5" min="0.05" /></label>
-        <label>q²<sub>max</sub> <input type="number" bind:value={q2Max} step="0.5" max="22.9" /></label>
+        <label>q²<sub>min</sub> <SpireNumberInput bind:value={q2Min} step={0.5} min={0.05} ariaLabel="q2 minimum" /></label>
+        <label>q²<sub>max</sub> <SpireNumberInput bind:value={q2Max} step={0.5} max={22.9} ariaLabel="q2 maximum" /></label>
       </div>
     </section>
   {/if}
@@ -456,16 +458,8 @@
     color: var(--fg-secondary, #bbb);
   }
 
-  .form-grid input {
-    background: var(--bg-input, #1e1e2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 4px;
-    color: var(--fg-primary, #eee);
-    padding: 0.25rem 0.4rem;
+  .form-grid :global(.spire-number-input) {
     font-size: 0.78rem;
-    font-family: inherit;
-    width: 100%;
-    box-sizing: border-box;
   }
 
   /* ── Slider ── */
@@ -480,9 +474,8 @@
     margin-bottom: 0.15rem;
   }
 
-  .slider-group input[type="range"] {
+  .slider-group :global(.spire-slider) {
     width: 100%;
-    accent-color: var(--accent, #4fc3f7);
   }
 
   /* ── Buttons ── */

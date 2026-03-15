@@ -14,6 +14,7 @@
     setWorkspaceDescription,
   } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { tooltip } from "$lib/actions/tooltip";
 
   let dragTabId: string | null = null;
   let dropTargetTabId: string | null = null;
@@ -153,7 +154,7 @@
       on:drop={(e) => handleTabDrop(e, ws.id)}
       on:dragend={handleTabDragEnd}
       on:dragleave={() => { if (dropTargetTabId === ws.id) dropTargetTabId = null; }}
-      title={formatTooltip(ws.description, ws.createdAt, ws.updatedAt)}
+      use:tooltip={{ text: formatTooltip(ws.description, ws.createdAt, ws.updatedAt) }}
       role="tab"
       tabindex="0"
       aria-selected={ws.id === $activeWorkspaceId}
@@ -186,7 +187,7 @@
   <button
     class="ws-tab ws-tab-add"
     on:click={() => addWorkspace()}
-    title="New Workspace"
+    use:tooltip={{ text: "New Workspace" }}
   >+</button>
 </div>
 

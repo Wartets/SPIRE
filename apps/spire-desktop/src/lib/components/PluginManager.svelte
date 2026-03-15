@@ -11,6 +11,7 @@
 -->
 <script lang="ts">
   import { onMount } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { loadPlugin, listActivePlugins, unloadPlugin } from "$lib/api";
   import type { PluginInfo } from "$lib/api";
 
@@ -123,7 +124,7 @@
       class="pm-refresh-btn"
       on:click={refreshPlugins}
       disabled={loading}
-      title="Refresh plugin list"
+      use:tooltip={{ text: "Refresh plugin list" }}
     >↻</button>
   </div>
 
@@ -161,7 +162,7 @@
             <button
               class="pm-unload-btn"
               on:click={() => handleUnload(plugin.name)}
-              title="Unload plugin"
+              use:tooltip={{ text: "Unload plugin" }}
               disabled={loading}
             >✕</button>
           </div>

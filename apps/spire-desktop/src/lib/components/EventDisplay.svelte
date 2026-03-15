@@ -23,6 +23,9 @@
     Vec3,
     DetectorPreset,
   } from "$lib/types/spire";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import SpireSlider from "$lib/components/ui/SpireSlider.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import * as THREE from "three";
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
@@ -478,11 +481,11 @@
     <div class="field-row">
       <div class="field compact">
         <label for="ed-energy">√s (GeV):</label>
-        <input id="ed-energy" type="number" bind:value={cmsEnergy} min="10" step="any" />
+        <SpireNumberInput inputId="ed-energy" bind:value={cmsEnergy} min={10} step={0.5} ariaLabel="Centre-of-mass energy" />
       </div>
       <div class="field compact">
         <label for="ed-nfinal">Final N:</label>
-        <input id="ed-nfinal" type="number" bind:value={nFinal} min="2" max="8" />
+        <SpireNumberInput inputId="ed-nfinal" bind:value={nFinal} min={2} max={8} step={1} ariaLabel="Final-state multiplicity" />
       </div>
       <div class="field compact">
         <label for="ed-detector">Detector:</label>
@@ -494,7 +497,7 @@
       </div>
       <div class="field compact">
         <label for="ed-batch">Batch:</label>
-        <input id="ed-batch" type="number" bind:value={batchSize} min="1" max="100" />
+        <SpireNumberInput inputId="ed-batch" bind:value={batchSize} min={1} max={100} step={1} ariaLabel="Batch size" />
       </div>
     </div>
 
@@ -515,17 +518,17 @@
     <!-- Playback Controls -->
     {#if eventBatch.length > 0}
       <div class="playback-bar">
-        <button class="ctrl-btn" on:click={stepBack} title="Previous Event">⏮</button>
+        <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }}>⏮</button>
         {#if playbackState === "playing"}
-          <button class="ctrl-btn ctrl-pause" on:click={pause} title="Pause">⏸</button>
+          <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }}>⏸</button>
         {:else}
-          <button class="ctrl-btn ctrl-play" on:click={play} title="Play">▶</button>
+          <button class="ctrl-btn ctrl-play" on:click={play} use:tooltip={{ text: "Play" }}>▶</button>
         {/if}
-        <button class="ctrl-btn" on:click={stepForward} title="Next Event">⏭</button>
+        <button class="ctrl-btn" on:click={stepForward} use:tooltip={{ text: "Next Event" }}>⏭</button>
 
         <div class="speed-control">
           <label for="ed-speed">Speed:</label>
-          <input id="ed-speed" type="range" min="0.25" max="4" step="0.25" bind:value={playbackSpeed} />
+          <SpireSlider inputId="ed-speed" min={0.25} max={4} step={0.25} bind:value={playbackSpeed} ariaLabel="Playback speed" />
           <span class="speed-label">{playbackSpeed.toFixed(2)}×</span>
         </div>
 
@@ -602,7 +605,7 @@
   .field.compact { flex: 1; min-width: 70px; }
   .field label { color: #aaa; font-size: 0.75rem; }
 
-  input[type="number"], select {
+  select {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
@@ -664,7 +667,7 @@
     display: flex; align-items: center; gap: 0.3rem; margin-left: 0.5rem;
   }
   .speed-control label { font-size: 0.72rem; color: #888; }
-  .speed-control input[type="range"] { width: 80px; accent-color: #8ab4f8; }
+  .speed-control :global(.spire-slider) { width: 80px; }
   .speed-label {
     font-size: 0.72rem; color: #8ab4f8;
     font-family: "JetBrains Mono", monospace; min-width: 3em;

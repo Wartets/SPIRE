@@ -23,6 +23,8 @@
     runRgeFlow,
   } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import type {
     FieldSpin,
@@ -351,7 +353,7 @@
       <h3>Known Fields</h3>
       <div class="field-list">
         {#each knownFields as field}
-          <span class="field-chip" title={field.spin}>
+          <span class="field-chip" use:tooltip={{ text: field.spin }}>
             {field.id}
             <small>({field.spin})</small>
             <button class="chip-remove" on:click={() => removeField(field.id)}>×</button>
@@ -477,19 +479,19 @@
         </label>
         <label>
           Initial value
-          <input type="number" bind:value={rgeInitialValue} step="0.01" class="input-sm" />
+          <SpireNumberInput bind:value={rgeInitialValue} step={0.01} ariaLabel="RGE initial value" />
         </label>
         <label>
           μ min (GeV)
-          <input type="number" bind:value={rgeMuMin} step="0.1" class="input-sm" />
+          <SpireNumberInput bind:value={rgeMuMin} step={0.1} ariaLabel="RGE minimum scale" />
         </label>
         <label>
           μ max (GeV)
-          <input type="number" bind:value={rgeMuMax} step="10" class="input-sm" />
+          <SpireNumberInput bind:value={rgeMuMax} step={10} ariaLabel="RGE maximum scale" />
         </label>
         <label>
           Points
-          <input type="number" bind:value={rgeNPoints} step="10" class="input-sm" />
+          <SpireNumberInput bind:value={rgeNPoints} step={10} ariaLabel="RGE point count" />
         </label>
       </div>
       <div class="beta-input">

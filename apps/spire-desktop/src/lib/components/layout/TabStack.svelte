@@ -9,6 +9,7 @@
     node - The StackNode from the layout tree.
 -->
 <script lang="ts">
+  import { tooltip } from "$lib/actions/tooltip";
   import type { StackNode, LayoutNode } from "$lib/stores/layoutStore";
   import {
     setActiveTab,
@@ -152,7 +153,7 @@
         on:dragstart={(e) => handleTabDragStart(e, i)}
         on:dragover={allowDrop}
         on:drop={(e) => handleTabDrop(e, i)}
-        title={getTabLabel(child)}
+        use:tooltip={{ text: getTabLabel(child) }}
       >
         <span class="tab-label">{getTabLabel(child)}</span>
         <span

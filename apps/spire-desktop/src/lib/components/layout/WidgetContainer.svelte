@@ -18,6 +18,7 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { pipelineLinks } from "$lib/core/services/PipelineService";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
+  import { tooltip } from "$lib/actions/tooltip";
 
   // ── Inner Components ──
   import ModelLoader from "$lib/components/ModelLoader.svelte";
@@ -158,38 +159,38 @@
       class="wc-drag-handle"
       draggable="true"
       on:dragstart={handleDragStart}
-      title="Drag to reorganise"
+      use:tooltip={{ text: "Drag to reorganise" }}
       role="button"
       tabindex="-1"
       aria-label="Drag handle"
     >⠿</span>
     <span class="wc-title">{label}</span>
     {#if linked}
-      <span class="wc-link-badge" title="Connected via pipeline">⟷</span>
+      <span class="wc-link-badge" use:tooltip={{ text: "Connected via pipeline" }}>⟷</span>
     {/if}
     <div class="wc-controls">
       <button
         class="wc-btn"
         on:click={handleSplitH}
-        title="Split Horizontal"
+        use:tooltip={{ text: "Split Horizontal" }}
         aria-label="Split Horizontal"
       >⬌</button>
       <button
         class="wc-btn"
         on:click={handleSplitV}
-        title="Split Vertical"
+        use:tooltip={{ text: "Split Vertical" }}
         aria-label="Split Vertical"
       >⬍</button>
       <button
         class="wc-btn"
         on:click={handleTearOff}
-        title="Tear Off to New Window"
+        use:tooltip={{ text: "Tear Off to New Window" }}
         aria-label="Tear Off"
       >⧉</button>
       <button
         class="wc-btn wc-close"
         on:click={handleClose}
-        title="Close Widget"
+        use:tooltip={{ text: "Close Widget" }}
         aria-label="Close"
       >&times;</button>
     </div>

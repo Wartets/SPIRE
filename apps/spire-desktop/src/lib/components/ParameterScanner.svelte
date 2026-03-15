@@ -14,6 +14,7 @@
   import { runParameterScan1D } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
+  import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import type { ScanScale, ScanResult1D, TheoreticalModel } from "$lib/types/spire";
   import {
     Chart,
@@ -378,11 +379,11 @@
     <div class="row-2col">
       <div class="field">
         <label for="scan-min">Min</label>
-        <input id="scan-min" type="number" step="any" bind:value={scanMin} />
+        <SpireNumberInput inputId="scan-min" step={0.1} bind:value={scanMin} ariaLabel="Scan minimum" />
       </div>
       <div class="field">
         <label for="scan-max">Max</label>
-        <input id="scan-max" type="number" step="any" bind:value={scanMax} />
+        <SpireNumberInput inputId="scan-max" step={0.1} bind:value={scanMax} ariaLabel="Scan maximum" />
       </div>
     </div>
 
@@ -390,7 +391,7 @@
     <div class="row-2col">
       <div class="field">
         <label for="scan-steps">Steps</label>
-        <input id="scan-steps" type="number" min="2" max="500" bind:value={scanSteps} />
+        <SpireNumberInput inputId="scan-steps" min={2} max={500} step={1} bind:value={scanSteps} ariaLabel="Scan steps" />
       </div>
       <div class="field">
         <label for="scan-scale">
@@ -408,7 +409,7 @@
       <label for="scan-events">
         <HoverDef term="mc_events">Events / Point</HoverDef>
       </label>
-      <input id="scan-events" type="number" min="100" step="100" bind:value={eventsPerPoint} />
+      <SpireNumberInput inputId="scan-events" min={100} step={100} bind:value={eventsPerPoint} ariaLabel="Events per point" />
     </div>
 
     <!-- Run Button -->
@@ -536,7 +537,6 @@
     gap: 0.5rem;
   }
 
-  input[type="number"],
   input[type="text"],
   select {
     background: rgba(0, 0, 0, 0.3);
