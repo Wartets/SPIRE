@@ -26,6 +26,7 @@
     addCanvasItem,
   } from "$lib/stores/layoutStore";
   import type { CanvasItem } from "$lib/stores/layoutStore";
+  import type { WidgetType } from "$lib/stores/notebookStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import {
     getWidgetComponent,
@@ -36,6 +37,17 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
+  import {
+    createLink,
+    pipelineLinks,
+    registerSink,
+    registerSource,
+    removeAllLinksForWidget,
+    removeLink,
+    unregisterSink,
+    unregisterSource,
+    type PipelineDataType,
+  } from "$lib/core/services/PipelineService";
 
   // ── LOD & Frustum Culling ──
   import CanvasLODWrapper from "$lib/components/canvas/CanvasLODWrapper.svelte";
@@ -49,8 +61,6 @@
     WIDGET_ICONS,
     WIDGET_ACCENT,
   } from "$lib/components/canvas/lodUtils";
-
-  import PipelineLayer from "$lib/components/pipeline/PipelineLayer.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -491,6 +501,98 @@
   let selectedWidgetId: string | null = null;
   let zCounter = 10;
   let zMap: Record<string, number> = {};
+  let automationEnabled = false;
+  let connectSourceWidgetId: string | null = null;
+
+  interface WidgetAutomationPorts {
+    source?: PipelineDataType;
+    sink?: PipelineDataType;
+  }
+
+  const WIDGET_AUTOMATION_PORTS: Partial<Record<WidgetType, WidgetAutomationPorts>> = {
+    model: { source: "model" },
+    reaction: { sink: "model", source: "reaction" },
+    diagram: { sink: "reaction", source: "diagram" },
+    amplitude: { sink: "diagram", source: "amplitude" },
+    kinematics: { sink: "reaction", source: "kinematics" },
+    dalitz: { sink: "kinematics" },
+    event_display: { sink: "kinematics" },
+    decay_calculator: { sink: "model", source: "decay_table" },
+    analysis: { sink: "amplitude", source: "analysis_result" },
+    notebook: { sink: "analysis_result" },
+    log: { sink: "analysis_result" },
+  };
+
+  function itemCenter(item: CanvasItem): { x: number; y: number } {
+    return {
+      x: item.x + item.width / 2,
+      y: item.y + item.height / 2,
+    };
+  }
+
+  function linkPath(linkId: string): string {
+    const link = $pipelineLinks.find((l) => l.id === linkId);
+    if (!link) return "";
+
+    const source = $canvasItems.find((item) => item.id === link.source.widgetId);
+    const sink = $canvasItems.find((item) => item.id === link.sink.widgetId);
+    if (!source || !sink) return "";
+
+    const from = itemCenter(source);
+    const to = itemCenter(sink);
+    const dx = Math.abs(to.x - from.x);
+    const offset = Math.max(70, Math.min(240, dx * 0.45));
+    const c1x = from.x + offset;
+    const c2x = to.x - offset;
+    return `M ${from.x} ${from.y} C ${c1x} ${from.y}, ${c2x} ${to.y}, ${to.x} ${to.y}`;
+  }
+
+  function canAutomate(item: CanvasItem): boolean {
+    return Boolean(WIDGET_AUTOMATION_PORTS[item.widgetType]);
+  }
+
+  function connectButtonTitle(item: CanvasItem): string {
+    const ports = WIDGET_AUTOMATION_PORTS[item.widgetType];
+    if (!ports?.source && !ports?.sink) return "No automation ports";
+    if (!automationEnabled) return "Enable automation first";
+    if (connectSourceWidgetId === item.id) return "Cancel source selection";
+    if (!connectSourceWidgetId) {
+      return ports?.source
+        ? "Select as connection source"
+        : "This widget only accepts input";
+    }
+    return "Connect selected source to this widget";
+  }
+
+  function handleConnectClick(item: CanvasItem): void {
+    if (!automationEnabled || !canAutomate(item)) return;
+    if (connectSourceWidgetId === item.id) {
+      connectSourceWidgetId = null;
+      return;
+    }
+
+    if (!connectSourceWidgetId) {
+      if (!WIDGET_AUTOMATION_PORTS[item.widgetType]?.source) {
+        return;
+      }
+      connectSourceWidgetId = item.id;
+      selectWidget(item);
+      return;
+    }
+
+    const created = createLink(connectSourceWidgetId, item.id);
+    connectSourceWidgetId = null;
+    if (!created) {
+      // Incompatible ports are intentionally ignored.
+    }
+  }
+
+  function toggleAutomation(): void {
+    automationEnabled = !automationEnabled;
+    if (!automationEnabled) {
+      connectSourceWidgetId = null;
+    }
+  }
 
   function selectWidget(item: CanvasItem): void {
     selectedWidgetId = item.id;
@@ -512,6 +614,7 @@
   // ── Auto-select newly created widgets ──
   // Track the previous item count; when it grows, bring the last item to front.
   let _prevItemCount = 0;
+  let _previousCanvasIds = new Set<string>();
 
   const unsubCanvasItems = canvasItems.subscribe((items) => {
     if (items.length > _prevItemCount && items.length > 0) {
@@ -519,6 +622,32 @@
       bringToFrontById(newest.id);
     }
     _prevItemCount = items.length;
+
+    const ids = new Set(items.map((item) => item.id));
+    for (const removedId of _previousCanvasIds) {
+      if (!ids.has(removedId)) {
+        unregisterSource(removedId);
+        unregisterSink(removedId);
+      }
+    }
+
+    for (const link of get(pipelineLinks)) {
+      if (!ids.has(link.source.widgetId) || !ids.has(link.sink.widgetId)) {
+        removeLink(link.id);
+      }
+    }
+
+    for (const item of items) {
+      const ports = WIDGET_AUTOMATION_PORTS[item.widgetType];
+      if (ports?.source) {
+        registerSource(item.id, ports.source, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} output`);
+      }
+      if (ports?.sink) {
+        registerSink(item.id, ports.sink, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} input`, () => {});
+      }
+    }
+
+    _previousCanvasIds = ids;
   });
 
   function resetZoom(): void {
@@ -583,7 +712,11 @@
   }
 
   function handleClose(item: CanvasItem): void {
+    removeAllLinksForWidget(item.id);
     removeCanvasItem(item.id);
+    if (connectSourceWidgetId === item.id) {
+      connectSourceWidgetId = null;
+    }
   }
 
   /** Right-click on a canvas widget body — widget-specific items + close. */
@@ -596,7 +729,7 @@
       ...(widgetItems.length > 0
         ? [{ type: "separator" as const, id: "sep-cw" }]
         : []),
-      { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => removeCanvasItem(item.id) },
+      { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => handleClose(item) },
     ];
     showContextMenu(e.clientX, e.clientY, items);
   }
@@ -633,7 +766,11 @@
 
   function handleDeleteSelected(): void {
     if (selectedWidgetId) {
+      removeAllLinksForWidget(selectedWidgetId);
       removeCanvasItem(selectedWidgetId);
+      if (connectSourceWidgetId === selectedWidgetId) {
+        connectSourceWidgetId = null;
+      }
       selectedWidgetId = null;
     }
   }
@@ -680,6 +817,11 @@
   });
 
   onDestroy(() => {
+    for (const item of get(canvasItems)) {
+      unregisterSource(item.id);
+      unregisterSink(item.id);
+    }
+
     unsubViewport();
     unsubCanvasItems();
     resizeObserver?.disconnect();
@@ -715,7 +857,15 @@
     class="canvas-transform"
     style="transform: translate({panX}px, {panY}px) scale({zoom});"
   >
-    <PipelineLayer canvasElement={canvasEl} {panX} {panY} {zoom} />
+    {#if automationEnabled}
+      <svg class="automation-links" aria-hidden="true">
+        {#each $pipelineLinks as link (link.id)}
+          <!-- svelte-ignore a11y-click-events-have-key-events -->
+          <!-- svelte-ignore a11y-no-static-element-interactions -->
+          <path class="automation-link" d={linkPath(link.id)} on:dblclick={() => removeLink(link.id)}></path>
+        {/each}
+      </svg>
+    {/if}
 
     {#each $canvasItems as item (item.id)}
       {#if itemIsVisible(item)}
@@ -752,6 +902,14 @@
               <span class="cw-title">
                 {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
               </span>
+              <button
+                class="cw-link"
+                class:active={connectSourceWidgetId === item.id}
+                disabled={!automationEnabled || !canAutomate(item)}
+                on:click|stopPropagation={() => handleConnectClick(item)}
+                on:mousedown|stopPropagation
+                use:tooltip={{ text: connectButtonTitle(item) }}
+              >↔</button>
               <button
                 class="cw-close"
                 on:click={() => handleClose(item)}
@@ -834,6 +992,15 @@
       <span class="lod-badge">{lodLevel === "summary" ? "SUM" : "MIN"}</span>
     {/if}
   </button>
+
+  <button
+    class="automation-toggle"
+    class:active={automationEnabled}
+    on:click={toggleAutomation}
+    use:tooltip={{ text: automationEnabled ? "Disable widget automation controls" : "Enable widget automation controls" }}
+  >
+    {automationEnabled ? "Automation: On" : "Automation: Off"}
+  </button>
 </div>
 
 <style>
@@ -867,6 +1034,28 @@
     left: 0;
     transform-origin: 0 0;
     pointer-events: none;
+  }
+
+  .automation-links {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .automation-link {
+    fill: none;
+    stroke: color-mix(in oklab, var(--hl-symbol) 76%, var(--border));
+    stroke-width: 2.2;
+    stroke-dasharray: 8 6;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .automation-link:hover {
+    stroke-width: 2.8;
+    stroke: var(--hl-symbol);
   }
 
   .canvas-widget {
@@ -935,6 +1124,33 @@
     padding: 0 0.15rem;
     line-height: 1;
     font-family: var(--font-mono);
+  }
+
+  .cw-link {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--fg-secondary);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 0 0.16rem;
+    line-height: 1;
+    font-family: var(--font-mono);
+  }
+
+  .cw-link:hover:not(:disabled) {
+    color: var(--hl-symbol);
+    border-color: var(--border-focus);
+  }
+
+  .cw-link.active {
+    color: var(--hl-symbol);
+    border-color: var(--hl-symbol);
+    background: rgba(var(--color-accent-rgb), 0.1);
+  }
+
+  .cw-link:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
   }
 
   .cw-close:hover {
@@ -1068,5 +1284,31 @@
     border: 1px solid var(--hl-value);
     color: var(--hl-value);
     letter-spacing: 0.04em;
+  }
+
+  .automation-toggle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 0.15rem 0.4rem;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    font-size: 0.62rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    z-index: 10;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .automation-toggle:hover {
+    border-color: var(--hl-symbol);
+    color: var(--fg-primary);
+  }
+
+  .automation-toggle.active {
+    border-color: var(--hl-symbol);
+    color: var(--hl-symbol);
+    background: rgba(var(--color-accent-rgb), 0.1);
   }
 </style>
