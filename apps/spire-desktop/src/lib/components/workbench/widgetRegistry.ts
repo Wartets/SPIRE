@@ -1,38 +1,8 @@
 /**
- * SPIRE - Widget Registry
+ * SPIRE - Widget Registry (labels compatibility shim)
  *
- * Maps each WidgetType to its human-readable label.
- * The actual Svelte component mapping is handled in the
- * WidgetCell.svelte template via {#if} blocks, because
- * SvelteKit's dynamic `<svelte:component>` needs static
- * imports at build time for type safety.
+ * Kept for legacy imports. Source of truth now lives in
+ * `src/lib/core/registry/WidgetRegistry.ts`.
  */
 
-import type { WidgetType } from "$lib/stores/notebookStore";
-
-/** Human-readable labels for each widget type. */
-export const WIDGET_LABELS: Record<WidgetType, string> = {
-  model:      "Model Loader",
-  reaction:   "Reaction Workspace",
-  diagram:    "Diagram Visualizer",
-  amplitude:  "Amplitude Panel",
-  kinematics: "Kinematics",
-  dalitz:     "Dalitz Plot",
-  analysis:      "Analysis",
-  event_display: "Event Display",
-  particle_atlas: "Particle Atlas",
-  diagram_editor: "Diagram Editor",
-  lagrangian_workbench: "Lagrangian Workbench",
-  external_models:      "External Models",
-  compute_grid:          "Compute Grid",
-  references:             "References",
-  telemetry:              "Telemetry",
-  log:           "Console",
-  notebook:       "Notebook",
-  parameter_scanner: "Parameter Scanner",
-  decay_calculator:  "Decay Calculator",
-  cosmology:         "Cosmology",
-  flavor_workbench:  "Flavor Workbench",
-  plugin_manager:    "Plugin Manager",
-  global_fit_dashboard: "Global Fit Dashboard",
-};
+export { WIDGET_LABELS } from "$lib/core/registry/WidgetRegistry";

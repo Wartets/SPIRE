@@ -27,6 +27,12 @@
   } from "$lib/stores/layoutStore";
   import type { CanvasItem } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
+  import {
+    getWidgetComponent,
+    getWidgetSummaryComponent,
+    getWidgetLabel,
+  } from "$lib/core/registry/WidgetRegistry";
+  import UnknownWidget from "$lib/components/shared/UnknownWidget.svelte";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
@@ -44,35 +50,6 @@
     WIDGET_ACCENT,
   } from "$lib/components/canvas/lodUtils";
 
-  // ── Summary components (medium-zoom LOD) ──
-  import DiagramSummary from "$lib/components/canvas/summaries/DiagramSummary.svelte";
-  import AmplitudeSummary from "$lib/components/canvas/summaries/AmplitudeSummary.svelte";
-  import AnalysisSummary from "$lib/components/canvas/summaries/AnalysisSummary.svelte";
-
-  // ── Inner Components ──
-  import ModelLoader from "$lib/components/ModelLoader.svelte";
-  import ReactionWorkspace from "$lib/components/ReactionWorkspace.svelte";
-  import DiagramVisualizer from "$lib/components/DiagramVisualizer.svelte";
-  import AmplitudePanel from "$lib/components/AmplitudePanel.svelte";
-  import KinematicsView from "$lib/components/KinematicsView.svelte";
-  import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
-  import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
-  import EventDisplay from "$lib/components/EventDisplay.svelte";
-  import ParticleAtlas from "$lib/components/ParticleAtlas.svelte";
-  import DiagramEditor from "$lib/components/DiagramEditor.svelte";
-  import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
-  import ExternalModels from "$lib/components/ExternalModels.svelte";
-  import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
-  import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
-  import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
-  import LogConsole from "$lib/components/LogConsole.svelte";
-  import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
-  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
-  import DecayCalculator from "$lib/components/DecayCalculator.svelte";
-  import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
-  import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
-  import PluginManager from "$lib/components/PluginManager.svelte";
-  import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
   import PipelineLayer from "$lib/components/pipeline/PipelineLayer.svelte";
 
   let canvasEl: HTMLDivElement;
@@ -795,69 +772,25 @@
             <CanvasLODWrapper widgetType={item.widgetType} {zoom}>
               <!-- ═══ FULL LOD (zoom ≥ 0.6): interactive widget ═══ -->
               <div slot="full" class="zoom-adaptive-text">
-                {#if item.widgetType === "model"}
-                  <ModelLoader />
-                {:else if item.widgetType === "reaction"}
-                  <ReactionWorkspace />
-                {:else if item.widgetType === "diagram"}
-                  <DiagramVisualizer />
-                {:else if item.widgetType === "amplitude"}
-                  <AmplitudePanel />
-                {:else if item.widgetType === "kinematics"}
-                  <KinematicsView />
-                {:else if item.widgetType === "dalitz"}
-                  <DalitzPlotter />
-                {:else if item.widgetType === "analysis"}
-                  <AnalysisWidget />
-                {:else if item.widgetType === "event_display"}
-                  <EventDisplay />
-                {:else if item.widgetType === "particle_atlas"}
-                  <ParticleAtlas />
-                {:else if item.widgetType === "diagram_editor"}
-                  <DiagramEditor />
-                {:else if item.widgetType === "lagrangian_workbench"}
-                  <LagrangianWorkbench />
-                {:else if item.widgetType === "external_models"}
-                  <ExternalModels />
-                {:else if item.widgetType === "compute_grid"}
-                  <ComputeGridWidget />
-                {:else if item.widgetType === "references"}
-                  <ReferencesPanel />
-                {:else if item.widgetType === "telemetry"}
-                  <TelemetryPanel />
-                {:else if item.widgetType === "log"}
-                  <LogConsole />
-                {:else if item.widgetType === "notebook"}
-                  <NotebookWidget />
-                {:else if item.widgetType === "parameter_scanner"}
-                  <ParameterScanner />
-                {:else if item.widgetType === "decay_calculator"}
-                  <DecayCalculator />
-                {:else if item.widgetType === "cosmology"}
-                  <CosmologyPanel />
-                {:else if item.widgetType === "flavor_workbench"}
-                  <FlavorWorkbench />
-                {:else if item.widgetType === "plugin_manager"}
-                  <PluginManager />
-                {:else if item.widgetType === "global_fit_dashboard"}
-                  <GlobalFitDashboard />
+                {@const WidgetComponent = getWidgetComponent(item.widgetType)}
+                {#if WidgetComponent}
+                  <svelte:component this={WidgetComponent} />
                 {:else}
-                  <p style="color: var(--hl-error);">Unknown: {item.widgetType}</p>
+                  <UnknownWidget widgetType={item.widgetType} />
                 {/if}
               </div>
 
               <!-- ═══ SUMMARY LOD (0.3 ≤ zoom < 0.6): simplified card ═══ -->
               <div slot="summary">
-                {#if item.widgetType === "diagram"}
-                  <DiagramSummary />
-                {:else if item.widgetType === "amplitude"}
-                  <AmplitudeSummary />
-                {:else if item.widgetType === "analysis"}
-                  <AnalysisSummary />
-                {:else}
+                {@const SummaryComponent = getWidgetSummaryComponent(item.widgetType)}
+                {#if SummaryComponent}
+                  <svelte:component this={SummaryComponent} />
+                {:else if WIDGET_LABELS[item.widgetType]}
                   <span style="color: var(--fg-secondary); font-size: 0.68rem; font-style: italic;">
-                    {WIDGET_LABELS[item.widgetType] ?? item.widgetType}
+                    {getWidgetLabel(item.widgetType)}
                   </span>
+                {:else}
+                  <UnknownWidget widgetType={item.widgetType} compact={true} />
                 {/if}
               </div>
             </CanvasLODWrapper>

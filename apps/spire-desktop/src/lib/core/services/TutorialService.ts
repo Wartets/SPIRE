@@ -18,7 +18,7 @@
  *   - The default tutorial walks through a Bhabha scattering calculation.
  */
 
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 
 // ---------------------------------------------------------------------------
 // Tutorial Step Model
@@ -136,8 +136,7 @@ export function startTutorial(steps?: TutorialStep[]): void {
  */
 export function nextStep(): void {
   currentStepIndex.update((idx) => {
-    let total = 0;
-    _steps.subscribe((s) => (total = s.length))();
+    const total = get(_steps).length;
     if (idx >= total - 1) {
       tutorialActive.set(false);
       return 0;
@@ -165,8 +164,7 @@ export function skipTutorial(): void {
  * Jump to a specific step by index.
  */
 export function goToStep(index: number): void {
-  let total = 0;
-  _steps.subscribe((s) => (total = s.length))();
+  const total = get(_steps).length;
   if (index >= 0 && index < total) {
     currentStepIndex.set(index);
   }

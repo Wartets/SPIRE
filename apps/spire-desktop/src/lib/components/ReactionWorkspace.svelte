@@ -193,8 +193,21 @@
 
   async function handleConstructReaction(): Promise<void> {
     if (!$theoreticalModel) return;
+    if ($initialIdsInput.length === 0 || $finalIdsInput.length === 0) {
+      errorMsg = "Initial and final states must each contain at least one particle.";
+      appendLog(`ERROR constructing reaction: ${errorMsg}`);
+      return;
+    }
+
     busy = true;
     errorMsg = "";
+
+    // Clear downstream artifacts before rebuilding a reaction.
+    generatedDiagrams.set(null);
+    amplitudeResults.set([]);
+    activeAmplitude.set("");
+    kinematics.set(null);
+
     try {
       const reaction = await constructReaction(
         $initialIdsInput,
@@ -240,6 +253,12 @@
     if (!$theoreticalModel || !$activeReaction) return;
     busy = true;
     errorMsg = "";
+
+    // Diagrams are the source-of-truth for amplitudes and kinematics.
+    amplitudeResults.set([]);
+    activeAmplitude.set("");
+    kinematics.set(null);
+
     try {
       const topoSet = await generateDiagrams(
         $activeReaction,
@@ -259,7 +278,13 @@
   }
 
   async function handleDeriveAmplitudes(): Promise<void> {
-    if (!$generatedDiagrams) return;
+    if (!$generatedDiagrams || $generatedDiagrams.diagrams.length === 0) {
+      amplitudeResults.set([]);
+      activeAmplitude.set("");
+      appendLog("No diagrams available for amplitude derivation.");
+      return;
+    }
+
     busy = true;
     errorMsg = "";
     try {

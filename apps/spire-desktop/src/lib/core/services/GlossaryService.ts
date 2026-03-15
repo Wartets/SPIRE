@@ -15,7 +15,7 @@
  * Example keys: "alpha_s", "m_z", "gamma_w", "ckm_matrix".
  */
 
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 
 // ---------------------------------------------------------------------------
 // Data Model
@@ -100,11 +100,7 @@ export function unregisterTerm(key: string): void {
  * Returns `undefined` if the key is not registered.
  */
 export function lookupTerm(key: string): GlossaryEntry | undefined {
-  let result: GlossaryEntry | undefined;
-  _glossaryMap.subscribe((map) => {
-    result = map.get(key);
-  })();
-  return result;
+  return get(_glossaryMap).get(key);
 }
 
 // ---------------------------------------------------------------------------

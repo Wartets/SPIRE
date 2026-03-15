@@ -14,40 +14,18 @@
   import { closeNode, splitNode, moveNode } from "$lib/stores/layoutStore";
   import type { DropPosition } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
+  import { getWidgetComponent } from "$lib/core/registry/WidgetRegistry";
+  import UnknownWidget from "$lib/components/shared/UnknownWidget.svelte";
   import { tearOffWidget } from "$lib/core/services/WindowManager";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { pipelineLinks } from "$lib/core/services/PipelineService";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
   import { tooltip } from "$lib/actions/tooltip";
 
-  // ── Inner Components ──
-  import ModelLoader from "$lib/components/ModelLoader.svelte";
-  import ReactionWorkspace from "$lib/components/ReactionWorkspace.svelte";
-  import DiagramVisualizer from "$lib/components/DiagramVisualizer.svelte";
-  import AmplitudePanel from "$lib/components/AmplitudePanel.svelte";
-  import KinematicsView from "$lib/components/KinematicsView.svelte";
-  import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
-  import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
-  import EventDisplay from "$lib/components/EventDisplay.svelte";
-  import ParticleAtlas from "$lib/components/ParticleAtlas.svelte";
-  import DiagramEditor from "$lib/components/DiagramEditor.svelte";
-  import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
-  import ExternalModels from "$lib/components/ExternalModels.svelte";
-  import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
-  import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
-  import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
-  import LogConsole from "$lib/components/LogConsole.svelte";
-  import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
-  import ParameterScanner from "$lib/components/ParameterScanner.svelte";
-  import DecayCalculator from "$lib/components/DecayCalculator.svelte";
-  import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
-  import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
-  import PluginManager from "$lib/components/PluginManager.svelte";
-  import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
-
   export let node: WidgetLeaf;
 
   $: label = WIDGET_LABELS[node.widgetType] ?? node.widgetType;
+  $: widgetComponent = getWidgetComponent(node.widgetType);
   $: linked = $pipelineLinks.some(
     (l) => l.source.widgetId === node.id || l.sink.widgetId === node.id,
   );
@@ -198,54 +176,10 @@
   </header>
 
   <div class="wc-body" on:contextmenu={handleBodyContext} role="region" aria-label="Widget content">
-    {#if node.widgetType === "model"}
-      <ModelLoader />
-    {:else if node.widgetType === "reaction"}
-      <ReactionWorkspace />
-    {:else if node.widgetType === "diagram"}
-      <DiagramVisualizer />
-    {:else if node.widgetType === "amplitude"}
-      <AmplitudePanel />
-    {:else if node.widgetType === "kinematics"}
-      <KinematicsView />
-    {:else if node.widgetType === "dalitz"}
-      <DalitzPlotter />
-    {:else if node.widgetType === "analysis"}
-      <AnalysisWidget />
-    {:else if node.widgetType === "event_display"}
-      <EventDisplay />
-    {:else if node.widgetType === "particle_atlas"}
-      <ParticleAtlas />
-    {:else if node.widgetType === "diagram_editor"}
-      <DiagramEditor />
-    {:else if node.widgetType === "lagrangian_workbench"}
-      <LagrangianWorkbench />
-    {:else if node.widgetType === "external_models"}
-      <ExternalModels />
-    {:else if node.widgetType === "compute_grid"}
-      <ComputeGridWidget />
-    {:else if node.widgetType === "references"}
-      <ReferencesPanel />
-    {:else if node.widgetType === "telemetry"}
-      <TelemetryPanel />
-    {:else if node.widgetType === "log"}
-      <LogConsole />
-    {:else if node.widgetType === "notebook"}
-      <NotebookWidget />
-    {:else if node.widgetType === "parameter_scanner"}
-      <ParameterScanner />
-    {:else if node.widgetType === "decay_calculator"}
-      <DecayCalculator />
-    {:else if node.widgetType === "cosmology"}
-      <CosmologyPanel />
-    {:else if node.widgetType === "flavor_workbench"}
-      <FlavorWorkbench />
-    {:else if node.widgetType === "plugin_manager"}
-      <PluginManager />
-    {:else if node.widgetType === "global_fit_dashboard"}
-      <GlobalFitDashboard />
+    {#if widgetComponent}
+      <svelte:component this={widgetComponent} />
     {:else}
-      <p style="color: var(--hl-error);">Unknown widget: {node.widgetType}</p>
+      <UnknownWidget widgetType={node.widgetType} />
     {/if}
   </div>
 </div>
