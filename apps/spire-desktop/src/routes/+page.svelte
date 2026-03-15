@@ -53,7 +53,16 @@
     unregisterCommand,
     openPalette,
   } from "$lib/core/services/CommandRegistry";
-  import { runPipelineAutoLayout } from "$lib/stores/pipelineGraphStore";
+  import {
+    pipelineGraph,
+    replacePipelineGraph,
+    runPipelineAutoLayout,
+    runPipelineExecution,
+  } from "$lib/stores/pipelineGraphStore";
+  import {
+    downloadPipelineToFile,
+    openPipelineFilePicker,
+  } from "$lib/core/pipeline/serialization";
   import {
     cheatSheetOpen,
     keybindPanelOpen,
@@ -209,6 +218,9 @@
     "spire.layout.apply.analysis-focus",
     "spire.layout.apply.minimal",
     "spire.pipeline.format_graph",
+    "spire.pipeline.run",
+    "spire.pipeline.export",
+    "spire.pipeline.import",
   ];
 
   let dynamicPresetCommandIds: string[] = [];
@@ -553,6 +565,35 @@
       shortcut: "Mod+Shift+G",
       execute: () => runPipelineAutoLayout($canvasItems),
       icon: "⇢",
+    });
+
+    registerCommand({
+      id: "spire.pipeline.run",
+      title: "Run Pipeline",
+      category: "Pipeline",
+      shortcut: "Mod+Shift+R",
+      execute: () => void runPipelineExecution(),
+      icon: "▶",
+    });
+
+    registerCommand({
+      id: "spire.pipeline.export",
+      title: "Export Pipeline to File",
+      category: "Pipeline",
+      execute: () => downloadPipelineToFile($pipelineGraph),
+      icon: "⇩",
+    });
+
+    registerCommand({
+      id: "spire.pipeline.import",
+      title: "Import Pipeline from File",
+      category: "Pipeline",
+      execute: async () => {
+        const graph = await openPipelineFilePicker();
+        if (!graph) return;
+        replacePipelineGraph(graph);
+      },
+      icon: "⇧",
     });
 
     refreshCustomPresetCommands();

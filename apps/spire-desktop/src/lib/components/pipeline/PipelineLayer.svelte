@@ -7,15 +7,23 @@
     PIPELINE_NODE_TYPES,
     addPipelineEdge,
     addPipelineNode,
+    clearPipelineRuntimeState,
     movePipelineNode,
     pipelineEdges,
+    pipelineEdgeExecutionStates,
     pipelineGraph,
     pipelineLastValidation,
     pipelineNodes,
+    pipelineNodeExecutionStates,
+    pipelineRunState,
     removePipelineEdge,
     removePipelineNode,
     runPipelineAutoLayout,
+    runPipelineExecution,
+    selectPipelineEdge,
     selectPipelineNode,
+    selectedPipelineEdgeId,
+    selectedPipelineEdgePayload,
     selectedPipelineNode,
     updatePipelineNodeParameters,
     getPipelineNodeDefinition,
@@ -128,6 +136,7 @@
   }
 
   function beginNodeDrag(event: CustomEvent<{ nodeId: string; clientX: number; clientY: number }>): void {
+    if ($pipelineRunState.isRunning) return;
     if (portDrag) return;
     const node = findNode(event.detail.nodeId);
     if (!node) return;
@@ -149,6 +158,7 @@
       clientY: number;
     }>,
   ): void {
+    if ($pipelineRunState.isRunning) return;
     const node = findNode(event.detail.nodeId);
     const port = findPort(event.detail.nodeId, event.detail.portId);
     if (!node || !port) return;
@@ -256,14 +266,17 @@
     }
 
     selectPipelineNode(null);
+    selectPipelineEdge(null);
   }
 
   function removeSelectedNode(): void {
+    if ($pipelineRunState.isRunning) return;
     if (!$selectedPipelineNode) return;
     removePipelineNode($selectedPipelineNode.id);
   }
 
   function createNode(nodeType: PipelineNodeType): void {
+    if ($pipelineRunState.isRunning) return;
     const vp = {
       x: (-panX + 200) / zoom,
       y: (-panY + 120) / zoom,
@@ -343,7 +356,30 @@
   }
 
   function triggerAutoLayout(): void {
+    if ($pipelineRunState.isRunning) return;
     runPipelineAutoLayout(get(canvasItems));
+  }
+
+  async function handleRunPipeline(): Promise<void> {
+    if ($pipelineRunState.isRunning) return;
+    try {
+      await runPipelineExecution();
+    } catch {
+      // Runtime states in the store contain diagnostics.
+    }
+  }
+
+  function clickEdge(edgeId: string): void {
+    selectPipelineEdge($selectedPipelineEdgeId === edgeId ? null : edgeId);
+  }
+
+  function edgeClass(edgeId: string): string {
+    const status = $pipelineEdgeExecutionStates[edgeId]?.status ?? "idle";
+    if (status === "running") return "edge-path edge-running";
+    if (status === "completed") return "edge-path edge-completed";
+    if (status === "error") return "edge-path edge-error";
+    if (status === "stale") return "edge-path edge-stale";
+    return "edge-path";
   }
 
   function connectionPath(edgeId: string): string {
@@ -416,10 +452,12 @@
     <g>
       {#each $pipelineEdges as edge (edge.id)}
         <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <!-- svelte-ignore a11y-click-events-have-key-events -->
         <path
-          class="edge-path"
+          class={edgeClass(edge.id)}
           d={connectionPath(edge.id)}
           on:dblclick={() => removePipelineEdge(edge.id)}
+          on:click={() => clickEdge(edge.id)}
         ></path>
       {/each}
 
@@ -434,7 +472,12 @@
       <PipelineNodeCard
         {node}
         selected={node.id === $pipelineGraph.selectedNodeId}
-        on:select={(event) => selectPipelineNode(event.detail.nodeId)}
+        status={$pipelineNodeExecutionStates[node.id]?.status ?? "idle"}
+        errorMessage={$pipelineNodeExecutionStates[node.id]?.error ?? null}
+        on:select={(event) => {
+          selectPipelineNode(event.detail.nodeId);
+          selectPipelineEdge(null);
+        }}
         on:remove={(event) => removePipelineNode(event.detail.nodeId)}
         on:startdrag={beginNodeDrag}
         on:portdragstart={beginPortDrag}
@@ -446,14 +489,20 @@
     <div class="toolbar-title">Pipeline Graph</div>
     <div class="toolbar-actions">
       {#each PIPELINE_NODE_TYPES as nodeType}
-        <button type="button" class="toolbar-btn" on:click={() => createNode(nodeType)}>
+        <button type="button" class="toolbar-btn" on:click={() => createNode(nodeType)} disabled={$pipelineRunState.isRunning}>
           + {getPipelineNodeDefinition(nodeType).label}
         </button>
       {/each}
-      <button type="button" class="toolbar-btn accent" on:click={triggerAutoLayout}>
+      <button type="button" class="toolbar-btn accent" on:click={triggerAutoLayout} disabled={$pipelineRunState.isRunning}>
         Format Graph
       </button>
-      <button type="button" class="toolbar-btn" on:click={removeSelectedNode} disabled={!$selectedPipelineNode}>
+      <button type="button" class="toolbar-btn accent" on:click={handleRunPipeline} disabled={$pipelineRunState.isRunning}>
+        {$pipelineRunState.isRunning ? "Running…" : "Run Pipeline"}
+      </button>
+      <button type="button" class="toolbar-btn" on:click={clearPipelineRuntimeState} disabled={$pipelineRunState.isRunning}>
+        Clear Runtime
+      </button>
+      <button type="button" class="toolbar-btn" on:click={removeSelectedNode} disabled={!$selectedPipelineNode || $pipelineRunState.isRunning}>
         Remove Selected
       </button>
     </div>
@@ -462,6 +511,9 @@
   <PipelineInspector
     node={$selectedPipelineNode}
     {modelOptions}
+    selectedEdgeId={$selectedPipelineEdgePayload?.edgeId ?? null}
+    selectedEdgePayload={$selectedPipelineEdgePayload?.payload}
+    selectedEdgeState={$selectedPipelineEdgePayload?.edgeState ?? null}
     on:paramchange={handleInspectorParamChange}
   />
 </div>
@@ -500,12 +552,31 @@
 
   .edge-path {
     fill: none;
-    stroke: rgba(var(--color-accent-rgb), 0.95);
+    stroke: rgba(var(--color-text-primary-rgb), 0.35);
     stroke-width: 2.1;
-    stroke-dasharray: 8 6;
-    animation: edge-flow 1.2s linear infinite;
     pointer-events: auto;
     cursor: pointer;
+  }
+
+  .edge-running {
+    stroke: rgba(var(--color-accent-rgb), 0.95);
+    stroke-dasharray: 10 10;
+    animation: edge-flow 1s linear infinite;
+  }
+
+  .edge-completed {
+    stroke: var(--color-success);
+    stroke-dasharray: none;
+  }
+
+  .edge-error {
+    stroke: var(--color-error);
+    stroke-dasharray: 6 4;
+  }
+
+  .edge-stale {
+    stroke: color-mix(in oklab, var(--color-warning) 58%, var(--color-text-muted));
+    stroke-dasharray: 5 5;
   }
 
   .edge-path:hover {
@@ -522,7 +593,7 @@
 
   @keyframes edge-flow {
     to {
-      stroke-dashoffset: -14;
+      stroke-dashoffset: -20;
     }
   }
 

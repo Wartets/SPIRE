@@ -1,9 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import type { PipelineNode, PipelinePort } from "$lib/stores/pipelineGraphStore";
+  import type { PipelineNodeExecutionStatus } from "$lib/core/pipeline/PipelineExecutor";
 
   export let node: PipelineNode;
   export let selected = false;
+  export let status: PipelineNodeExecutionStatus = "idle";
+  export let errorMessage: string | null = null;
 
   const dispatch = createEventDispatcher<{
     select: { nodeId: string };
@@ -52,6 +55,10 @@
 <div
   class="pipeline-node"
   class:selected
+  class:running={status === "running"}
+  class:completed={status === "completed"}
+  class:error={status === "error"}
+  class:stale={status === "stale"}
   style="left: {node.position.x}px; top: {node.position.y}px; width: {node.size.width}px; height: {node.size.height}px;"
   on:mousedown={handleNodeMouseDown}
   role="button"
@@ -59,7 +66,16 @@
   aria-label={node.label}
 >
   <header class="node-header">
-    <div class="node-title">{node.label}</div>
+    <div class="node-title-wrap">
+      <div class="node-title">{node.label}</div>
+      {#if status === "running"}
+        <span class="node-spinner" aria-label="Running"></span>
+      {:else if status === "stale"}
+        <span class="node-chip stale-chip">Stale</span>
+      {:else if status === "completed"}
+        <span class="node-chip complete-chip">Cached</span>
+      {/if}
+    </div>
     <button
       class="node-remove"
       type="button"
@@ -69,6 +85,10 @@
       ×
     </button>
   </header>
+
+  {#if status === "error"}
+    <div class="node-error" title={errorMessage ?? "Execution failed"}>⚠ {errorMessage ?? "Execution failed"}</div>
+  {/if}
 
   <div class="node-body">
     {#each node.inputs as input, index (input.id)}
@@ -123,6 +143,22 @@
     box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.45), 0 10px 26px rgba(0, 0, 0, 0.35);
   }
 
+  .pipeline-node.running {
+    border-color: var(--color-accent);
+  }
+
+  .pipeline-node.completed {
+    border-color: var(--color-success);
+  }
+
+  .pipeline-node.error {
+    border-color: var(--color-error);
+  }
+
+  .pipeline-node.stale {
+    border-color: color-mix(in oklab, var(--color-warning) 70%, var(--color-border));
+  }
+
   .node-header {
     display: flex;
     align-items: center;
@@ -131,6 +167,13 @@
     border-bottom: 1px solid color-mix(in oklab, var(--color-border) 85%, transparent);
     background: color-mix(in oklab, var(--color-bg-inset) 70%, transparent);
     border-radius: 10px 10px 0 0;
+  }
+
+  .node-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
   }
 
   .node-title {
@@ -157,6 +200,56 @@
   .node-remove:hover {
     color: var(--color-error);
     border-color: color-mix(in oklab, var(--color-error) 55%, transparent);
+  }
+
+  .node-spinner {
+    width: 0.68rem;
+    height: 0.68rem;
+    border: 2px solid rgba(var(--color-accent-rgb), 0.3);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: node-spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes node-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .node-chip {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.06rem 0.28rem;
+    font-size: 0.56rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .complete-chip {
+    border-color: color-mix(in oklab, var(--color-success) 55%, var(--color-border));
+    color: var(--color-success);
+  }
+
+  .stale-chip {
+    border-color: color-mix(in oklab, var(--color-warning) 55%, var(--color-border));
+    color: var(--color-warning);
+  }
+
+  .node-error {
+    margin: 0.35rem 0.45rem 0;
+    padding: 0.18rem 0.28rem;
+    border: 1px solid color-mix(in oklab, var(--color-error) 50%, var(--color-border));
+    border-radius: 6px;
+    background: rgba(var(--color-error-rgb), 0.08);
+    color: var(--color-error);
+    font-size: 0.58rem;
+    font-family: var(--font-mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .node-body {

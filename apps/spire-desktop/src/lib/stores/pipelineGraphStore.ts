@@ -1,4 +1,4 @@
-import { derived, writable } from "svelte/store";
+import { derived, writable, get } from "svelte/store";
 import {
   NODE_DEFINITIONS,
   PipelineGraphStore,
@@ -20,20 +20,49 @@ import {
   type PipelinePort,
   type WorldPoint,
   type PipelineGraphAction,
+  type PipelineGraphStoreSnapshot,
 } from "$lib/core/pipeline/graph";
 import { applyAutoLayoutToGraph } from "$lib/core/pipeline/layout";
+import {
+  PipelineExecutor,
+  type PipelineRunSnapshot,
+  type NodeExecutionState,
+  type EdgeExecutionState,
+} from "$lib/core/pipeline/PipelineExecutor";
 import type { CanvasItem } from "$lib/stores/layoutStore";
+import {
+  particlesTomlInput,
+  verticesTomlInput,
+  modelNameInput,
+} from "$lib/stores/workspaceInputsStore";
 
 interface PipelineGraphUiState {
   graph: PipelineGraph;
   lastValidation: ConnectionValidation | null;
 }
 
+interface PipelineExecutionUiState {
+  run: PipelineRunSnapshot;
+  selectedEdgeId: string | null;
+}
+
 const engine = new PipelineGraphStore(createEmptyPipelineGraph());
+const executor = new PipelineExecutor({
+  baseInputsProvider: () => ({
+    particlesToml: get(particlesTomlInput),
+    verticesToml: get(verticesTomlInput),
+    modelName: get(modelNameInput),
+  }),
+});
 
 const _graphState = writable<PipelineGraphUiState>({
   graph: createEmptyPipelineGraph(),
   lastValidation: null,
+});
+
+const _executionState = writable<PipelineExecutionUiState>({
+  run: executor.getSnapshot(),
+  selectedEdgeId: null,
 });
 
 engine.subscribe((snapshot) => {
@@ -41,6 +70,13 @@ engine.subscribe((snapshot) => {
     graph: snapshot.graph,
     lastValidation: snapshot.lastValidation,
   });
+});
+
+executor.subscribe((snapshot) => {
+  _executionState.update((state) => ({
+    ...state,
+    run: snapshot,
+  }));
 });
 
 export const pipelineGraphState = {
@@ -68,8 +104,43 @@ export const pipelineLastValidation = derived(
   ($state) => $state.lastValidation,
 );
 
-function dispatch(action: PipelineGraphAction): void {
-  engine.dispatch(action);
+export const pipelineRunState = derived(_executionState, ($state) => $state.run);
+
+export const pipelineNodeExecutionStates = derived(
+  pipelineRunState,
+  ($run) => $run.nodeStates,
+);
+
+export const pipelineEdgeExecutionStates = derived(
+  pipelineRunState,
+  ($run) => $run.edgeStates,
+);
+
+export const pipelineEdgePayloads = derived(
+  pipelineRunState,
+  ($run) => $run.edgePayloads,
+);
+
+export const selectedPipelineEdgeId = derived(
+  _executionState,
+  ($state) => $state.selectedEdgeId,
+);
+
+export const selectedPipelineEdgePayload = derived(
+  [_executionState],
+  ([$state]) => {
+    const edgeId = $state.selectedEdgeId;
+    if (!edgeId) return null;
+    return {
+      edgeId,
+      payload: $state.run.edgePayloads[edgeId],
+      edgeState: $state.run.edgeStates[edgeId] ?? null,
+    };
+  },
+);
+
+function dispatch(action: PipelineGraphAction): PipelineGraphStoreSnapshot {
+  return engine.dispatch(action);
 }
 
 export function addPipelineNode(nodeType: PipelineNodeType, position: WorldPoint): void {
@@ -85,6 +156,7 @@ export function removePipelineNode(nodeId: string): void {
     type: "REMOVE_NODE",
     nodeId,
   });
+  executor.clearRuntimeState();
 }
 
 export function movePipelineNode(nodeId: string, position: WorldPoint): void {
@@ -106,11 +178,12 @@ export function updatePipelineNodeParameters(
   nodeId: string,
   patch: Record<string, PipelineParameterValue>,
 ): void {
-  dispatch({
+  const snapshot = dispatch({
     type: "SET_NODE_PARAMS",
     nodeId,
     patch,
   });
+  executor.markNodeStale(snapshot.graph, nodeId);
 }
 
 export function addPipelineEdge(
@@ -126,6 +199,9 @@ export function addPipelineEdge(
     targetNodeId,
     targetPortId,
   });
+  if (result.lastValidation?.ok) {
+    executor.markNodeStale(result.graph, targetNodeId);
+  }
   return result.lastValidation ?? { ok: true };
 }
 
@@ -134,10 +210,12 @@ export function removePipelineEdge(edgeId: string): void {
     type: "REMOVE_EDGE",
     edgeId,
   });
+  executor.clearRuntimeState();
 }
 
 export function clearPipelineGraph(): void {
   dispatch({ type: "RESET" });
+  executor.clearRuntimeState();
 }
 
 export function replacePipelineGraph(graph: PipelineGraph): void {
@@ -145,6 +223,7 @@ export function replacePipelineGraph(graph: PipelineGraph): void {
     type: "REPLACE_GRAPH",
     graph,
   });
+  executor.clearRuntimeState();
 }
 
 export function runPipelineAutoLayout(obstacles: CanvasItem[]): void {
@@ -160,6 +239,25 @@ export function exportPipelineGraphJson(): string {
 export function importPipelineGraphJson(json: string): void {
   const graph = deserializeGraph(json);
   replacePipelineGraph(graph);
+}
+
+export async function runPipelineExecution(): Promise<PipelineRunSnapshot> {
+  return executor.executePipeline(get(pipelineGraph));
+}
+
+export function clearPipelineRuntimeState(): void {
+  executor.clearRuntimeState();
+}
+
+export function markPipelineNodeStale(nodeId: string): void {
+  executor.markNodeStale(get(pipelineGraph), nodeId);
+}
+
+export function selectPipelineEdge(edgeId: string | null): void {
+  _executionState.update((state) => ({
+    ...state,
+    selectedEdgeId: edgeId,
+  }));
 }
 
 export const PIPELINE_NODE_TYPES: PipelineNodeType[] = [

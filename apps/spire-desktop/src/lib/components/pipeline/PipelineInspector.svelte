@@ -11,6 +11,9 @@
 
   export let node: PipelineNode | null = null;
   export let modelOptions: string[] = [];
+  export let selectedEdgeId: string | null = null;
+  export let selectedEdgePayload: unknown = null;
+  export let selectedEdgeState: { status?: string; error?: string } | null = null;
 
   const dispatch = createEventDispatcher<{
     paramchange: { nodeId: string; key: string; value: PipelineParameterValue };
@@ -34,6 +37,9 @@
   }
 
   $: schemas = schemaForNode(node);
+  $: payloadJson = selectedEdgePayload === undefined
+    ? "undefined"
+    : JSON.stringify(selectedEdgePayload, null, 2);
 </script>
 
 <aside class="pipeline-inspector" aria-label="Pipeline node inspector">
@@ -152,6 +158,22 @@
       <p>Select a pipeline node to configure its parameters.</p>
     </header>
   {/if}
+
+  {#if selectedEdgeId}
+    <section class="payload-section">
+      <header class="payload-header">
+        <h4>Wire Payload</h4>
+        <div class="payload-meta">{selectedEdgeId}</div>
+      </header>
+      <div class="payload-status">
+        Status: <strong>{selectedEdgeState?.status ?? "unknown"}</strong>
+        {#if selectedEdgeState?.error}
+          <span class="payload-error">Error: {selectedEdgeState.error}</span>
+        {/if}
+      </div>
+      <pre class="payload-json">{payloadJson}</pre>
+    </section>
+  {/if}
 </aside>
 
 <style>
@@ -259,5 +281,58 @@
     color: var(--color-accent);
     border-color: var(--color-accent);
     background: rgba(var(--color-accent-rgb), 0.09);
+  }
+
+  .payload-section {
+    border-top: 1px solid var(--color-border);
+    padding: 0.55rem 0.7rem 0.72rem;
+  }
+
+  .payload-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .payload-header h4 {
+    margin: 0;
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .payload-meta {
+    color: var(--color-text-muted);
+    font-size: 0.62rem;
+    font-family: var(--font-mono);
+    word-break: break-all;
+  }
+
+  .payload-status {
+    margin-bottom: 0.35rem;
+    color: var(--color-text-muted);
+    font-size: 0.64rem;
+  }
+
+  .payload-error {
+    display: block;
+    color: var(--color-error);
+    margin-top: 0.16rem;
+  }
+
+  .payload-json {
+    margin: 0;
+    padding: 0.45rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-inset);
+    color: var(--color-text-primary);
+    font-size: 0.62rem;
+    line-height: 1.35;
+    overflow: auto;
+    max-height: 14rem;
+    font-family: var(--font-mono);
   }
 </style>
