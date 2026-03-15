@@ -11,6 +11,22 @@ export interface MoleculeToken {
   element: ElementData;
 }
 
+export interface MoleculeIsotopologueComponent {
+  symbol: string;
+  count: number;
+  element: ElementData;
+  isotope: IsotopeData | null;
+}
+
+export interface MoleculeIsotopologueProfile {
+  id: string;
+  name: string;
+  description: string;
+  components: MoleculeIsotopologueComponent[];
+  estimatedMass: number;
+  tracerSymbol: string | null;
+}
+
 export interface IsotopeRecommendation {
   symbol: string;
   count: number;
@@ -24,6 +40,7 @@ export interface MoleculeSynthesisResult {
   formula: string;
   tokens: MoleculeToken[];
   recommendations: IsotopeRecommendation[];
+  isotopologues: MoleculeIsotopologueProfile[];
   estimatedNaturalMass: number;
   estimatedEnrichedMass: number;
 }
@@ -94,6 +111,125 @@ function preferredEnriched(isotopes: IsotopeData[], targetA: number): IsotopeDat
   })[0];
 }
 
+function stableOrLongest(isotopes: IsotopeData[]): IsotopeData[] {
+  return [...isotopes].sort((a, b) => {
+    const lifeA = a.half_life_s === null ? Number.POSITIVE_INFINITY : a.half_life_s;
+    const lifeB = b.half_life_s === null ? Number.POSITIVE_INFINITY : b.half_life_s;
+    if (lifeA !== lifeB) return lifeB - lifeA;
+    return (b.abundance_percent ?? 0) - (a.abundance_percent ?? 0);
+  });
+}
+
+function preferredLightStable(isotopes: IsotopeData[]): IsotopeData | null {
+  const sorted = stableOrLongest(isotopes);
+  if (sorted.length === 0) return null;
+  return [...sorted].sort((a, b) => a.A - b.A)[0];
+}
+
+function preferredHeavyStable(isotopes: IsotopeData[]): IsotopeData | null {
+  const sorted = stableOrLongest(isotopes);
+  if (sorted.length === 0) return null;
+  return [...sorted].sort((a, b) => b.A - a.A)[0];
+}
+
+function profileMass(components: MoleculeIsotopologueComponent[]): number {
+  return components.reduce(
+    (acc, component) => acc + (component.isotope?.A ?? Math.round(component.element.atomic_mass)) * component.count,
+    0,
+  );
+}
+
+function makeProfile(
+  id: string,
+  name: string,
+  description: string,
+  components: MoleculeIsotopologueComponent[],
+  tracerSymbol: string | null = null,
+): MoleculeIsotopologueProfile {
+  return {
+    id,
+    name,
+    description,
+    components,
+    estimatedMass: profileMass(components),
+    tracerSymbol,
+  };
+}
+
+function buildProfiles(recommendations: IsotopeRecommendation[]): MoleculeIsotopologueProfile[] {
+  const natural = makeProfile(
+    "natural",
+    "Natural Isotopologue",
+    "Uses the most naturally abundant isotope for each element in the selected molecule.",
+    recommendations.map((rec) => ({
+      symbol: rec.symbol,
+      count: rec.count,
+      element: rec.element,
+      isotope: rec.natural,
+    })),
+  );
+
+  const enriched = makeProfile(
+    "enriched",
+    "Enriched Isotopologue",
+    "Biases the molecule toward heavier benchmark isotopes for labeling and isotope-enriched studies.",
+    recommendations.map((rec) => ({
+      symbol: rec.symbol,
+      count: rec.count,
+      element: rec.element,
+      isotope: rec.enriched ?? rec.natural,
+    })),
+  );
+
+  const light = makeProfile(
+    "light-stable",
+    "Lightest Stable Variant",
+    "Chooses the lightest reasonably stable isotope available for each constituent element.",
+    recommendations.map((rec) => ({
+      symbol: rec.symbol,
+      count: rec.count,
+      element: rec.element,
+      isotope: preferredLightStable(rec.allCandidates) ?? rec.natural,
+    })),
+  );
+
+  const heavy = makeProfile(
+    "heavy-stable",
+    "Heaviest Stable Variant",
+    "Chooses the heaviest reasonably stable isotope available for each constituent element.",
+    recommendations.map((rec) => ({
+      symbol: rec.symbol,
+      count: rec.count,
+      element: rec.element,
+      isotope: preferredHeavyStable(rec.allCandidates) ?? rec.enriched ?? rec.natural,
+    })),
+  );
+
+  const tracerProfiles = recommendations
+    .map((rec) => {
+      const heavyCandidate = preferredHeavyStable(rec.allCandidates) ?? rec.enriched;
+      if (!heavyCandidate || (rec.natural && heavyCandidate.A === rec.natural.A)) {
+        return null;
+      }
+      return makeProfile(
+        `trace-${rec.symbol.toLowerCase()}`,
+        `${rec.symbol}-Labeled Trace Variant`,
+        `Promotes ${rec.symbol}-${heavyCandidate.A} as the labeled constituent while keeping the other atoms close to natural abundance.`,
+        recommendations.map((item) => ({
+          symbol: item.symbol,
+          count: item.count,
+          element: item.element,
+          isotope: item.symbol === rec.symbol ? heavyCandidate : item.natural,
+        })),
+        rec.symbol,
+      );
+    })
+    .filter((profile): profile is MoleculeIsotopologueProfile => profile !== null)
+    .slice(0, 6);
+
+  return [natural, enriched, light, heavy, ...tracerProfiles];
+}
+
 export async function synthesizeMoleculeIsotopes(formulaInput: string): Promise<MoleculeSynthesisResult> {
   const formula = normalizeFormula(formulaInput);
   if (!formula) {
@@ -142,10 +278,13 @@ export async function synthesizeMoleculeIsotopes(formulaInput: string): Promise<
     return acc + chosenA * rec.count;
   }, 0);
 
+  const isotopologues = buildProfiles(recommendations);
+
   return {
     formula,
     tokens,
     recommendations,
+    isotopologues,
     estimatedNaturalMass,
     estimatedEnrichedMass,
   };

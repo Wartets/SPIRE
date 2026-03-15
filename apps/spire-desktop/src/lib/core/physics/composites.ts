@@ -248,3 +248,7 @@ export function assignColorSinglet(valence: string[]): ColoredValenceQuark[] {
 export function isCompositeParticle(particle: Field | string): boolean {
   return resolveCompositeState(particle) !== null;
 }
+
+export function listCompositeReferenceLibrary(): CompositeQuarkContent[] {
+  return [...COMPOSITE_LIBRARY].sort((a, b) => a.label.localeCompare(b.label));
+}

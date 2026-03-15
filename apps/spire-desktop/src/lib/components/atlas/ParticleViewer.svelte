@@ -5,6 +5,7 @@
     resolveCompositeState,
     assignColorSinglet,
     resolveDecayChannels,
+    type CompositeQuarkContent,
     type DecayChannelPreset,
   } from "$lib/core/physics/composites";
   import type { IsotopeData, ElementData } from "$lib/core/physics/nuclearDataLoader";
@@ -12,6 +13,7 @@
   import {
     synthesizeMoleculeIsotopes,
     type MoleculeSynthesisResult,
+    type MoleculeIsotopologueProfile,
   } from "$lib/core/physics/moleculeSynthesis";
   import CompositionSvg from "$lib/components/atlas/CompositionSvg.svelte";
   import DecayTree from "$lib/components/atlas/DecayTree.svelte";
@@ -25,6 +27,7 @@
 
   /** Standard particle view (exclusive with `isotope`). */
   export let particle: Field | null = null;
+  export let referenceComposite: CompositeQuarkContent | null = null;
   export let element: ElementData | null = null;
 
   /**
@@ -62,17 +65,29 @@
   let synthesisBusy = false;
   let synthesisError = "";
   let synthesisResult: MoleculeSynthesisResult | null = null;
+  let selectedIsotopologueId = "natural";
 
   let selectedDecayIndex = 0;
   let vertexLayout: "s-channel" | "t-channel" | "split" = "split";
   let showCoupling = true;
   let emphasizeInteraction = true;
+  let showMomentumLabels = true;
+  let showArrowheads = true;
+  let showInteractionLegend = true;
+  let incomingLegs: "single" | "pair" = "single";
+  let finalArrangement: "fan" | "balanced" = "fan";
+  let lineFlavor: "fermion" | "boson" | "scalar" = "fermion";
+  let labelMode: "symbol" | "id" | "pretty" = "pretty";
+  let propagatorStyle: "decay" | "exchange" | "contact" = "decay";
+  let fieldSchematicStyle: "profile" | "orbitals" | "charge-map" = "profile";
   let autoSynthesisIdentity = "";
 
   // reset tab only when the selected item identity changes
   $: {
     const identity = particle
       ? `particle:${particle.id}`
+      : referenceComposite
+        ? `reference:${referenceComposite.label}`
       : isotope
         ? `isotope:${isotope.symbol}-${isotope.A}`
         : element
@@ -128,6 +143,7 @@
     synthesisError = "";
     try {
       synthesisResult = await synthesizeMoleculeIsotopes(moleculeFormula);
+      selectedIsotopologueId = synthesisResult.isotopologues[0]?.id ?? "natural";
     } catch (error) {
       synthesisResult = null;
       synthesisError = error instanceof Error ? error.message : "Unable to synthesize isotopes.";
@@ -165,9 +181,36 @@
     });
   }
 
+  function selectIsotopologue(profileId: string): void {
+    selectedIsotopologueId = profileId;
+  }
+
+  function prettyParticleId(id: string): string {
+    return id.replace(/_/g, " ").replace(/\bbar\b/g, "bar");
+  }
+
+  function fieldNodeColor(label: string): string {
+    if (label.includes("Q")) return "var(--hl-value)";
+    if (label.includes("spin")) return "var(--hl-symbol)";
+    if (label.includes("color")) return "var(--hl-success)";
+    return "#c792ea";
+  }
+
+  function branchLabel(id: string): string {
+    if (labelMode === "id") return id;
+    if (labelMode === "symbol") return id.replace(/_bar$/, "̅");
+    return prettyParticleId(id);
+  }
+
+  function chargeDescriptor(charge: number): string {
+    if (Math.abs(charge) < 1e-12) return "neutral";
+    return charge > 0 ? "positive" : "negative";
+  }
+
   $: composite   = particle ? resolveCompositeState(particle) : null;
-  $: valence     = composite ? assignColorSinglet(composite.valence) : [];
-  $: decayChannels = particle ? resolveDecayChannels(particle) : [];
+  $: activeComposite = composite ?? referenceComposite;
+  $: valence     = activeComposite ? assignColorSinglet(activeComposite.valence) : [];
+  $: decayChannels = particle ? resolveDecayChannels(particle) : referenceComposite ? resolveDecayChannels(referenceComposite.particleIds[0]) : [];
   $: selectedDecayIndex = Math.min(selectedDecayIndex, Math.max(0, decayChannels.length - 1));
   $: dominantDecay = decayChannels[selectedDecayIndex] ?? null;
   $: qn = particle?.quantum_numbers;
@@ -187,6 +230,8 @@
   // Display name / symbol for the header
   $: displaySymbol = particle
     ? particle.symbol
+    : referenceComposite
+      ? referenceComposite.label
     : isotope
       ? `${isotope.symbol}-${isotope.A}`
       : currentElement
@@ -194,6 +239,8 @@
         : "";
   $: displayName   = particle
     ? `${particle.name} · ${particle.id}`
+    : referenceComposite
+      ? `${referenceComposite.kind} reference state · ${referenceComposite.particleIds[0]}`
     : isotope
       ? `${isotope.name}, Z=${isotope.Z}`
       : currentElement
@@ -207,6 +254,36 @@
         : "radioactive"
     : "";
   $: synthesisTokens = synthesisResult?.tokens.map((token) => ({ symbol: token.symbol, count: token.count })) ?? [];
+  $: selectedIsotopologue = synthesisResult?.isotopologues.find((profile) => profile.id === selectedIsotopologueId) ?? synthesisResult?.isotopologues[0] ?? null;
+  $: previewTokens = selectedIsotopologue
+    ? selectedIsotopologue.components.map((component) => ({
+        symbol: component.symbol,
+        count: component.count,
+        isotopeA: component.isotope?.A ?? null,
+      }))
+    : synthesisTokens;
+  $: orbitNodes = particle
+    ? [
+        { label: `Q ${particle.quantum_numbers.electric_charge}`, x: 62, y: 44 },
+        { label: `spin ${toSpinLabel(particle.quantum_numbers.spin)}`, x: 170, y: 36 },
+        { label: `color ${particle.quantum_numbers.color}`, x: 208, y: 112 },
+        { label: `T3 ${particle.quantum_numbers.weak_isospin}`, x: 142, y: 172 },
+        { label: `${particle.interactions.length} int.`, x: 54, y: 154 },
+      ]
+    : [];
+  $: feynmanFinalStateIds = dominantDecay?.finalStateIds?.length ? dominantDecay.finalStateIds : ["f1", "f2"];
+  $: feynmanFinalPoints = feynmanFinalStateIds.map((_, index) => {
+    const count = feynmanFinalStateIds.length;
+    const startY = finalArrangement === "fan" ? 34 : 56;
+    const endY = finalArrangement === "fan" ? 176 : 154;
+    const y = count === 1 ? 105 : startY + (index * (endY - startY)) / Math.max(1, count - 1);
+    return { x: 446, y };
+  });
+  $: mediatorLabel = dominantDecay
+    ? propagatorStyle === "contact"
+      ? `${dominantDecay.interaction} contact`
+      : `${particle?.symbol ?? "V"}`
+    : particle?.symbol ?? "V";
 </script>
 
 <div class="viewer">
@@ -258,8 +335,9 @@
         </section>
         <MoleculePreview3D
           formula={synthesisResult?.formula ?? moleculeFormula}
-          tokens={synthesisTokens}
+          tokens={previewTokens}
           highlightSymbol={currentElement.symbol}
+          subtitle={selectedIsotopologue ? `${selectedIsotopologue.name} · A≈${selectedIsotopologue.estimatedMass.toFixed(1)}` : "Element-centered molecular scene"}
         />
       {/if}
     {:else if mode === "quantum"}
@@ -330,11 +408,44 @@
             <span>Natural mass estimate A≈{synthesisResult.estimatedNaturalMass.toFixed(1)}</span>
             <span>Enriched mass estimate A≈{synthesisResult.estimatedEnrichedMass.toFixed(1)}</span>
           </div>
+          <div class="isotopologue-grid">
+            {#each synthesisResult.isotopologues as profile (profile.id)}
+              <button
+                class="isotopologue-card"
+                class:isotopologue-card--active={selectedIsotopologue?.id === profile.id}
+                on:click={() => selectIsotopologue(profile.id)}
+              >
+                <strong>{profile.name}</strong>
+                <span>{profile.description}</span>
+                <em>A≈{profile.estimatedMass.toFixed(1)}</em>
+              </button>
+            {/each}
+          </div>
           <MoleculePreview3D
             formula={synthesisResult.formula}
-            tokens={synthesisTokens}
+            tokens={previewTokens}
             highlightSymbol={currentElement?.symbol ?? null}
+            subtitle={selectedIsotopologue ? `${selectedIsotopologue.name} · ${selectedIsotopologue.description}` : "Isotopologue preview"}
           />
+          {#if selectedIsotopologue}
+            <section class="isotopologue-details">
+              <h5>Molecule-level isotope synthesis</h5>
+              <div class="isotopologue-components">
+                {#each selectedIsotopologue.components as component (`${selectedIsotopologue.id}-${component.symbol}`)}
+                  <article>
+                    <strong>{#if component.isotope?.A}<sup>{component.isotope.A}</sup>{/if}{component.symbol}<sub>{component.count}</sub></strong>
+                    <span>{component.element.name}</span>
+                    <em>{component.isotope ? `${component.symbol}-${component.isotope.A}` : "natural mass proxy"}</em>
+                    {#if component.isotope}
+                      <button on:click={() => selectSynthesisIsotope(component.symbol, component.isotope!.A)}>
+                        Inspect {component.symbol}-{component.isotope.A}
+                      </button>
+                    {/if}
+                  </article>
+                {/each}
+              </div>
+            </section>
+          {/if}
           <ul class="synth-list">
             {#each synthesisResult.recommendations as rec (`${rec.symbol}-${rec.count}`)}
               <li>
@@ -361,24 +472,61 @@
       </section>
     {/if}
 
-  {:else if particle}
+  {:else if particle || referenceComposite}
     <!-- ── Standard hadronic / EW particle mode ──────────── -->
     {#if mode === "schematic"}
-      {#if composite}
-        <CompositionSvg valence={valence} label={`${composite.label}: ${composite.valence.join(" ")}`} />
+      {#if activeComposite}
+        <CompositionSvg valence={valence} label={`${activeComposite.label}: ${activeComposite.valence.join(" ")}`} />
       {:else}
-        <div class="empty">No valence-composition preset is registered for this particle.</div>
+        <section class="field-schematic">
+          <div class="field-schematic-header">
+            <h5>Field Profile Schematic</h5>
+            <select bind:value={fieldSchematicStyle}>
+              <option value="profile">Profile</option>
+              <option value="orbitals">Orbit map</option>
+              <option value="charge-map">Charge map</option>
+            </select>
+          </div>
+          <svg viewBox="0 0 260 210" role="img" aria-label={`Field profile schematic for ${particle?.name ?? 'selected field'}`}>
+            <defs>
+              <radialGradient id="field-core" cx="35%" cy="30%">
+                <stop offset="0%" stop-color="rgba(255,255,255,0.92)" />
+                <stop offset="100%" stop-color="rgba(255,255,255,0)" />
+              </radialGradient>
+            </defs>
+            {#if fieldSchematicStyle !== "charge-map"}
+              <circle class="orbit" cx="130" cy="104" r="64" />
+              <circle class="orbit orbit-secondary" cx="130" cy="104" r="88" />
+            {/if}
+            {#each orbitNodes as node, index (`${node.label}-${index}`)}
+              <line class="field-link" x1="130" y1="104" x2={node.x} y2={node.y} />
+              <circle class="field-node" cx={node.x} cy={node.y} r={fieldSchematicStyle === "charge-map" ? 18 : 14} style={`--node-accent:${fieldNodeColor(node.label)}`} />
+              <text class="field-node-label" x={node.x} y={node.y}>{node.label}</text>
+            {/each}
+            <circle class="field-core" cx="130" cy="104" r="28" />
+            <circle class="field-core-shine" cx="130" cy="104" r="26" />
+            <text class="field-core-label" x="130" y="103">{particle?.symbol ?? "?"}</text>
+            <text class="field-core-sub" x="130" y="122">{chargeDescriptor(particle?.quantum_numbers.electric_charge ?? 0)}</text>
+          </svg>
+          <div class="field-summary-grid">
+            <div><span>Interactions</span><strong>{particle?.interactions.join(", ") || "n/a"}</strong></div>
+            <div><span>Weak multiplet</span><strong>{particle ? (typeof particle.quantum_numbers.weak_multiplet === "string" ? particle.quantum_numbers.weak_multiplet : `Triplet(${particle.quantum_numbers.weak_multiplet.Triplet})`) : "n/a"}</strong></div>
+            <div><span>Color rep</span><strong>{particle?.quantum_numbers.color ?? "n/a"}</strong></div>
+            <div><span>Parity</span><strong>{particle?.quantum_numbers.parity ?? "n/a"}</strong></div>
+          </div>
+        </section>
       {/if}
 
       <section class="decay-section">
         <h5>Decay Modes</h5>
         <DecayTree
-          parentId={particle.id}
+          parentId={particle?.id ?? referenceComposite?.particleIds[0] ?? "reference"}
           channels={decayChannels}
           on:select={emitDecaySelect}
         />
       </section>
     {:else if mode === "quantum"}
+      {#if particle}
       <section class="qn-card">
         <div><span>Mass</span><strong>{formatMaybe(particle.mass)} GeV</strong></div>
         <div><span>Width</span><strong>{formatMaybe(particle.width)} GeV</strong></div>
@@ -392,7 +540,19 @@
         <div><span>Color rep</span><strong>{qn?.color}</strong></div>
         <div><span>Weak isospin T3</span><strong>{qn?.weak_isospin}</strong></div>
         <div><span>Hypercharge Y</span><strong>{qn?.hypercharge}</strong></div>
+        <div><span>Interactions</span><strong class="mono">{particle.interactions.join(", ") || "n/a"}</strong></div>
+        <div><span>Weak multiplet</span><strong>{typeof qn?.weak_multiplet === "string" ? qn?.weak_multiplet : qn ? `Triplet(${qn.weak_multiplet.Triplet})` : "n/a"}</strong></div>
       </section>
+      {:else if referenceComposite}
+      <section class="qn-card">
+        <div><span>Reference kind</span><strong>{referenceComposite.kind}</strong></div>
+        <div><span>Alias count</span><strong>{referenceComposite.particleIds.length}</strong></div>
+        <div><span>Primary id</span><strong>{referenceComposite.particleIds[0]}</strong></div>
+        <div><span>Valence pattern</span><strong class="mono">{referenceComposite.valence.join(" ")}</strong></div>
+        <div><span>Schematic coverage</span><strong>atlas reference</strong></div>
+        <div><span>Decay presets</span><strong>{decayChannels.length}</strong></div>
+      </section>
+      {/if}
     {:else}
       <section class="feynman">
         <div class="feynman-controls">
@@ -416,24 +576,78 @@
               <option value="t-channel">t-channel</option>
             </select>
           </label>
+          <label>
+            Incoming legs
+            <select bind:value={incomingLegs}>
+              <option value="single">Single</option>
+              <option value="pair">Pair</option>
+            </select>
+          </label>
+          <label>
+            Final arrangement
+            <select bind:value={finalArrangement}>
+              <option value="fan">Fan</option>
+              <option value="balanced">Balanced</option>
+            </select>
+          </label>
+          <label>
+            Propagator
+            <select bind:value={propagatorStyle}>
+              <option value="decay">Decay</option>
+              <option value="exchange">Exchange</option>
+              <option value="contact">Contact</option>
+            </select>
+          </label>
+          <label>
+            Line flavor
+            <select bind:value={lineFlavor}>
+              <option value="fermion">Fermion-like</option>
+              <option value="boson">Boson-like</option>
+              <option value="scalar">Scalar-like</option>
+            </select>
+          </label>
+          <label>
+            Labels
+            <select bind:value={labelMode}>
+              <option value="pretty">Pretty</option>
+              <option value="symbol">Symbolic</option>
+              <option value="id">Raw id</option>
+            </select>
+          </label>
           <label class="check"><input type="checkbox" bind:checked={showCoupling} /> Coupling text</label>
           <label class="check"><input type="checkbox" bind:checked={emphasizeInteraction} /> Emphasize interaction</label>
+          <label class="check"><input type="checkbox" bind:checked={showMomentumLabels} /> Momentum labels</label>
+          <label class="check"><input type="checkbox" bind:checked={showArrowheads} /> Flow arrows</label>
+          <label class="check"><input type="checkbox" bind:checked={showInteractionLegend} /> Interaction legend</label>
         </div>
         <svg viewBox="0 0 520 210" role="img" aria-label="Dominant vertex diagram">
+          <defs>
+            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L8,3 L0,6 z" fill="currentColor"></path>
+            </marker>
+          </defs>
           {#if vertexLayout === "split"}
-            <line class="line" x1="48" y1="105" x2="250" y2="105" />
-            <line class="line" x1="250" y1="105" x2="440" y2="56" />
-            <line class="line" x1="250" y1="105" x2="440" y2="154" />
+            {#if incomingLegs === "pair"}
+              <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="82" x2="250" y2="104" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+              <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="128" x2="250" y2="106" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            {:else}
+              <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="105" x2="250" y2="105" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            {/if}
+            {#each feynmanFinalPoints as point}
+              <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="250" y1="105" x2={point.x} y2={point.y} marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            {/each}
           {:else if vertexLayout === "s-channel"}
-            <line class="line" x1="48" y1="62" x2="210" y2="105" />
-            <line class="line" x1="48" y1="148" x2="210" y2="105" />
-            <line class="line" x1="210" y1="105" x2="440" y2="105" />
+            <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="62" x2="210" y2="105" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="148" x2="210" y2="105" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="210" y1="105" x2="440" y2="105" class:line--mediator={propagatorStyle !== 'contact'} />
           {:else}
-            <line class="line" x1="48" y1="56" x2="250" y2="56" />
-            <line class="line" x1="250" y1="56" x2="440" y2="154" />
-            <line class="line" x1="48" y1="154" x2="250" y2="154" />
+            <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="56" x2="250" y2="56" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="48" y1="154" x2="250" y2="154" marker-end={showArrowheads ? 'url(#arrowhead)' : undefined} />
+            {#each feynmanFinalPoints as point}
+              <line class="line" class:line--boson={lineFlavor === 'boson'} class:line--scalar={lineFlavor === 'scalar'} x1="250" y1="56" x2={point.x} y2={point.y} class:line--mediator={propagatorStyle !== 'contact'} />
+            {/each}
           {/if}
-          <text class="lbl" x="30" y="105">{particle.symbol}</text>
+          <text class="lbl" x="30" y="105">{branchLabel(particle?.id ?? referenceComposite?.particleIds[0] ?? "state")}</text>
           <circle
             class="vertex"
             class:vertex-strong={emphasizeInteraction && dominantDecay?.interaction === "strong"}
@@ -445,13 +659,15 @@
           />
 
           {#if dominantDecay}
-            <text class="lbl" x="452" y="56">{dominantDecay.finalStateIds[0] ?? "f1"}</text>
-            <text class="lbl" x="452" y="154">{dominantDecay.finalStateIds[1] ?? "f2"}</text>
+            {#each feynmanFinalStateIds as stateId, idx (`${stateId}-${idx}`)}
+              <text class="lbl" x="456" y={feynmanFinalPoints[idx]?.y ?? 105}>{branchLabel(stateId)}</text>
+            {/each}
             {#if showCoupling}
               <text class="coupling" x="260" y="94">
                 g_{dominantDecay.interaction} · BR={(dominantDecay.branchingRatio * 100).toFixed(2)}%
               </text>
             {/if}
+            <text class="mediator" x="260" y="118">{mediatorLabel}</text>
           {:else}
             <text class="lbl" x="452" y="56">f₁</text>
             <text class="lbl" x="452" y="154">f₂</text>
@@ -459,8 +675,29 @@
               <text class="coupling" x="260" y="94">g_eff</text>
             {/if}
           {/if}
+          {#if showMomentumLabels}
+            <text class="momentum" x="122" y="92">p_in</text>
+            {#each feynmanFinalPoints as point, idx (`momentum-${idx}`)}
+              <text class="momentum" x={point.x - 32} y={point.y - 10}>p_{idx + 1}</text>
+            {/each}
+          {/if}
         </svg>
-        <p class="hint">Minimal effective vertex for the dominant listed process.</p>
+          {#if showInteractionLegend && dominantDecay}
+          <div class="feynman-legend">
+            <span><i class="legend-dot legend-dot--interaction"></i>{dominantDecay.interaction} interaction</span>
+            <span><i class="legend-dot legend-dot--branch"></i>BR {(dominantDecay.branchingRatio * 100).toFixed(2)}%</span>
+            <span><i class="legend-dot legend-dot--layout"></i>{vertexLayout} / {propagatorStyle}</span>
+          </div>
+        {/if}
+        {#if dominantDecay}
+          <div class="channel-stats">
+            <div><span>Parent</span><strong>{particle?.id ?? referenceComposite?.particleIds[0] ?? "state"}</strong></div>
+            <div><span>Final multiplicity</span><strong>{feynmanFinalStateIds.length}</strong></div>
+            <div><span>Interaction</span><strong>{dominantDecay.interaction}</strong></div>
+            <div><span>Branching ratio</span><strong>{(dominantDecay.branchingRatio * 100).toFixed(3)}%</strong></div>
+          </div>
+        {/if}
+        <p class="hint">Minimal effective vertex for the dominant listed process{referenceComposite ? " in the atlas reference library" : ""}.</p>
       </section>
     {/if}
   {:else}
@@ -679,6 +916,97 @@
     color: var(--color-text-muted, var(--fg-secondary));
   }
 
+  .isotopologue-grid {
+    margin-top: 0.4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.3rem;
+  }
+
+  .isotopologue-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.16rem;
+    align-items: flex-start;
+    text-align: left;
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-surface, var(--bg-surface));
+    color: var(--color-text-primary, var(--fg-primary));
+    padding: 0.34rem 0.4rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+
+  .isotopologue-card strong {
+    font-size: 0.68rem;
+  }
+
+  .isotopologue-card span,
+  .isotopologue-card em {
+    font-size: 0.61rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .isotopologue-card--active {
+    border-color: var(--color-accent, var(--hl-symbol));
+    background: color-mix(in srgb, var(--color-accent, var(--hl-symbol)) 10%, var(--color-bg-surface, var(--bg-surface)));
+  }
+
+  .isotopologue-details {
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-inset, var(--bg-inset));
+    padding: 0.45rem;
+    margin-top: 0.35rem;
+  }
+
+  .isotopologue-details h5,
+  .field-schematic h5 {
+    margin: 0 0 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-text-primary, var(--fg-primary));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .isotopologue-components {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.32rem;
+  }
+
+  .isotopologue-components article {
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-surface, var(--bg-surface));
+    padding: 0.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.14rem;
+    font-family: var(--font-mono);
+  }
+
+  .isotopologue-components strong {
+    color: var(--color-accent, var(--hl-symbol));
+  }
+
+  .isotopologue-components span,
+  .isotopologue-components em {
+    font-size: 0.62rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .isotopologue-components button {
+    margin-top: 0.1rem;
+    align-self: flex-start;
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-inset, var(--bg-inset));
+    color: var(--color-text-primary, var(--fg-primary));
+    font-family: var(--font-mono);
+    font-size: 0.61rem;
+    padding: 0.16rem 0.3rem;
+    cursor: pointer;
+  }
+
   .synth-list {
     list-style: none;
     margin: 0.35rem 0 0;
@@ -748,6 +1076,121 @@
     text-align: right;
   }
 
+  .field-schematic {
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-inset, var(--bg-inset));
+    padding: 0.45rem;
+  }
+
+  .field-schematic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .field-schematic-header select {
+    background: var(--color-bg-surface, var(--bg-surface));
+    border: 1px solid var(--color-border, var(--border));
+    color: var(--color-text-primary, var(--fg-primary));
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    padding: 0.16rem 0.25rem;
+  }
+
+  .field-schematic svg {
+    width: 100%;
+    display: block;
+    background: radial-gradient(circle at top, rgba(255,255,255,0.05), transparent 50%);
+    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.15);
+  }
+
+  .orbit {
+    fill: none;
+    stroke: rgba(255,255,255,0.12);
+    stroke-width: 1.2;
+  }
+
+  .orbit-secondary {
+    stroke-dasharray: 5 4;
+  }
+
+  .field-link {
+    stroke: rgba(255,255,255,0.16);
+    stroke-width: 1.2;
+  }
+
+  .field-node {
+    fill: color-mix(in srgb, var(--node-accent) 72%, var(--color-bg-inset, var(--bg-inset)));
+    stroke: color-mix(in srgb, var(--node-accent) 84%, black);
+    stroke-width: 1;
+  }
+
+  .field-node-label,
+  .field-core-label,
+  .field-core-sub {
+    font-family: var(--font-mono);
+    text-anchor: middle;
+  }
+
+  .field-node-label {
+    font-size: 7px;
+    fill: rgba(17, 20, 30, 0.9);
+    dominant-baseline: middle;
+  }
+
+  .field-core {
+    fill: color-mix(in srgb, var(--color-accent, var(--hl-symbol)) 72%, var(--color-bg-inset, var(--bg-inset)));
+    stroke: color-mix(in srgb, var(--color-accent, var(--hl-symbol)) 84%, black);
+    stroke-width: 1.2;
+  }
+
+  .field-core-shine {
+    fill: url(#field-core);
+  }
+
+  .field-core-label {
+    font-size: 18px;
+    font-weight: 700;
+    fill: rgba(12, 14, 22, 0.9);
+  }
+
+  .field-core-sub {
+    font-size: 7px;
+    fill: rgba(12, 14, 22, 0.86);
+  }
+
+  .field-summary-grid {
+    margin-top: 0.35rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.28rem 0.5rem;
+  }
+
+  .field-summary-grid > div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+  }
+
+  .field-summary-grid span,
+  .field-summary-grid strong {
+    font-family: var(--font-mono);
+  }
+
+  .field-summary-grid span {
+    font-size: 0.58rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .field-summary-grid strong {
+    font-size: 0.67rem;
+    color: var(--color-text-primary, var(--fg-primary));
+  }
+
   .feynman {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
@@ -785,6 +1228,20 @@
   .line {
     stroke: var(--color-text-primary, var(--fg-primary));
     stroke-width: 1.15;
+    color: var(--color-text-primary, var(--fg-primary));
+  }
+
+  .line--mediator {
+    stroke-dasharray: 5 3;
+  }
+
+  .line--boson {
+    stroke-dasharray: 2 2;
+  }
+
+  .line--scalar {
+    stroke-width: 1.6;
+    opacity: 0.86;
   }
 
   .vertex {
@@ -817,6 +1274,80 @@
   .coupling {
     fill: var(--color-text-muted, var(--fg-secondary));
     font-size: 10px;
+  }
+
+  .mediator,
+  .momentum {
+    font-family: var(--font-mono);
+    fill: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .mediator {
+    font-size: 10px;
+  }
+
+  .momentum {
+    font-size: 9px;
+  }
+
+  .feynman-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.8rem;
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .channel-stats {
+    margin-top: 0.25rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.2rem 0.45rem;
+    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.2);
+    padding: 0.25rem 0.3rem;
+    background: rgba(var(--color-bg-surface-rgb, 18, 20, 28), 0.42);
+  }
+
+  .channel-stats > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.25rem;
+  }
+
+  .channel-stats span,
+  .channel-stats strong {
+    font-family: var(--font-mono);
+    font-size: 0.59rem;
+  }
+
+  .channel-stats span {
+    color: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .channel-stats strong {
+    color: var(--color-text-primary, var(--fg-primary));
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    margin-right: 0.22rem;
+    border: 1px solid currentColor;
+  }
+
+  .legend-dot--interaction {
+    color: var(--hl-symbol);
+  }
+
+  .legend-dot--branch {
+    color: var(--hl-value);
+  }
+
+  .legend-dot--layout {
+    color: var(--hl-success);
   }
 
   .hint,
