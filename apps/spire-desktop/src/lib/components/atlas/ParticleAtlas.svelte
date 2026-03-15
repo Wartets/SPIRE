@@ -26,6 +26,7 @@
   let customOpen = false;
   let selectedParticle: Field | null = null;
   let flashId: string | null = null;
+  let selectedElementForViewer: ElementData | null = null;
   let selectedIsotopeForViewer: {
     Z: number; A: number; symbol: string; name: string;
     isotopeData: IsotopeData; element: ElementData;
@@ -40,6 +41,7 @@
       const d = payload.data;
       const el = getElementByZ(d.Z);
       if (el) {
+        selectedElementForViewer = el;
         selectedIsotopeForViewer = {
           Z: d.Z,
           A: d.A,
@@ -89,6 +91,7 @@
     }>,
   ): void {
     const d = event.detail;
+    selectedElementForViewer = d.element;
     selectedIsotopeForViewer = {
       Z: d.Z,
       A: d.A,
@@ -108,6 +111,12 @@
       },
     });
     appendLog(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
+  }
+
+  function handleElementSelect(event: CustomEvent<ElementData>): void {
+    selectedElementForViewer = event.detail;
+    selectedIsotopeForViewer = null;
+    appendLog(`Element details opened: ${event.detail.name} (Z=${event.detail.Z})`);
   }
 </script>
 
@@ -131,13 +140,20 @@
   {/if}
 
   {#if mode === "periodic"}
-    <div class="periodic-layout" class:single-column={!selectedIsotopeForViewer}>
+    <div class="periodic-layout" class:single-column={!selectedElementForViewer && !selectedIsotopeForViewer}>
       <div class="periodic-table-col">
-        <PeriodicTable on:clearInfo={() => { selectedIsotopeForViewer = null; }} />
+        <PeriodicTable
+          on:elementSelect={handleElementSelect}
+          on:clearInfo={() => {
+            selectedElementForViewer = null;
+            selectedIsotopeForViewer = null;
+          }}
+        />
       </div>
-      {#if selectedIsotopeForViewer}
+      {#if selectedElementForViewer || selectedIsotopeForViewer}
         <aside class="viewer-col">
           <ParticleViewer
+            element={selectedElementForViewer}
             isotope={selectedIsotopeForViewer}
             on:isotopeSynthesisSelect={handleSynthesisIsotopeSelect}
           />

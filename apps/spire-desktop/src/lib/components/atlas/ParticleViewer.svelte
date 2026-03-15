@@ -15,6 +15,7 @@
   } from "$lib/core/physics/moleculeSynthesis";
   import CompositionSvg from "$lib/components/atlas/CompositionSvg.svelte";
   import DecayTree from "$lib/components/atlas/DecayTree.svelte";
+  import MoleculePreview3D from "$lib/components/atlas/MoleculePreview3D.svelte";
 
   interface DecaySelectEvent {
     parentId: string;
@@ -24,6 +25,7 @@
 
   /** Standard particle view (exclusive with `isotope`). */
   export let particle: Field | null = null;
+  export let element: ElementData | null = null;
 
   /**
    * Nuclear isotope view.  When set, renders nuclear droplet + isotope decay
@@ -65,6 +67,7 @@
   let vertexLayout: "s-channel" | "t-channel" | "split" = "split";
   let showCoupling = true;
   let emphasizeInteraction = true;
+  let autoSynthesisIdentity = "";
 
   // reset tab only when the selected item identity changes
   $: {
@@ -72,11 +75,29 @@
       ? `particle:${particle.id}`
       : isotope
         ? `isotope:${isotope.symbol}-${isotope.A}`
+        : element
+          ? `element:${element.symbol}`
         : "";
     if (identity !== activeIdentity) {
       activeIdentity = identity;
       mode = "schematic";
       selectedDecayIndex = 0;
+    }
+  }
+
+  $: currentElement = isotope?.element ?? element;
+
+  $: {
+    const nextIdentity = isotope
+      ? `mol:${isotope.symbol}-${isotope.A}`
+      : currentElement
+        ? `mol:${currentElement.symbol}`
+        : "";
+    if (nextIdentity && nextIdentity !== autoSynthesisIdentity) {
+      autoSynthesisIdentity = nextIdentity;
+      if (currentElement && moleculeFormula.trim() === "H2O") {
+        moleculeFormula = currentElement.symbol === "H" ? "H2" : `${currentElement.symbol}2`;
+      }
     }
   }
 
@@ -115,6 +136,19 @@
     }
   }
 
+  function elementPhaseHint(el: ElementData): string {
+    if (["H", "N", "O", "F", "Cl", "He", "Ne", "Ar", "Kr", "Xe", "Rn"].includes(el.symbol)) return "gas";
+    if (["Br", "Hg"].includes(el.symbol)) return "liquid";
+    return "solid";
+  }
+
+  function elementBlock(el: ElementData): string {
+    if (el.group == null) return "f";
+    if (el.group <= 2) return "s";
+    if (el.group <= 12) return "d";
+    return "p";
+  }
+
   function selectSynthesisIsotope(symbol: string, A: number): void {
     if (!synthesisResult) return;
     const rec = synthesisResult.recommendations.find((r) => r.symbol === symbol);
@@ -151,8 +185,20 @@
     : null;
 
   // Display name / symbol for the header
-  $: displaySymbol = particle ? particle.symbol : isotope ? `${isotope.symbol}-${isotope.A}` : "";
-  $: displayName   = particle ? `${particle.name} · ${particle.id}` : isotope ? `${isotope.name}, Z=${isotope.Z}` : "";
+  $: displaySymbol = particle
+    ? particle.symbol
+    : isotope
+      ? `${isotope.symbol}-${isotope.A}`
+      : currentElement
+        ? currentElement.symbol
+        : "";
+  $: displayName   = particle
+    ? `${particle.name} · ${particle.id}`
+    : isotope
+      ? `${isotope.name}, Z=${isotope.Z}`
+      : currentElement
+        ? `${currentElement.name} · Z=${currentElement.Z}`
+        : "";
   $: isotopeStabilityTag = isotope
     ? isotope.isotopeData.half_life_s === null
       ? "stable"
@@ -160,6 +206,7 @@
         ? "long-lived"
         : "radioactive"
     : "";
+  $: synthesisTokens = synthesisResult?.tokens.map((token) => ({ symbol: token.symbol, count: token.count })) ?? [];
 </script>
 
 <div class="viewer">
@@ -173,64 +220,94 @@
       {#if particle}
         <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>Quantum Numbers</button>
         <button class:active={mode === "feynman"} on:click={() => (mode = "feynman")}>Feynman Vertex</button>
-      {:else if isotope}
-        <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>Nuclear Data</button>
-        <button class:active={mode === "feynman"} on:click={() => (mode = "feynman")}>Synthesis</button>
+      {:else if isotope || currentElement}
+        <button class:active={mode === "quantum"} on:click={() => (mode = "quantum")}>{isotope ? "Nuclear Data" : "Element Data"}</button>
+        <button class:active={mode === "feynman"} on:click={() => (mode = "feynman")}>Molecule Lab</button>
       {/if}
     </div>
   </header>
 
-  {#if isotope}
+  {#if isotope || currentElement}
     <!-- ── Nuclear / isotope mode ─────────────────────────── -->
     {#if mode === "schematic"}
-      <CompositionSvg
-        mode="nucleus"
-        protons={isotope.Z}
-        neutrons={isoN}
-        label={`${isotope.symbol}-${isotope.A}: ${isotope.Z}p ${isoN}n`}
-        valence={[]}
-      />
-      <section class="decay-section">
-        <h5>Nuclear Decay Channels</h5>
-        <DecayTree isotopeDecay={isotopeDecayArg} />
-      </section>
+      {#if isotope}
+        <CompositionSvg
+          mode="nucleus"
+          protons={isotope.Z}
+          neutrons={isoN}
+          label={`${isotope.symbol}-${isotope.A}: ${isotope.Z}p ${isoN}n`}
+          valence={[]}
+        />
+        <section class="decay-section">
+          <h5>Nuclear Decay Channels</h5>
+          <DecayTree isotopeDecay={isotopeDecayArg} />
+        </section>
+      {/if}
+
+      {#if currentElement}
+        <section class="element-overview">
+          <h5>Selected Element</h5>
+          <div class="overview-grid">
+            <div><span>Symbol</span><strong>{currentElement.symbol}</strong></div>
+            <div><span>Name</span><strong>{currentElement.name}</strong></div>
+            <div><span>Z</span><strong>{currentElement.Z}</strong></div>
+            <div><span>Atomic mass</span><strong>{currentElement.atomic_mass.toFixed(3)}</strong></div>
+            <div><span>Block</span><strong>{elementBlock(currentElement)}-block</strong></div>
+            <div><span>Phase @ STP</span><strong>{elementPhaseHint(currentElement)}</strong></div>
+          </div>
+        </section>
+        <MoleculePreview3D
+          formula={synthesisResult?.formula ?? moleculeFormula}
+          tokens={synthesisTokens}
+          highlightSymbol={currentElement.symbol}
+        />
+      {/if}
     {:else if mode === "quantum"}
       <section class="qn-card">
-        <div><span>Nuclide</span><strong>{isotope.symbol}-{isotope.A}</strong></div>
-        <div><span>Z (protons)</span><strong>{isotope.Z}</strong></div>
-        <div><span>N (neutrons)</span><strong>{isoN}</strong></div>
-        <div><span>A (mass number)</span><strong>{isotope.A}</strong></div>
-        <div><span>Spin / Parity</span><strong>{isotope.isotopeData.spin_parity ?? "n/a"}</strong></div>
-        <div><span>Half-life</span><strong>{isoHL}</strong></div>
-        <div><span>B/A (MeV)</span><strong>{isoBA.toFixed(3)}</strong></div>
-        <div><span>Abundance</span><strong>{isotope.isotopeData.abundance_percent != null ? `${isotope.isotopeData.abundance_percent}%` : "n/a"}</strong></div>
-        <div><span>Mass excess (keV)</span><strong>{isotope.isotopeData.mass_excess_kev?.toFixed(1) ?? "n/a"}</strong></div>
-        <div><span>Category</span><strong>{isotope.element.category}</strong></div>
-        <div><span>Period / Group</span><strong>{isotope.element.period} / {isotope.element.group ?? "f-block"}</strong></div>
-        <div><span>Electron config</span><strong class="mono">{isotope.element.electron_configuration}</strong></div>
-        <div><span>Stability class</span><strong>{isotopeStabilityTag}</strong></div>
+        {#if isotope}
+          <div><span>Nuclide</span><strong>{isotope.symbol}-{isotope.A}</strong></div>
+          <div><span>Z (protons)</span><strong>{isotope.Z}</strong></div>
+          <div><span>N (neutrons)</span><strong>{isoN}</strong></div>
+          <div><span>A (mass number)</span><strong>{isotope.A}</strong></div>
+          <div><span>Spin / Parity</span><strong>{isotope.isotopeData.spin_parity ?? "n/a"}</strong></div>
+          <div><span>Half-life</span><strong>{isoHL}</strong></div>
+          <div><span>B/A (MeV)</span><strong>{isoBA.toFixed(3)}</strong></div>
+          <div><span>Abundance</span><strong>{isotope.isotopeData.abundance_percent != null ? `${isotope.isotopeData.abundance_percent}%` : "n/a"}</strong></div>
+          <div><span>Mass excess (keV)</span><strong>{isotope.isotopeData.mass_excess_kev?.toFixed(1) ?? "n/a"}</strong></div>
+          <div><span>Stability class</span><strong>{isotopeStabilityTag}</strong></div>
+        {/if}
+        {#if currentElement}
+          <div><span>Category</span><strong>{currentElement.category}</strong></div>
+          <div><span>Period / Group</span><strong>{currentElement.period} / {currentElement.group ?? "f-block"}</strong></div>
+          <div><span>Electron config</span><strong class="mono">{currentElement.electron_configuration}</strong></div>
+          <div><span>Atomic mass</span><strong>{currentElement.atomic_mass.toFixed(4)}</strong></div>
+          <div><span>Block</span><strong>{elementBlock(currentElement)}-block</strong></div>
+          <div><span>Phase @ STP</span><strong>{elementPhaseHint(currentElement)}</strong></div>
+        {/if}
       </section>
-      <section class="isotope-preview">
-        <h5>Selected Nuclide Preview</h5>
-        <div class="preview-grid">
-          <div class="preview-item">
-            <span>Nuclide</span>
-            <strong>{isotope.symbol}-{isotope.A}</strong>
+      {#if isotope}
+        <section class="isotope-preview">
+          <h5>Selected Nuclide Preview</h5>
+          <div class="preview-grid">
+            <div class="preview-item">
+              <span>Nuclide</span>
+              <strong>{isotope.symbol}-{isotope.A}</strong>
+            </div>
+            <div class="preview-item">
+              <span>N/Z ratio</span>
+              <strong>{(isoN / Math.max(1, isotope.Z)).toFixed(3)}</strong>
+            </div>
+            <div class="preview-item preview-wide">
+              <span>Mass excess</span>
+              <strong>{isotope.isotopeData.mass_excess_kev?.toFixed(1) ?? "n/a"} keV</strong>
+            </div>
           </div>
-          <div class="preview-item">
-            <span>N/Z ratio</span>
-            <strong>{(isoN / Math.max(1, isotope.Z)).toFixed(3)}</strong>
+          <div class="nucleon-bar" role="img" aria-label="proton-neutron composition">
+            <span class="bar proton" style={`width:${(isotope.Z / Math.max(1, isotope.A)) * 100}%`}>p {isotope.Z}</span>
+            <span class="bar neutron" style={`width:${(isoN / Math.max(1, isotope.A)) * 100}%`}>n {isoN}</span>
           </div>
-          <div class="preview-item preview-wide">
-            <span>Mass excess</span>
-            <strong>{isotope.isotopeData.mass_excess_kev?.toFixed(1) ?? "n/a"} keV</strong>
-          </div>
-        </div>
-        <div class="nucleon-bar" role="img" aria-label="proton-neutron composition">
-          <span class="bar proton" style={`width:${(isotope.Z / Math.max(1, isotope.A)) * 100}%`}>p {isotope.Z}</span>
-          <span class="bar neutron" style={`width:${(isoN / Math.max(1, isotope.A)) * 100}%`}>n {isoN}</span>
-        </div>
-      </section>
+        </section>
+      {/if}
     {:else}
       <section class="synthesis-card">
         <h5>Isotope synthesis from molecule</h5>
@@ -253,6 +330,11 @@
             <span>Natural mass estimate A≈{synthesisResult.estimatedNaturalMass.toFixed(1)}</span>
             <span>Enriched mass estimate A≈{synthesisResult.estimatedEnrichedMass.toFixed(1)}</span>
           </div>
+          <MoleculePreview3D
+            formula={synthesisResult.formula}
+            tokens={synthesisTokens}
+            highlightSymbol={currentElement?.symbol ?? null}
+          />
           <ul class="synth-list">
             {#each synthesisResult.recommendations as rec (`${rec.symbol}-${rec.count}`)}
               <li>
@@ -454,12 +536,14 @@
   }
 
   .isotope-preview,
+  .element-overview,
   .synthesis-card {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
     padding: 0.45rem;
   }
 
+  .element-overview h5,
   .isotope-preview h5,
   .synthesis-card h5 {
     margin: 0 0 0.35rem;
@@ -468,6 +552,35 @@
     color: var(--color-text-primary, var(--fg-primary));
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .overview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.28rem 0.65rem;
+  }
+
+  .overview-grid > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.35rem;
+    border-bottom: 1px dashed rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.22);
+    padding-bottom: 0.14rem;
+  }
+
+  .overview-grid span,
+  .overview-grid strong {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+  }
+
+  .overview-grid span {
+    color: var(--color-text-muted, var(--fg-secondary));
+  }
+
+  .overview-grid strong {
+    color: var(--color-text-primary, var(--fg-primary));
+    text-align: right;
   }
 
   .preview-grid {

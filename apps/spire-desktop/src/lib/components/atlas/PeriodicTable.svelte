@@ -42,6 +42,7 @@
 
   const dispatch = createEventDispatcher<{
     clearInfo: void;
+    elementSelect: ElementData;
   }>();
 
   $: visibleElements = elements.filter((el) => {
@@ -84,6 +85,7 @@
 
     selectedElement = el;
     selectedIsotopeData = null;
+    dispatch("elementSelect", el);
 
     if (!isotopeMap[el.Z]) {
       isotopeMap[el.Z] = await loadIsotopesForZ(el.Z);
@@ -321,6 +323,7 @@
   <div
     class="periodic-viewport"
     bind:this={periodicViewportEl}
+    data-wheel-capture
     role="application"
     tabindex="0"
     aria-label="Interactive periodic table viewport"
@@ -328,7 +331,7 @@
     on:pointermove={handlePointerMove}
     on:pointerup={endDrag}
     on:pointercancel={endDrag}
-    on:wheel={handleWheel}
+    on:wheel|stopPropagation={handleWheel}
     on:keydown={handleViewportKeydown}
   >
     <div
