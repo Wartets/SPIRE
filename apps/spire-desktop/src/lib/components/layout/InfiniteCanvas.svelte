@@ -732,7 +732,7 @@
             height: {item.height}px;
             z-index: {zIndexOf(item)};
           "
-          on:mousedown={() => selectWidget(item)}
+          on:mousedown|capture={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           role="group"
           aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"

@@ -22,6 +22,21 @@
     ].join("\n");
   }
 
+  function chargeLabel(q: number): string {
+    if (Math.abs(q) < 1e-12) return "0";
+    return q > 0 ? `+${q}` : `${q}`;
+  }
+
+  function familyLabel(field: Field): string {
+    const qn = field.quantum_numbers;
+    if (qn.color === "Triplet" || qn.color === "AntiTriplet" || qn.color === "Octet") return "colored";
+    if (Math.abs(qn.baryon_number) > 0) return "baryonic";
+    if (qn.lepton_numbers.electron || qn.lepton_numbers.muon || qn.lepton_numbers.tau) return "leptonic";
+    if (qn.spin === 0) return "scalar";
+    if (qn.spin === 2) return "vector";
+    return "field";
+  }
+
   function handleClick(): void {
     dispatch("select", particle);
   }
@@ -37,7 +52,12 @@
 >
   <span class="symbol">{particle.symbol}</span>
   <span class="id">{particle.id}</span>
-  <span class="meta">m={particle.mass.toPrecision(3)} GeV • Q={particle.quantum_numbers.electric_charge}</span>
+  <span class="meta">m={particle.mass.toPrecision(3)} GeV • Γ={particle.width.toPrecision(2)} GeV</span>
+  <div class="badges">
+    <span class="badge badge-charge">Q={chargeLabel(particle.quantum_numbers.electric_charge)}</span>
+    <span class="badge badge-spin">s={particle.quantum_numbers.spin / 2}</span>
+    <span class="badge badge-family">{familyLabel(particle)}</span>
+  </div>
 </button>
 
 <style>
@@ -88,5 +108,34 @@
   .meta {
     font-size: 0.64rem;
     color: var(--fg-secondary);
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.18rem;
+    margin-top: 0.05rem;
+  }
+
+  .badge {
+    font-size: 0.57rem;
+    color: var(--fg-secondary);
+    border: 1px solid var(--border);
+    padding: 0.03rem 0.2rem;
+  }
+
+  .badge-charge {
+    color: var(--hl-value);
+    border-color: color-mix(in srgb, var(--hl-value) 55%, var(--border));
+  }
+
+  .badge-spin {
+    color: var(--hl-symbol);
+    border-color: color-mix(in srgb, var(--hl-symbol) 55%, var(--border));
+  }
+
+  .badge-family {
+    color: var(--hl-success);
+    border-color: color-mix(in srgb, var(--hl-success) 55%, var(--border));
   }
 </style>

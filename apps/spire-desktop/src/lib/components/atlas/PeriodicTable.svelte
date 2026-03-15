@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { createEventDispatcher } from "svelte";
+  import { onMount, tick } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import IsotopeDrawer from "$lib/components/atlas/IsotopeDrawer.svelte";
   import {
@@ -23,6 +24,25 @@
   let flashTimer: ReturnType<typeof setTimeout> | null = null;
   let elementQuery = "";
   let categoryFilter: "all" | ElementData["category"] = "all";
+  let periodicViewportEl: HTMLDivElement | null = null;
+  let periodicGridEl: HTMLDivElement | null = null;
+  let panX = 0;
+  let panY = 0;
+  let zoom = 1;
+  let isDragging = false;
+  let activePointerId: number | null = null;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let panStartX = 0;
+  let panStartY = 0;
+  let suppressNextClick = false;
+
+  const ZOOM_MIN = 0.65;
+  const ZOOM_MAX = 2.25;
+
+  const dispatch = createEventDispatcher<{
+    clearInfo: void;
+  }>();
 
   $: visibleElements = elements.filter((el) => {
     const q = elementQuery.trim().toLowerCase();
@@ -36,9 +56,19 @@
     );
   });
 
+  $: if (elementQuery.trim().length >= 2 && visibleElements.length === 1) {
+    focusElement(visibleElements[0]);
+  }
+
   onMount(async () => {
     elements = await loadElements();
+    await tick();
+    centerPeriodicGrid();
   });
+
+  $: if (selectedElement) {
+    focusElement(selectedElement);
+  }
 
   // ---------------------------------------------------------------------------
   // Handlers
@@ -48,6 +78,7 @@
     if (selectedElement?.Z === el.Z) {
       selectedElement = null;
       selectedIsotopeData = null;
+      dispatch("clearInfo");
       return;
     }
 
@@ -61,6 +92,14 @@
     broadcastSelection({ type: "ELEMENT_SELECTED", data: el });
     appendLog(`Periodic table: selected ${el.name} (Z=${el.Z})`);
     triggerFlash(el.Z);
+  }
+
+  function handleCellClick(el: ElementData): void {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      return;
+    }
+    void handleElementClick(el);
   }
 
   function handleIsotopeSelect(
@@ -81,6 +120,114 @@
       flashTimer = null;
     }, 800);
   }
+
+  function clamp(v: number, lo: number, hi: number): number {
+    return Math.max(lo, Math.min(hi, v));
+  }
+
+  function centerPeriodicGrid(): void {
+    if (!periodicViewportEl || !periodicGridEl) return;
+    const viewport = periodicViewportEl.getBoundingClientRect();
+    const grid = periodicGridEl.getBoundingClientRect();
+    panX = Math.max(0, (viewport.width - grid.width * zoom) * 0.5);
+    panY = Math.max(0, (viewport.height - grid.height * zoom) * 0.5);
+  }
+
+  function focusElement(el: ElementData): void {
+    if (!periodicViewportEl || !periodicGridEl) return;
+    const viewport = periodicViewportEl.getBoundingClientRect();
+    const cellW = gridCellWidth();
+    const cellH = gridCellHeight();
+    const targetX = (el.display_col - 0.5) * cellW * zoom;
+    const targetY = (el.display_row - 0.5) * cellH * zoom;
+    panX = viewport.width * 0.5 - targetX;
+    panY = viewport.height * 0.4 - targetY;
+  }
+
+  function gridCellWidth(): number {
+    if (!periodicGridEl) return 56;
+    const style = getComputedStyle(periodicGridEl);
+    const columns = style.gridTemplateColumns.split(" ").length || 18;
+    return periodicGridEl.scrollWidth / columns;
+  }
+
+  function gridCellHeight(): number {
+    if (!periodicGridEl) return 52;
+    return periodicGridEl.scrollHeight / 9;
+  }
+
+  function resetView(): void {
+    zoom = 1;
+    centerPeriodicGrid();
+  }
+
+  function zoomBy(delta: number): void {
+    const next = clamp(zoom + delta, ZOOM_MIN, ZOOM_MAX);
+    if (Math.abs(next - zoom) < 1e-6) return;
+    zoom = next;
+  }
+
+  function beginDrag(event: PointerEvent): void {
+    if (!periodicViewportEl) return;
+    isDragging = true;
+    activePointerId = event.pointerId;
+    periodicViewportEl.setPointerCapture(event.pointerId);
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    panStartX = panX;
+    panStartY = panY;
+  }
+
+  function handlePointerMove(event: PointerEvent): void {
+    if (!isDragging || event.pointerId !== activePointerId) return;
+    const dx = event.clientX - dragStartX;
+    const dy = event.clientY - dragStartY;
+    panX = panStartX + dx;
+    panY = panStartY + dy;
+    if (Math.abs(dx) + Math.abs(dy) > 4) suppressNextClick = true;
+  }
+
+  function endDrag(event: PointerEvent): void {
+    if (!isDragging || event.pointerId !== activePointerId) return;
+    if (periodicViewportEl?.hasPointerCapture(event.pointerId)) {
+      periodicViewportEl.releasePointerCapture(event.pointerId);
+    }
+    isDragging = false;
+    activePointerId = null;
+  }
+
+  function handleWheel(event: WheelEvent): void {
+    event.preventDefault();
+    zoomBy(event.deltaY < 0 ? 0.08 : -0.08);
+  }
+
+  function handleViewportKeydown(event: KeyboardEvent): void {
+    const step = 28;
+    if (event.key === "ArrowLeft") {
+      panX += step;
+      event.preventDefault();
+    } else if (event.key === "ArrowRight") {
+      panX -= step;
+      event.preventDefault();
+    } else if (event.key === "ArrowUp") {
+      panY += step;
+      event.preventDefault();
+    } else if (event.key === "ArrowDown") {
+      panY -= step;
+      event.preventDefault();
+    } else if (event.key === "+" || event.key === "=") {
+      zoomBy(0.08);
+      event.preventDefault();
+    } else if (event.key === "-") {
+      zoomBy(-0.08);
+      event.preventDefault();
+    } else if (event.key.toLowerCase() === "r") {
+      resetView();
+      event.preventDefault();
+    }
+  }
+
+  $: zoomPercent = `${Math.round(zoom * 100)}%`;
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -157,29 +304,58 @@
       <option value="lanthanide">Lanthanide</option>
       <option value="actinide">Actinide</option>
     </select>
+
+    <div class="nav-controls">
+      <button type="button" on:click={() => zoomBy(-0.1)} aria-label="Zoom out">−</button>
+      <span class="zoom-indicator">{zoomPercent}</span>
+      <button type="button" on:click={() => zoomBy(0.1)} aria-label="Zoom in">+</button>
+      <button type="button" on:click={resetView} aria-label="Reset periodic table view">Reset</button>
+      {#if selectedElement}
+        <button type="button" on:click={() => focusElement(selectedElement!)} aria-label="Focus selected element">Focus selection</button>
+      {/if}
+    </div>
   </div>
 
   <!-- Main 18-column grid -->
-  <div class="periodic-wrap">
-    {#each visibleElements as el (el.Z)}
-      <button
-        class="cell"
-        class:cell--selected={selectedElement?.Z === el.Z}
-        class:cell--flash={flashZ === el.Z}
-        style="grid-column:{el.display_col};grid-row:{el.display_row};--accent:{categoryColor(el.category)}"
-        use:tooltip={{ text: elementTooltip(el), maxWidth: 380 }}
-        aria-label={`Element ${el.name}, Z=${el.Z}`}
-        on:click={() => handleElementClick(el)}
-      >
-        <span class="z">{el.Z}</span>
-        <span class="symbol">{el.symbol}</span>
-        <span class="ename">{el.name}</span>
-      </button>
-    {/each}
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions a11y_no_noninteractive_tabindex -->
+  <div
+    class="periodic-viewport"
+    bind:this={periodicViewportEl}
+    role="application"
+    tabindex="0"
+    aria-label="Interactive periodic table viewport"
+    on:pointerdown={beginDrag}
+    on:pointermove={handlePointerMove}
+    on:pointerup={endDrag}
+    on:pointercancel={endDrag}
+    on:wheel={handleWheel}
+    on:keydown={handleViewportKeydown}
+  >
+    <div
+      class="periodic-wrap"
+      bind:this={periodicGridEl}
+      style={`transform: translate(${panX}px, ${panY}px) scale(${zoom});`}
+    >
+      {#each visibleElements as el (el.Z)}
+        <button
+          class="cell"
+          class:cell--selected={selectedElement?.Z === el.Z}
+          class:cell--flash={flashZ === el.Z}
+          style="grid-column:{el.display_col};grid-row:{el.display_row};--accent:{categoryColor(el.category)}"
+          use:tooltip={{ text: elementTooltip(el), maxWidth: 380 }}
+          aria-label={`Element ${el.name}, Z=${el.Z}`}
+          on:click={() => handleCellClick(el)}
+        >
+          <span class="z">{el.Z}</span>
+          <span class="symbol">{el.symbol}</span>
+          <span class="ename">{el.name}</span>
+        </button>
+      {/each}
 
-    <!-- f-block separator labels -->
-    <div class="fblock-label" style="grid-column:1/4;grid-row:8">Lanthanides</div>
-    <div class="fblock-label" style="grid-column:1/4;grid-row:9">Actinides</div>
+      <!-- f-block separator labels -->
+      <div class="fblock-label" style="grid-column:1/4;grid-row:8">Lanthanides</div>
+      <div class="fblock-label" style="grid-column:1/4;grid-row:9">Actinides</div>
+    </div>
   </div>
 
   <!-- Isotope drawer (slides open when an element is selected) -->
@@ -189,7 +365,11 @@
       isotopes={isotopeMap[selectedElement.Z] ?? []}
       bind:selectedIsotope={selectedIsotopeData}
       on:isotopeSelect={handleIsotopeSelect}
-      on:close={() => { selectedElement = null; selectedIsotopeData = null; }}
+      on:close={() => {
+        selectedElement = null;
+        selectedIsotopeData = null;
+        dispatch("clearInfo");
+      }}
     />
   {/if}
 </div>
@@ -222,16 +402,25 @@
     opacity: 0.85;
   }
 
+  .periodic-viewport {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-inset, var(--bg-inset));
+    flex: 1 1 0;
+    min-height: 0;
+    touch-action: none;
+  }
+
   .periodic-wrap {
     display: grid;
     grid-template-columns: repeat(18, minmax(2.4rem, 1fr));
     grid-template-rows: repeat(9, auto);
     gap: 0.15rem;
-    overflow: auto;
     padding: 0.15rem;
-    flex: 1 1 0;
-    min-height: 0;
-    width: max(100%, 54rem);
+    width: 56rem;
+    transform-origin: 0 0;
+    will-change: transform;
   }
 
   .pt-controls {
@@ -239,6 +428,31 @@
     gap: 0.3rem;
     align-items: center;
     flex-wrap: wrap;
+  }
+
+  .nav-controls {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 0.22rem;
+    align-items: center;
+  }
+
+  .nav-controls button {
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-inset, var(--bg-inset));
+    color: var(--color-text-primary, var(--fg-primary));
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    padding: 0.14rem 0.33rem;
+    cursor: pointer;
+  }
+
+  .zoom-indicator {
+    font-family: var(--font-mono);
+    font-size: 0.61rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+    min-width: 2.8rem;
+    text-align: center;
   }
 
   .pt-search,

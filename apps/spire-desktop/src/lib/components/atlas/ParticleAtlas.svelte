@@ -34,14 +34,21 @@
   $: taxonomy = categorizeParticles($theoreticalModel);
 
   // Subscribe to selectionBus to capture isotope selections from PeriodicTable
-  $: if ($selectionBus?.type === "ISOTOPE_SELECTED") {
-    const d = $selectionBus.data;
-    const el = getElementByZ(d.Z);
-    if (el) {
-      selectedIsotopeForViewer = {
-        Z: d.Z, A: d.A, symbol: d.symbol, name: d.name,
-        isotopeData: d.isotope, element: el,
-      };
+  $: {
+    const payload = $selectionBus;
+    if (payload?.type === "ISOTOPE_SELECTED" && payload.data) {
+      const d = payload.data;
+      const el = getElementByZ(d.Z);
+      if (el) {
+        selectedIsotopeForViewer = {
+          Z: d.Z,
+          A: d.A,
+          symbol: d.symbol,
+          name: d.name,
+          isotopeData: d.isotope,
+          element: el,
+        };
+      }
     }
   }
 
@@ -70,6 +77,38 @@
     finalIdsInput.set([...detail.finalStateIds]);
     appendLog(`Decay branch loaded into Reaction Workspace: ${detail.label}`);
   }
+
+  function handleSynthesisIsotopeSelect(
+    event: CustomEvent<{
+      Z: number;
+      A: number;
+      symbol: string;
+      name: string;
+      isotopeData: IsotopeData;
+      element: ElementData;
+    }>,
+  ): void {
+    const d = event.detail;
+    selectedIsotopeForViewer = {
+      Z: d.Z,
+      A: d.A,
+      symbol: d.symbol,
+      name: d.name,
+      isotopeData: d.isotopeData,
+      element: d.element,
+    };
+    broadcastSelection({
+      type: "ISOTOPE_SELECTED",
+      data: {
+        Z: d.Z,
+        A: d.A,
+        symbol: d.symbol,
+        name: d.name,
+        isotope: d.isotopeData,
+      },
+    });
+    appendLog(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
+  }
 </script>
 
 <div class="atlas">
@@ -92,13 +131,16 @@
   {/if}
 
   {#if mode === "periodic"}
-    <div class="periodic-layout">
+    <div class="periodic-layout" class:single-column={!selectedIsotopeForViewer}>
       <div class="periodic-table-col">
-        <PeriodicTable />
+        <PeriodicTable on:clearInfo={() => { selectedIsotopeForViewer = null; }} />
       </div>
       {#if selectedIsotopeForViewer}
         <aside class="viewer-col">
-          <ParticleViewer isotope={selectedIsotopeForViewer} />
+          <ParticleViewer
+            isotope={selectedIsotopeForViewer}
+            on:isotopeSynthesisSelect={handleSynthesisIsotopeSelect}
+          />
         </aside>
       {/if}
     </div>
@@ -246,6 +288,10 @@
     flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .periodic-layout.single-column {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .periodic-table-col {
