@@ -26,6 +26,7 @@ import {
   getDefaultLayout,
 } from "$lib/stores/layoutStore";
 import type { LayoutNode, CanvasItem } from "$lib/stores/layoutStore";
+import { pipelineGraph, replacePipelineGraph, clearPipelineGraph } from "$lib/stores/pipelineGraphStore";
 import { activeFramework, appendLog } from "$lib/stores/physicsStore";
 import {
   particlesTomlInput,
@@ -96,6 +97,7 @@ export function exportWorkspace(name?: string): SpireWorkspace {
       mode: get(viewMode),
       layoutTree: JSON.parse(JSON.stringify(get(layoutRoot))) as LayoutNode,
       canvasItems: JSON.parse(JSON.stringify(get(canvasItems))) as CanvasItem[],
+      pipelineGraph: JSON.parse(JSON.stringify(get(pipelineGraph))),
     },
     physics: {
       framework: get(activeFramework),
@@ -197,6 +199,19 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
       }
       if ("canvasItems" in layout && !Array.isArray(layout.canvasItems)) {
         errors.push("layout.canvasItems must be an array.");
+      }
+      if ("pipelineGraph" in layout) {
+        if (typeof layout.pipelineGraph !== "object" || layout.pipelineGraph === null) {
+          errors.push("layout.pipelineGraph must be an object when provided.");
+        } else {
+          const graph = layout.pipelineGraph as Record<string, unknown>;
+          if (typeof graph.nodes !== "object" || graph.nodes === null) {
+            errors.push("layout.pipelineGraph.nodes must be an object.");
+          }
+          if (typeof graph.edges !== "object" || graph.edges === null) {
+            errors.push("layout.pipelineGraph.edges must be an object.");
+          }
+        }
       }
     }
   }
@@ -330,6 +345,11 @@ export function importWorkspace(data: unknown): boolean {
     } else {
       clearCanvas();
     }
+    if (workspace.layout.pipelineGraph) {
+      replacePipelineGraph(workspace.layout.pipelineGraph);
+    } else {
+      clearPipelineGraph();
+    }
     viewMode.set(workspace.layout.mode ?? "docking");
     appendLog(
       `Workspace "${workspace.metadata.name}" imported - ` +
@@ -454,6 +474,7 @@ export function resetWorkspace(): void {
   resetAllInputs();
   resetDockingLayout();
   clearCanvas();
+  clearPipelineGraph();
   activeFramework.set("StandardModel");
   clearAutoSave();
   appendLog("Workspace reset to defaults.");

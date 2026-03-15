@@ -16,6 +16,7 @@
 
 import type { WidgetType } from "$lib/stores/notebookStore";
 import type { LayoutNode, CanvasItem, ViewMode } from "$lib/stores/layoutStore";
+import type { PipelineGraph } from "$lib/core/pipeline/graph";
 import type { TheoreticalFramework } from "./spire";
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,8 @@ export interface WorkspaceLayout {
   layoutTree: LayoutNode;
   /** Widgets placed on the infinite canvas. */
   canvasItems: CanvasItem[];
+  /** Node-based automation graph state. */
+  pipelineGraph?: PipelineGraph;
 
   // Legacy compat (optional - only present in v1.0 imports)
   /** @deprecated - v1.0 flat widget list; unused in v2.0 exports. */

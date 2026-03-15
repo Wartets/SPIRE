@@ -73,6 +73,7 @@
   import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
   import PluginManager from "$lib/components/PluginManager.svelte";
   import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
+  import PipelineLayer from "$lib/components/pipeline/PipelineLayer.svelte";
 
   let canvasEl: HTMLDivElement;
 
@@ -691,6 +692,8 @@
     class="canvas-transform"
     style="transform: translate({panX}px, {panY}px) scale({zoom});"
   >
+    <PipelineLayer canvasElement={canvasEl} {panX} {panY} {zoom} />
+
     {#each $canvasItems as item (item.id)}
       {#if itemIsVisible(item)}
         <!-- Visible widget — render at current LOD tier -->

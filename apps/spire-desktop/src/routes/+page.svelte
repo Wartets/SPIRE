@@ -53,6 +53,7 @@
     unregisterCommand,
     openPalette,
   } from "$lib/core/services/CommandRegistry";
+  import { runPipelineAutoLayout } from "$lib/stores/pipelineGraphStore";
   import {
     cheatSheetOpen,
     keybindPanelOpen,
@@ -207,6 +208,7 @@
     "spire.layout.apply.theory-studio",
     "spire.layout.apply.analysis-focus",
     "spire.layout.apply.minimal",
+    "spire.pipeline.format_graph",
   ];
 
   let dynamicPresetCommandIds: string[] = [];
@@ -543,6 +545,15 @@
         },
       });
     }
+
+    registerCommand({
+      id: "spire.pipeline.format_graph",
+      title: "Format Pipeline Graph",
+      category: "Pipeline",
+      shortcut: "Mod+Shift+G",
+      execute: () => runPipelineAutoLayout($canvasItems),
+      icon: "⇢",
+    });
 
     refreshCustomPresetCommands();
   }
