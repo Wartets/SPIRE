@@ -798,6 +798,78 @@ export function addWidgetToLayout(
 }
 
 /**
+ * Insert a brand-new widget relative to an existing widget leaf.
+ * Used by external drag-and-drop from the Add Widget toolbox.
+ */
+export function insertWidgetRelative(
+  targetId: string,
+  position: DropPosition,
+  widgetType: WidgetType,
+): void {
+  layoutRoot.update((root) => {
+    const tree = cloneTree(root);
+    const targetFound = findNode(tree, targetId);
+    if (!targetFound) return tree;
+
+    const newLeaf = createWidgetLeaf(widgetType);
+
+    if (position === "center") {
+      const preference = get(dockingInsertPreference);
+      const smartDirection: Partial<Record<WidgetType, "row" | "col">> = {
+        log: "col",
+        telemetry: "col",
+        references: "col",
+        notebook: "col",
+        analysis: "row",
+        event_display: "row",
+        diagram: "row",
+        amplitude: "row",
+      };
+
+      const direction: "row" | "col" =
+        preference === "smart"
+          ? smartDirection[widgetType] ?? "row"
+          : preference;
+
+      const splitContainer: RowNode | ColNode = {
+        id: makeLayoutId(),
+        type: direction,
+        sizes: [1, 1],
+        children: [targetFound.node, newLeaf],
+      } as RowNode | ColNode;
+
+      if (tree.id === targetId) {
+        return splitContainer;
+      }
+
+      replaceNode(tree, targetId, splitContainer);
+      return tree;
+    }
+
+    const direction: "row" | "col" =
+      position === "left" || position === "right" ? "row" : "col";
+    const children =
+      position === "left" || position === "top"
+        ? [newLeaf, targetFound.node]
+        : [targetFound.node, newLeaf];
+
+    const splitContainer: RowNode | ColNode = {
+      id: makeLayoutId(),
+      type: direction,
+      sizes: [1, 1],
+      children,
+    } as RowNode | ColNode;
+
+    if (tree.id === targetId) {
+      return splitContainer;
+    }
+
+    replaceNode(tree, targetId, splitContainer);
+    return tree;
+  });
+}
+
+/**
  * Replace the entire layout tree with a new root.
  * Used by workspace import and layout presets.
  */

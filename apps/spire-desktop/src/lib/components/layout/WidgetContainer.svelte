@@ -11,7 +11,7 @@
 -->
 <script lang="ts">
   import type { WidgetLeaf } from "$lib/stores/layoutStore";
-  import { closeNode, splitNode, moveNode } from "$lib/stores/layoutStore";
+  import { closeNode, splitNode, moveNode, insertWidgetRelative } from "$lib/stores/layoutStore";
   import type { DropPosition } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import { getWidgetComponent } from "$lib/core/registry/WidgetRegistry";
@@ -49,12 +49,17 @@
   function handleHeaderContext(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
+    const widgetItems = getWidgetContextItems(node.widgetType);
     showContextMenu(e.clientX, e.clientY, [
-      { type: "action", id: "split-h", label: "Split Horizontal", action: handleSplitH },
-      { type: "action", id: "split-v", label: "Split Vertical", action: handleSplitV },
-      { type: "action", id: "tear-off", label: "Tear Off to Window", action: handleTearOff },
+      ...widgetItems,
+      ...(widgetItems.length > 0
+        ? [{ type: "separator" as const, id: "sep-header-widget" }]
+        : []),
+      { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
+      { type: "action", id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
+      { type: "action", id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
       { type: "separator", id: "sep-1" },
-      { type: "action", id: "close", label: "Close Widget", action: handleClose },
+      { type: "action", id: "close", label: "Close Widget", icon: "✕", action: handleClose },
     ]);
   }
 
@@ -113,6 +118,13 @@
 
   function handleDrop(e: DragEvent): void {
     e.preventDefault();
+    const widgetType = e.dataTransfer?.getData("application/x-spire-widget-type");
+    if (widgetType && dropZone) {
+      insertWidgetRelative(node.id, dropZone, widgetType as import("$lib/stores/notebookStore").WidgetType);
+      dropZone = null;
+      return;
+    }
+
     const sourceId = e.dataTransfer?.getData("text/plain");
     if (sourceId && sourceId !== node.id && dropZone) {
       moveNode(sourceId, node.id, dropZone);
@@ -128,6 +140,7 @@
   class:drop-top={dropZone === "top"}
   class:drop-bottom={dropZone === "bottom"}
   class:drop-center={dropZone === "center"}
+  data-docking-drop-target={node.id}
   on:dragover={handleDragOver}
   on:dragleave={handleDragLeave}
   on:drop={handleDrop}

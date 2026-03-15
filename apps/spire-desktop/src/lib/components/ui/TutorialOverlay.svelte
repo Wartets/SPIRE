@@ -31,6 +31,7 @@
   let tipLeft = 0;
 
   let tooltipEl: HTMLDivElement | undefined;
+  let highlightedCanvasWidgetId: string | null = null;
 
   // Recompute spotlight when step changes
   $: if ($tutorialActive && $currentStep) {
@@ -41,6 +42,7 @@
     await tick();
     const el = document.querySelector(`[data-tour-id="${targetId}"]`);
     if (!el) {
+      highlightedCanvasWidgetId = null;
       // Element not found - use a centered fallback
       spotRect = {
         top: window.innerHeight / 2 - 50,
@@ -49,6 +51,7 @@
         height: 100,
       };
     } else {
+      focusCanvasWidget(el as Element);
       const rect = el.getBoundingClientRect();
       const pad = 6; // Padding around the element
       spotRect = {
@@ -62,6 +65,19 @@
     // Position tooltip after spotlight is computed
     await tick();
     positionTooltip();
+  }
+
+  function focusCanvasWidget(target: Element): void {
+    const canvasWidget = target.closest(".canvas-widget[data-canvas-item-id]") as HTMLElement | null;
+    const widgetId = canvasWidget?.dataset.canvasItemId ?? null;
+    highlightedCanvasWidgetId = widgetId;
+    if (widgetId) {
+      window.dispatchEvent(
+        new CustomEvent("spire:canvas:focus-widget", {
+          detail: { widgetId },
+        }),
+      );
+    }
   }
 
   function positionTooltip(): void {
@@ -197,6 +213,9 @@
     <p class="tutorial-step-content">{$currentStep.content}</p>
 
     <div class="tutorial-controls">
+      <div class="tutorial-step-meta">
+        <span class="tutorial-chip">{highlightedCanvasWidgetId ? "Canvas focus synced" : "Guided walkthrough"}</span>
+      </div>
       <button
         class="tutorial-btn tutorial-btn-skip"
         on:click={skipTutorial}
@@ -292,6 +311,25 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .tutorial-step-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .tutorial-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--border, #333);
+    color: var(--fg-secondary, var(--color-text-muted));
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   .tutorial-nav {
     display: flex;

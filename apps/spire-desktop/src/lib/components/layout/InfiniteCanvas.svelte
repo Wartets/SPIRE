@@ -63,6 +63,7 @@
   } from "$lib/components/canvas/lodUtils";
 
   let canvasEl: HTMLDivElement;
+  let repaintKickHandle: number | null = null;
 
   // ── Viewport ──
 
@@ -76,6 +77,21 @@
     panY = vp.panY;
     zoom = vp.zoom;
   });
+
+  function nudgeCanvasRendering(): void {
+    if (typeof window === "undefined") return;
+    if (repaintKickHandle !== null) {
+      cancelAnimationFrame(repaintKickHandle);
+    }
+    repaintKickHandle = requestAnimationFrame(() => {
+      repaintKickHandle = requestAnimationFrame(() => {
+        screenW = canvasEl?.clientWidth ?? screenW;
+        screenH = canvasEl?.clientHeight ?? screenH;
+        window.dispatchEvent(new Event("resize"));
+        repaintKickHandle = null;
+      });
+    });
+  }
 
   function commitViewport(): void {
     canvasViewport.set({ panX, panY, zoom });
@@ -655,6 +671,17 @@
     commitViewport();
   }
 
+  function duplicateCanvasWidget(item: CanvasItem): void {
+    addCanvasItem(item.widgetType, item.x + 36, item.y + 36);
+  }
+
+  function resetCanvasWidgetSize(item: CanvasItem): void {
+    const def = WIDGET_DEFINITIONS.find((entry) => entry.type === item.widgetType);
+    const width = (def?.defaultColSpan ?? 2) * 320;
+    const height = (def?.defaultRowSpan ?? 2) * 220;
+    updateCanvasItem(item.id, { width, height });
+  }
+
   // ── Widget Drag (left-click on header) ──
 
   let isDragging = false;
@@ -729,9 +756,37 @@
       ...(widgetItems.length > 0
         ? [{ type: "separator" as const, id: "sep-cw" }]
         : []),
+      { type: "action" as const, id: "cw-front", label: "Bring to Front", icon: "⇡", action: () => selectWidget(item) },
+      { type: "action" as const, id: "cw-duplicate", label: "Duplicate Widget", icon: "⧉", action: () => duplicateCanvasWidget(item) },
+      { type: "action" as const, id: "cw-reset-size", label: "Reset Widget Size", icon: "□", action: () => resetCanvasWidgetSize(item) },
+      { type: "separator" as const, id: "sep-cw-layout" },
       { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => handleClose(item) },
     ];
     showContextMenu(e.clientX, e.clientY, items);
+  }
+
+  function handleCanvasDragOver(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes("application/x-spire-widget-type")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleCanvasDrop(event: DragEvent): void {
+    const widgetType = event.dataTransfer?.getData("application/x-spire-widget-type");
+    if (!widgetType) return;
+
+    event.preventDefault();
+    const rect = canvasEl.getBoundingClientRect();
+    const worldX = (event.clientX - rect.left - panX) / zoom;
+    const worldY = (event.clientY - rect.top - panY) / zoom;
+    addCanvasItem(widgetType as WidgetType, worldX, worldY);
+    nudgeCanvasRendering();
+  }
+
+  function handleCanvasFocusRequest(event: Event): void {
+    const detail = (event as CustomEvent<{ widgetId?: string }>).detail;
+    if (!detail?.widgetId) return;
+    bringToFrontById(detail.widgetId);
   }
 
   // ── Canvas Context Menu ──
@@ -814,6 +869,9 @@
       });
       resizeObserver.observe(canvasEl);
     }
+
+    window.addEventListener("spire:canvas:focus-widget", handleCanvasFocusRequest as EventListener);
+    nudgeCanvasRendering();
   });
 
   onDestroy(() => {
@@ -826,11 +884,15 @@
     unsubCanvasItems();
     resizeObserver?.disconnect();
     detachWindowGrabListeners();
+    if (repaintKickHandle !== null) {
+      cancelAnimationFrame(repaintKickHandle);
+    }
     window.removeEventListener("keydown", handleKeyDown);
     window.removeEventListener("keyup", handleKeyUp);
     window.removeEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
     window.removeEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
     window.removeEventListener("spire:canvas:select-all", handleSelectAll as EventListener);
+    window.removeEventListener("spire:canvas:focus-widget", handleCanvasFocusRequest as EventListener);
   });
 </script>
 
@@ -844,7 +906,10 @@
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
   on:wheel={handleWheel}
+  on:dragover={handleCanvasDragOver}
+  on:drop={handleCanvasDrop}
   on:contextmenu={handleCanvasContextMenu}
+  data-tour-id="canvas-workspace"
   role="application"
   aria-label="Infinite Canvas Workspace"
   tabindex="-1"
@@ -882,7 +947,10 @@
             height: {item.height}px;
             z-index: {zIndexOf(item)};
           "
+          data-canvas-item-id={item.id}
+          on:pointerdown|capture={() => selectWidget(item)}
           on:mousedown|capture={() => selectWidget(item)}
+          on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           role="group"
           aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
@@ -892,6 +960,7 @@
             <header
               class="cw-header"
               on:mousedown={(e) => handleWidgetDragStart(e, item)}
+              on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
               role="toolbar"
               tabindex="-1"
               aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} controls"

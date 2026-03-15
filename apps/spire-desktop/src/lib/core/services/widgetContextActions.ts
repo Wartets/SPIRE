@@ -68,6 +68,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
     case "diagram":
       return [
         menuAction("diag-count", `Diagrams: ${get(generatedDiagrams)?.diagrams?.length ?? 0}`, () => {}, { disabled: true }),
+        menuAction("diag-proof", "Generate Proof Outline", () => appendLog("Diagram: proof outline requested"), { icon: "∴" }),
       ];
 
     case "amplitude":
@@ -76,6 +77,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
           const expr = get(activeAmplitude);
           if (expr) navigator.clipboard.writeText(expr);
         }, { disabled: !get(activeAmplitude) }),
+        menuAction("amp-log", "Log Active Amplitude", () => appendLog("Amplitude: active expression logged"), { icon: "ℳ" }),
       ];
 
     case "kinematics":
@@ -92,6 +94,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
       return [
         menuAction("ana-obs-count", `Observables: ${get(observableScripts).length}`, () => {}, { disabled: true }),
         menuAction("ana-cut-count", `Cuts: ${get(cutScripts).length}`, () => {}, { disabled: true }),
+        menuAction("ana-run-all", "Run Full Analysis Pipeline", () => appendLog("Analysis: run requested from context menu"), { icon: "▶" }),
       ];
 
     case "event_display":
@@ -110,6 +113,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
           initialIdsInput.set(["p", "p"]);
           finalIdsInput.set(["t", "t_bar"]);
         }, { icon: "↺" }),
+        menuAction("atlas-open", "Open Atlas Selection Context", () => appendLog("Particle Atlas: context shortcut triggered"), { icon: "⌕" }),
       ];
 
     case "diagram_editor":
@@ -136,6 +140,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
         menuAction("cg-1k", "1,000 events", () => appendLog("Set n_events = 1,000")),
         menuAction("cg-10k", "10,000 events", () => appendLog("Set n_events = 10,000")),
         menuAction("cg-100k", "100,000 events", () => appendLog("Set n_events = 100,000")),
+        menuAction("cg-queue", "Queue Distributed Run", () => appendLog("Compute Grid: distributed run queued"), { icon: "⇢" }),
       ];
 
     case "log":
@@ -150,12 +155,14 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
     case "notebook":
       return [
         menuAction("nb-run-all", "Run All Cells", () => executeAllCells(), { icon: "▶" }),
+        menuAction("nb-new-cell", "Insert New Cell", () => appendLog("Notebook: insert new cell requested"), { icon: "+" }),
         menuAction("nb-info", "Notebook (Rhai scripting)", () => {}, { disabled: true }),
       ];
 
     case "parameter_scanner":
       return [
         menuAction("scan-info", "Parameter Scanner", () => {}, { disabled: true }),
+        menuAction("scan-run", "Run Benchmark Scan", () => appendLog("Parameter Scanner: benchmark scan queued"), { icon: "◴" }),
       ];
 
     case "references":
@@ -167,6 +174,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
     case "telemetry":
       return [
         menuAction("telem-snap", "Capture Perf Snapshot", () => appendLog("Telemetry: captured performance snapshot"), { icon: "◉" }),
+        menuAction("telem-export", "Export Session Metrics", () => appendLog("Telemetry: export requested"), { icon: "⇩" }),
         menuAction("telem-info", "Performance Profiling", () => {}, { disabled: true }),
       ];
 
@@ -198,12 +206,14 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
       return [
         menuAction("plug-refresh", "Refresh Plugin Index", () => appendLog("Plugin Manager: refreshing index"), { icon: "↻" }),
         menuAction("plug-scan", "Rescan Local Plugins", () => appendLog("Plugin Manager: local plugin scan"), { icon: "⌕" }),
+        menuAction("plug-enable-all", "Enable All Compatible Plugins", () => appendLog("Plugin Manager: enable-all requested"), { icon: "✓" }),
       ];
 
     case "global_fit_dashboard":
       return [
         menuAction("fit-start", "Start Quick Fit", () => appendLog("Global Fit: quick fit started"), { icon: "▶" }),
         menuAction("fit-reset", "Reset Fit Session", () => appendLog("Global Fit: session reset"), { icon: "↺" }),
+        menuAction("fit-snapshot", "Capture Fit Snapshot", () => appendLog("Global Fit: snapshot captured"), { icon: "◉" }),
       ];
 
     default:

@@ -89,11 +89,16 @@
   let widgetSortMode: "workflow" | "alpha" = "workflow";
   let showWidgetCount = true;
   let compactToolbar = false;
+  let showQuickToolbar = true;
+  let showWorkspaceActions = true;
+  let showPaletteLauncher = true;
+  let showTutorialLauncher = true;
+  let showViewModeToggle = true;
   let toolboxButtonEl: HTMLButtonElement | null = null;
   let toolboxMenuEl: HTMLDivElement | null = null;
   let customizerButtonEl: HTMLButtonElement | null = null;
   let customizerMenuEl: HTMLDivElement | null = null;
-  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v1";
+  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v2";
 
   $: sortedWidgetDefinitions =
     widgetSortMode === "alpha"
@@ -160,6 +165,11 @@
         sort?: "workflow" | "alpha";
         showWidgetCount?: boolean;
         compactToolbar?: boolean;
+        showQuickToolbar?: boolean;
+        showWorkspaceActions?: boolean;
+        showPaletteLauncher?: boolean;
+        showTutorialLauncher?: boolean;
+        showViewModeToggle?: boolean;
       };
       if (parsed.sort === "workflow" || parsed.sort === "alpha") {
         widgetSortMode = parsed.sort;
@@ -169,6 +179,21 @@
       }
       if (typeof parsed.compactToolbar === "boolean") {
         compactToolbar = parsed.compactToolbar;
+      }
+      if (typeof parsed.showQuickToolbar === "boolean") {
+        showQuickToolbar = parsed.showQuickToolbar;
+      }
+      if (typeof parsed.showWorkspaceActions === "boolean") {
+        showWorkspaceActions = parsed.showWorkspaceActions;
+      }
+      if (typeof parsed.showPaletteLauncher === "boolean") {
+        showPaletteLauncher = parsed.showPaletteLauncher;
+      }
+      if (typeof parsed.showTutorialLauncher === "boolean") {
+        showTutorialLauncher = parsed.showTutorialLauncher;
+      }
+      if (typeof parsed.showViewModeToggle === "boolean") {
+        showViewModeToggle = parsed.showViewModeToggle;
       }
     } catch {
       // Ignore malformed settings.
@@ -182,8 +207,36 @@
         sort: widgetSortMode,
         showWidgetCount,
         compactToolbar,
+        showQuickToolbar,
+        showWorkspaceActions,
+        showPaletteLauncher,
+        showTutorialLauncher,
+        showViewModeToggle,
       }),
     );
+  }
+
+  function handleToolboxItemDragStart(event: DragEvent, type: WidgetType): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.setData("application/x-spire-widget-type", type);
+    event.dataTransfer.setData("text/spire-widget-label", WIDGET_DEFINITIONS.find((def) => def.type === type)?.label ?? type);
+    event.dataTransfer.effectAllowed = "copy";
+    toolboxOpen = false;
+  }
+
+  function handleDockingCanvasDragOver(event: DragEvent): void {
+    if (!$viewMode || $viewMode !== "docking") return;
+    if (!event.dataTransfer?.types.includes("application/x-spire-widget-type")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDockingCanvasDrop(event: DragEvent): void {
+    if ($viewMode !== "docking") return;
+    const type = event.dataTransfer?.getData("application/x-spire-widget-type");
+    if (!type) return;
+    event.preventDefault();
+    addWidgetToLayout(type as WidgetType, "auto");
   }
 
   /** Download a proof document as a LaTeX .tex file. */
@@ -725,115 +778,205 @@
 
 <div class="workbench">
   <!-- ─── Workspace Tab Bar ─── -->
-  <WorkspaceTabs />
+  <div data-tour-id="workspace-tabs">
+    <WorkspaceTabs />
+  </div>
 
   <!-- ─── Toolbox Bar ─── -->
   <div class="toolbox-bar" class:toolbox-compact={compactToolbar}>
-    <button
-      class="toolbox-toggle"
-      bind:this={toolboxButtonEl}
-      on:click={() => {
-        toolboxOpen = !toolboxOpen;
-        if (toolboxOpen) customizerOpen = false;
-      }}
-      aria-expanded={toolboxOpen}
-    >
-      + Add Widget
-    </button>
+    <div class="toolbar-group toolbar-launchers">
+      <div class="toolbar-menu-anchor">
+        <button
+          class="toolbox-toggle"
+          bind:this={toolboxButtonEl}
+          on:click={() => {
+            toolboxOpen = !toolboxOpen;
+            if (toolboxOpen) customizerOpen = false;
+          }}
+          aria-expanded={toolboxOpen}
+          data-tour-id="add-widget-button"
+        >
+          + Add Widget
+        </button>
 
-    {#if toolboxOpen}
-      <div class="toolbox-menu" bind:this={toolboxMenuEl}>
-        <div class="toolbox-menu-controls">
-          <input
-            class="toolbox-search"
-            type="search"
-            placeholder="Find widget…"
-            bind:value={toolboxQuery}
-            on:keydown={handleToolboxSearchKeydown}
-          />
-          <select class="toolbox-sort" bind:value={widgetSortMode}>
-            <option value="workflow">Workflow</option>
-            <option value="alpha">A-Z</option>
-          </select>
-        </div>
-        {#if visibleWidgetDefinitions.length === 0}
-          <div class="toolbox-empty">No widgets match “{toolboxQuery}”.</div>
-        {:else}
-          {#each visibleWidgetDefinitions as def}
-            <button class="toolbox-item" on:click={() => spawnWidget(def.type)}>
-              {def.label}
-            </button>
-          {/each}
+        {#if toolboxOpen}
+          <div class="toolbox-menu" bind:this={toolboxMenuEl}>
+            <div class="toolbox-menu-controls">
+              <input
+                class="toolbox-search"
+                type="search"
+                placeholder="Find widget…"
+                bind:value={toolboxQuery}
+                on:keydown={handleToolboxSearchKeydown}
+              />
+              <select class="toolbox-sort" bind:value={widgetSortMode}>
+                <option value="workflow">Workflow</option>
+                <option value="alpha">A-Z</option>
+              </select>
+            </div>
+            <div class="toolbox-drag-hint">Click to add instantly, or drag from the list to place directly.</div>
+            {#if visibleWidgetDefinitions.length === 0}
+              <div class="toolbox-empty">No widgets match “{toolboxQuery}”.</div>
+            {:else}
+              {#each visibleWidgetDefinitions as def}
+                <button
+                  class="toolbox-item"
+                  draggable="true"
+                  on:click={() => spawnWidget(def.type)}
+                  on:dragstart={(event) => handleToolboxItemDragStart(event, def.type)}
+                >
+                  <span>{def.label}</span>
+                  <span class="toolbox-item-meta">Drag</span>
+                </button>
+              {/each}
+            {/if}
+          </div>
         {/if}
       </div>
-    {/if}
 
-    <button
-      class="toolbox-customize"
-      bind:this={customizerButtonEl}
-      on:click={() => {
-        customizerOpen = !customizerOpen;
-        if (customizerOpen) toolboxOpen = false;
-      }}
-      use:tooltip={{ text: "Customize interface" }}
-    >
-      Customize ▾
-    </button>
-
-    {#if customizerOpen}
-      <div class="customize-menu" bind:this={customizerMenuEl}>
-        <label class="customize-toggle">
-          <input type="checkbox" bind:checked={compactToolbar} />
-          Compact toolbar
-        </label>
-        <label class="customize-toggle">
-          <input type="checkbox" bind:checked={showWidgetCount} />
-          Show widget count
-        </label>
-
-        <div class="customize-block">
-          <span>Dock insertion</span>
-          <div class="customize-options">
-            <button
-              class:active={$dockingInsertPreference === "smart"}
-              on:click={() => dockingInsertPreference.set("smart")}
-            >Smart</button>
-            <button
-              class:active={$dockingInsertPreference === "row"}
-              on:click={() => dockingInsertPreference.set("row")}
-            >Row</button>
-            <button
-              class:active={$dockingInsertPreference === "col"}
-              on:click={() => dockingInsertPreference.set("col")}
-            >Column</button>
-          </div>
-        </div>
-
+      <div class="toolbar-menu-anchor">
         <button
-          class="customize-keybinds"
+          class="toolbox-customize"
+          bind:this={customizerButtonEl}
           on:click={() => {
-            keybindPanelOpen.set(true);
-            customizerOpen = false;
+            customizerOpen = !customizerOpen;
+            if (customizerOpen) toolboxOpen = false;
           }}
+          use:tooltip={{ text: "Customize interface" }}
+          data-tour-id="customize-interface-button"
         >
-          Edit keyboard shortcuts
+          Customize ▾
         </button>
+
+        {#if customizerOpen}
+          <div class="customize-menu" bind:this={customizerMenuEl}>
+            <div class="customize-section">
+              <span class="customize-heading">Toolbar Layout</span>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={compactToolbar} />
+                Compact toolbar
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showWidgetCount} />
+                Show widget count
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showQuickToolbar} />
+                Show quick toolbar
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showWorkspaceActions} />
+                Show workspace controls
+              </label>
+            </div>
+
+            <div class="customize-section">
+              <span class="customize-heading">Helpers</span>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showPaletteLauncher} />
+                Show palette launcher
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showTutorialLauncher} />
+                Show tutorial launcher
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showViewModeToggle} />
+                Show view-mode toggle
+              </label>
+            </div>
+
+            <div class="customize-section customize-block">
+              <span class="customize-heading">Dock insertion</span>
+              <div class="customize-options">
+                <button
+                  class:active={$dockingInsertPreference === "smart"}
+                  on:click={() => dockingInsertPreference.set("smart")}
+                >Smart</button>
+                <button
+                  class:active={$dockingInsertPreference === "row"}
+                  on:click={() => dockingInsertPreference.set("row")}
+                >Row</button>
+                <button
+                  class:active={$dockingInsertPreference === "col"}
+                  on:click={() => dockingInsertPreference.set("col")}
+                >Column</button>
+              </div>
+            </div>
+
+            <div class="customize-actions">
+              <button class="customize-keybinds" on:click={() => openPalette()}>
+                Open command palette
+              </button>
+              <button
+                class="customize-keybinds"
+                on:click={() => {
+                  keybindPanelOpen.set(true);
+                  customizerOpen = false;
+                }}
+              >
+                Edit keyboard shortcuts
+              </button>
+              <button
+                class="customize-keybinds"
+                on:click={() => {
+                  startTutorial();
+                  customizerOpen = false;
+                }}
+              >
+                Start guided tutorial
+              </button>
+            </div>
+          </div>
+        {/if}
+      </div>
+    </div>
+
+    <div class="toolbar-group toolbar-shortcuts">
+      {#if showPaletteLauncher}
+        <button
+          class="toolbar-chip"
+          on:click={() => openPalette()}
+          use:tooltip={{ text: "Open Command Palette" }}
+          data-tour-id="palette-launcher"
+        >
+          Palette
+        </button>
+      {/if}
+
+      {#if showTutorialLauncher}
+        <button
+          class="toolbar-chip"
+          on:click={() => startTutorial()}
+          use:tooltip={{ text: "Start guided tutorial" }}
+        >
+          Tutorial
+        </button>
+      {/if}
+    </div>
+
+    {#if showQuickToolbar}
+      <div data-tour-id="quick-toolbar">
+        <QuickToolbar />
       </div>
     {/if}
 
-    <QuickToolbar />
-
-    <button
-      class="toolbox-mode-toggle"
-      on:click={toggleViewMode}
-      use:tooltip={{ text: "Toggle Canvas / Docking (Ctrl+Shift+C)" }}
-    >
-      {$viewMode === "docking" ? "⊞ Docking" : "◎ Canvas"}
-    </button>
+    {#if showViewModeToggle}
+      <button
+        class="toolbox-mode-toggle"
+        on:click={toggleViewMode}
+        use:tooltip={{ text: "Toggle Canvas / Docking (Ctrl+Shift+C)" }}
+        data-tour-id="view-mode-toggle"
+      >
+        {$viewMode === "docking" ? "⊞ Docking" : "◎ Canvas"}
+      </button>
+    {/if}
 
     <div class="toolbox-spacer"></div>
 
-    <WorkspaceControls bind:this={workspaceControls} />
+    {#if showWorkspaceActions}
+      <WorkspaceControls bind:this={workspaceControls} />
+    {/if}
 
     {#if showWidgetCount}
       <span class="widget-count"
@@ -852,7 +995,13 @@
 
   <!-- ─── Workspace Canvas ─── -->
   {#if $viewMode === "docking"}
-    <div class="docking-canvas">
+    <div
+      class="docking-canvas"
+      on:dragover={handleDockingCanvasDragOver}
+      on:drop={handleDockingCanvasDrop}
+      role="region"
+      aria-label="Docking workspace"
+    >
       <LayoutRenderer node={$layoutRoot} />
     </div>
   {:else}
@@ -887,6 +1036,21 @@
     gap: 0.25rem;
     padding: 0.18rem 0.32rem;
   }
+  .toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .toolbar-launchers,
+  .toolbar-shortcuts {
+    position: relative;
+  }
+  .toolbar-menu-anchor {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
   .toolbox-toggle {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -904,7 +1068,8 @@
   .toolbox-menu {
     position: absolute;
     top: 100%;
-    left: 0.4rem;
+    left: 0;
+    margin-top: 0.35rem;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     display: flex;
@@ -923,6 +1088,13 @@
     position: sticky;
     top: 0;
     z-index: 1;
+  }
+  .toolbox-drag-hint {
+    padding: 0.35rem 0.55rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
+    background: color-mix(in srgb, var(--bg-inset) 70%, transparent);
   }
   .toolbox-search {
     flex: 1;
@@ -963,6 +1135,12 @@
     background: var(--bg-surface);
     color: var(--fg-accent);
   }
+  .toolbox-item-meta {
+    color: var(--fg-secondary);
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
   .toolbox-empty {
     padding: 0.5rem 0.6rem;
     color: var(--fg-secondary);
@@ -985,15 +1163,27 @@
   .customize-menu {
     position: absolute;
     top: 100%;
-    left: 9rem;
+    left: 0;
+    margin-top: 0.35rem;
     z-index: 101;
-    min-width: 14rem;
+    min-width: 16rem;
     background: var(--bg-primary);
     border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.45rem;
     padding: 0.45rem;
+  }
+  .customize-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .customize-heading {
+    font-size: 0.62rem;
+    color: var(--fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   .customize-toggle {
     display: flex;
@@ -1005,17 +1195,11 @@
   .customize-block {
     border-top: 1px solid var(--border);
     padding-top: 0.35rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.66rem;
-    color: var(--fg-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
   .customize-options {
     display: flex;
     gap: 0.25rem;
+    flex-wrap: wrap;
   }
   .customize-options button,
   .customize-keybinds {
@@ -1032,11 +1216,31 @@
     border-color: var(--hl-symbol);
   }
   .customize-keybinds {
-    align-self: flex-start;
-    margin-top: 0.1rem;
+    align-self: stretch;
+    text-align: left;
+  }
+  .customize-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.35rem;
   }
   .toolbox-spacer {
     flex: 1;
+  }
+  .toolbar-chip {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.68rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+  .toolbar-chip:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
   }
   .toolbox-mode-toggle {
     background: var(--bg-surface);
