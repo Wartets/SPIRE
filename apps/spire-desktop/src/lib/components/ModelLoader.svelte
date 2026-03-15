@@ -8,7 +8,7 @@
   result to the theoreticalModel store.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { theoreticalModel, appendLog, activeFramework } from "$lib/stores/physicsStore";
   import { loadModel, exportModelUfo } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
@@ -23,6 +23,10 @@
     verticesTomlInput,
     modelNameInput,
   } from "$lib/stores/workspaceInputsStore";
+  import {
+    getWidgetUiSnapshot,
+    setWidgetUiSnapshot,
+  } from "$lib/stores/workspaceStore";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   // ---------------------------------------------------------------------------
@@ -38,6 +42,13 @@
   let vertexCount: number = 0;
   let isCustom: boolean = false;
   let savedIndicator: string = "";
+  let rootScroller: HTMLDivElement | null = null;
+
+  const MODEL_LOADER_UI_KEY = "model-loader";
+
+  function persistModelLoaderUi(patch: Record<string, unknown>): void {
+    setWidgetUiSnapshot(MODEL_LOADER_UI_KEY, patch);
+  }
 
   // ---------------------------------------------------------------------------
   // Lifecycle: restore custom data from LocalStorage on mount
@@ -67,9 +78,31 @@
     if ($activeFramework === "Custom") {
       activateCustomMode();
     }
+
+    const restoreUi = async (): Promise<void> => {
+      const snapshot = getWidgetUiSnapshot<{ showEditors?: boolean; scrollTop?: number }>(
+        MODEL_LOADER_UI_KEY,
+      );
+      if (!snapshot) return;
+
+      if (typeof snapshot.showEditors === "boolean") {
+        showEditors = snapshot.showEditors;
+      }
+
+      await tick();
+      if (rootScroller && typeof snapshot.scrollTop === "number") {
+        rootScroller.scrollTop = snapshot.scrollTop;
+      }
+    };
+
+    void restoreUi();
   });
 
   onDestroy(() => {
+    if (scrollPersistRaf !== null) {
+      cancelAnimationFrame(scrollPersistRaf);
+      scrollPersistRaf = null;
+    }
     for (const id of MODEL_CMD_IDS) unregisterCommand(id);
   });
 
@@ -163,6 +196,19 @@
   /** Toggle between showing/hiding TOML editors (always shown in custom mode). */
   let showEditors: boolean = false;
 
+  $: persistModelLoaderUi({ showEditors });
+
+  let scrollPersistRaf: number | null = null;
+
+  function handleRootScroll(): void {
+    if (!rootScroller) return;
+    if (scrollPersistRaf !== null) cancelAnimationFrame(scrollPersistRaf);
+    scrollPersistRaf = requestAnimationFrame(() => {
+      scrollPersistRaf = null;
+      persistModelLoaderUi({ scrollTop: rootScroller?.scrollTop ?? 0 });
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // UFO Export
   // ---------------------------------------------------------------------------
@@ -244,7 +290,12 @@
 `;
 </script>
 
-<div class="model-loader" data-tour-id="model-loader">
+<div
+  class="model-loader"
+  data-tour-id="model-loader"
+  bind:this={rootScroller}
+  on:scroll={handleRootScroll}
+>
   <h3>Model Loader</h3>
 
   <!-- Framework Selector -->

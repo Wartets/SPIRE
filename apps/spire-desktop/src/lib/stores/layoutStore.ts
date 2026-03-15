@@ -127,7 +127,11 @@ export type ViewMode = "docking" | "canvas";
 export interface Workspace {
   id: string;
   name: string;
+  description: string;
   color: string;
+  createdAt: string;
+  updatedAt: string;
+  autoDescription: boolean;
   dockingRoot: LayoutNode;
   canvasItemList: CanvasItem[];
   viewport: CanvasViewport;
@@ -1080,10 +1084,15 @@ function randomWorkspaceColor(): string {
 }
 
 function createWorkspace(name: string, color?: string): Workspace {
+  const now = new Date().toISOString();
   return {
     id: makeWorkspaceId(),
     name,
+    description: "Untitled workspace",
     color: color ?? randomWorkspaceColor(),
+    createdAt: now,
+    updatedAt: now,
+    autoDescription: true,
     dockingRoot: createDefaultLayout(),
     canvasItemList: [],
     viewport: { panX: 0, panY: 0, zoom: 1 },
@@ -1170,6 +1179,7 @@ export function saveCurrentWorkspaceState(): void {
             canvasItemList: get(canvasItems),
             viewport: get(canvasViewport),
             mode: get(viewMode),
+            updatedAt: new Date().toISOString(),
           }
         : ws,
     ),
@@ -1196,14 +1206,50 @@ export function removeWorkspace(wsId: string): void {
 /** Rename a workspace. */
 export function renameWorkspace(wsId: string, name: string): void {
   workspaces.update((list) =>
-    list.map((ws) => (ws.id === wsId ? { ...ws, name } : ws)),
+    list.map((ws) =>
+      ws.id === wsId
+        ? {
+            ...ws,
+            name,
+            updatedAt: new Date().toISOString(),
+          }
+        : ws,
+    ),
+  );
+}
+
+/** Set a workspace description and optionally keep it auto-managed. */
+export function setWorkspaceDescription(
+  wsId: string,
+  description: string,
+  autoDescription = false,
+): void {
+  workspaces.update((list) =>
+    list.map((ws) =>
+      ws.id === wsId
+        ? {
+            ...ws,
+            description,
+            autoDescription,
+            updatedAt: new Date().toISOString(),
+          }
+        : ws,
+    ),
   );
 }
 
 /** Change a workspace's accent colour. */
 export function setWorkspaceColor(wsId: string, color: string): void {
   workspaces.update((list) =>
-    list.map((ws) => (ws.id === wsId ? { ...ws, color } : ws)),
+    list.map((ws) =>
+      ws.id === wsId
+        ? {
+            ...ws,
+            color,
+            updatedAt: new Date().toISOString(),
+          }
+        : ws,
+    ),
   );
 }
 
@@ -1218,6 +1264,8 @@ export function duplicateWorkspace(wsId: string): void {
     id: makeWorkspaceId(),
     name: `${src.name} (copy)`,
     color: randomWorkspaceColor(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   };
   workspaces.update((list) => [...list, newWs]);
   switchWorkspace(newWs.id);

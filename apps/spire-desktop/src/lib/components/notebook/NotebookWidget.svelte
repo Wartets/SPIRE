@@ -10,8 +10,12 @@
   creates its own backend Rhai session on first execution.
 -->
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import type { CellType } from "$lib/core/domain/notebook";
+  import {
+    getWidgetUiSnapshot,
+    setWidgetUiSnapshot,
+  } from "$lib/stores/workspaceStore";
   import {
     notebookDocument,
     cellCount,
@@ -106,6 +110,26 @@
     insertCell(e.detail.type as CellType, e.detail.index);
   }
 
+  // ── UI Snapshot Persistence ──
+
+  const NOTEBOOK_UI_KEY = "notebook";
+  let cellsScroller: HTMLDivElement | null = null;
+
+  function persistNotebookUi(patch: Record<string, unknown>): void {
+    setWidgetUiSnapshot(NOTEBOOK_UI_KEY, patch);
+  }
+
+  let scrollPersistRaf: number | null = null;
+
+  function handleCellsScroll(): void {
+    if (!cellsScroller) return;
+    if (scrollPersistRaf !== null) cancelAnimationFrame(scrollPersistRaf);
+    scrollPersistRaf = requestAnimationFrame(() => {
+      scrollPersistRaf = null;
+      persistNotebookUi({ scrollTop: cellsScroller?.scrollTop ?? 0 });
+    });
+  }
+
   // ── Add Cell ──
 
   let showAddMenu = false;
@@ -115,9 +139,31 @@
     showAddMenu = false;
   }
 
+  $: persistNotebookUi({ showAddMenu });
+
+  onMount(async () => {
+    const snapshot = getWidgetUiSnapshot<{ scrollTop?: number; showAddMenu?: boolean }>(
+      NOTEBOOK_UI_KEY,
+    );
+    if (!snapshot) return;
+
+    if (typeof snapshot.showAddMenu === "boolean") {
+      showAddMenu = snapshot.showAddMenu;
+    }
+
+    await tick();
+    if (cellsScroller && typeof snapshot.scrollTop === "number") {
+      cellsScroller.scrollTop = snapshot.scrollTop;
+    }
+  });
+
   // ── Cleanup ──
 
   onDestroy(() => {
+    if (scrollPersistRaf !== null) {
+      cancelAnimationFrame(scrollPersistRaf);
+      scrollPersistRaf = null;
+    }
     destroySession();
   });
 </script>
@@ -150,7 +196,7 @@
   </header>
 
   <!-- Cell List -->
-  <div class="nb-cells">
+  <div class="nb-cells" bind:this={cellsScroller} on:scroll={handleCellsScroll}>
     {#each $notebookDocument.cells as cell, idx (cell.id)}
       <CellRenderer
         {cell}

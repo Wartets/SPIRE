@@ -34,6 +34,11 @@
   import { tutorialActive } from "$lib/core/services/TutorialService";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { activeWorkspace } from "$lib/stores/layoutStore";
+  import {
+    initWorkspacePersistence,
+    destroyWorkspacePersistence,
+    workspacePersistenceHydrated,
+  } from "$lib/stores/workspaceStore";
   import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
@@ -67,6 +72,7 @@
     window.location.pathname.startsWith("/window");
 
   onMount(async () => {
+    initWorkspacePersistence();
     initShortcutService();
     window.addEventListener("contextmenu", handleGlobalContextMenu);
 
@@ -79,6 +85,7 @@
 
   onDestroy(() => {
     destroyShortcutService();
+    destroyWorkspacePersistence();
     window.removeEventListener("contextmenu", handleGlobalContextMenu);
     stopMainSync?.();
   });
@@ -172,7 +179,11 @@
 
   <!-- Main Content Area -->
   <main class="main-content">
-    <slot />
+    {#if $workspacePersistenceHydrated}
+      <slot />
+    {:else}
+      <div class="boot-status">Restoring workspace state…</div>
+    {/if}
   </main>
 </div>
 
@@ -414,6 +425,16 @@
     min-height: 0;
     min-width: 0;
     max-width: 100vw;
+  }
+
+  .boot-status {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: var(--fg-secondary);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
   }
 
   /* ── Responsive: small viewports ─────────────────────────── */
