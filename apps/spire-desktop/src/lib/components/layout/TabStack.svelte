@@ -10,7 +10,13 @@
 -->
 <script lang="ts">
   import type { StackNode, LayoutNode } from "$lib/stores/layoutStore";
-  import { setActiveTab, closeNode } from "$lib/stores/layoutStore";
+  import {
+    setActiveTab,
+    closeNode,
+    reorderTabsInStack,
+    moveTabToStack,
+    splitTabToEdge,
+  } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
 
   export let node: StackNode;
@@ -32,17 +38,120 @@
     closeNode(child.id);
   }
 
+  type EdgeDrop = "left" | "right" | "top" | "bottom";
+
+  interface DragPayload {
+    sourceStackId: string;
+    sourceIndex: number;
+    widgetId: string;
+  }
+
+  const MIME = "application/x-spire-tab";
+
+  let hoverEdge: EdgeDrop | null = null;
+
+  function makePayload(index: number): DragPayload {
+    return {
+      sourceStackId: node.id,
+      sourceIndex: index,
+      widgetId: node.children[index]?.id ?? "",
+    };
+  }
+
+  function writePayload(event: DragEvent, payload: DragPayload): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.effectAllowed = "move";
+    const encoded = JSON.stringify(payload);
+    event.dataTransfer.setData(MIME, encoded);
+    event.dataTransfer.setData("text/plain", encoded);
+  }
+
+  function readPayload(event: DragEvent): DragPayload | null {
+    const raw = event.dataTransfer?.getData(MIME) || event.dataTransfer?.getData("text/plain");
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as DragPayload;
+      if (!parsed.sourceStackId || typeof parsed.sourceIndex !== "number") return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function handleTabDragStart(event: DragEvent, index: number): void {
+    writePayload(event, makePayload(index));
+  }
+
+  function handleTabDrop(event: DragEvent, targetIndex: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const payload = readPayload(event);
+    if (!payload) return;
+
+    if (payload.sourceStackId === node.id) {
+      reorderTabsInStack(node.id, payload.sourceIndex, targetIndex);
+      return;
+    }
+
+    moveTabToStack(payload.sourceStackId, payload.sourceIndex, node.id, targetIndex);
+  }
+
+  function handleTabBarDrop(event: DragEvent): void {
+    event.preventDefault();
+    const payload = readPayload(event);
+    if (!payload) return;
+    moveTabToStack(payload.sourceStackId, payload.sourceIndex, node.id, node.children.length);
+  }
+
+  function allowDrop(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+  }
+
+  function handleEdgeDragOver(event: DragEvent, edge: EdgeDrop): void {
+    allowDrop(event);
+    hoverEdge = edge;
+  }
+
+  function clearEdgeHover(): void {
+    hoverEdge = null;
+  }
+
+  function handleEdgeDrop(event: DragEvent, edge: EdgeDrop): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const payload = readPayload(event);
+    if (!payload) {
+      hoverEdge = null;
+      return;
+    }
+    splitTabToEdge(payload.sourceStackId, payload.sourceIndex, node.id, edge);
+    hoverEdge = null;
+  }
+
   $: activeIndex = Math.min(node.activeIndex, node.children.length - 1);
   $: activeChild = node.children[activeIndex] ?? null;
 </script>
 
 <div class="tab-stack">
-  <div class="tab-bar">
+  <div
+    class="tab-bar"
+    on:dragover={allowDrop}
+    on:drop={handleTabBarDrop}
+    role="tablist"
+    tabindex="-1"
+  >
     {#each node.children as child, i}
       <button
         class="tab-btn"
         class:active={i === activeIndex}
         on:click={() => handleSelectTab(i)}
+        draggable="true"
+        on:dragstart={(e) => handleTabDragStart(e, i)}
+        on:dragover={allowDrop}
+        on:drop={(e) => handleTabDrop(e, i)}
         title={getTabLabel(child)}
       >
         <span class="tab-label">{getTabLabel(child)}</span>
@@ -57,7 +166,40 @@
       </button>
     {/each}
   </div>
-  <div class="tab-content">
+  <div class="tab-content" on:dragleave={clearEdgeHover} role="region">
+    <div
+      class="edge-drop edge-left"
+      class:edge-active={hoverEdge === "left"}
+      on:dragover={(e) => handleEdgeDragOver(e, "left")}
+      on:drop={(e) => handleEdgeDrop(e, "left")}
+      role="button"
+      tabindex="-1"
+    ></div>
+    <div
+      class="edge-drop edge-right"
+      class:edge-active={hoverEdge === "right"}
+      on:dragover={(e) => handleEdgeDragOver(e, "right")}
+      on:drop={(e) => handleEdgeDrop(e, "right")}
+      role="button"
+      tabindex="-1"
+    ></div>
+    <div
+      class="edge-drop edge-top"
+      class:edge-active={hoverEdge === "top"}
+      on:dragover={(e) => handleEdgeDragOver(e, "top")}
+      on:drop={(e) => handleEdgeDrop(e, "top")}
+      role="button"
+      tabindex="-1"
+    ></div>
+    <div
+      class="edge-drop edge-bottom"
+      class:edge-active={hoverEdge === "bottom"}
+      on:dragover={(e) => handleEdgeDragOver(e, "bottom")}
+      on:drop={(e) => handleEdgeDrop(e, "bottom")}
+      role="button"
+      tabindex="-1"
+    ></div>
+
     {#if activeChild}
       <slot name="child" node={activeChild} />
     {/if}
@@ -136,5 +278,57 @@
     min-height: 0;
     min-width: 0;
     overflow: hidden;
+    position: relative;
+  }
+
+  .edge-drop {
+    position: absolute;
+    z-index: 6;
+  }
+
+  .edge-left,
+  .edge-right {
+    top: 0;
+    bottom: 0;
+    width: 20%;
+  }
+
+  .edge-left {
+    left: 0;
+  }
+
+  .edge-right {
+    right: 0;
+  }
+
+  .edge-top,
+  .edge-bottom {
+    left: 0;
+    right: 0;
+    height: 20%;
+  }
+
+  .edge-top {
+    top: 0;
+  }
+
+  .edge-bottom {
+    bottom: 0;
+  }
+
+  .edge-left.edge-active {
+    border-left: 4px solid var(--hl-symbol);
+  }
+
+  .edge-right.edge-active {
+    border-right: 4px solid var(--hl-symbol);
+  }
+
+  .edge-top.edge-active {
+    border-top: 4px solid var(--hl-symbol);
+  }
+
+  .edge-bottom.edge-active {
+    border-bottom: 4px solid var(--hl-symbol);
   }
 </style>

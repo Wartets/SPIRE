@@ -15,7 +15,7 @@
  */
 
 import type { WidgetType } from "$lib/stores/notebookStore";
-import type { LayoutNode, CanvasItem } from "$lib/stores/layoutStore";
+import type { LayoutNode, CanvasItem, ViewMode } from "$lib/stores/layoutStore";
 import type { TheoreticalFramework } from "./spire";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +69,8 @@ export interface SerializedWidget {
  * placed in whiteboard / infinite-canvas mode.
  */
 export interface WorkspaceLayout {
+  /** Active workbench mode at save time. */
+  mode: ViewMode;
   /** Recursive docking tree (row / col / stack / widget). */
   layoutTree: LayoutNode;
   /** Widgets placed on the infinite canvas. */

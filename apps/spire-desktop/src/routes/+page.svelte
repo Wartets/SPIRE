@@ -45,6 +45,12 @@
     resetWorkspace,
   } from "$lib/services/workspaceManager";
   import {
+    applyLayoutPreset,
+    BUILT_IN_PRESETS,
+    listCustomPresets,
+    saveCurrentLayoutPreset,
+  } from "$lib/services/PresetService";
+  import {
     registerCommand,
     unregisterCommand,
     openPalette,
@@ -170,7 +176,33 @@
     "spire.edit.redo",
     "spire.search.focus",
     "spire.settings.keybinds",
+    "spire.layout.save_preset",
+    "spire.layout.apply.theory-studio",
+    "spire.layout.apply.analysis-focus",
+    "spire.layout.apply.minimal",
   ];
+
+  let dynamicPresetCommandIds: string[] = [];
+
+  function refreshCustomPresetCommands(): void {
+    for (const id of dynamicPresetCommandIds) {
+      unregisterCommand(id);
+    }
+    dynamicPresetCommandIds = [];
+
+    for (const preset of listCustomPresets()) {
+      const id = `spire.layout.apply.custom.${preset.id}`;
+      dynamicPresetCommandIds.push(id);
+      registerCommand({
+        id,
+        title: `Apply Layout Preset: ${preset.name}`,
+        category: "Layout",
+        execute: () => {
+          applyLayoutPreset(preset.id);
+        },
+      });
+    }
+  }
 
   function registerGlobalCommands(): void {
     registerCommand({
@@ -455,12 +487,41 @@
       shortcut: "Mod+K Mod+S",
       execute: () => downloadWorkspace(),
     });
+
+    registerCommand({
+      id: "spire.layout.save_preset",
+      title: "Save Current Layout as Preset",
+      category: "Layout",
+      execute: () => {
+        const name = window.prompt("Preset name:", "My Preset");
+        if (!name) return;
+        saveCurrentLayoutPreset(name);
+        refreshCustomPresetCommands();
+      },
+    });
+
+    for (const builtIn of BUILT_IN_PRESETS) {
+      registerCommand({
+        id: `spire.layout.apply.${builtIn.id}`,
+        title: `Apply Layout Preset: ${builtIn.name}`,
+        category: "Layout",
+        execute: () => {
+          applyLayoutPreset(builtIn.id);
+        },
+      });
+    }
+
+    refreshCustomPresetCommands();
   }
 
   function unregisterGlobalCommands(): void {
     for (const id of GLOBAL_CMD_IDS) {
       unregisterCommand(id);
     }
+    for (const id of dynamicPresetCommandIds) {
+      unregisterCommand(id);
+    }
+    dynamicPresetCommandIds = [];
   }
 
   onMount(() => {

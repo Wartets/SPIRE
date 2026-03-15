@@ -28,6 +28,11 @@
 import { writable, derived, get } from "svelte/store";
 import type { WidgetType } from "./notebookStore";
 import { WIDGET_DEFINITIONS } from "./notebookStore";
+import {
+  inferDockingTreeFromCanvas,
+  runSpatialInferenceSelfChecks,
+  type SpatialDockNode,
+} from "$lib/core/layout/spatialInference";
 
 // ===========================================================================
 // Layout Node Types (JSON-serialisable discriminated union)
@@ -129,6 +134,19 @@ export interface Workspace {
   mode: ViewMode;
 }
 
+/**
+ * Unified in-memory state for layout paradigms.
+ *
+ * `canvasState` and `dockingState` are preserved independently so mode
+ * transitions can restore the last known arrangement for each paradigm.
+ */
+interface LayoutState {
+  mode: ViewMode;
+  canvasState: CanvasItem[];
+  dockingState: LayoutNode;
+  viewport: CanvasViewport;
+}
+
 // ===========================================================================
 // ID Generation
 // ===========================================================================
@@ -213,21 +231,48 @@ export function getDefaultLayout(): LayoutNode {
 // Stores
 // ===========================================================================
 
-/** The root of the recursive layout tree (docking mode). */
-export const layoutRoot = writable<LayoutNode>(createDefaultLayout());
-
-/** Items on the infinite canvas (canvas mode). */
-export const canvasItems = writable<CanvasItem[]>(createDefaultCanvas());
-
-/** Canvas viewport state. */
-export const canvasViewport = writable<CanvasViewport>({
-  panX: 0,
-  panY: 0,
-  zoom: 1,
+const _layoutState = writable<LayoutState>({
+  mode: "docking",
+  canvasState: createDefaultCanvas(),
+  dockingState: createDefaultLayout(),
+  viewport: {
+    panX: 0,
+    panY: 0,
+    zoom: 1,
+  },
 });
 
+function createFieldStore<K extends keyof LayoutState>(key: K) {
+  return {
+    subscribe(run: (value: LayoutState[K]) => void): () => void {
+      return _layoutState.subscribe((state) => run(state[key]));
+    },
+    set(value: LayoutState[K]): void {
+      _layoutState.update((state) => ({
+        ...state,
+        [key]: value,
+      }));
+    },
+    update(updater: (value: LayoutState[K]) => LayoutState[K]): void {
+      _layoutState.update((state) => ({
+        ...state,
+        [key]: updater(state[key]),
+      }));
+    },
+  };
+}
+
+/** The root of the recursive layout tree (docking mode). */
+export const layoutRoot = createFieldStore("dockingState");
+
+/** Items on the infinite canvas (canvas mode). */
+export const canvasItems = createFieldStore("canvasState");
+
+/** Canvas viewport state. */
+export const canvasViewport = createFieldStore("viewport");
+
 /** Current view mode: "docking" or "canvas". */
-export const viewMode = writable<ViewMode>("docking");
+export const viewMode = createFieldStore("mode");
 
 // ===========================================================================
 // Derived Helpers
@@ -472,6 +517,163 @@ export function setActiveTab(stackId: string, index: number): void {
   });
 }
 
+function clampActiveIndex(stack: StackNode): void {
+  if (stack.children.length === 0) {
+    stack.activeIndex = 0;
+    return;
+  }
+  stack.activeIndex = Math.max(0, Math.min(stack.activeIndex, stack.children.length - 1));
+}
+
+function collapseStackIfSingleton(tree: LayoutNode, stackId: string): LayoutNode {
+  const found = findNode(tree, stackId);
+  if (!found || found.node.type !== "stack") return tree;
+
+  const stack = found.node as StackNode;
+  if (stack.children.length !== 1) return tree;
+
+  if (tree.id === stackId) {
+    return stack.children[0];
+  }
+
+  replaceNode(tree, stackId, stack.children[0]);
+  return tree;
+}
+
+/** Reorder tabs within the same stack. */
+export function reorderTabsInStack(stackId: string, fromIndex: number, toIndex: number): void {
+  if (fromIndex === toIndex) return;
+
+  layoutRoot.update((root) => {
+    const tree = cloneTree(root);
+    const found = findNode(tree, stackId);
+    if (!found || found.node.type !== "stack") return tree;
+
+    const stack = found.node as StackNode;
+    if (fromIndex < 0 || fromIndex >= stack.children.length) return tree;
+    const clampedTo = Math.max(0, Math.min(toIndex, stack.children.length - 1));
+
+    const [moved] = stack.children.splice(fromIndex, 1);
+    stack.children.splice(clampedTo, 0, moved);
+
+    if (stack.activeIndex === fromIndex) {
+      stack.activeIndex = clampedTo;
+    } else if (fromIndex < stack.activeIndex && clampedTo >= stack.activeIndex) {
+      stack.activeIndex -= 1;
+    } else if (fromIndex > stack.activeIndex && clampedTo <= stack.activeIndex) {
+      stack.activeIndex += 1;
+    }
+    clampActiveIndex(stack);
+
+    return tree;
+  });
+}
+
+/**
+ * Move a tab between stacks or insert into another index in the same stack.
+ */
+export function moveTabToStack(
+  sourceStackId: string,
+  sourceIndex: number,
+  targetStackId: string,
+  targetIndex: number,
+): void {
+  layoutRoot.update((root) => {
+    let tree = cloneTree(root);
+
+    const sourceFound = findNode(tree, sourceStackId);
+    if (!sourceFound || sourceFound.node.type !== "stack") return tree;
+
+    const sourceStack = sourceFound.node as StackNode;
+    if (sourceIndex < 0 || sourceIndex >= sourceStack.children.length) return tree;
+
+    const [movedNode] = sourceStack.children.splice(sourceIndex, 1);
+    if (!movedNode) return tree;
+
+    if (sourceStack.activeIndex >= sourceStack.children.length) {
+      sourceStack.activeIndex = Math.max(0, sourceStack.children.length - 1);
+    }
+
+    if (sourceStack.children.length === 0) {
+      return root;
+    }
+
+    tree = collapseStackIfSingleton(tree, sourceStackId);
+
+    const targetFound = findNode(tree, targetStackId);
+    if (!targetFound || targetFound.node.type !== "stack") return tree;
+
+    const targetStack = targetFound.node as StackNode;
+    const insertAt = Math.max(0, Math.min(targetIndex, targetStack.children.length));
+    targetStack.children.splice(insertAt, 0, movedNode);
+    targetStack.activeIndex = insertAt;
+    clampActiveIndex(targetStack);
+
+    return tree;
+  });
+}
+
+/**
+ * Split a target stack by dropping a source tab to one of its edges.
+ */
+export function splitTabToEdge(
+  sourceStackId: string,
+  sourceIndex: number,
+  targetStackId: string,
+  edge: Exclude<DropPosition, "center">,
+): void {
+  layoutRoot.update((root) => {
+    let tree = cloneTree(root);
+
+    const sourceFound = findNode(tree, sourceStackId);
+    if (!sourceFound || sourceFound.node.type !== "stack") return tree;
+
+    const sourceStack = sourceFound.node as StackNode;
+    if (sourceIndex < 0 || sourceIndex >= sourceStack.children.length) return tree;
+
+    const [movedNode] = sourceStack.children.splice(sourceIndex, 1);
+    if (!movedNode) return tree;
+
+    if (sourceStack.children.length === 0) {
+      return root;
+    }
+
+    clampActiveIndex(sourceStack);
+    tree = collapseStackIfSingleton(tree, sourceStackId);
+
+    const targetFound = findNode(tree, targetStackId);
+    if (!targetFound || targetFound.node.type !== "stack") return tree;
+
+    const targetNode = targetFound.node;
+    const newStack: StackNode = {
+      id: makeLayoutId(),
+      type: "stack",
+      children: [movedNode],
+      activeIndex: 0,
+    };
+
+    const direction: "row" | "col" = edge === "left" || edge === "right" ? "row" : "col";
+    const children: LayoutNode[] =
+      edge === "left" || edge === "top"
+        ? [newStack, targetNode]
+        : [targetNode, newStack];
+
+    const splitContainer: RowNode | ColNode = {
+      id: makeLayoutId(),
+      type: direction,
+      sizes: [1, 1],
+      children,
+    };
+
+    if (tree.id === targetStackId) {
+      return splitContainer;
+    }
+
+    replaceNode(tree, targetStackId, splitContainer);
+    return tree;
+  });
+}
+
 /**
  * Add a new widget to the layout.  Splits the first widget leaf found
  * (depth-first) in the given direction.
@@ -685,6 +887,84 @@ export function clearCanvas(): void {
   canvasViewport.set({ panX: 0, panY: 0, zoom: 1 });
 }
 
+function buildTabNodeFromItems(items: CanvasItem[]): StackNode {
+  const children = items.map((item) =>
+    createWidgetLeaf(item.widgetType, { ...item.widgetData }),
+  );
+  return {
+    id: makeLayoutId(),
+    type: "stack",
+    children,
+    activeIndex: 0,
+  };
+}
+
+function layoutNodeFromSpatial(
+  node: SpatialDockNode,
+  itemById: Map<string, CanvasItem>,
+): LayoutNode {
+  if (node.type === "tab") {
+    const items = node.itemIds
+      .map((id) => itemById.get(id))
+      .filter((item): item is CanvasItem => item !== undefined);
+
+    if (items.length === 0) {
+      return createWidgetLeaf("log");
+    }
+    return buildTabNodeFromItems(items);
+  }
+
+  const children = node.children.map((child) => layoutNodeFromSpatial(child, itemById));
+
+  if (children.length === 1) {
+    return children[0];
+  }
+
+  return {
+    id: makeLayoutId(),
+    type: node.type,
+    children,
+    sizes: children.map(() => 1),
+  } as RowNode | ColNode;
+}
+
+/** Build a docking tree that approximates the current canvas geometry. */
+export function rebuildDockingFromCanvas(items: CanvasItem[]): LayoutNode {
+  if (items.length === 0) {
+    return getDefaultLayout();
+  }
+  const spatial = inferDockingTreeFromCanvas(
+    items.map((item) => ({
+      id: item.id,
+      x: item.x,
+      y: item.y,
+      width: item.width,
+      height: item.height,
+    })),
+  );
+  const index = new Map(items.map((item) => [item.id, item]));
+  return layoutNodeFromSpatial(spatial, index);
+}
+
+if (typeof window !== "undefined") {
+  try {
+    runSpatialInferenceSelfChecks();
+  } catch (error) {
+    console.error("[SPIRE] Spatial inference self-check failed:", error);
+  }
+}
+
+function shouldRebuildDockingFromCanvas(
+  docking: LayoutNode,
+  canvas: CanvasItem[],
+): boolean {
+  if (canvas.length === 0) return false;
+
+  const leaves = collectWidgetLeaves(docking);
+  if (leaves.length === 0) return true;
+  return leaves.length !== canvas.length;
+}
+
 // ===========================================================================
 // View Mode Toggle
 // ===========================================================================
@@ -703,19 +983,19 @@ export function toggleViewMode(): void {
   const current = get(viewMode);
 
   if (current === "docking") {
-    // Switching to Canvas - sync docking widgets into canvas
-    const currentCanvas = get(canvasItems);
-    if (currentCanvas.length === 0) {
+    // Docking -> Canvas: restore preserved canvas state as-is.
+    // If this is the first switch and canvas is empty, seed from docking once.
+    const preservedCanvas = get(canvasItems);
+    if (preservedCanvas.length === 0) {
       const leaves = collectWidgetLeaves(get(layoutRoot));
       const vp = get(canvasViewport);
-      // Arrange in a grid around the viewport center
       const centerX = (-vp.panX + 400) / (vp.zoom || 1);
       const centerY = (-vp.panY + 300) / (vp.zoom || 1);
-      const cols = Math.max(2, Math.ceil(Math.sqrt(leaves.length)));
+      const cols = Math.max(2, Math.ceil(Math.sqrt(Math.max(1, leaves.length))));
       const spacingX = 420;
       const spacingY = 360;
 
-      const newItems: CanvasItem[] = leaves.map((leaf, i) => {
+      const seeded: CanvasItem[] = leaves.map((leaf, i) => {
         const def = WIDGET_DEFINITIONS.find((d) => d.type === leaf.widgetType);
         const w = (def?.defaultColSpan ?? 2) * 200;
         const h = (def?.defaultRowSpan ?? 2) * 160;
@@ -731,51 +1011,18 @@ export function toggleViewMode(): void {
           height: h,
         };
       });
-      canvasItems.set(newItems);
+
+      if (seeded.length > 0) {
+        canvasItems.set(seeded);
+      }
     }
   } else {
-    // Switching to Docking - sync canvas widgets into docking tree
+    // Canvas -> Docking: restore preserved docking state unless stale.
     const currentCanvas = get(canvasItems);
-    if (currentCanvas.length > 0) {
-      // Rebuild a balanced grid layout from the canvas widgets.
-      // Strategy: arrange leaves into rows of up to 3 columns,
-      // then stack the rows vertically.  This mirrors the default
-      // layout aesthetic instead of a flat single-column stack.
-      const leaves = currentCanvas.map((ci) =>
-        createWidgetLeaf(ci.widgetType, { ...ci.widgetData }),
-      );
+    const currentDocking = get(layoutRoot);
 
-      if (leaves.length === 1) {
-        layoutRoot.set(leaves[0]);
-      } else {
-        const COLS = Math.min(3, leaves.length);  // max 3 per row
-        const rows: LayoutNode[] = [];
-
-        for (let i = 0; i < leaves.length; i += COLS) {
-          const rowLeaves = leaves.slice(i, i + COLS);
-          if (rowLeaves.length === 1) {
-            rows.push(rowLeaves[0]);
-          } else {
-            rows.push({
-              id: makeLayoutId(),
-              type: "row",
-              sizes: rowLeaves.map(() => 1),
-              children: rowLeaves,
-            } as RowNode);
-          }
-        }
-
-        if (rows.length === 1) {
-          layoutRoot.set(rows[0]);
-        } else {
-          layoutRoot.set({
-            id: makeLayoutId(),
-            type: "col",
-            sizes: rows.map(() => 1),
-            children: rows,
-          } as ColNode);
-        }
-      }
+    if (shouldRebuildDockingFromCanvas(currentDocking, currentCanvas)) {
+      layoutRoot.set(rebuildDockingFromCanvas(currentCanvas));
     }
   }
 

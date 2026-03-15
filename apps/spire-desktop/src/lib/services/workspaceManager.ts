@@ -19,6 +19,7 @@ import type { WidgetType } from "$lib/stores/notebookStore";
 import {
   layoutRoot,
   canvasItems,
+  viewMode,
   setLayoutRoot,
   resetDockingLayout,
   clearCanvas,
@@ -91,6 +92,7 @@ export function exportWorkspace(name?: string): SpireWorkspace {
       updatedAt: now,
     },
     layout: {
+      mode: get(viewMode),
       layoutTree: JSON.parse(JSON.stringify(get(layoutRoot))) as LayoutNode,
       canvasItems: JSON.parse(JSON.stringify(get(canvasItems))) as CanvasItem[],
     },
@@ -181,6 +183,9 @@ export function validateWorkspace(data: unknown): WorkspaceValidationResult {
       }
     } else {
       // v2.0 layout tree validation
+      if ("mode" in layout && layout.mode !== "docking" && layout.mode !== "canvas") {
+        errors.push("layout.mode must be 'docking' or 'canvas' when provided.");
+      }
       if (!("layoutTree" in layout) || typeof layout.layoutTree !== "object" || layout.layoutTree === null) {
         errors.push("layout.layoutTree must be a valid layout node object.");
       } else {
@@ -311,6 +316,7 @@ export function importWorkspace(data: unknown): boolean {
     const tree = migrateV1Widgets(layout.widgets ?? []);
     setLayoutRoot(tree);
     clearCanvas();
+    viewMode.set("docking");
     appendLog(
       `Workspace "${workspace.metadata.name}" imported (v1.0 → v2.0 migration) - ` +
         `framework: ${workspace.physics.framework}`,
@@ -323,6 +329,7 @@ export function importWorkspace(data: unknown): boolean {
     } else {
       clearCanvas();
     }
+    viewMode.set(workspace.layout.mode ?? "docking");
     appendLog(
       `Workspace "${workspace.metadata.name}" imported - ` +
         `framework: ${workspace.physics.framework}`,
