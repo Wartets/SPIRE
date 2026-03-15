@@ -241,7 +241,7 @@
 
   .periodic-layout {
     display: grid;
-    grid-template-columns: 1fr minmax(0, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 36%);
     gap: 0.45rem;
     flex: 1 1 0;
     min-height: 0;
@@ -324,6 +324,14 @@
   @media (max-width: 1240px) {
     .taxonomy-layout {
       grid-template-columns: 1fr;
+    }
+
+    .periodic-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .viewer-col {
+      max-height: 42%;
     }
   }
 </style>

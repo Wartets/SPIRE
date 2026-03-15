@@ -17,6 +17,7 @@
     viewMode,
     totalWidgetCount,
     addWidgetToLayout,
+    dockingInsertPreference,
     addCanvasItem,
     resetDockingLayout,
     clearCanvas,
@@ -82,15 +83,107 @@
 
 
   let toolboxOpen = false;
+  let customizerOpen = false;
   let workspaceControls: WorkspaceControls;
+  let toolboxQuery = "";
+  let widgetSortMode: "workflow" | "alpha" = "workflow";
+  let showWidgetCount = true;
+  let compactToolbar = false;
+  let toolboxButtonEl: HTMLButtonElement | null = null;
+  let toolboxMenuEl: HTMLDivElement | null = null;
+  let customizerButtonEl: HTMLButtonElement | null = null;
+  let customizerMenuEl: HTMLDivElement | null = null;
+  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v1";
+
+  $: sortedWidgetDefinitions =
+    widgetSortMode === "alpha"
+      ? [...WIDGET_DEFINITIONS].sort((a, b) => a.label.localeCompare(b.label))
+      : [...WIDGET_DEFINITIONS];
+
+  $: visibleWidgetDefinitions =
+    toolboxQuery.trim().length === 0
+      ? sortedWidgetDefinitions
+      : sortedWidgetDefinitions.filter((def) => {
+          const q = toolboxQuery.toLowerCase();
+          return def.label.toLowerCase().includes(q) || def.type.toLowerCase().includes(q);
+        });
 
   function spawnWidget(type: WidgetType): void {
     if ($viewMode === "canvas") {
       addCanvasItem(type);
     } else {
-      addWidgetToLayout(type);
+      addWidgetToLayout(type, "auto");
     }
     toolboxOpen = false;
+  }
+
+  function handleToolboxSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === "Enter" && visibleWidgetDefinitions.length > 0) {
+      event.preventDefault();
+      spawnWidget(visibleWidgetDefinitions[0].type);
+      return;
+    }
+    if (event.key === "Escape") {
+      toolboxOpen = false;
+    }
+  }
+
+  function handleWindowPointerDown(event: MouseEvent): void {
+    const target = event.target as Node | null;
+    if (!target) return;
+
+    const inToolbox =
+      toolboxMenuEl?.contains(target) || toolboxButtonEl?.contains(target);
+    if (!inToolbox) {
+      toolboxOpen = false;
+    }
+
+    const inCustomizer =
+      customizerMenuEl?.contains(target) || customizerButtonEl?.contains(target);
+    if (!inCustomizer) {
+      customizerOpen = false;
+    }
+  }
+
+  function handleWindowEscape(event: KeyboardEvent): void {
+    if (event.key === "Escape") {
+      toolboxOpen = false;
+      customizerOpen = false;
+    }
+  }
+
+  function loadToolboxPreferences(): void {
+    try {
+      const raw = localStorage.getItem(TOOLBOX_PREFS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        sort?: "workflow" | "alpha";
+        showWidgetCount?: boolean;
+        compactToolbar?: boolean;
+      };
+      if (parsed.sort === "workflow" || parsed.sort === "alpha") {
+        widgetSortMode = parsed.sort;
+      }
+      if (typeof parsed.showWidgetCount === "boolean") {
+        showWidgetCount = parsed.showWidgetCount;
+      }
+      if (typeof parsed.compactToolbar === "boolean") {
+        compactToolbar = parsed.compactToolbar;
+      }
+    } catch {
+      // Ignore malformed settings.
+    }
+  }
+
+  $: if (typeof window !== "undefined") {
+    localStorage.setItem(
+      TOOLBOX_PREFS_KEY,
+      JSON.stringify({
+        sort: widgetSortMode,
+        showWidgetCount,
+        compactToolbar,
+      }),
+    );
   }
 
   /** Download a proof document as a LaTeX .tex file. */
@@ -610,8 +703,11 @@
   }
 
   onMount(() => {
+    loadToolboxPreferences();
     registerGlobalCommands();
     workspaceControls?.checkAutoSave();
+    window.addEventListener("mousedown", handleWindowPointerDown, true);
+    window.addEventListener("keydown", handleWindowEscape, true);
 
     unsubIdentityModel = theoreticalModel.subscribe(() => refreshActiveWorkspaceIdentity());
     unsubIdentityFramework = activeFramework.subscribe(() => refreshActiveWorkspaceIdentity());
@@ -620,6 +716,8 @@
 
   onDestroy(() => {
     unregisterGlobalCommands();
+    window.removeEventListener("mousedown", handleWindowPointerDown, true);
+    window.removeEventListener("keydown", handleWindowEscape, true);
     unsubIdentityModel?.();
     unsubIdentityFramework?.();
   });
@@ -630,22 +728,96 @@
   <WorkspaceTabs />
 
   <!-- ─── Toolbox Bar ─── -->
-  <div class="toolbox-bar">
+  <div class="toolbox-bar" class:toolbox-compact={compactToolbar}>
     <button
       class="toolbox-toggle"
-      on:click={() => (toolboxOpen = !toolboxOpen)}
+      bind:this={toolboxButtonEl}
+      on:click={() => {
+        toolboxOpen = !toolboxOpen;
+        if (toolboxOpen) customizerOpen = false;
+      }}
       aria-expanded={toolboxOpen}
     >
       + Add Widget
     </button>
 
     {#if toolboxOpen}
-      <div class="toolbox-menu">
-        {#each WIDGET_DEFINITIONS as def}
-          <button class="toolbox-item" on:click={() => spawnWidget(def.type)}>
-            {def.label}
-          </button>
-        {/each}
+      <div class="toolbox-menu" bind:this={toolboxMenuEl}>
+        <div class="toolbox-menu-controls">
+          <input
+            class="toolbox-search"
+            type="search"
+            placeholder="Find widget…"
+            bind:value={toolboxQuery}
+            on:keydown={handleToolboxSearchKeydown}
+          />
+          <select class="toolbox-sort" bind:value={widgetSortMode}>
+            <option value="workflow">Workflow</option>
+            <option value="alpha">A-Z</option>
+          </select>
+        </div>
+        {#if visibleWidgetDefinitions.length === 0}
+          <div class="toolbox-empty">No widgets match “{toolboxQuery}”.</div>
+        {:else}
+          {#each visibleWidgetDefinitions as def}
+            <button class="toolbox-item" on:click={() => spawnWidget(def.type)}>
+              {def.label}
+            </button>
+          {/each}
+        {/if}
+      </div>
+    {/if}
+
+    <button
+      class="toolbox-customize"
+      bind:this={customizerButtonEl}
+      on:click={() => {
+        customizerOpen = !customizerOpen;
+        if (customizerOpen) toolboxOpen = false;
+      }}
+      use:tooltip={{ text: "Customize interface" }}
+    >
+      Customize ▾
+    </button>
+
+    {#if customizerOpen}
+      <div class="customize-menu" bind:this={customizerMenuEl}>
+        <label class="customize-toggle">
+          <input type="checkbox" bind:checked={compactToolbar} />
+          Compact toolbar
+        </label>
+        <label class="customize-toggle">
+          <input type="checkbox" bind:checked={showWidgetCount} />
+          Show widget count
+        </label>
+
+        <div class="customize-block">
+          <span>Dock insertion</span>
+          <div class="customize-options">
+            <button
+              class:active={$dockingInsertPreference === "smart"}
+              on:click={() => dockingInsertPreference.set("smart")}
+            >Smart</button>
+            <button
+              class:active={$dockingInsertPreference === "row"}
+              on:click={() => dockingInsertPreference.set("row")}
+            >Row</button>
+            <button
+              class:active={$dockingInsertPreference === "col"}
+              on:click={() => dockingInsertPreference.set("col")}
+            >Column</button>
+          </div>
+        </div>
+
+        <button
+          class="customize-keybinds"
+          on:click={() => {
+            keybindPanelOpen.set(true);
+            customizerOpen = false;
+          }}
+        >
+          Edit keyboard shortcuts
+        </button>
       </div>
     {/if}
 
@@ -663,9 +835,11 @@
 
     <WorkspaceControls bind:this={workspaceControls} />
 
-    <span class="widget-count"
-      >{$totalWidgetCount} widget{$totalWidgetCount !== 1 ? "s" : ""}</span
-    >
+    {#if showWidgetCount}
+      <span class="widget-count"
+        >{$totalWidgetCount} widget{$totalWidgetCount !== 1 ? "s" : ""}</span
+      >
+    {/if}
 
     <button
       class="toolbox-reset"
@@ -709,6 +883,10 @@
     flex-wrap: wrap;
     min-width: 0;
   }
+  .toolbox-bar.toolbox-compact {
+    gap: 0.25rem;
+    padding: 0.18rem 0.32rem;
+  }
   .toolbox-toggle {
     background: var(--bg-surface);
     border: 1px solid var(--border);
@@ -733,6 +911,36 @@
     flex-direction: column;
     z-index: 100;
     min-width: 14rem;
+    max-height: min(62vh, 560px);
+    overflow-y: auto;
+  }
+  .toolbox-menu-controls {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.35rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-inset);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  .toolbox-search {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.3rem;
+    font-family: var(--font-mono);
+  }
+  .toolbox-sort {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    font-size: 0.68rem;
+    padding: 0.15rem 0.2rem;
+    font-family: var(--font-mono);
   }
   .toolbox-item {
     display: flex;
@@ -754,6 +962,78 @@
   .toolbox-item:hover {
     background: var(--bg-surface);
     color: var(--fg-accent);
+  }
+  .toolbox-empty {
+    padding: 0.5rem 0.6rem;
+    color: var(--fg-secondary);
+    font-size: 0.7rem;
+    font-style: italic;
+  }
+  .toolbox-customize {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.2rem 0.5rem;
+    font-size: 0.68rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+  .toolbox-customize:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
+  .customize-menu {
+    position: absolute;
+    top: 100%;
+    left: 9rem;
+    z-index: 101;
+    min-width: 14rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.45rem;
+  }
+  .customize-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.7rem;
+    color: var(--fg-primary);
+  }
+  .customize-block {
+    border-top: 1px solid var(--border);
+    padding-top: 0.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .customize-options {
+    display: flex;
+    gap: 0.25rem;
+  }
+  .customize-options button,
+  .customize-keybinds {
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    padding: 0.15rem 0.35rem;
+    cursor: pointer;
+  }
+  .customize-options button.active {
+    color: var(--fg-accent);
+    border-color: var(--hl-symbol);
+  }
+  .customize-keybinds {
+    align-self: flex-start;
+    margin-top: 0.1rem;
   }
   .toolbox-spacer {
     flex: 1;

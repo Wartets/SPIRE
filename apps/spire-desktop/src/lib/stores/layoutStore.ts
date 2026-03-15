@@ -118,6 +118,10 @@ export interface CanvasViewport {
 // ===========================================================================
 
 export type ViewMode = "docking" | "canvas";
+export type DockInsertPreference = "smart" | "row" | "col";
+
+/** Preferred insertion strategy when adding new widgets in docking mode. */
+export const dockingInsertPreference = writable<DockInsertPreference>("smart");
 
 // ===========================================================================
 // Workspace (Multi-Workspace Support)
@@ -684,9 +688,94 @@ export function splitTabToEdge(
  */
 export function addWidgetToLayout(
   widgetType: WidgetType,
-  direction: "row" | "col" = "row",
+  direction: "row" | "col" | "auto" = "auto",
 ): void {
   const root = get(layoutRoot);
+
+  interface LeafInfo {
+    id: string;
+    widgetType: WidgetType;
+    depth: number;
+  }
+
+  function collectLeaves(node: LayoutNode, depth = 0, acc: LeafInfo[] = []): LeafInfo[] {
+    if (node.type === "widget") {
+      acc.push({ id: node.id, widgetType: node.widgetType, depth });
+      return acc;
+    }
+    for (const child of (node as ContainerNode).children) {
+      collectLeaves(child, depth + 1, acc);
+    }
+    return acc;
+  }
+
+  const leaves = collectLeaves(root);
+
+  function pickFallbackLeaf(): string | null {
+    if (leaves.length === 0) return null;
+    const nonLog = leaves.filter((l) => l.widgetType !== "log");
+    const pool = nonLog.length > 0 ? nonLog : leaves;
+    return pool[pool.length - 1]?.id ?? null;
+  }
+
+  function pickSmartLeaf(): string | null {
+    if (leaves.length === 0) return null;
+
+    // 1) Prefer adding near an existing instance of the same widget type.
+    const sameType = leaves.filter((l) => l.widgetType === widgetType);
+    if (sameType.length > 0) {
+      return sameType[sameType.length - 1].id;
+    }
+
+    // 2) Domain-informed fallback anchors.
+    const anchorOrder: Partial<Record<WidgetType, WidgetType[]>> = {
+      analysis: ["diagram", "amplitude", "reaction"],
+      diagram: ["reaction", "amplitude"],
+      amplitude: ["diagram", "reaction"],
+      kinematics: ["reaction", "diagram"],
+      dalitz: ["kinematics", "reaction"],
+      event_display: ["reaction", "kinematics"],
+      notebook: ["analysis", "reaction"],
+      parameter_scanner: ["analysis", "notebook"],
+      decay_calculator: ["reaction", "particle_atlas"],
+      cosmology: ["analysis", "parameter_scanner"],
+      flavor_workbench: ["analysis", "reaction"],
+      references: ["analysis", "diagram"],
+      telemetry: ["log", "analysis"],
+      plugin_manager: ["telemetry", "compute_grid"],
+      global_fit_dashboard: ["analysis", "parameter_scanner"],
+    };
+
+    const anchors = anchorOrder[widgetType] ?? ["reaction", "diagram", "analysis"];
+    for (const anchor of anchors) {
+      const found = leaves.filter((l) => l.widgetType === anchor);
+      if (found.length > 0) {
+        return found[found.length - 1].id;
+      }
+    }
+
+    return pickFallbackLeaf();
+  }
+
+  const preference = direction === "auto" ? get(dockingInsertPreference) : direction;
+
+  const smartDirection: Partial<Record<WidgetType, "row" | "col">> = {
+    log: "col",
+    telemetry: "col",
+    references: "col",
+    notebook: "col",
+    analysis: "row",
+    event_display: "row",
+    diagram: "row",
+    amplitude: "row",
+  };
+
+  const splitDirection: "row" | "col" =
+    direction === "auto"
+      ? preference === "smart"
+        ? smartDirection[widgetType] ?? "row"
+        : preference
+      : direction;
 
   // Find the first widget leaf to split
   function findFirstLeaf(node: LayoutNode): string | null {
@@ -698,9 +787,13 @@ export function addWidgetToLayout(
     return null;
   }
 
-  const leafId = findFirstLeaf(root);
+  const leafId =
+    preference === "smart"
+      ? pickSmartLeaf()
+      : pickFallbackLeaf() ?? findFirstLeaf(root);
+
   if (leafId) {
-    splitNode(leafId, direction, widgetType);
+    splitNode(leafId, splitDirection, widgetType);
   }
 }
 

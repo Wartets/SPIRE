@@ -21,6 +21,20 @@
   let isotopeMap: Record<number, IsotopeData[]> = {};
   let flashZ: number | null = null;
   let flashTimer: ReturnType<typeof setTimeout> | null = null;
+  let elementQuery = "";
+  let categoryFilter: "all" | ElementData["category"] = "all";
+
+  $: visibleElements = elements.filter((el) => {
+    const q = elementQuery.trim().toLowerCase();
+    const categoryMatch = categoryFilter === "all" || el.category === categoryFilter;
+    if (!categoryMatch) return false;
+    if (!q) return true;
+    return (
+      el.name.toLowerCase().includes(q) ||
+      el.symbol.toLowerCase().includes(q) ||
+      String(el.Z).includes(q)
+    );
+  });
 
   onMount(async () => {
     elements = await loadElements();
@@ -89,11 +103,26 @@
   }
 
   function elementTooltip(el: ElementData): string {
+    const block = el.group == null
+      ? "f"
+      : el.group <= 2
+        ? "s"
+        : el.group <= 12
+          ? "d"
+          : "p";
+    const phaseHint =
+      ["H", "N", "O", "F", "Cl", "He", "Ne", "Ar", "Kr", "Xe", "Rn"].includes(el.symbol)
+        ? "gas"
+        : ["Br", "Hg"].includes(el.symbol)
+          ? "liquid"
+          : "solid";
+
     const lines = [
       `${el.name} (${el.symbol})`,
       `Z = ${el.Z}  ·  A\u2248${el.atomic_mass.toFixed(3)}`,
       `Period ${el.period}${el.group != null ? ", Group " + el.group : ", f-block"}`,
       `Category: ${el.category}`,
+      `Block: ${block}-block · phase@STP: ${phaseHint}`,
       `Config: ${el.electron_configuration}`,
     ];
     return lines.join("\n");
@@ -108,9 +137,31 @@
     {/each}
   </div>
 
+  <div class="pt-controls">
+    <input
+      class="pt-search"
+      type="search"
+      placeholder="Search by name, symbol, or Z…"
+      bind:value={elementQuery}
+    />
+    <select class="pt-filter" bind:value={categoryFilter}>
+      <option value="all">All categories</option>
+      <option value="alkali-metal">Alkali metals</option>
+      <option value="alkaline-earth-metal">Alkaline earth</option>
+      <option value="transition-metal">Transition</option>
+      <option value="post-transition-metal">Post-transition</option>
+      <option value="metalloid">Metalloid</option>
+      <option value="nonmetal">Nonmetal</option>
+      <option value="halogen">Halogen</option>
+      <option value="noble-gas">Noble gas</option>
+      <option value="lanthanide">Lanthanide</option>
+      <option value="actinide">Actinide</option>
+    </select>
+  </div>
+
   <!-- Main 18-column grid -->
   <div class="periodic-wrap">
-    {#each elements as el (el.Z)}
+    {#each visibleElements as el (el.Z)}
       <button
         class="cell"
         class:cell--selected={selectedElement?.Z === el.Z}
@@ -173,13 +224,36 @@
 
   .periodic-wrap {
     display: grid;
-    grid-template-columns: repeat(18, minmax(0, 1fr));
+    grid-template-columns: repeat(18, minmax(2.4rem, 1fr));
     grid-template-rows: repeat(9, auto);
     gap: 0.15rem;
     overflow: auto;
     padding: 0.15rem;
     flex: 1 1 0;
     min-height: 0;
+    width: max(100%, 54rem);
+  }
+
+  .pt-controls {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .pt-search,
+  .pt-filter {
+    background: var(--color-bg-inset, var(--bg-inset));
+    border: 1px solid var(--color-border, var(--border));
+    color: var(--color-text-primary, var(--fg-primary));
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    padding: 0.15rem 0.28rem;
+  }
+
+  .pt-search {
+    flex: 1;
+    min-width: 14rem;
   }
 
   .cell {

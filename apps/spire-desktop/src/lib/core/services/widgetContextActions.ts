@@ -28,6 +28,8 @@ import {
   initialIdsInput,
   finalIdsInput,
 } from "$lib/stores/workspaceInputsStore";
+import { clearCitations } from "$lib/core/services/CitationRegistry";
+import { executeAllCells } from "$lib/stores/notebookDocumentStore";
 
 // ---------------------------------------------------------------------------
 // Widget-specific context menu builders
@@ -98,6 +100,37 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
         menuAction("evd-cms-13000", "Set √s = 13 TeV", () => cmsEnergyInput.set(13000), { icon: "⚡" }),
       ];
 
+    case "particle_atlas":
+      return [
+        menuAction("atlas-ee-mumu", "Seed e⁺e⁻ → μ⁺μ⁻", () => {
+          initialIdsInput.set(["e-", "e+"]);
+          finalIdsInput.set(["mu-", "mu+"]);
+        }, { icon: "↺" }),
+        menuAction("atlas-pp-tt", "Seed pp → tt̄", () => {
+          initialIdsInput.set(["p", "p"]);
+          finalIdsInput.set(["t", "t_bar"]);
+        }, { icon: "↺" }),
+      ];
+
+    case "diagram_editor":
+      return [
+        menuAction("de-new", "New Diagram Draft", () => appendLog("Diagram Editor: new draft"), { icon: "✎" }),
+        menuAction("de-orth", "Auto-Orthogonalize", () => appendLog("Diagram Editor: auto-orthogonalize"), { icon: "⤢" }),
+      ];
+
+    case "lagrangian_workbench":
+      return [
+        menuAction("lag-expand", "Expand Lagrangian Terms", () => appendLog("Lagrangian: expand terms"), { icon: "Σ" }),
+        menuAction("lag-check", "Run Gauge-Invariance Check", () => appendLog("Lagrangian: gauge invariance check queued"), { icon: "✓" }),
+      ];
+
+    case "external_models":
+      return [
+        menuAction("ext-sm", "Switch to Standard Model", () => activeFramework.set("StandardModel"), { icon: "⚛" }),
+        menuAction("ext-qed", "Switch to QED", () => activeFramework.set("QED"), { icon: "γ" }),
+        menuAction("ext-qcd", "Switch to QCD", () => activeFramework.set("QCD"), { icon: "g" }),
+      ];
+
     case "compute_grid":
       return [
         menuAction("cg-1k", "1,000 events", () => appendLog("Set n_events = 1,000")),
@@ -116,6 +149,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "notebook":
       return [
+        menuAction("nb-run-all", "Run All Cells", () => executeAllCells(), { icon: "▶" }),
         menuAction("nb-info", "Notebook (Rhai scripting)", () => {}, { disabled: true }),
       ];
 
@@ -126,12 +160,50 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "references":
       return [
+        menuAction("ref-clear", "Clear All References", () => clearCitations(), { icon: "✕" }),
         menuAction("ref-info", "Auto-generated references", () => {}, { disabled: true }),
       ];
 
     case "telemetry":
       return [
+        menuAction("telem-snap", "Capture Perf Snapshot", () => appendLog("Telemetry: captured performance snapshot"), { icon: "◉" }),
         menuAction("telem-info", "Performance Profiling", () => {}, { disabled: true }),
+      ];
+
+    case "decay_calculator":
+      return [
+        menuAction("decay-z", "Preset: Z boson decays", () => {
+          initialIdsInput.set(["Z"]);
+          finalIdsInput.set(["e-", "e+"]);
+        }, { icon: "Z" }),
+        menuAction("decay-h", "Preset: Higgs decays", () => {
+          initialIdsInput.set(["h"]);
+          finalIdsInput.set(["b", "b_bar"]);
+        }, { icon: "h" }),
+      ];
+
+    case "cosmology":
+      return [
+        menuAction("cosmo-rd", "Preset: Radiation dominated", () => appendLog("Cosmology: radiation-dominated benchmark"), { icon: "☼" }),
+        menuAction("cosmo-lcdm", "Preset: ΛCDM baseline", () => appendLog("Cosmology: ΛCDM baseline loaded"), { icon: "Λ" }),
+      ];
+
+    case "flavor_workbench":
+      return [
+        menuAction("flv-bmix", "Load B-mixing benchmark", () => appendLog("Flavor: B-mixing benchmark loaded"), { icon: "B" }),
+        menuAction("flv-rk", "Load R_K / R_K* benchmark", () => appendLog("Flavor: R_K benchmark loaded"), { icon: "K" }),
+      ];
+
+    case "plugin_manager":
+      return [
+        menuAction("plug-refresh", "Refresh Plugin Index", () => appendLog("Plugin Manager: refreshing index"), { icon: "↻" }),
+        menuAction("plug-scan", "Rescan Local Plugins", () => appendLog("Plugin Manager: local plugin scan"), { icon: "⌕" }),
+      ];
+
+    case "global_fit_dashboard":
+      return [
+        menuAction("fit-start", "Start Quick Fit", () => appendLog("Global Fit: quick fit started"), { icon: "▶" }),
+        menuAction("fit-reset", "Reset Fit Session", () => appendLog("Global Fit: session reset"), { icon: "↺" }),
       ];
 
     default:

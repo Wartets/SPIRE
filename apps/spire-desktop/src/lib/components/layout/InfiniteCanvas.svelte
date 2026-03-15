@@ -139,8 +139,11 @@
   // When dragging, snap widget edges to sibling widget edges and to the
   // visible viewport edges.  Threshold in world-space pixels.
   const SNAP_THRESHOLD = 8;
+  const MIN_WIDGET_WIDTH = 280;
+  const MIN_WIDGET_HEIGHT = 200;
 
   interface SnapResult { x: number; y: number; }
+  type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
   function snapToEdges(
     dragId: string,
@@ -283,7 +286,13 @@
 
   let _rafPending = false;
   let _pendingDragPatch: { id: string; x: number; y: number } | null = null;
-  let _pendingResizePatch: { id: string; width: number; height: number } | null = null;
+  let _pendingResizePatch: {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null = null;
 
   function flushCanvasUpdates(): void {
     _rafPending = false;
@@ -296,6 +305,8 @@
     }
     if (_pendingResizePatch) {
       updateCanvasItem(_pendingResizePatch.id, {
+        x: _pendingResizePatch.x,
+        y: _pendingResizePatch.y,
         width: _pendingResizePatch.width,
         height: _pendingResizePatch.height,
       });
@@ -332,10 +343,38 @@
     if (isResizing && resizeItemId) {
       const dx = (event.clientX - resizeStartX) / zoom;
       const dy = (event.clientY - resizeStartY) / zoom;
+
+      let nextX = resizeStartItemX;
+      let nextY = resizeStartItemY;
+      let nextW = resizeStartW;
+      let nextH = resizeStartH;
+
+      if (resizeDirection.includes("e")) {
+        nextW = Math.max(MIN_WIDGET_WIDTH, resizeStartW + dx);
+      }
+
+      if (resizeDirection.includes("s")) {
+        nextH = Math.max(MIN_WIDGET_HEIGHT, resizeStartH + dy);
+      }
+
+      if (resizeDirection.includes("w")) {
+        const proposedW = resizeStartW - dx;
+        nextW = Math.max(MIN_WIDGET_WIDTH, proposedW);
+        nextX = resizeStartItemX + (resizeStartW - nextW);
+      }
+
+      if (resizeDirection.includes("n")) {
+        const proposedH = resizeStartH - dy;
+        nextH = Math.max(MIN_WIDGET_HEIGHT, proposedH);
+        nextY = resizeStartItemY + (resizeStartH - nextH);
+      }
+
       _pendingResizePatch = {
         id: resizeItemId,
-        width: Math.max(280, resizeStartW + dx),
-        height: Math.max(200, resizeStartH + dy),
+        x: nextX,
+        y: nextY,
+        width: nextW,
+        height: nextH,
       };
       scheduleCanvasFlush();
     }
@@ -479,14 +518,14 @@
   function selectWidget(item: CanvasItem): void {
     selectedWidgetId = item.id;
     zCounter += 1;
-    zMap[item.id] = zCounter;
+    zMap = { ...zMap, [item.id]: zCounter };
   }
 
   /** Bring an item to the foreground by ID (used when items are added). */
   function bringToFrontById(id: string): void {
     selectedWidgetId = id;
     zCounter += 1;
-    zMap[id] = zCounter;
+    zMap = { ...zMap, [id]: zCounter };
   }
 
   function zIndexOf(item: CanvasItem): number {
@@ -543,17 +582,24 @@
   let resizeItemId: string | null = null;
   let resizeStartX = 0;
   let resizeStartY = 0;
+  let resizeStartItemX = 0;
+  let resizeStartItemY = 0;
   let resizeStartW = 0;
   let resizeStartH = 0;
+  let resizeDirection: ResizeDirection = "se";
 
-  function handleResizeStart(event: MouseEvent, item: CanvasItem): void {
+  function handleResizeStart(event: MouseEvent, item: CanvasItem, direction: ResizeDirection): void {
     if (event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    selectWidget(item);
     isResizing = true;
     resizeItemId = item.id;
+    resizeDirection = direction;
     resizeStartX = event.clientX;
     resizeStartY = event.clientY;
+    resizeStartItemX = item.x;
+    resizeStartItemY = item.y;
     resizeStartW = item.width;
     resizeStartH = item.height;
     attachWindowGrabListeners();
@@ -820,13 +866,16 @@
           <!-- Resize handle (hidden at minimal LOD) -->
           {#if lodLevel !== "minimal"}
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-            <div
-              class="cw-resize"
-              on:mousedown={(e) => handleResizeStart(e, item)}
-              role="separator"
-              aria-label="Resize"
-              tabindex="-1"
-            ></div>
+            <div class="cw-resize-layer" aria-hidden="true">
+              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "n")}></div>
+              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "ne")}></div>
+              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "e")}></div>
+              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "se")}></div>
+              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "s")}></div>
+              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "sw")}></div>
+              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "w")}></div>
+              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "nw")}></div>
+            </div>
           {/if}
         </div>
       {:else}
@@ -1008,29 +1057,53 @@
     height: 100%;
   }
 
-  .cw-resize {
+  .cw-resize-layer {
     position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 14px;
-    height: 14px;
-    cursor: nwse-resize;
-    background: linear-gradient(
-      135deg,
-      transparent 50%,
-      var(--fg-secondary) 50%,
-      var(--fg-secondary) 60%,
-      transparent 60%,
-      transparent 70%,
-      var(--fg-secondary) 70%,
-      var(--fg-secondary) 80%,
-      transparent 80%
-    );
-    opacity: 0.5;
+    inset: 0;
+    pointer-events: none;
   }
 
-  .cw-resize:hover {
-    opacity: 1;
+  .cw-resize-handle {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 2;
+  }
+
+  .cw-resize-n,
+  .cw-resize-s {
+    left: 10px;
+    right: 10px;
+    height: 8px;
+  }
+
+  .cw-resize-n { top: -4px; cursor: ns-resize; }
+  .cw-resize-s { bottom: -4px; cursor: ns-resize; }
+
+  .cw-resize-e,
+  .cw-resize-w {
+    top: 10px;
+    bottom: 10px;
+    width: 8px;
+  }
+
+  .cw-resize-e { right: -4px; cursor: ew-resize; }
+  .cw-resize-w { left: -4px; cursor: ew-resize; }
+
+  .cw-resize-ne,
+  .cw-resize-se,
+  .cw-resize-sw,
+  .cw-resize-nw {
+    width: 12px;
+    height: 12px;
+  }
+
+  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+
+  .cw-resize-layer .cw-resize-handle:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
   }
 
   .zoom-indicator {
