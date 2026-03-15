@@ -133,7 +133,7 @@
     }
   }
 
-  function handleWindowPointerDown(event: MouseEvent): void {
+  function handleWindowPointerDown(event: PointerEvent): void {
     const target = event.target as Node | null;
     if (!target) return;
 
@@ -148,6 +148,12 @@
     if (!inCustomizer) {
       customizerOpen = false;
     }
+  }
+
+  function handleToolboxItemPointerDown(event: PointerEvent, type: WidgetType): void {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    spawnWidget(type);
   }
 
   function handleWindowEscape(event: KeyboardEvent): void {
@@ -759,7 +765,7 @@
     loadToolboxPreferences();
     registerGlobalCommands();
     workspaceControls?.checkAutoSave();
-    window.addEventListener("mousedown", handleWindowPointerDown, true);
+    window.addEventListener("pointerdown", handleWindowPointerDown, true);
     window.addEventListener("keydown", handleWindowEscape, true);
 
     unsubIdentityModel = theoreticalModel.subscribe(() => refreshActiveWorkspaceIdentity());
@@ -769,7 +775,7 @@
 
   onDestroy(() => {
     unregisterGlobalCommands();
-    window.removeEventListener("mousedown", handleWindowPointerDown, true);
+    window.removeEventListener("pointerdown", handleWindowPointerDown, true);
     window.removeEventListener("keydown", handleWindowEscape, true);
     unsubIdentityModel?.();
     unsubIdentityFramework?.();
@@ -823,6 +829,7 @@
                   class="toolbox-item"
                   draggable="true"
                   on:click={() => spawnWidget(def.type)}
+                  on:pointerdown={(event) => handleToolboxItemPointerDown(event, def.type)}
                   on:dragstart={(event) => handleToolboxItemDragStart(event, def.type)}
                 >
                   <span>{def.label}</span>

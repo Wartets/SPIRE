@@ -21,6 +21,7 @@
   import { pipelineLinks } from "$lib/core/services/PipelineService";
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
   import { tooltip } from "$lib/actions/tooltip";
+  import { longpress } from "$lib/actions/longpress";
 
   export let node: WidgetLeaf;
 
@@ -46,11 +47,9 @@
     closeNode(node.id);
   }
 
-  function handleHeaderContext(e: MouseEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
+  function openHeaderContextAt(x: number, y: number): void {
     const widgetItems = getWidgetContextItems(node.widgetType);
-    showContextMenu(e.clientX, e.clientY, [
+    showContextMenu(x, y, [
       ...widgetItems,
       ...(widgetItems.length > 0
         ? [{ type: "separator" as const, id: "sep-header-widget" }]
@@ -63,10 +62,14 @@
     ]);
   }
 
-  /** Right-click on widget body → show widget-specific items + layout items. */
-  function handleBodyContext(e: MouseEvent): void {
+  function handleHeaderContext(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
+    openHeaderContextAt(e.clientX, e.clientY);
+  }
+
+  /** Right-click on widget body → show widget-specific items + layout items. */
+  function openBodyContextAt(x: number, y: number): void {
     const widgetItems = getWidgetContextItems(node.widgetType);
     const layoutItems: import("$lib/types/menu").ContextMenuItem[] = [
       { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
@@ -81,7 +84,13 @@
         : []),
       ...layoutItems,
     ];
-    showContextMenu(e.clientX, e.clientY, items);
+    showContextMenu(x, y, items);
+  }
+
+  function handleBodyContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    openBodyContextAt(e.clientX, e.clientY);
   }
 
   // ── Docking Drag-and-Drop ──
@@ -146,7 +155,18 @@
   on:drop={handleDrop}
   role="group"
 >
-  <header class="wc-header" on:contextmenu={handleHeaderContext} role="toolbar" tabindex="-1" aria-label="Widget controls">
+  <header
+    class="wc-header"
+    on:contextmenu={handleHeaderContext}
+    use:longpress={{
+      duration: 460,
+      moveTolerance: 12,
+      onLongPress: (detail) => openHeaderContextAt(detail.x, detail.y),
+    }}
+    role="toolbar"
+    tabindex="-1"
+    aria-label="Widget controls"
+  >
     <span
       class="wc-drag-handle"
       draggable="true"
@@ -188,7 +208,17 @@
     </div>
   </header>
 
-  <div class="wc-body" on:contextmenu={handleBodyContext} role="region" aria-label="Widget content">
+  <div
+    class="wc-body"
+    on:contextmenu={handleBodyContext}
+    use:longpress={{
+      duration: 480,
+      moveTolerance: 14,
+      onLongPress: (detail) => openBodyContextAt(detail.x, detail.y),
+    }}
+    role="region"
+    aria-label="Widget content"
+  >
     {#if widgetComponent}
       <svelte:component this={widgetComponent} />
     {:else}

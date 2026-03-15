@@ -15,6 +15,7 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { menuAction, menuSeparator, menuSubmenu } from "$lib/types/menu";
   import type { ContextMenuItem } from "$lib/types/menu";
+  import { longpress } from "$lib/actions/longpress";
 
   import MarkdownCell from "./MarkdownCell.svelte";
   import ScriptCell from "./ScriptCell.svelte";
@@ -74,11 +75,7 @@
 
   // ── Context Menu ──
 
-  function handleContextMenu(event: MouseEvent): void {
-    if (event.shiftKey) return;        // Shift bypass → native menu
-    event.preventDefault();
-    event.stopPropagation();
-
+  function buildContextItems(): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
 
     // Execution commands (only for executable cells)
@@ -133,12 +130,32 @@
       menuAction("ctx-delete-cell", "✕  Delete Cell", () => dispatch("delete", { id: cell.id })),
     );
 
-    showContextMenu(event.clientX, event.clientY, items);
+    return items;
+  }
+
+  function openContextAt(x: number, y: number): void {
+    showContextMenu(x, y, buildContextItems());
+  }
+
+  function handleContextMenu(event: MouseEvent): void {
+    if (event.shiftKey) return;        // Shift bypass → native menu
+    event.preventDefault();
+    event.stopPropagation();
+
+    openContextAt(event.clientX, event.clientY);
   }
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="cell-renderer-wrapper" on:contextmenu={handleContextMenu}>
+<div
+  class="cell-renderer-wrapper"
+  on:contextmenu={handleContextMenu}
+  use:longpress={{
+    duration: 480,
+    moveTolerance: 12,
+    onLongPress: (detail) => openContextAt(detail.x, detail.y),
+  }}
+>
 {#if cell.type === "markdown"}
   <MarkdownCell
     {cell}

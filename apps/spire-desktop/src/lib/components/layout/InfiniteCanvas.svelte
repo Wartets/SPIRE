@@ -17,6 +17,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import { longpress } from "$lib/actions/longpress";
   import { get } from "svelte/store";
   import {
     canvasItems,
@@ -223,6 +224,7 @@
   // Left-click on background, middle-click anywhere, or spacebar+left.
 
   let isPanning = false;
+  let activeTouchPointerId: number | null = null;
   let panStartX = 0;
   let panStartY = 0;
   let panStartPanX = 0;
@@ -259,6 +261,20 @@
     }
   }
 
+  function handleCanvasPointerDown(event: PointerEvent): void {
+    if (event.pointerType === "mouse") return;
+    if (event.button !== 0) return;
+    if (!isCanvasBackground(event.target)) return;
+    event.preventDefault();
+    activeTouchPointerId = event.pointerId;
+    isPanning = true;
+    panStartX = event.clientX;
+    panStartY = event.clientY;
+    panStartPanX = panX;
+    panStartPanY = panY;
+    attachWindowGrabListeners();
+  }
+
   // ── Window-level grab listeners ──
   // When the user starts a pan, drag, or resize we attach move/up
   // listeners to `window` so events keep firing even if the cursor
@@ -271,6 +287,9 @@
     _grabListenersAttached = true;
     window.addEventListener("mousemove", handleCanvasMouseMove);
     window.addEventListener("mouseup", handleCanvasMouseUp);
+    window.addEventListener("pointermove", handleCanvasPointerMove, { passive: false });
+    window.addEventListener("pointerup", handleCanvasPointerUp, { passive: false });
+    window.addEventListener("pointercancel", handleCanvasPointerUp, { passive: false });
   }
 
   function detachWindowGrabListeners(): void {
@@ -278,6 +297,9 @@
     _grabListenersAttached = false;
     window.removeEventListener("mousemove", handleCanvasMouseMove);
     window.removeEventListener("mouseup", handleCanvasMouseUp);
+    window.removeEventListener("pointermove", handleCanvasPointerMove);
+    window.removeEventListener("pointerup", handleCanvasPointerUp);
+    window.removeEventListener("pointercancel", handleCanvasPointerUp);
   }
 
   // ── RAF-throttled store updates ──
@@ -324,15 +346,15 @@
     }
   }
 
-  function handleCanvasMouseMove(event: MouseEvent): void {
+  function handleInteractionMove(clientX: number, clientY: number): void {
     if (isPanning) {
-      panX = panStartPanX + (event.clientX - panStartX);
-      panY = panStartPanY + (event.clientY - panStartY);
+      panX = panStartPanX + (clientX - panStartX);
+      panY = panStartPanY + (clientY - panStartY);
     }
 
     if (isDragging && dragItemId) {
-      const dx = (event.clientX - dragStartX) / zoom;
-      const dy = (event.clientY - dragStartY) / zoom;
+      const dx = (clientX - dragStartX) / zoom;
+      const dy = (clientY - dragStartY) / zoom;
       const newX = dragItemStartX + dx;
       const newY = dragItemStartY + dy;
       // Track live position for snapping in mouseUp
@@ -344,8 +366,8 @@
     }
 
     if (isResizing && resizeItemId) {
-      const dx = (event.clientX - resizeStartX) / zoom;
-      const dy = (event.clientY - resizeStartY) / zoom;
+      const dx = (clientX - resizeStartX) / zoom;
+      const dy = (clientY - resizeStartY) / zoom;
 
       let nextX = resizeStartItemX;
       let nextY = resizeStartItemY;
@@ -383,6 +405,18 @@
     }
   }
 
+  function handleCanvasMouseMove(event: MouseEvent): void {
+    handleInteractionMove(event.clientX, event.clientY);
+  }
+
+  function handleCanvasPointerMove(event: PointerEvent): void {
+    if (event.pointerType === "mouse") return;
+    if (activeTouchPointerId !== null && event.pointerId !== activeTouchPointerId) return;
+    if (!(isPanning || isDragging || isResizing)) return;
+    event.preventDefault();
+    handleInteractionMove(event.clientX, event.clientY);
+  }
+
   function handleCanvasMouseUp(): void {
     // Flush any pending RAF updates immediately so snap reads the latest state
     if (_rafPending) {
@@ -414,7 +448,15 @@
       isResizing = false;
       resizeItemId = null;
     }
+    activeTouchPointerId = null;
     detachWindowGrabListeners();
+  }
+
+  function handleCanvasPointerUp(event: PointerEvent): void {
+    if (event.pointerType === "mouse") return;
+    if (activeTouchPointerId !== null && event.pointerId !== activeTouchPointerId) return;
+    event.preventDefault();
+    handleCanvasMouseUp();
   }
 
   // ── Zoom (scroll wheel) ──
@@ -709,6 +751,24 @@
     attachWindowGrabListeners();
   }
 
+  function handleWidgetPointerDragStart(event: PointerEvent, item: CanvasItem): void {
+    if (event.pointerType === "mouse") return;
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    activeTouchPointerId = event.pointerId;
+    selectWidget(item);
+    isDragging = true;
+    dragItemId = item.id;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragItemStartX = item.x;
+    dragItemStartY = item.y;
+    dragCurrentX = item.x;
+    dragCurrentY = item.y;
+    attachWindowGrabListeners();
+  }
+
   // ── Widget Resize (bottom-right corner) ──
 
   let isResizing = false;
@@ -738,6 +798,25 @@
     attachWindowGrabListeners();
   }
 
+  function handlePointerResizeStart(event: PointerEvent, item: CanvasItem, direction: ResizeDirection): void {
+    if (event.pointerType === "mouse") return;
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    activeTouchPointerId = event.pointerId;
+    selectWidget(item);
+    isResizing = true;
+    resizeItemId = item.id;
+    resizeDirection = direction;
+    resizeStartX = event.clientX;
+    resizeStartY = event.clientY;
+    resizeStartItemX = item.x;
+    resizeStartItemY = item.y;
+    resizeStartW = item.width;
+    resizeStartH = item.height;
+    attachWindowGrabListeners();
+  }
+
   function handleClose(item: CanvasItem): void {
     removeAllLinksForWidget(item.id);
     removeCanvasItem(item.id);
@@ -746,10 +825,8 @@
     }
   }
 
-  /** Right-click on a canvas widget body — widget-specific items + close. */
-  function handleWidgetBodyContext(e: MouseEvent, item: CanvasItem): void {
-    e.preventDefault();
-    e.stopPropagation();
+  /** Open a widget context menu at viewport coordinates. */
+  function openWidgetContextAt(x: number, y: number, item: CanvasItem): void {
     const widgetItems = getWidgetContextItems(item.widgetType);
     const items: import("$lib/types/menu").ContextMenuItem[] = [
       ...widgetItems,
@@ -762,7 +839,14 @@
       { type: "separator" as const, id: "sep-cw-layout" },
       { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => handleClose(item) },
     ];
-    showContextMenu(e.clientX, e.clientY, items);
+    showContextMenu(x, y, items);
+  }
+
+  /** Right-click on a canvas widget body — widget-specific items + close. */
+  function handleWidgetBodyContext(e: MouseEvent, item: CanvasItem): void {
+    e.preventDefault();
+    e.stopPropagation();
+    openWidgetContextAt(e.clientX, e.clientY, item);
   }
 
   function handleCanvasDragOver(event: DragEvent): void {
@@ -791,16 +875,11 @@
 
   // ── Canvas Context Menu ──
 
-  function handleCanvasContextMenu(event: MouseEvent): void {
-    // Shift + Right-click bypasses SPIRE and opens the native browser menu
-    if (event.shiftKey) return;
-    event.preventDefault();
-    event.stopPropagation();
-
+  function openCanvasContextAt(clientX: number, clientY: number): void {
     // Convert viewport coords to world coords for widget placement
     const rect = canvasEl.getBoundingClientRect();
-    const worldX = (event.clientX - rect.left - panX) / zoom;
-    const worldY = (event.clientY - rect.top - panY) / zoom;
+    const worldX = (clientX - rect.left - panX) / zoom;
+    const worldY = (clientY - rect.top - panY) / zoom;
 
     const widgetSubItems: import("$lib/types/menu").ContextMenuItem[] = WIDGET_DEFINITIONS.map((def) => ({
       type: "action" as const,
@@ -809,12 +888,20 @@
       action: () => addCanvasItem(def.type, worldX, worldY),
     }));
 
-    showContextMenu(event.clientX, event.clientY, [
+    showContextMenu(clientX, clientY, [
       { type: "submenu", id: "ctx-add-widget", label: "Add Widget", icon: "+", children: widgetSubItems },
       { type: "separator", id: "sep-canvas" },
       { type: "action", id: "ctx-reset-zoom", label: "Reset Zoom", shortcut: "Click %", action: () => resetZoom() },
       { type: "action", id: "ctx-center-view", label: "Center View", action: () => { panX = 0; panY = 0; commitViewport(); } },
     ]);
+  }
+
+  function handleCanvasContextMenu(event: MouseEvent): void {
+    // Shift + Right-click bypasses SPIRE and opens the native browser menu
+    if (event.shiftKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openCanvasContextAt(event.clientX, event.clientY);
   }
 
   // ── Global Shortcut Event Handlers ──
@@ -905,10 +992,20 @@
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
   on:mousedown={handleCanvasMouseDown}
+  on:pointerdown={handleCanvasPointerDown}
   on:wheel={handleWheel}
   on:dragover={handleCanvasDragOver}
   on:drop={handleCanvasDrop}
   on:contextmenu={handleCanvasContextMenu}
+  use:longpress={{
+    duration: 500,
+    moveTolerance: 12,
+    onLongPress: (detail) => {
+      const target = detail.target;
+      if (target instanceof HTMLElement && target.closest(".canvas-widget")) return;
+      openCanvasContextAt(detail.x, detail.y);
+    },
+  }}
   data-tour-id="canvas-workspace"
   role="application"
   aria-label="Infinite Canvas Workspace"
@@ -952,6 +1049,11 @@
           on:mousedown|capture={() => selectWidget(item)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
+          use:longpress={{
+            duration: 480,
+            moveTolerance: 12,
+            onLongPress: (detail) => openWidgetContextAt(detail.x, detail.y, item),
+          }}
           role="group"
           aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
         >
@@ -960,6 +1062,7 @@
             <header
               class="cw-header"
               on:mousedown={(e) => handleWidgetDragStart(e, item)}
+              on:pointerdown={(e) => handleWidgetPointerDragStart(e, item)}
               on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
               role="toolbar"
               tabindex="-1"
@@ -993,6 +1096,7 @@
             class="cw-body"
             class:cw-body-minimal={lodLevel === "minimal"}
             on:mousedown={(e) => { if (lodLevel === "minimal") handleWidgetDragStart(e, item); }}
+            on:pointerdown={(e) => { if (lodLevel === "minimal") handleWidgetPointerDragStart(e, item); }}
             on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
             role="region"
           >
@@ -1027,14 +1131,14 @@
           {#if lodLevel !== "minimal"}
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <div class="cw-resize-layer" aria-hidden="true">
-              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "n")}></div>
-              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "ne")}></div>
-              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "e")}></div>
-              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "se")}></div>
-              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "s")}></div>
-              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "sw")}></div>
-              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "w")}></div>
-              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "nw")}></div>
+              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "n")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "n")}></div>
+              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "ne")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "ne")}></div>
+              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "e")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "e")}></div>
+              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "se")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "se")}></div>
+              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "s")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "s")}></div>
+              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "sw")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "sw")}></div>
+              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "w")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "w")}></div>
+              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "nw")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "nw")}></div>
             </div>
           {/if}
         </div>
@@ -1080,6 +1184,7 @@
     overflow: hidden;
     cursor: default;
     user-select: none;
+    touch-action: none;
   }
 
   .infinite-canvas.space-held {

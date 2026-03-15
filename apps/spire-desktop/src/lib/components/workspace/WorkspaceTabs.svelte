@@ -15,6 +15,7 @@
   } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { tooltip } from "$lib/actions/tooltip";
+  import { longpress } from "$lib/actions/longpress";
 
   let dragTabId: string | null = null;
   let dropTargetTabId: string | null = null;
@@ -93,11 +94,16 @@
     startRenameTab(wsId);
   }
 
-  function handleTabContextMenu(event: MouseEvent, wsId: string): void {
-    if (event.shiftKey) return;
-    event.preventDefault();
-    event.stopPropagation();
+  function moveWorkspaceRelative(wsId: string, direction: "left" | "right"): void {
+    const all = get(workspaces);
+    const index = all.findIndex((ws) => ws.id === wsId);
+    if (index < 0) return;
+    const targetIndex = direction === "left" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= all.length) return;
+    reorderWorkspaces(wsId, all[targetIndex].id);
+  }
 
+  function buildWorkspaceContextItems(wsId: string): import("$lib/types/menu").ContextMenuItem[] {
     const colorSubmenuItems: import("$lib/types/menu").ContextMenuItem[] = WORKSPACE_COLORS.map((c, i) => ({
       type: "action" as const,
       id: `ctx-ws-color-${i}`,
@@ -107,7 +113,7 @@
       action: () => setWorkspaceColor(wsId, c),
     }));
 
-    const items: import("$lib/types/menu").ContextMenuItem[] = [
+    return [
       { type: "action", id: "ctx-ws-rename", label: "Rename", icon: "✎", action: () => startRenameTab(wsId) },
       {
         type: "action",
@@ -126,13 +132,29 @@
       { type: "separator", id: "sep-ws-1" },
       { type: "action", id: "ctx-ws-duplicate", label: "Duplicate Workspace", action: () => duplicateWorkspace(wsId) },
       { type: "action", id: "ctx-ws-new", label: "New Workspace", shortcut: "+", action: () => addWorkspace() },
+      ...(($workspaces.length > 1)
+        ? [
+            { type: "separator" as const, id: "sep-ws-move" },
+            { type: "action" as const, id: "ctx-ws-move-left", label: "Move Left", icon: "←", action: () => moveWorkspaceRelative(wsId, "left") },
+            { type: "action" as const, id: "ctx-ws-move-right", label: "Move Right", icon: "→", action: () => moveWorkspaceRelative(wsId, "right") },
+          ]
+        : []),
       { type: "separator", id: "sep-ws-2" },
       ...(($workspaces.length > 1)
         ? [{ type: "action" as const, id: "ctx-ws-close", label: "Close Workspace", icon: "✕", action: () => removeWorkspace(wsId) }]
         : []),
     ];
+  }
 
-    showContextMenu(event.clientX, event.clientY, items);
+  function openWorkspaceContextAt(wsId: string, x: number, y: number): void {
+    showContextMenu(x, y, buildWorkspaceContextItems(wsId));
+  }
+
+  function handleTabContextMenu(event: MouseEvent, wsId: string): void {
+    if (event.shiftKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    openWorkspaceContextAt(wsId, event.clientX, event.clientY);
   }
 </script>
 
@@ -147,6 +169,11 @@
       on:click={() => switchWorkspace(ws.id)}
       on:dblclick={() => handleTabDblClick(ws.id)}
       on:contextmenu={(e) => handleTabContextMenu(e, ws.id)}
+      use:longpress={{
+        duration: 470,
+        moveTolerance: 12,
+        onLongPress: (detail) => openWorkspaceContextAt(ws.id, detail.x, detail.y),
+      }}
       on:keydown={(e) => e.key === 'Enter' && switchWorkspace(ws.id)}
       draggable={renamingTabId !== ws.id}
       on:dragstart={(e) => handleTabDragStart(e, ws.id)}
