@@ -131,7 +131,7 @@
   .lod-summary-header .lod-label {
     font-size: 2.1rem;
     font-weight: 700;
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
@@ -143,12 +143,12 @@
     flex: 1;
     overflow: hidden;
     font-size: 1.7rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     line-height: 1.5;
   }
 
   .lod-placeholder-text {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     font-size: 1.5rem;
   }
@@ -160,7 +160,7 @@
     gap: 1rem;
     padding: 1rem 1.2rem;
     height: 100%;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border-left: 8px solid var(--lod-accent, #5eb8ff);
     overflow: hidden;
   }
@@ -180,7 +180,7 @@
   .lod-minimal-card .lod-label {
     font-size: 3.6rem;
     font-weight: 700;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     white-space: normal;

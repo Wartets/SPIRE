@@ -169,13 +169,13 @@
           title: {
             display: true,
             text: `${table.parent_name} Branching Ratios`,
-            color: "#e0e0e0",
+            color: "var(--color-text-primary)",
             font: { size: 13, weight: "bold" },
           },
           legend: {
             position: "right",
             labels: {
-              color: "#bbb",
+              color: "var(--color-text-muted)",
               font: { size: 11, family: "'JetBrains Mono', 'Fira Code', monospace" },
               boxWidth: 12,
               padding: 6,
@@ -393,14 +393,14 @@
     overflow-y: auto;
     padding: 0.75rem;
     font-size: 0.8rem;
-    color: #ccc;
+    color: var(--color-text-primary);
   }
 
   .widget-title {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding-bottom: 0.35rem;
   }
@@ -418,7 +418,7 @@
   }
 
   .field label {
-    color: #aaa;
+    color: var(--color-text-muted);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -449,7 +449,7 @@
     border: none;
     border-radius: 5px;
     background: linear-gradient(135deg, #00d4ff, #0090ff);
-    color: #fff;
+    color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
     cursor: pointer;
@@ -470,7 +470,7 @@
     width: 14px;
     height: 14px;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #fff;
+    border-top-color: var(--color-text-primary);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
@@ -551,7 +551,7 @@
   th {
     text-align: right;
     padding: 0.3rem 0.5rem;
-    color: #aaa;
+    color: var(--color-text-muted);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     font-weight: 500;
   }
@@ -564,14 +564,14 @@
   td {
     text-align: right;
     padding: 0.25rem 0.5rem;
-    color: #ccc;
+    color: var(--color-text-primary);
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   td.mono {
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.68rem;
-    color: #999;
+    color: var(--color-text-muted);
   }
 
   .colour-dot {
@@ -600,7 +600,7 @@
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
-    color: #bbb;
+    color: var(--color-text-muted);
     font-size: 0.75rem;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
@@ -621,7 +621,7 @@
     justify-content: center;
     gap: 0.5rem;
     height: 200px;
-    color: #666;
+    color: var(--color-text-muted);
     text-align: center;
   }
 
@@ -631,7 +631,7 @@
 
   .hint {
     font-size: 0.68rem;
-    color: #666;
+    color: var(--color-text-muted);
     font-style: italic;
   }
 </style>

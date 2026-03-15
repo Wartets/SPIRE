@@ -818,7 +818,7 @@
     margin-bottom: 0.3rem;
   }
   .preset-row .preset-label {
-    color: var(--hl-accent, #8ab4f8);
+    color: var(--hl-accent, var(--color-accent));
     font-weight: 600;
     font-size: 0.75rem;
     white-space: nowrap;
@@ -829,13 +829,13 @@
     border: 1px solid rgba(138, 180, 248, 0.3);
     border-radius: 4px;
     background: rgba(138, 180, 248, 0.08);
-    color: #ccc;
+    color: var(--color-text-primary);
     cursor: pointer;
     font-family: var(--font-mono);
     transition: background 0.15s;
   }
   .preset-btn:hover {
     background: rgba(138, 180, 248, 0.2);
-    color: #fff;
+    color: var(--color-text-primary);
   }
 </style>

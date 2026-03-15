@@ -172,7 +172,7 @@
     max-height: 85vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg-primary, #121212);
+    background: var(--color-bg-base);
     border: 1px solid var(--border, #333);
     box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8);
     overflow: hidden;
@@ -185,7 +185,7 @@
     gap: 0.6rem;
     padding: 0.6rem 0.8rem;
     border-bottom: 1px solid var(--border, #333);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
     flex-shrink: 0;
   }
 
@@ -195,36 +195,36 @@
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
     white-space: nowrap;
   }
 
   .cs-search {
     flex: 1;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border: 1px solid var(--border, #333);
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     font-family: var(--font-mono);
     font-size: 0.72rem;
     padding: 0.25rem 0.5rem;
     outline: none;
   }
   .cs-search:focus {
-    border-color: var(--border-focus, #666);
+    border-color: var(--border-focus, var(--color-text-muted));
   }
 
   .cs-close {
     background: none;
     border: 1px solid var(--border, #333);
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-family: var(--font-mono);
     font-size: 0.72rem;
     cursor: pointer;
     padding: 0.15rem 0.4rem;
   }
   .cs-close:hover {
-    color: var(--fg-primary, #e8e8e8);
-    border-color: var(--fg-secondary, #888);
+    color: var(--color-text-primary);
+    border-color: var(--fg-secondary, var(--color-text-muted));
   }
 
   /* ── Grid ── */
@@ -241,7 +241,7 @@
   .cs-category {
     padding: 0.4rem 0.5rem;
     border: 1px solid var(--border, #333);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
   }
 
   .cs-category.highlighted {
@@ -255,7 +255,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .cs-category.highlighted .cs-cat-title {
@@ -278,7 +278,7 @@
 
   .cs-cmd {
     font-size: 0.7rem;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -287,8 +287,8 @@
   .cs-kbd {
     font-family: var(--font-mono);
     font-size: 0.6rem;
-    color: var(--hl-symbol, #5eb8ff);
-    background: var(--bg-inset, #0e0e0e);
+    color: var(--color-accent);
+    background: var(--color-bg-inset);
     border: 1px solid var(--border, #333);
     padding: 0.1rem 0.35rem;
     white-space: nowrap;
@@ -298,7 +298,7 @@
   .cs-empty {
     grid-column: 1 / -1;
     text-align: center;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     font-size: 0.75rem;
     padding: 2rem 0;
@@ -311,13 +311,13 @@
     justify-content: space-between;
     padding: 0.35rem 0.8rem;
     border-top: 1px solid var(--border, #333);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
     flex-shrink: 0;
   }
 
   .cs-footer-hint {
     font-size: 0.55rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .cs-footer-hint kbd {
@@ -325,7 +325,7 @@
     font-size: 0.52rem;
     padding: 0.05rem 0.25rem;
     border: 1px solid var(--border, #333);
-    background: var(--bg-inset, #0e0e0e);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-inset);
+    color: var(--color-text-primary);
   }
 </style>

@@ -190,7 +190,7 @@
     height: 100%;
     overflow-y: auto;
     font-family: var(--font-mono, monospace);
-    color: var(--fg, #e0e0e0);
+    color: var(--fg, var(--color-text-primary));
   }
 
   .pm-controls {
@@ -221,15 +221,15 @@
   .pm-refresh-btn {
     padding: 0.5rem 0.7rem;
     background: var(--bg-elevated, #2a2a2a);
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     border: 1px solid var(--border, #333);
     border-radius: 4px;
     cursor: pointer;
     font-size: 1rem;
   }
   .pm-refresh-btn:hover:not(:disabled) {
-    color: var(--fg, #e0e0e0);
-    border-color: var(--fg-muted, #999);
+    color: var(--fg, var(--color-text-primary));
+    border-color: var(--fg-muted, var(--color-text-muted));
   }
 
   .pm-msg {
@@ -244,7 +244,7 @@
   }
   .pm-success {
     background: rgba(76, 175, 80, 0.15);
-    color: var(--hl-success, #4caf50);
+    color: var(--hl-success, var(--color-success));
     border: 1px solid rgba(76, 175, 80, 0.3);
   }
 
@@ -253,7 +253,7 @@
     justify-content: space-between;
     align-items: center;
     font-size: 0.75rem;
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     padding: 0.25rem 0;
     border-bottom: 1px solid var(--border, #333);
   }
@@ -275,7 +275,7 @@
     justify-content: center;
     flex: 1;
     gap: 0.5rem;
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     text-align: center;
     padding: 2rem 1rem;
   }
@@ -322,12 +322,12 @@
   .pm-card-name {
     font-weight: 600;
     font-size: 0.9rem;
-    color: var(--fg, #e0e0e0);
+    color: var(--fg, var(--color-text-primary));
   }
 
   .pm-card-version {
     font-size: 0.7rem;
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     background: var(--bg-surface, #1e1e1e);
     padding: 0.1rem 0.3rem;
     border-radius: 3px;
@@ -337,7 +337,7 @@
     margin-left: auto;
     background: none;
     border: 1px solid var(--border, #333);
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     border-radius: 4px;
     padding: 0.15rem 0.4rem;
     cursor: pointer;
@@ -351,13 +351,13 @@
 
   .pm-card-desc {
     font-size: 0.78rem;
-    color: var(--fg-muted, #999);
+    color: var(--fg-muted, var(--color-text-muted));
     line-height: 1.4;
   }
 
   .pm-card-meta {
     font-size: 0.7rem;
-    color: var(--fg-dim, #666);
+    color: var(--fg-dim, var(--color-text-muted));
   }
 
   .pm-card-caps {

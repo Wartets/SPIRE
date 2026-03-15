@@ -63,20 +63,20 @@
     font-weight: 700;
   }
   .stat-label {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 1.4rem;
   }
   .stat-unit {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 1.3rem;
   }
   .observable {
-    color: var(--hl-symbol, #5eb8ff);
+    color: var(--color-accent);
     font-size: 1.3rem;
     font-style: italic;
   }
   .empty {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     font-size: 1.4rem;
   }

@@ -108,7 +108,7 @@
           },
           plugins: {
             legend: {
-              labels: { color: "#ccc", font: { size: 11 } },
+              labels: { color: "var(--color-text-primary)", font: { size: 11 } },
             },
             tooltip: {
               callbacks: {
@@ -120,14 +120,14 @@
           scales: {
             x: {
               type: "logarithmic",
-              title: { display: true, text: "x = m_χ / T", color: "#aaa" },
-              ticks: { color: "#888" },
+              title: { display: true, text: "x = m_χ / T", color: "var(--color-text-muted)" },
+              ticks: { color: "var(--color-text-muted)" },
               grid: { color: "rgba(255,255,255,0.05)" },
             },
             y: {
               type: "logarithmic",
-              title: { display: true, text: "Y = n / s", color: "#aaa" },
-              ticks: { color: "#888" },
+              title: { display: true, text: "Y = n / s", color: "var(--color-text-muted)" },
+              ticks: { color: "var(--color-text-muted)" },
               grid: { color: "rgba(255,255,255,0.05)" },
               min: 1e-20,
             },
@@ -140,9 +140,9 @@
   }
 
   function classColor(c: string): string {
-    if (c === "compatible") return "var(--hl-green, #66bb6a)";
-    if (c === "over-closes") return "var(--hl-error, #ef5350)";
-    return "var(--hl-warn, #ffa726)";
+    if (c === "compatible") return "var(--hl-green, var(--color-success))";
+    if (c === "over-closes") return "var(--hl-error, var(--color-error))";
+    return "var(--hl-warn, var(--hl-value))";
   }
 
   function fmtSci(v: number, digits = 3): string {
@@ -247,7 +247,7 @@
   h3 {
     margin: 0 0 0.5rem;
     font-size: 0.9rem;
-    color: var(--fg-secondary, #aaa);
+    color: var(--fg-secondary, var(--color-text-muted));
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -255,7 +255,7 @@
   h4 {
     margin: 0 0 0.5rem;
     font-size: 0.85rem;
-    color: var(--fg-secondary, #aaa);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .form-grid {
@@ -268,7 +268,7 @@
 
   .form-grid label {
     font-size: 0.8rem;
-    color: var(--fg-secondary, #bbb);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .form-grid :global(.spire-number-input) {
@@ -298,7 +298,7 @@
   }
 
   .error-msg {
-    color: var(--hl-error, #ef5350);
+    color: var(--hl-error, var(--color-error));
     font-size: 0.8rem;
     margin-top: 0.3rem;
   }
@@ -321,7 +321,7 @@
 
   .result-label {
     font-size: 0.7rem;
-    color: var(--fg-secondary, #999);
+    color: var(--fg-secondary, var(--color-text-muted));
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.2rem;

@@ -60,7 +60,7 @@
     cursor: default;
   }
   .hover-def.has-entry {
-    border-bottom: 1px dotted var(--hl-symbol, #5eb8ff);
+    border-bottom: 1px dotted var(--color-accent);
     cursor: help;
   }
 

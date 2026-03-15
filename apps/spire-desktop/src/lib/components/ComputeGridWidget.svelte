@@ -71,6 +71,12 @@
 
   let errorMsg: string = "";
 
+  function cssVar(name: string, fallback: string): string {
+    if (typeof window === "undefined") return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
   // Subscribe to grid snapshot updates.
   const unsub = gridSnapshot.subscribe((snap) => {
     snapshot = snap;
@@ -181,6 +187,12 @@
       return;
     }
 
+    const accent = cssVar("--color-accent", "#5eb8ff");
+    const accentRgb = cssVar("--color-accent-rgb", "94, 184, 255");
+    const muted = cssVar("--color-text-muted", "#8a8a8a");
+    const textPrimary = cssVar("--color-text-primary", "#e8e8e8");
+    const textPrimaryRgb = cssVar("--color-text-primary-rgb", "232, 232, 232");
+
     convergenceChart = new Chart(convergenceCanvasEl, {
       type: "line",
       data: {
@@ -189,11 +201,11 @@
           {
             label: "δσ (pb)",
             data: errorsPb,
-            borderColor: "#8ab4f8",
-            backgroundColor: "rgba(138, 180, 248, 0.1)",
+            borderColor: accent,
+            backgroundColor: `rgba(${accentRgb}, 0.1)`,
             borderWidth: 2,
             pointRadius: 3,
-            pointBackgroundColor: "#8ab4f8",
+            pointBackgroundColor: accent,
             fill: true,
             tension: 0.3,
           },
@@ -206,7 +218,7 @@
           title: {
             display: true,
             text: "Convergence: δσ vs √N",
-            color: "#e0e0e0",
+            color: textPrimary,
             font: { size: 13 },
           },
           legend: { display: false },
@@ -219,15 +231,15 @@
         },
         scales: {
           x: {
-            title: { display: true, text: "√N (events)", color: "#aaa" },
-            ticks: { color: "#999", maxTicksLimit: 8 },
-            grid: { color: "rgba(255,255,255,0.05)" },
+            title: { display: true, text: "√N (events)", color: muted },
+            ticks: { color: muted, maxTicksLimit: 8 },
+            grid: { color: `rgba(${textPrimaryRgb}, 0.05)` },
           },
           y: {
             type: "logarithmic",
-            title: { display: true, text: "δσ (pb)", color: "#aaa" },
-            ticks: { color: "#999" },
-            grid: { color: "rgba(255,255,255,0.08)" },
+            title: { display: true, text: "δσ (pb)", color: muted },
+            ticks: { color: muted },
+            grid: { color: `rgba(${textPrimaryRgb}, 0.08)` },
           },
         },
       },
@@ -254,12 +266,12 @@
 
   function nodeStatusColor(status: string): string {
     switch (status) {
-      case "idle": return "#66bb6a";
-      case "computing": return "#42a5f5";
-      case "merging": return "#ffa726";
-      case "error": return "#ef5350";
-      case "terminated": return "#666";
-      default: return "#888";
+      case "idle": return cssVar("--color-success", "#2ecc71");
+      case "computing": return cssVar("--color-accent", "#5eb8ff");
+      case "merging": return cssVar("--hl-value", "#d4a017");
+      case "error": return cssVar("--color-error", "#e74c3c");
+      case "terminated": return cssVar("--color-text-muted", "#8a8a8a");
+      default: return cssVar("--color-text-muted", "#8a8a8a");
     }
   }
 
@@ -434,14 +446,14 @@
   .section-title {
     margin: 0 0 0.5rem 0;
     font-size: 1rem;
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     font-weight: 700;
   }
 
   .sub-title {
     margin: 0 0 0.4rem 0;
     font-size: 0.85rem;
-    color: #aaa;
+    color: var(--color-text-muted);
     font-weight: 600;
   }
 
@@ -450,8 +462,9 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .field-row {
@@ -469,7 +482,7 @@
   }
 
   .field.compact label {
-    color: #aaa;
+    color: var(--color-text-muted);
     font-size: 0.75rem;
   }
 
@@ -488,11 +501,12 @@
     font-size: 0.85rem;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #42a5f5, #1565c0);
-    color: #fff;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-accent) 20%, var(--color-bg-surface));
+    border: 1px solid color-mix(in srgb, var(--color-accent) 70%, var(--color-border));
+    color: var(--color-text-primary);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
   }
 
   .launch-btn:hover:not(:disabled) {
@@ -509,24 +523,25 @@
     font-size: 0.85rem;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #ef5350, #c62828);
-    color: #fff;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-error) 20%, var(--color-bg-surface));
+    border: 1px solid color-mix(in srgb, var(--color-error) 70%, var(--color-border));
+    color: var(--color-text-primary);
     cursor: pointer;
   }
 
   .complete-badge {
-    color: #66bb6a;
+    color: var(--color-success);
     font-weight: 600;
     font-size: 0.85rem;
   }
 
   .error-box {
     padding: 0.4rem 0.6rem;
-    background: rgba(255, 50, 50, 0.12);
-    border: 1px solid rgba(255, 50, 50, 0.3);
-    border-radius: 4px;
-    color: #ef5350;
+    background: rgba(var(--color-error-rgb), 0.12);
+    border: 1px solid rgba(var(--color-error-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--color-error);
     font-size: 0.8rem;
     word-break: break-word;
   }
@@ -535,8 +550,9 @@
 
   .progress-panel {
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .progress-header {
@@ -547,40 +563,41 @@
 
   .progress-label {
     font-size: 0.78rem;
-    color: #ccc;
+    color: var(--color-text-primary);
     font-family: "JetBrains Mono", "Fira Code", monospace;
   }
 
   .progress-eta {
     font-size: 0.75rem;
-    color: #888;
+    color: var(--color-text-muted);
   }
 
   .progress-bar-track {
     width: 100%;
     height: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    background: color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+    border-radius: var(--radius-sm);
     overflow: hidden;
   }
 
   .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #42a5f5, #1e88e5);
-    border-radius: 4px;
+    background: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg-surface));
+    border-radius: var(--radius-sm);
     transition: width 0.3s ease;
   }
 
   .progress-bar-fill.complete {
-    background: linear-gradient(90deg, #66bb6a, #43a047);
+    background: color-mix(in srgb, var(--color-success) 70%, var(--color-bg-surface));
   }
 
   /* ── Node Status Grid ── */
 
   .nodes-panel {
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .node-grid {
@@ -594,9 +611,9 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.25rem 0.5rem;
-    background: rgba(0, 0, 0, 0.25);
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+    border-radius: var(--radius-sm);
+    border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
   }
 
   .node-indicator {
@@ -614,20 +631,20 @@
 
   .node-id {
     font-size: 0.72rem;
-    color: #aaa;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", "Fira Code", monospace;
   }
 
   .node-status {
     font-size: 0.72rem;
-    color: #888;
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
 
   .node-retries {
     font-size: 0.68rem;
-    color: #ffa726;
+    color: var(--hl-value);
     font-weight: 600;
   }
 
@@ -638,8 +655,9 @@
     min-height: 200px;
     flex: 1;
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .convergence-panel canvas {
@@ -653,7 +671,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #555;
+    color: var(--color-text-muted);
     font-size: 0.85rem;
     text-align: center;
     padding: 1rem;
@@ -663,8 +681,9 @@
 
   .results-panel {
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .stats-row {
@@ -679,12 +698,12 @@
   }
 
   .stat-label {
-    color: #888;
+    color: var(--color-text-muted);
     font-size: 0.78rem;
   }
 
   .stat-value {
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.78rem;
   }

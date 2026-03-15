@@ -22,9 +22,9 @@
     z-index: 14000;
     pointer-events: none;
     padding: 0.35rem 0.5rem;
-    border: 1px solid var(--border-color, var(--border, #333333));
-    background: var(--bg-primary, #121212);
-    color: var(--fg-primary, #e8e8e8);
+    border: 1px solid var(--border-color, var(--color-border));
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
     font-family: var(--font-mono, "Fira Code", monospace);
     font-size: 0.7rem;
     line-height: 1.35;

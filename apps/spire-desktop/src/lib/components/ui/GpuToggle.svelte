@@ -119,7 +119,7 @@
   }
 
   .label {
-    color: var(--text-muted, #888);
+    color: var(--text-muted, var(--color-text-muted));
     font-weight: 500;
     user-select: none;
   }

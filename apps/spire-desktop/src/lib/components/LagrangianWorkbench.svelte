@@ -260,22 +260,22 @@
         scales: {
           x: {
             type: "logarithmic",
-            title: { display: true, text: "μ (GeV)", color: "#aaa" },
-            ticks: { color: "#999" },
+            title: { display: true, text: "μ (GeV)", color: "var(--color-text-muted)" },
+            ticks: { color: "var(--color-text-muted)" },
             grid: { color: "rgba(255,255,255,0.05)" },
           },
           y: {
             title: {
               display: true,
               text: rgeResult.coupling_name,
-              color: "#aaa",
+              color: "var(--color-text-muted)",
             },
-            ticks: { color: "#999" },
+            ticks: { color: "var(--color-text-muted)" },
             grid: { color: "rgba(255,255,255,0.05)" },
           },
         },
         plugins: {
-          legend: { labels: { color: "#ccc" } },
+          legend: { labels: { color: "var(--color-text-primary)" } },
           title: {
             display: true,
             text: `RGE Flow: ${rgeResult.coupling_name}(μ)`,
@@ -547,7 +547,7 @@
   .tab {
     background: transparent;
     border: none;
-    color: #999;
+    color: var(--color-text-muted);
     padding: 0.4rem 1rem;
     cursor: pointer;
     font-size: 0.8rem;
@@ -555,7 +555,7 @@
     transition: all 0.15s;
   }
   .tab:hover {
-    color: #ccc;
+    color: var(--color-text-primary);
   }
   .tab.active {
     color: #4fc3f7;
@@ -574,7 +574,7 @@
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
 
   /* Field chips */
@@ -596,13 +596,13 @@
     color: #4fc3f7;
   }
   .field-chip small {
-    color: #888;
+    color: var(--color-text-muted);
     font-size: 0.65rem;
   }
   .chip-remove {
     background: none;
     border: none;
-    color: #999;
+    color: var(--color-text-muted);
     cursor: pointer;
     font-size: 0.85rem;
     padding: 0 2px;
@@ -659,7 +659,7 @@
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
-    color: #bbb;
+    color: var(--color-text-muted);
     padding: 0.2rem 0.5rem;
     font-size: 0.72rem;
     cursor: pointer;
@@ -704,7 +704,7 @@
   .badge.pass {
     background: rgba(76, 175, 80, 0.15);
     border: 1px solid rgba(76, 175, 80, 0.4);
-    color: #4caf50;
+    color: var(--color-success);
   }
   .badge.fail {
     background: rgba(244, 67, 54, 0.15);
@@ -724,7 +724,7 @@
   }
   .diagnostics summary {
     cursor: pointer;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
   .diagnostics ul {
     margin: 0.3rem 0;
@@ -740,7 +740,7 @@
     color: #ffc107;
   }
   .diag-info {
-    color: #aaa;
+    color: var(--color-text-muted);
   }
 
   /* External fields */
@@ -760,7 +760,7 @@
     align-items: center;
     gap: 0.2rem;
     font-size: 0.72rem;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
 
   /* Derived Rule */
@@ -774,14 +774,14 @@
   .rule-latex code {
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.78rem;
-    color: #4caf50;
+    color: var(--color-success);
   }
   .rule-meta {
     display: flex;
     gap: 1rem;
     margin-top: 0.3rem;
     font-size: 0.7rem;
-    color: #888;
+    color: var(--color-text-muted);
   }
 
   /* RGE form */
@@ -796,7 +796,7 @@
     flex-direction: column;
     gap: 0.15rem;
     font-size: 0.72rem;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
   .beta-input {
     margin-bottom: 0.5rem;
@@ -806,7 +806,7 @@
     flex-direction: column;
     gap: 0.2rem;
     font-size: 0.72rem;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
   .beta-input code {
     color: #4fc3f7;
@@ -831,7 +831,7 @@
     margin: 0.3rem 0 0;
   }
   .hint {
-    color: #888;
+    color: var(--color-text-muted);
     font-size: 0.72rem;
     margin: 0.2rem 0;
   }

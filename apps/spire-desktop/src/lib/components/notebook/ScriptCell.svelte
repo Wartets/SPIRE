@@ -133,7 +133,7 @@
     display: flex;
     align-items: center;
     padding: 0.15rem 0.4rem;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border-bottom: 1px solid var(--border, #333);
     gap: 0.3rem;
   }
@@ -148,7 +148,7 @@
 
   .sc-exec-count {
     font-size: 0.6rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-family: var(--font-mono, "Fira Code", monospace);
     min-width: 2rem;
   }
@@ -164,8 +164,8 @@
   }
 
   .sc-run:hover:not(:disabled) {
-    background: var(--bg-inset, #0e0e0e);
-    color: var(--fg-accent, #fff);
+    background: var(--color-bg-inset);
+    color: var(--fg-accent, var(--color-text-primary));
   }
 
   .sc-run:disabled {
@@ -182,7 +182,7 @@
   .sc-btn {
     background: none;
     border: 1px solid transparent;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     cursor: pointer;
     padding: 0 0.2rem;
@@ -190,7 +190,7 @@
   }
 
   .sc-btn:hover {
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     border-color: var(--border, #333);
   }
 
@@ -202,8 +202,8 @@
     width: 100%;
     min-height: 4rem;
     padding: 0.4rem;
-    background: var(--bg-primary, #121212);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
     border: none;
     font-family: var(--font-mono, "Fira Code", monospace);
     font-size: 0.75rem;
@@ -217,7 +217,7 @@
   .sc-output {
     border-top: 1px solid var(--border, #333);
     padding: 0.3rem 0.4rem;
-    background: var(--bg-primary, #121212);
+    background: var(--color-bg-base);
     position: relative;
   }
 
@@ -235,7 +235,7 @@
   }
 
   .sc-stdout {
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     margin: 0;
     font-size: 0.72rem;
     font-family: var(--font-mono, "Fira Code", monospace);
@@ -255,6 +255,6 @@
     bottom: 0.15rem;
     right: 0.3rem;
     font-size: 0.5rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 </style>

@@ -8,6 +8,7 @@
   properties.
 -->
 <script lang="ts">
+  import "../app.pcss";
   import { onMount, onDestroy } from "svelte";
   import {
     activeFramework,
@@ -40,12 +41,11 @@
     workspacePersistenceHydrated,
   } from "$lib/stores/workspaceStore";
   import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
+  import Header from "$lib/components/layout/Header.svelte";
   import type { TheoreticalFramework } from "$lib/types/spire";
-  import { tooltip } from "$lib/actions/tooltip";
 
-  function onFrameworkChange(e: Event): void {
-    const val = (e.target as HTMLSelectElement).value as TheoreticalFramework;
-    activeFramework.set(val);
+  function onFrameworkChange(value: TheoreticalFramework): void {
+    activeFramework.set(value);
   }
 
   // ── Global Keybind Handler ─────────────────────────────────
@@ -92,57 +92,16 @@
   });
 </script>
 
-<div class="app-shell" style="--hl-symbol: {$activeWorkspace?.color ?? '#5eb8ff'};">
-  <!-- Navigation Bar -->
-  <nav class="navbar">
-    <div class="navbar-brand">
-      <span class="logo">SPIRE</span>
-      <span class="tagline">Structured Particle Interaction &amp; Reaction Engine</span>
-    </div>
-    <div class="navbar-controls">
-      <!-- Framework Selector -->
-      <label class="nav-label">
-        Framework
-        <select class="nav-select" value={$activeFramework} on:change={onFrameworkChange}>
-          <option value="StandardModel">Standard Model</option>
-          <option value="QED">QED</option>
-          <option value="QCD">QCD</option>
-          <option value="ElectroWeak">Electroweak</option>
-          <option value="BSM">BSM</option>
-        </select>
-      </label>
-
-      <!-- Model Status Indicator -->
-      <span class="model-status" class:loaded={$isModelLoaded}>
-        {#if $isModelLoaded && $theoreticalModel}
-          <span class="status-dot active"></span> {$theoreticalModel.name}
-        {:else}
-          <span class="status-dot"></span> No model loaded
-        {/if}
-      </span>
-
-      <!-- Backend Environment Indicator -->
-      <span
-        class="backend-indicator"
-        class:backend-native={$backendKind === "tauri"}
-        class:backend-wasm={$backendKind === "wasm"}
-        class:backend-mock={$backendKind === "mock"}
-        use:tooltip={{ text: `Execution environment: ${$backendLabel}` }}
-      >
-        <span class="backend-dot"></span>
-        {$backendLabel}
-      </span>
-
-      <!-- Command Palette Shortcut Hint -->
-      <button
-        class="palette-hint"
-        on:click={() => togglePalette()}
-        use:tooltip={{ text: "Open Command Palette (Ctrl+K)" }}
-      >
-        Ctrl+K
-      </button>
-    </div>
-  </nav>
+<div class="app-shell" style="--hl-symbol: {$activeWorkspace?.color ?? 'var(--color-accent)'};">
+  <Header
+    framework={$activeFramework}
+    isModelLoaded={$isModelLoaded}
+    modelName={$theoreticalModel?.name ?? null}
+    backendKind={$backendKind}
+    backendLabel={$backendLabel}
+    on:frameworkChange={(event) => onFrameworkChange(event.detail)}
+    on:togglePalette={() => togglePalette()}
+  />
 
   <!-- Command Palette Overlay -->
   {#if $paletteOpen}
@@ -189,22 +148,8 @@
 </div>
 
 <style>
-  /* ── Typewriter Design Tokens ─────────────────────────────── */
   :global(:root) {
-    --font-mono: "Fira Code", "Cascadia Code", "Courier New", monospace;
-    --bg-primary:   #121212;
-    --bg-surface:   #1a1a1a;
-    --bg-inset:     #0e0e0e;
-    --fg-primary:   #e8e8e8;
-    --fg-secondary: #888888;
-    --fg-accent:    #ffffff;
-    --border:       #333333;
-    --border-focus: #666666;
-    --hl-value:     #d4a017;
-    --hl-symbol:    #5eb8ff;
-    --hl-error:     #e74c3c;
-    --hl-success:   #2ecc71;
-    --canvas-zoom:  1;
+    --canvas-zoom: 1;
   }
 
   /* ── Font Scaling Floor ───────────────────────────────────── */
@@ -221,7 +166,7 @@
      base font size of ~12px.  zoom × 12 < 9  ⟹  zoom < 0.75. */
   :global(.zoom-floor-text) {
     color: transparent;
-    background: var(--fg-secondary, #888);
+    background: var(--color-text-muted);
     opacity: 0.25;
     line-height: 1;
     user-select: none;
@@ -256,11 +201,11 @@
     background: transparent;
   }
   :global(*::-webkit-scrollbar-thumb) {
-    background: #444444;
+    background: color-mix(in srgb, var(--color-text-muted) 60%, transparent);
     border-radius: 3px !important;
   }
   :global(*::-webkit-scrollbar-thumb:hover) {
-    background: #666666;
+    background: color-mix(in srgb, var(--color-text-muted) 80%, transparent);
   }
   :global(*::-webkit-scrollbar-corner) {
     background: transparent;
@@ -275,147 +220,6 @@
     max-width: 100vw;
     overflow: hidden;
     font-family: var(--font-mono);
-  }
-
-  /* ── Navbar ───────────────────────────────────────────────── */
-  .navbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.4rem 0.8rem;
-    background: var(--bg-surface);
-    color: var(--fg-primary);
-    flex-shrink: 0;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    min-height: 0;
-  }
-  .navbar-brand {
-    display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-  }
-  .logo {
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    color: var(--fg-accent);
-  }
-  .tagline {
-    font-size: 0.7rem;
-    color: var(--fg-secondary);
-  }
-
-  /* ── Navbar Controls ──────────────────────────────────────── */
-  .navbar-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .nav-label {
-    font-size: 0.68rem;
-    color: var(--fg-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .nav-select {
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    color: var(--fg-primary);
-    padding: 0.2rem 0.4rem;
-    font-size: 0.78rem;
-    font-family: var(--font-mono);
-  }
-  .model-status {
-    font-size: 0.75rem;
-    color: var(--fg-secondary);
-    padding: 0.2rem 0.5rem;
-    border: 1px solid var(--border);
-    background: var(--bg-inset);
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-  }
-  .status-dot {
-    display: inline-block;
-    width: 0.5rem;
-    height: 0.5rem;
-    background: var(--fg-secondary);
-    flex-shrink: 0;
-  }
-  .status-dot.active {
-    background: var(--hl-success);
-  }
-  .model-status.loaded {
-    color: var(--hl-success);
-    border-color: var(--hl-success);
-  }
-
-  /* ── Backend Indicator ────────────────────────────────────── */
-  .backend-indicator {
-    font-size: 0.68rem;
-    padding: 0.15rem 0.45rem;
-    border: 1px solid var(--border);
-    background: var(--bg-inset);
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--fg-secondary);
-    white-space: nowrap;
-  }
-  .backend-dot {
-    display: inline-block;
-    width: 0.45rem;
-    height: 0.45rem;
-    flex-shrink: 0;
-    background: var(--fg-secondary);
-  }
-  .backend-indicator.backend-native {
-    color: var(--hl-success);
-    border-color: var(--hl-success);
-  }
-  .backend-indicator.backend-native .backend-dot {
-    background: var(--hl-success);
-  }
-  .backend-indicator.backend-wasm {
-    color: var(--hl-symbol);
-    border-color: var(--hl-symbol);
-  }
-  .backend-indicator.backend-wasm .backend-dot {
-    background: var(--hl-symbol);
-  }
-  .backend-indicator.backend-mock {
-    color: var(--hl-value);
-    border-color: var(--hl-value);
-  }
-  .backend-indicator.backend-mock .backend-dot {
-    background: var(--hl-value);
-  }
-
-  /* ── Palette Hint ─────────────────────────────────────────── */
-  .palette-hint {
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    padding: 0.15rem 0.4rem;
-    border: 1px solid var(--border);
-    background: var(--bg-inset);
-    color: var(--fg-secondary);
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-  .palette-hint:hover {
-    border-color: var(--border-focus);
-    color: var(--fg-primary);
   }
 
   /* ── Main Content ─────────────────────────────────────────── */
@@ -440,13 +244,6 @@
 
   /* ── Responsive: small viewports ─────────────────────────── */
   @media (max-width: 768px) {
-    .navbar { padding: 0.25rem 0.5rem; }
-    .tagline { display: none; }
-    .navbar-controls { gap: 0.35rem; }
-    .model-status { font-size: 0.65rem; padding: 0.15rem 0.35rem; }
-    .backend-indicator { font-size: 0.6rem; padding: 0.1rem 0.3rem; }
-    .nav-label { font-size: 0.6rem; }
-    .nav-select { font-size: 0.68rem; padding: 0.15rem 0.3rem; }
     .main-content { padding: 0.25rem; }
   }
 
@@ -456,7 +253,7 @@
     bottom: 1.2rem;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
     color: var(--hl-value, #d4a017);
     border: 1px solid var(--hl-value, #d4a017);
     padding: 0.35rem 1rem;
@@ -485,7 +282,7 @@
   .keybind-panel-drawer {
     width: min(520px, 85vw);
     height: 100%;
-    background: var(--bg-primary, #121212);
+    background: var(--color-bg-base);
     border-left: 1px solid var(--border, #333);
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
     animation: drawer-slide-in 0.15s ease-out;

@@ -571,7 +571,7 @@
     <span class="legend-item" style="color: #ff8800;">■ Jets</span>
     <span class="legend-item" style="color: #44ff44;">- Electrons</span>
     <span class="legend-item" style="color: #ff4444;">- Muons</span>
-    <span class="legend-item" style="color: #ffff44;">┅ Photons</span>
+    <span class="legend-item" style="color: var(--hl-value);">┅ Photons</span>
     <span class="legend-item" style="color: #ff00ff;">⇢ MET</span>
   </div>
 </div>
@@ -603,13 +603,13 @@
   .field-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; gap: 0.15rem; }
   .field.compact { flex: 1; min-width: 70px; }
-  .field label { color: #aaa; font-size: 0.75rem; }
+  .field label { color: var(--color-text-muted); font-size: 0.75rem; }
 
   select {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     padding: 0.25rem 0.4rem;
     font-size: 0.8rem;
   }
@@ -622,8 +622,8 @@
     font-weight: 600;
     border: none;
     border-radius: 5px;
-    background: linear-gradient(135deg, #1e88e5, #1565c0);
-    color: #fff;
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent));
+    color: var(--color-text-primary);
     cursor: pointer;
     transition: opacity 0.15s;
   }
@@ -635,7 +635,7 @@
     background: rgba(255, 50, 50, 0.12);
     border: 1px solid rgba(255, 50, 50, 0.3);
     border-radius: 4px;
-    color: #ef5350;
+    color: var(--color-error);
     font-size: 0.78rem;
     word-break: break-word;
   }
@@ -655,32 +655,32 @@
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
-    color: #ccc; cursor: pointer;
+    color: var(--color-text-primary); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: background 0.12s;
   }
-  .ctrl-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
-  .ctrl-play { color: #4caf50; border-color: rgba(76, 175, 80, 0.3); }
+  .ctrl-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--color-text-primary); }
+  .ctrl-play { color: var(--color-success); border-color: rgba(76, 175, 80, 0.3); }
   .ctrl-pause { color: #ff9800; border-color: rgba(255, 152, 0, 0.3); }
 
   .speed-control {
     display: flex; align-items: center; gap: 0.3rem; margin-left: 0.5rem;
   }
-  .speed-control label { font-size: 0.72rem; color: #888; }
+  .speed-control label { font-size: 0.72rem; color: var(--color-text-muted); }
   .speed-control :global(.spire-slider) { width: 80px; }
   .speed-label {
-    font-size: 0.72rem; color: #8ab4f8;
+    font-size: 0.72rem; color: var(--color-accent);
     font-family: "JetBrains Mono", monospace; min-width: 3em;
   }
 
   .auto-advance-label {
     display: flex; align-items: center; gap: 0.2rem;
-    font-size: 0.72rem; color: #888; margin-left: 0.5rem; cursor: pointer;
+    font-size: 0.72rem; color: var(--color-text-muted); margin-left: 0.5rem; cursor: pointer;
   }
-  .auto-advance-label input[type="checkbox"] { accent-color: #8ab4f8; }
+  .auto-advance-label input[type="checkbox"] { accent-color: var(--color-accent); }
 
   .event-index {
-    margin-left: auto; font-size: 0.75rem; color: #8ab4f8;
+    margin-left: auto; font-size: 0.75rem; color: var(--color-accent);
     font-family: "JetBrains Mono", monospace;
   }
 
@@ -691,7 +691,7 @@
   }
   .time-fill {
     height: 100%;
-    background: linear-gradient(90deg, #1e88e5, #42a5f5);
+    background: linear-gradient(90deg, var(--color-accent), var(--color-accent));
     border-radius: 2px;
     transition: width 50ms linear;
   }
@@ -706,7 +706,7 @@
   .badge.jet      { background: rgba(255, 136, 0, 0.15); color: #ff8800; }
   .badge.electron { background: rgba(68, 255, 68, 0.12); color: #44ff44; }
   .badge.muon     { background: rgba(255, 68, 68, 0.12); color: #ff4444; }
-  .badge.photon   { background: rgba(255, 255, 68, 0.12); color: #ffff44; }
+  .badge.photon   { background: rgba(255, 255, 68, 0.12); color: var(--hl-value); }
   .badge.met      { background: rgba(255, 0, 255, 0.12); color: #ff00ff; }
 
   /* --- Viewport --- */
@@ -718,7 +718,7 @@
   .placeholder {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    color: #555; font-size: 0.85rem; text-align: center;
+    color: var(--color-text-muted); font-size: 0.85rem; text-align: center;
     padding: 1rem; pointer-events: none;
   }
 

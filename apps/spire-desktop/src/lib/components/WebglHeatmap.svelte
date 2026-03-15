@@ -337,7 +337,7 @@
     top: 4px;
     left: 50%;
     transform: translateX(-50%);
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     font-size: 0.78rem;
     font-weight: 600;
     white-space: nowrap;
@@ -347,7 +347,7 @@
     position: absolute;
     bottom: 4px;
     transform: translateX(-50%);
-    color: #999;
+    color: var(--color-text-muted);
     font-size: 0.65rem;
     font-family: "JetBrains Mono", monospace;
   }
@@ -356,7 +356,7 @@
     position: absolute;
     left: 2px;
     transform: translateY(-50%);
-    color: #999;
+    color: var(--color-text-muted);
     font-size: 0.65rem;
     font-family: "JetBrains Mono", monospace;
   }
@@ -365,7 +365,7 @@
     position: absolute;
     bottom: 4px;
     right: 4px;
-    color: #999;
+    color: var(--color-text-muted);
     font-size: 0.6rem;
     font-family: "JetBrains Mono", monospace;
   }
@@ -374,7 +374,7 @@
     position: absolute;
     top: 28px;
     right: 4px;
-    color: #999;
+    color: var(--color-text-muted);
     font-size: 0.6rem;
     font-family: "JetBrains Mono", monospace;
   }
@@ -385,7 +385,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ef5350;
+    color: var(--color-error);
     font-size: 0.82rem;
     background: rgba(0, 0, 0, 0.6);
     border-radius: 4px;

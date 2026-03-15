@@ -45,9 +45,9 @@
     appearance: none;
     -webkit-appearance: none;
     cursor: pointer;
-    --slider-track-bg: var(--bg-inset, #0e0e0e);
-    --slider-border: var(--border-color, var(--border, #333333));
-    --slider-accent: var(--accent, var(--hl-symbol, #5eb8ff));
+    --slider-track-bg: var(--color-bg-inset);
+    --slider-border: var(--color-border);
+    --slider-accent: var(--color-accent);
   }
 
   .spire-slider:disabled {
@@ -82,24 +82,24 @@
   .spire-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 0.75rem;
+    height: 0.75rem;
     border-radius: 50%;
-    margin-top: -6px;
+    margin-top: -0.375rem;
     border: 1px solid var(--slider-border);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
   }
 
   .spire-slider::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: 0.75rem;
+    height: 0.75rem;
     border-radius: 50%;
     border: 1px solid var(--slider-border);
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
   }
 
   .spire-slider:focus-visible {
-    outline: 1px solid var(--border-focus, #666666);
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
   }
 </style>

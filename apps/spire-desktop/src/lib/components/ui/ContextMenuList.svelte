@@ -251,7 +251,7 @@
     max-width: 320px;
     max-height: 80vh;
     overflow-y: auto;
-    background: var(--bg-primary, #121212);
+    background: var(--color-bg-base);
     border: 1px solid var(--border, #333);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
     display: flex;
@@ -279,7 +279,7 @@
     padding: 0.35rem 0.6rem;
     background: none;
     border: none;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     font-size: 0.75rem;
     font-family: var(--font-mono);
     cursor: pointer;
@@ -290,12 +290,12 @@
 
   .ctx-item:hover:not(.disabled),
   .ctx-item.active:not(.disabled) {
-    background: var(--bg-surface, #1a1a1a);
-    color: var(--fg-accent, #fff);
+    background: var(--color-bg-surface);
+    color: var(--fg-accent, var(--color-text-primary));
   }
 
   .ctx-item.disabled {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     cursor: default;
     opacity: 0.5;
   }
@@ -322,7 +322,7 @@
 
   .ctx-shortcut {
     font-size: 0.6rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     margin-left: auto;
     flex-shrink: 0;
     padding-left: 1rem;
@@ -330,7 +330,7 @@
 
   .ctx-arrow {
     font-size: 0.7rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     margin-left: auto;
     flex-shrink: 0;
   }
@@ -338,7 +338,7 @@
   .ctx-hint {
     padding: 0.3rem 0.6rem;
     font-size: 0.58rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     opacity: 0.6;
     user-select: none;

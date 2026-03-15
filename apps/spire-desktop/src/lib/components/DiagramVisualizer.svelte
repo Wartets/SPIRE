@@ -144,7 +144,7 @@
         themeVariables: {
           primaryColor: "#162447",
           primaryBorderColor: "#1a5276",
-          primaryTextColor: "#e0e0e0",
+          primaryTextColor: "var(--color-text-primary)",
           lineColor: "#5dade2",
           secondaryColor: "#0f3460",
           tertiaryColor: "#0d1b2a",

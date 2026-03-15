@@ -178,7 +178,7 @@
           interaction: { mode: "index", intersect: false },
           plugins: {
             legend: {
-              labels: { color: "#ccc", font: { size: 11 } },
+              labels: { color: "var(--color-text-primary)", font: { size: 11 } },
             },
             tooltip: {
               callbacks: {
@@ -189,14 +189,14 @@
           },
           scales: {
             x: {
-              title: { display: true, text: "q² (GeV²)", color: "#aaa" },
-              ticks: { color: "#888", maxTicksLimit: 12 },
+              title: { display: true, text: "q² (GeV²)", color: "var(--color-text-muted)" },
+              ticks: { color: "var(--color-text-muted)", maxTicksLimit: 12 },
               grid: { color: "rgba(255,255,255,0.05)" },
             },
             y: {
-              title: { display: true, text: "dΓ/dq² (GeV⁻¹)", color: "#aaa" },
+              title: { display: true, text: "dΓ/dq² (GeV⁻¹)", color: "var(--color-text-muted)" },
               ticks: {
-                color: "#888",
+                color: "var(--color-text-muted)",
                 callback: (v: any) => Number(v).toExponential(1),
               },
               grid: { color: "rgba(255,255,255,0.05)" },
@@ -404,7 +404,7 @@
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    color: var(--fg-secondary, #999);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.78rem;
     font-family: inherit;
     cursor: pointer;
@@ -429,7 +429,7 @@
   h3 {
     margin: 0.5rem 0 0.35rem;
     font-size: 0.85rem;
-    color: var(--fg-secondary, #aaa);
+    color: var(--fg-secondary, var(--color-text-muted));
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
@@ -437,7 +437,7 @@
   h4 {
     margin: 0.3rem 0 0.2rem;
     font-size: 0.78rem;
-    color: var(--fg-secondary, #bbb);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   /* ── Form Layouts ── */
@@ -455,7 +455,7 @@
 
   .form-grid label {
     font-size: 0.76rem;
-    color: var(--fg-secondary, #bbb);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .form-grid :global(.spire-number-input) {
@@ -470,7 +470,7 @@
   .slider-group label {
     display: block;
     font-size: 0.78rem;
-    color: var(--fg-secondary, #bbb);
+    color: var(--fg-secondary, var(--color-text-muted));
     margin-bottom: 0.15rem;
   }
 
@@ -509,9 +509,9 @@
   .btn-secondary {
     padding: 0.35rem 0.75rem;
     background: transparent;
-    border: 1px solid var(--border, #555);
+    border: 1px solid var(--border, var(--color-text-muted));
     border-radius: 4px;
-    color: var(--fg-secondary, #ccc);
+    color: var(--fg-secondary, var(--color-text-primary));
     font-size: 0.78rem;
     cursor: pointer;
     margin-top: 0.5rem;
@@ -542,7 +542,7 @@
 
   .result-label {
     font-size: 0.7rem;
-    color: var(--fg-secondary, #999);
+    color: var(--fg-secondary, var(--color-text-muted));
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.15rem;
@@ -561,13 +561,13 @@
   }
 
   .error-msg {
-    color: var(--hl-error, #ef5350);
+    color: var(--hl-error, var(--color-error));
     font-size: 0.8rem;
     margin-top: 0.3rem;
   }
 
   .info-msg {
-    color: var(--fg-secondary, #999);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.8rem;
     text-align: center;
     padding: 2rem 1rem;

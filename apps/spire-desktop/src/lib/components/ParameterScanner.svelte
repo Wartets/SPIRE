@@ -271,12 +271,12 @@
           title: {
             display: true,
             text: `σ vs ${result.variable.target}`,
-            color: "#e0e0e0",
+            color: "var(--color-text-primary)",
             font: { size: 13 },
           },
           legend: {
             display: true,
-            labels: { color: "#aaa", boxWidth: 12, font: { size: 10 } },
+            labels: { color: "var(--color-text-muted)", boxWidth: 12, font: { size: 10 } },
           },
           tooltip: {
             callbacks: {
@@ -297,18 +297,18 @@
             title: {
               display: true,
               text: result.variable.target,
-              color: "#aaa",
+              color: "var(--color-text-muted)",
             },
-            ticks: { color: "#999", maxRotation: 45 },
+            ticks: { color: "var(--color-text-muted)", maxRotation: 45 },
             grid: { color: "rgba(255,255,255,0.05)" },
           },
           y: {
             title: {
               display: true,
               text: "σ (pb)",
-              color: "#aaa",
+              color: "var(--color-text-muted)",
             },
-            ticks: { color: "#999" },
+            ticks: { color: "var(--color-text-muted)" },
             grid: { color: "rgba(255,255,255,0.05)" },
           },
         },
@@ -470,14 +470,14 @@
     overflow-y: auto;
     padding: 0.75rem;
     font-size: 0.8rem;
-    color: #ccc;
+    color: var(--color-text-primary);
   }
 
   .widget-title {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
     font-weight: 600;
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding-bottom: 0.35rem;
   }
@@ -495,7 +495,7 @@
   }
 
   .field label {
-    color: #aaa;
+    color: var(--color-text-muted);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -516,7 +516,7 @@
     align-items: center;
     gap: 0.25rem;
     font-size: 0.7rem;
-    color: #888;
+    color: var(--color-text-muted);
     cursor: pointer;
     text-transform: none;
   }
@@ -527,7 +527,7 @@
 
   .hint {
     font-size: 0.68rem;
-    color: #666;
+    color: var(--color-text-muted);
     font-style: italic;
   }
 
@@ -564,7 +564,7 @@
     border: none;
     border-radius: 5px;
     background: linear-gradient(135deg, #00d4ff, #0090ff);
-    color: #fff;
+    color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
     cursor: pointer;
@@ -585,7 +585,7 @@
     width: 14px;
     height: 14px;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #fff;
+    border-top-color: var(--color-text-primary);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
   }
@@ -627,7 +627,7 @@
     justify-content: center;
     gap: 0.5rem;
     height: 200px;
-    color: #666;
+    color: var(--color-text-muted);
     text-align: center;
   }
 
@@ -660,7 +660,7 @@
   th {
     text-align: right;
     padding: 0.3rem 0.5rem;
-    color: #aaa;
+    color: var(--color-text-muted);
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     font-weight: 500;
   }
@@ -668,7 +668,7 @@
   td {
     text-align: right;
     padding: 0.25rem 0.5rem;
-    color: #ccc;
+    color: var(--color-text-primary);
     border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 

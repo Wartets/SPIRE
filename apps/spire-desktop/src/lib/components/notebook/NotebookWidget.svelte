@@ -260,8 +260,8 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    background: var(--bg-primary, #121212);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
     font-family: var(--font-mono, "Fira Code", monospace);
   }
 
@@ -272,7 +272,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.25rem 0.5rem;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border-bottom: 1px solid var(--border, #333);
     flex-shrink: 0;
   }
@@ -280,7 +280,7 @@
   .nb-title {
     font-size: 0.72rem;
     font-weight: 600;
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
     letter-spacing: 0.04em;
   }
 
@@ -293,7 +293,7 @@
   .nb-action {
     background: none;
     border: 1px solid var(--border, #333);
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     font-family: inherit;
     cursor: pointer;
@@ -301,8 +301,8 @@
   }
 
   .nb-action:hover:not(:disabled) {
-    color: var(--fg-primary, #e8e8e8);
-    border-color: var(--fg-secondary, #888);
+    color: var(--color-text-primary);
+    border-color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .nb-action:disabled {
@@ -313,7 +313,7 @@
   .nb-cell-count {
     margin-left: auto;
     font-size: 0.55rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
   }
 
   /* ── Cell List ── */
@@ -327,7 +327,7 @@
 
   .nb-empty-hint {
     text-align: center;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     font-size: 0.75rem;
     margin-top: 2rem;
@@ -339,7 +339,7 @@
     flex-shrink: 0;
     padding: 0.25rem 0.4rem;
     border-top: 1px solid var(--border, #333);
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
   }
 
   .nb-add-wrapper {
@@ -350,7 +350,7 @@
   .nb-add-btn {
     background: none;
     border: 1px dashed var(--border, #333);
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.65rem;
     font-family: inherit;
     cursor: pointer;
@@ -358,8 +358,8 @@
   }
 
   .nb-add-btn:hover {
-    color: var(--fg-primary, #e8e8e8);
-    border-color: var(--fg-secondary, #888);
+    color: var(--color-text-primary);
+    border-color: var(--fg-secondary, var(--color-text-muted));
   }
 
   .nb-add-menu {
@@ -382,7 +382,7 @@
     padding: 0.3rem 0.5rem;
     background: none;
     border: none;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     font-size: 0.68rem;
     font-family: inherit;
     cursor: pointer;
@@ -390,7 +390,7 @@
   }
 
   .nb-menu-item:hover {
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
   }
 
   .nb-menu-icon {

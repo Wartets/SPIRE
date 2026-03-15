@@ -336,8 +336,8 @@
   // ---------------------------------------------------------------------------
 
   function nodeColor(kind: NodeKind): string {
-    if ("ExternalIncoming" in kind) return "#42a5f5"; // blue
-    if ("ExternalOutgoing" in kind) return "#66bb6a"; // green
+    if ("ExternalIncoming" in kind) return "var(--color-accent)"; // blue
+    if ("ExternalOutgoing" in kind) return "var(--color-success)"; // green
     return "#ff9800"; // orange (vertex)
   }
 
@@ -347,10 +347,10 @@
 
   function edgeStrokeColor(edgeType: string): string {
     switch (edgeType) {
-      case "boson": return "#42a5f5";
-      case "gluon": return "#ef5350";
+      case "boson": return "var(--color-accent)";
+      case "gluon": return "var(--color-error)";
       case "scalar": return "#ab47bc";
-      default: return "#e0e0e0";
+      default: return "var(--color-text-primary)";
     }
   }
 
@@ -414,11 +414,11 @@
       <defs>
         <marker id="arrow-fermion" viewBox="0 0 10 10" refX="10" refY="5"
           markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#e0e0e0" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-text-primary)" />
         </marker>
         <marker id="arrow-boson" viewBox="0 0 10 10" refX="10" refY="5"
           markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#42a5f5" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-accent)" />
         </marker>
       </defs>
 
@@ -490,13 +490,13 @@
 
     <!-- Legend -->
     <div class="legend">
-      <span class="legend-item" style="color: #42a5f5;">〜 Boson</span>
-      <span class="legend-item" style="color: #e0e0e0;">→ Fermion</span>
-      <span class="legend-item" style="color: #ef5350;">⌇ Gluon</span>
+      <span class="legend-item" style="color: var(--color-accent);">〜 Boson</span>
+      <span class="legend-item" style="color: var(--color-text-primary);">→ Fermion</span>
+      <span class="legend-item" style="color: var(--color-error);">⌇ Gluon</span>
       <span class="legend-item" style="color: #ab47bc;">┅ Scalar</span>
       <span class="sep">|</span>
-      <span class="legend-item" style="color: #42a5f5;">■ Incoming</span>
-      <span class="legend-item" style="color: #66bb6a;">■ Outgoing</span>
+      <span class="legend-item" style="color: var(--color-accent);">■ Incoming</span>
+      <span class="legend-item" style="color: var(--color-success);">■ Outgoing</span>
       <span class="legend-item" style="color: #ff9800;">● Vertex</span>
     </div>
   {/if}
@@ -522,11 +522,11 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #666;
+    color: var(--color-text-muted);
     text-align: center;
     gap: 0.3rem;
   }
-  .empty-state .hint { font-size: 0.78rem; color: #555; }
+  .empty-state .hint { font-size: 0.78rem; color: var(--color-text-muted); }
 
   /* --- Selector Bar --- */
   .selector-bar {
@@ -540,7 +540,7 @@
     flex-shrink: 0;
   }
   .selector-label {
-    color: #8ab4f8;
+    color: var(--color-accent);
     font-weight: 600;
     font-size: 0.78rem;
     white-space: nowrap;
@@ -556,16 +556,16 @@
     border: 1px solid rgba(138, 180, 248, 0.25);
     border-radius: 4px;
     background: rgba(138, 180, 248, 0.06);
-    color: #ccc;
+    color: var(--color-text-primary);
     cursor: pointer;
     transition: background 0.12s;
     font-family: "JetBrains Mono", monospace;
   }
-  .sel-btn:hover { background: rgba(138, 180, 248, 0.18); color: #fff; }
+  .sel-btn:hover { background: rgba(138, 180, 248, 0.18); color: var(--color-text-primary); }
   .sel-btn.active {
     background: rgba(138, 180, 248, 0.25);
-    color: #8ab4f8;
-    border-color: #8ab4f8;
+    color: var(--color-accent);
+    border-color: var(--color-accent);
   }
   .relayout-btn {
     padding: 0.2rem 0.5rem;
@@ -573,11 +573,11 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
-    color: #aaa;
+    color: var(--color-text-muted);
     cursor: pointer;
     margin-left: auto;
   }
-  .relayout-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .relayout-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--color-text-primary); }
   .sim-badge {
     font-size: 0.68rem;
     color: #ff9800;

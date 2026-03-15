@@ -244,7 +244,7 @@
 
   .spotlight-border {
     position: fixed;
-    border: 2px solid var(--hl-symbol, #5eb8ff);
+    border: 2px solid var(--color-accent);
     pointer-events: none;
     z-index: 9991;
     box-shadow: 0 0 0 2px rgba(94, 184, 255, 0.3);
@@ -256,9 +256,9 @@
     max-width: 400px;
     min-width: 280px;
     padding: 0.8rem 1rem;
-    background: var(--bg-primary, #121212);
-    border: 1px solid var(--hl-symbol, #5eb8ff);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-base);
+    border: 1px solid var(--color-accent);
+    color: var(--color-text-primary);
     font-family: var(--font-mono, monospace);
     font-size: 0.75rem;
     line-height: 1.5;
@@ -274,18 +274,18 @@
   .tutorial-step-title {
     font-weight: 700;
     font-size: 0.82rem;
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
   }
   .tutorial-step-counter {
     font-size: 0.62rem;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     padding: 0.1rem 0.3rem;
     border: 1px solid var(--border, #333);
   }
 
   .tutorial-step-content {
     margin: 0 0 0.6rem;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
   }
 
   .tutorial-controls {
@@ -299,39 +299,39 @@
   }
 
   .tutorial-btn {
-    background: var(--bg-surface, #1a1a1a);
+    background: var(--color-bg-surface);
     border: 1px solid var(--border, #333);
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     padding: 0.25rem 0.5rem;
     font-size: 0.68rem;
     cursor: pointer;
     font-family: var(--font-mono, monospace);
   }
   .tutorial-btn:hover:not(:disabled) {
-    border-color: var(--border-focus, #666);
-    color: var(--fg-primary, #e8e8e8);
+    border-color: var(--border-focus, var(--color-text-muted));
+    color: var(--color-text-primary);
   }
   .tutorial-btn:disabled {
     opacity: 0.35;
     cursor: default;
   }
   .tutorial-btn-next {
-    background: var(--hl-symbol, #5eb8ff);
-    color: var(--bg-primary, #121212);
-    border-color: var(--hl-symbol, #5eb8ff);
+    background: var(--color-accent);
+    color: var(--color-bg-base);
+    border-color: var(--color-accent);
     font-weight: 700;
   }
   .tutorial-btn-next:hover {
     filter: brightness(1.15);
   }
   .tutorial-btn-skip {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     border: none;
     background: none;
     text-decoration: underline;
     padding: 0.25rem 0;
   }
   .tutorial-btn-skip:hover {
-    color: var(--hl-error, #e74c3c);
+    color: var(--color-error);
   }
 </style>

@@ -281,6 +281,12 @@
   let heatmapTitle: string = "";
   let heatmapColorScale: "viridis" | "magma" = "viridis";
 
+  function cssVar(name: string, fallback: string): string {
+    if (typeof window === "undefined") return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
   // ---------------------------------------------------------------------------
   // Preset Selection
   // ---------------------------------------------------------------------------
@@ -525,6 +531,11 @@
     });
 
     const borderColors = bgColors.map((c) => c.replace("0.85", "1.0"));
+    const titleColor = cssVar("--color-text-primary", "#e8e8e8");
+    const mutedColor = cssVar("--color-text-muted", "#8a8a8a");
+    const textPrimaryRgb = cssVar("--color-text-primary-rgb", "232, 232, 232");
+    const gridMinor = `rgba(${textPrimaryRgb}, 0.05)`;
+    const gridMajor = `rgba(${textPrimaryRgb}, 0.08)`;
 
     chart = new Chart(canvasEl, {
       type: "bar",
@@ -547,7 +558,7 @@
           title: {
             display: true,
             text: data.name,
-            color: "#e0e0e0",
+            color: titleColor,
             font: { size: 14 },
           },
           legend: {
@@ -574,20 +585,20 @@
             title: {
               display: true,
               text: data.name,
-              color: "#aaa",
+              color: mutedColor,
             },
-            ticks: { color: "#999", maxTicksLimit: 10 },
-            grid: { color: "rgba(255,255,255,0.05)" },
+            ticks: { color: mutedColor, maxTicksLimit: 10 },
+            grid: { color: gridMinor },
           },
           y: {
             type: logScale ? "logarithmic" : "linear",
             title: {
               display: true,
               text: "Weighted Counts",
-              color: "#aaa",
+              color: mutedColor,
             },
-            ticks: { color: "#999" },
-            grid: { color: "rgba(255,255,255,0.08)" },
+            ticks: { color: mutedColor },
+            grid: { color: gridMajor },
           },
         },
       },
@@ -1025,8 +1036,9 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
   }
 
   .preset-row {
@@ -1037,7 +1049,7 @@
   }
 
   .preset-row .preset-label {
-    color: var(--hl-accent, #8ab4f8);
+    color: var(--color-accent);
     font-weight: 600;
     white-space: nowrap;
   }
@@ -1051,17 +1063,17 @@
   .preset-btn {
     padding: 0.2rem 0.5rem;
     font-size: 0.75rem;
-    border: 1px solid rgba(138, 180, 248, 0.3);
-    border-radius: 4px;
-    background: rgba(138, 180, 248, 0.08);
-    color: #ccc;
+    border: 1px solid rgba(var(--color-accent-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--color-accent-rgb), 0.08);
+    color: var(--color-text-primary);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background var(--transition-fast);
   }
 
   .preset-btn:hover {
-    background: rgba(138, 180, 248, 0.2);
-    color: #fff;
+    background: rgba(var(--color-accent-rgb), 0.2);
+    color: var(--color-text-primary);
   }
 
   .field {
@@ -1072,7 +1084,7 @@
 
   .field label,
   .field-label {
-    color: #aaa;
+    color: var(--color-text-muted);
     font-size: 0.78rem;
   }
 
@@ -1089,10 +1101,10 @@
 
   input,
   textarea {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: color-mix(in srgb, var(--color-bg-base) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
     padding: 0.3rem 0.5rem;
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.8rem;
@@ -1112,11 +1124,11 @@
   }
 
   .validation-msg.valid {
-    color: #66bb6a;
+    color: var(--color-success);
   }
 
   .validation-msg.error {
-    color: #ef5350;
+    color: var(--color-error);
   }
 
   .run-row {
@@ -1130,11 +1142,12 @@
     font-size: 0.85rem;
     font-weight: 600;
     border: none;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #4caf50, #2e7d32);
-    color: #fff;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-success) 25%, var(--color-bg-surface));
+    border: 1px solid color-mix(in srgb, var(--color-success) 70%, var(--color-border));
+    color: var(--color-text-primary);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
   }
 
   .run-btn:hover:not(:disabled) {
@@ -1149,23 +1162,23 @@
   .scale-btn {
     padding: 0.3rem 0.8rem;
     font-size: 0.78rem;
-    border: 1px solid rgba(138, 180, 248, 0.3);
-    border-radius: 4px;
-    background: rgba(138, 180, 248, 0.1);
-    color: #8ab4f8;
+    border: 1px solid rgba(var(--color-accent-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--color-accent-rgb), 0.1);
+    color: var(--color-accent);
     cursor: pointer;
   }
 
   .scale-btn:hover {
-    background: rgba(138, 180, 248, 0.25);
+    background: rgba(var(--color-accent-rgb), 0.25);
   }
 
   .error-box {
     padding: 0.4rem 0.6rem;
-    background: rgba(255, 50, 50, 0.12);
-    border: 1px solid rgba(255, 50, 50, 0.3);
-    border-radius: 4px;
-    color: #ef5350;
+    background: rgba(var(--color-error-rgb), 0.12);
+    border: 1px solid rgba(var(--color-error-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--color-error);
     font-size: 0.8rem;
     word-break: break-word;
   }
@@ -1175,7 +1188,7 @@
     flex-wrap: wrap;
     gap: 0.5rem 1.5rem;
     padding: 0.4rem 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
   }
 
   .stat {
@@ -1184,12 +1197,12 @@
   }
 
   .stat-label {
-    color: #888;
+    color: var(--color-text-muted);
     font-size: 0.78rem;
   }
 
   .stat-value {
-    color: #e0e0e0;
+    color: var(--color-text-primary);
     font-family: "JetBrains Mono", "Fira Code", monospace;
     font-size: 0.78rem;
   }
@@ -1211,7 +1224,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--color-text-muted);
     font-size: 0.85rem;
     text-align: center;
     padding: 1rem;
@@ -1220,10 +1233,10 @@
   /* --- Detector Simulation UI --- */
 
   select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    color: #e0e0e0;
+    background: color-mix(in srgb, var(--color-bg-base) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
     padding: 0.3rem 0.5rem;
     font-size: 0.8rem;
     cursor: pointer;
@@ -1231,7 +1244,7 @@
 
   .detector-hint {
     font-size: 0.72rem;
-    color: #888;
+    color: var(--color-text-muted);
     font-style: italic;
     margin-top: 0.1rem;
   }
@@ -1250,7 +1263,7 @@
 
   .pk-label {
     font-size: 0.72rem;
-    color: #aaa;
+    color: var(--color-text-muted);
     font-family: "JetBrains Mono", "Fira Code", monospace;
   }
 
@@ -1266,7 +1279,7 @@
   }
 
   .preset-section .field-label {
-    color: #aaa;
+    color: var(--color-text-muted);
     font-size: 0.78rem;
   }
 
@@ -1283,23 +1296,23 @@
     padding: 0.3rem 0.8rem;
     font-size: 0.78rem;
     font-weight: 600;
-    border: 1px solid rgba(138, 180, 248, 0.2);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.03);
-    color: #888;
+    border: 1px solid rgba(var(--color-accent-rgb), 0.2);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-bg-elevated) 35%, transparent);
+    color: var(--color-text-muted);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--transition-fast);
   }
 
   .mode-btn.active {
-    background: rgba(138, 180, 248, 0.15);
-    color: #8ab4f8;
-    border-color: rgba(138, 180, 248, 0.5);
+    background: rgba(var(--color-accent-rgb), 0.15);
+    color: var(--color-accent);
+    border-color: rgba(var(--color-accent-rgb), 0.5);
   }
 
   .mode-btn:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.06);
-    color: #bbb;
+    background: color-mix(in srgb, var(--color-bg-elevated) 60%, transparent);
+    color: var(--color-text-primary);
   }
 
   /* --- NLO & Shower Toggles (Phase 46) --- */
@@ -1310,11 +1323,11 @@
     gap: 0.4rem;
     cursor: pointer;
     font-size: 0.82rem;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
   }
 
   .toggle-row input[type="checkbox"] {
-    accent-color: #8ab4f8;
+    accent-color: var(--color-accent);
     width: 14px;
     height: 14px;
     cursor: pointer;
@@ -1325,7 +1338,7 @@
     flex-direction: column;
     gap: 0.35rem;
     padding: 0.4rem 0 0 1.4rem;
-    border-left: 2px solid rgba(138, 180, 248, 0.15);
+    border-left: 2px solid rgba(var(--color-accent-rgb), 0.15);
     margin-top: 0.3rem;
   }
 
@@ -1337,7 +1350,7 @@
   }
 
   .sub-field label {
-    color: #aaa;
+    color: var(--color-text-muted);
     white-space: nowrap;
     min-width: 0;
   }
@@ -1345,17 +1358,17 @@
   .sub-field select,
   .sub-field :global(.spire-number-input) {
     font-size: 0.75rem;
-    background: rgba(255, 255, 255, 0.04);
+    background: color-mix(in srgb, var(--color-bg-elevated) 65%, transparent);
   }
 
   .sub-toggle {
     font-size: 0.78rem;
-    color: #aaa;
+    color: var(--color-text-muted);
   }
 
   .nlo-toggle,
   .shower-toggle {
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
     padding-top: 0.5rem;
     margin-top: 0.25rem;
   }

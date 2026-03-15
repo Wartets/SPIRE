@@ -133,7 +133,7 @@
     display: flex;
     align-items: center;
     padding: 0.15rem 0.4rem;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border-bottom: 1px solid var(--border, #333);
     gap: 0.3rem;
   }
@@ -155,7 +155,7 @@
   .md-btn {
     background: none;
     border: 1px solid transparent;
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     cursor: pointer;
     padding: 0 0.2rem;
@@ -163,7 +163,7 @@
   }
 
   .md-btn:hover {
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     border-color: var(--border, #333);
   }
 
@@ -175,8 +175,8 @@
     width: 100%;
     min-height: 5rem;
     padding: 0.4rem;
-    background: var(--bg-primary, #121212);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
     border: none;
     font-family: var(--font-mono, "Fira Code", monospace);
     font-size: 0.75rem;
@@ -190,7 +190,7 @@
     cursor: text;
     font-size: 0.78rem;
     line-height: 1.5;
-    color: var(--fg-primary, #e8e8e8);
+    color: var(--color-text-primary);
     min-height: 1.5rem;
   }
 
@@ -201,7 +201,7 @@
   .md-preview :global(h5),
   .md-preview :global(h6) {
     margin: 0.3rem 0 0.15rem;
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
   }
 
   .md-preview :global(h1) { font-size: 1.2rem; }
@@ -209,21 +209,21 @@
   .md-preview :global(h3) { font-size: 0.9rem; }
 
   .md-preview :global(code) {
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     padding: 0.1rem 0.25rem;
     font-size: 0.72rem;
     font-family: var(--font-mono, "Fira Code", monospace);
   }
 
   .md-preview :global(pre) {
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     padding: 0.4rem;
     overflow-x: auto;
     margin: 0.3rem 0;
   }
 
   .md-preview :global(strong) {
-    color: var(--fg-accent, #fff);
+    color: var(--fg-accent, var(--color-text-primary));
   }
 
   .md-preview :global(hr) {

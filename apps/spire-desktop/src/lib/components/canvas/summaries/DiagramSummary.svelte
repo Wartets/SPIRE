@@ -69,7 +69,7 @@
     font-weight: 700;
   }
   .stat-label {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-size: 1.4rem;
   }
   .sep { opacity: 0.4; }
@@ -77,12 +77,12 @@
     display: inline-block;
     font-size: 1.1rem;
     padding: 0.05rem 0.3rem;
-    border: 1px solid var(--hl-symbol, #5eb8ff);
-    color: var(--hl-symbol, #5eb8ff);
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
     width: fit-content;
   }
   .empty {
-    color: var(--fg-secondary, #888);
+    color: var(--fg-secondary, var(--color-text-muted));
     font-style: italic;
     font-size: 1.4rem;
   }

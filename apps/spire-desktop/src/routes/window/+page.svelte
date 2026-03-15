@@ -135,8 +135,8 @@
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: var(--bg-primary, #121212);
-    color: var(--fg-primary, #e8e8e8);
+    background: var(--color-bg-base);
+    color: var(--color-text-primary);
     font-family: var(--font-mono, "Fira Code", monospace);
   }
 
@@ -145,7 +145,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.25rem 0.6rem;
-    background: var(--bg-inset, #0e0e0e);
+    background: var(--color-bg-inset);
     border-bottom: 1px solid var(--border, #333);
     flex-shrink: 0;
   }

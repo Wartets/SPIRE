@@ -606,7 +606,7 @@
     padding: 0.4rem 0.8rem;
     border: none;
     background: transparent;
-    color: var(--text-muted, #999);
+    color: var(--text-muted, var(--color-text-muted));
     cursor: pointer;
     border-bottom: 2px solid transparent;
     font-size: 0.8rem;
@@ -633,7 +633,7 @@
   }
 
   .hint {
-    color: var(--text-muted, #999);
+    color: var(--text-muted, var(--color-text-muted));
     margin: 0 0 0.5rem;
     font-size: 0.78rem;
     line-height: 1.4;
@@ -645,10 +645,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    border: 2px dashed var(--border, #555);
+    border: 2px dashed var(--border, var(--color-text-muted));
     border-radius: 6px;
     margin-bottom: 0.5rem;
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
     transition: border-color 0.2s;
   }
   .drop-zone:hover,
@@ -663,7 +663,7 @@
   .btn-primary {
     padding: 0.4rem 1rem;
     background: var(--hl-accent, #238636);
-    color: #fff;
+    color: var(--color-text-primary);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -687,7 +687,7 @@
     padding: 0.2rem 0.5rem;
     background: var(--bg-secondary, #2d2d2d);
     color: var(--text, #eee);
-    border: 1px solid var(--border, #555);
+    border: 1px solid var(--border, var(--color-text-muted));
     border-radius: 3px;
     cursor: pointer;
     font-size: 0.78rem;
@@ -712,7 +712,7 @@
     font-family: "Fira Code", "Consolas", monospace;
     font-size: 0.78rem;
     padding: 0.35rem 0.5rem;
-    border: 1px solid var(--border, #555);
+    border: 1px solid var(--border, var(--color-text-muted));
     border-radius: 4px;
     background: var(--bg-secondary, #1e1e1e);
     color: var(--text, #eee);
@@ -726,7 +726,7 @@
   .small-input {
     width: 100px;
     padding: 0.2rem 0.4rem;
-    border: 1px solid var(--border, #555);
+    border: 1px solid var(--border, var(--color-text-muted));
     border-radius: 3px;
     background: var(--bg-secondary, #1e1e1e);
     color: var(--text, #eee);
@@ -735,7 +735,7 @@
   }
   .small-select {
     padding: 0.2rem 0.3rem;
-    border: 1px solid var(--border, #555);
+    border: 1px solid var(--border, var(--color-text-muted));
     border-radius: 3px;
     background: var(--bg-secondary, #1e1e1e);
     color: var(--text, #eee);
@@ -777,7 +777,7 @@
     font-size: 0.8rem;
   }
   .scale {
-    color: var(--text-muted, #888);
+    color: var(--text-muted, var(--color-text-muted));
     font-size: 0.75rem;
     margin-left: 0.5rem;
   }
@@ -795,7 +795,7 @@
     text-align: left;
   }
   .data-table th {
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
     font-weight: 600;
   }
 
@@ -808,7 +808,7 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.8rem;
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
   }
 
   .ufo-file-grid {
@@ -830,7 +830,7 @@
   .ufo-file-label {
     font-family: "Fira Code", "Consolas", monospace;
     font-size: 0.75rem;
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
   }
 
   .vertex-list {
@@ -847,7 +847,7 @@
     font-family: "Fira Code", "Consolas", monospace;
   }
   .vertex-chip.muted {
-    color: var(--text-muted, #888);
+    color: var(--text-muted, var(--color-text-muted));
     font-style: italic;
   }
 
@@ -891,7 +891,7 @@
     align-items: center;
     gap: 0.2rem;
     font-size: 0.78rem;
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
   }
 
   .const-list {
@@ -922,7 +922,7 @@
   }
   .ct-desc {
     font-size: 0.78rem;
-    color: var(--text-muted, #aaa);
+    color: var(--text-muted, var(--color-text-muted));
     margin-bottom: 0.15rem;
   }
   .ct-latex {
@@ -936,6 +936,6 @@
   }
   .ct-params {
     font-size: 0.75rem;
-    color: var(--text-muted, #888);
+    color: var(--text-muted, var(--color-text-muted));
   }
 </style>

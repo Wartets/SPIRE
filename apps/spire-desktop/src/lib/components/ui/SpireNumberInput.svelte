@@ -148,9 +148,9 @@
     display: grid;
     grid-template-columns: 1fr 1rem;
     width: 100%;
-    border: 1px solid var(--border-color, var(--border, #333333));
-    background: var(--bg-input, var(--bg-inset, #0e0e0e));
-    color: var(--fg-input, var(--fg-primary, #e8e8e8));
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-inset);
+    color: var(--color-text-primary);
   }
 
   .spire-number-input.disabled {
@@ -162,16 +162,16 @@
     outline: none;
     background: transparent;
     color: inherit;
-    font-family: var(--font-mono, "Fira Code", monospace);
-    font-size: 0.78rem;
-    padding: 0.25rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    padding: var(--spacing-xs) calc(var(--spacing-sm) * 0.8);
     min-width: 0;
   }
 
   .controls {
     display: grid;
     grid-template-rows: 1fr 1fr;
-    border-left: 1px solid var(--border-color, var(--border, #333333));
+    border-left: 1px solid var(--color-border);
   }
 
   .chevron {
@@ -181,9 +181,9 @@
     padding: 0;
     margin: 0;
     border: none;
-    border-bottom: 1px solid var(--border-color, var(--border, #333333));
-    background: var(--bg-surface, #1a1a1a);
-    color: var(--fg-muted, var(--fg-secondary, #888888));
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg-surface);
+    color: var(--color-text-muted);
     cursor: pointer;
     min-height: 0.7rem;
   }
@@ -193,7 +193,7 @@
   }
 
   .chevron:hover:not(:disabled) {
-    color: var(--accent, var(--hl-symbol, #5eb8ff));
+    color: var(--color-accent);
   }
 
   .chevron:disabled {
@@ -201,6 +201,6 @@
   }
 
   .spire-number-input:focus-within {
-    border-color: var(--border-focus, #666666);
+    border-color: var(--color-accent);
   }
 </style>
