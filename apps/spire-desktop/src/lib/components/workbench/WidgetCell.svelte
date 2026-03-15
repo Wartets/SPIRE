@@ -23,6 +23,7 @@
   import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
   import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
   import EventDisplay from "$lib/components/EventDisplay.svelte";
+  import ParticleAtlas from "$lib/components/ParticleAtlas.svelte";
   import DiagramEditor from "$lib/components/DiagramEditor.svelte";
   import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
   import ExternalModels from "$lib/components/ExternalModels.svelte";
@@ -61,6 +62,8 @@
     <AnalysisWidget />
   {:else if instance.type === "event_display"}
     <EventDisplay />
+  {:else if instance.type === "particle_atlas"}
+    <ParticleAtlas />
   {:else if instance.type === "diagram_editor"}
     <DiagramEditor />
   {:else if instance.type === "lagrangian_workbench"}

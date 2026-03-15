@@ -25,6 +25,7 @@ export type WidgetType =
   | "dalitz"
   | "analysis"
   | "event_display"
+  | "particle_atlas"
   | "diagram_editor"
   | "lagrangian_workbench"
   | "external_models"
@@ -83,6 +84,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
   { type: "dalitz",     label: "Dalitz Plot",         defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "analysis",       label: "Analysis",             defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "event_display", label: "Event Display",        defaultColSpan: 2, defaultRowSpan: 3 },
+  { type: "particle_atlas", label: "Particle Atlas",      defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "lagrangian_workbench", label: "Lagrangian Workbench", defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "external_models",      label: "External Models",       defaultColSpan: 2, defaultRowSpan: 3 },
   { type: "compute_grid",          label: "Compute Grid",          defaultColSpan: 2, defaultRowSpan: 3 },

@@ -150,6 +150,10 @@ export const WIDGET_ICONS: Record<WidgetType, string> = {
   event_display:
     `${S}<circle cx="8" cy="8" r="6.5" /><path d="M3 5.5 Q8 8 13 5.5" /><path d="M3 10.5 Q8 8 13 10.5" /><line x1="8" y1="1.5" x2="8" y2="14.5" />${E}`,
 
+  // Periodic tiles — particle atlas
+  particle_atlas:
+    `${S}<rect x="1.5" y="1.5" width="13" height="13" rx="1" /><line x1="1.5" y1="6" x2="14.5" y2="6" /><line x1="6" y1="1.5" x2="6" y2="14.5" /><text x="8" y="11" text-anchor="middle" font-size="5" fill="currentColor" stroke="none">P</text>${E}`,
+
   // Pen nib — diagram editor
   diagram_editor:
     `${S}<path d="M11.5 1.5 L14.5 4.5 L5 14 L1.5 14.5 L2 11 Z" /><line x1="9.5" y1="3.5" x2="12.5" y2="6.5" />${E}`,
@@ -221,6 +225,7 @@ export const WIDGET_ACCENT: Record<WidgetType, string> = {
   dalitz:                "#1abc9c",
   analysis:              "#3498db",
   event_display:         "#e74c3c",
+  particle_atlas:        "#5eb8ff",
   diagram_editor:        "#f39c12",
   lagrangian_workbench:  "#8e44ad",
   external_models:       "#2980b9",

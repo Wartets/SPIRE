@@ -168,6 +168,7 @@
   const GLOBAL_CMD_IDS = [
     "spire.ui.add_analysis",
     "spire.ui.add_event_display",
+    "spire.ui.add_particle_atlas",
     "spire.ui.add_lagrangian",
     "spire.ui.add_external_models",
     "spire.ui.add_compute_grid",
@@ -290,6 +291,12 @@
       title: "Add Event Display",
       category: "View",
       execute: () => spawnWidget("event_display"),
+    });
+    registerCommand({
+      id: "spire.ui.add_particle_atlas",
+      title: "Add Particle Atlas",
+      category: "View",
+      execute: () => spawnWidget("particle_atlas"),
     });
     registerCommand({
       id: "spire.ui.add_lagrangian",

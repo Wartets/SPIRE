@@ -20,6 +20,7 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   dalitz:     "Dalitz Plot",
   analysis:      "Analysis",
   event_display: "Event Display",
+  particle_atlas: "Particle Atlas",
   diagram_editor: "Diagram Editor",
   lagrangian_workbench: "Lagrangian Workbench",
   external_models:      "External Models",

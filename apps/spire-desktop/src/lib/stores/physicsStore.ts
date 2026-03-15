@@ -18,6 +18,7 @@ import type {
   KinematicsReport,
   TheoreticalFramework,
   TheoreticalModel,
+  Field,
   WorkspaceState,
   ObservableScript,
   CutScript,
@@ -110,3 +111,27 @@ export const observableScripts = writable<ObservableScript[]>([]);
 
 /** User-defined kinematic cut scripts. */
 export const cutScripts = writable<CutScript[]>([]);
+
+/**
+ * Inject or upsert a custom particle field into the active theoretical model.
+ *
+ * - If no model is loaded, this is a no-op.
+ * - If a field with the same ID already exists, it is replaced.
+ * - New custom fields are marked by convention using `custom_` prefixed IDs.
+ */
+export function upsertModelField(field: Field): void {
+  theoreticalModel.update((model) => {
+    if (!model) return model;
+    const existingIdx = model.fields.findIndex((f) => f.id === field.id);
+    const nextFields = [...model.fields];
+    if (existingIdx >= 0) {
+      nextFields[existingIdx] = field;
+    } else {
+      nextFields.push(field);
+    }
+    return {
+      ...model,
+      fields: nextFields,
+    } as TheoreticalModel;
+  });
+}

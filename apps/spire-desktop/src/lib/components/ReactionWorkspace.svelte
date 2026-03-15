@@ -43,6 +43,11 @@
     cmsEnergyInput,
     maxLoopOrderInput,
   } from "$lib/stores/workspaceInputsStore";
+  import {
+    requestAtlasSelection,
+    atlasSelectionResult,
+    clearAtlasSelectionResult,
+  } from "$lib/stores/atlasSelectionStore";
 
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
@@ -94,10 +99,24 @@
       category: "Reaction",
       execute: () => handleComputeKinematics(),
     });
+
+    unsubAtlasSelection = atlasSelectionResult.subscribe((sel) => {
+      if (!sel) return;
+      if (sel.target === "initial") {
+        initialIdsInput.update((prev) => [...prev, sel.particleId]);
+      } else {
+        finalIdsInput.update((prev) => [...prev, sel.particleId]);
+      }
+      appendLog(`Reaction Workspace accepted atlas particle: ${sel.particleId} → ${sel.target}`);
+      clearAtlasSelectionResult();
+    });
   });
+
+  let unsubAtlasSelection: (() => void) | null = null;
 
   onDestroy(() => {
     for (const id of REACTION_CMD_IDS) unregisterCommand(id);
+    unsubAtlasSelection?.();
   });
 
   // --- UI state ---
@@ -111,12 +130,25 @@
   function addInitial(): void {
     $initialIdsInput = [...$initialIdsInput, newInitialId];
   }
+
+  function addInitialFromAtlas(): void {
+    requestAtlasSelection("initial");
+    appendLog("Atlas picker requested for initial state.");
+  }
+
   function removeInitial(idx: number): void {
     $initialIdsInput = $initialIdsInput.filter((_, i) => i !== idx);
   }
+
   function addFinal(): void {
     $finalIdsInput = [...$finalIdsInput, newFinalId];
   }
+
+  function addFinalFromAtlas(): void {
+    requestAtlasSelection("final");
+    appendLog("Atlas picker requested for final state.");
+  }
+
   function removeFinal(idx: number): void {
     $finalIdsInput = $finalIdsInput.filter((_, i) => i !== idx);
   }
@@ -384,6 +416,7 @@
           {/each}
         </select>
         <button class="small-btn" on:click={addInitial}>+ Add</button>
+        <button class="small-btn" on:click={addInitialFromAtlas}>Atlas Pick</button>
       </div>
     </fieldset>
 
@@ -405,6 +438,7 @@
           {/each}
         </select>
         <button class="small-btn" on:click={addFinal}>+ Add</button>
+        <button class="small-btn" on:click={addFinalFromAtlas}>Atlas Pick</button>
       </div>
     </fieldset>
 

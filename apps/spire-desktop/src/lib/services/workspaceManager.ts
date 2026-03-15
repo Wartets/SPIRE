@@ -63,6 +63,7 @@ const KNOWN_WIDGET_TYPES: ReadonlySet<string> = new Set<string>([
   "log",
   "analysis",
   "event_display",
+  "particle_atlas",
   "lagrangian_workbench",
   "external_models",
   "compute_grid",
