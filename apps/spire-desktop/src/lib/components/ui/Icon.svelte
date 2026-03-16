@@ -1,96 +1,9 @@
 <script lang="ts">
-  import type { ComponentType } from "svelte";
-  import {
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    ArrowUp,
-    Atom,
-    BookOpen,
-    Check,
-    Circle,
-    CircleDot,
-    Columns2,
-    Copy,
-    Download,
-    ExternalLink,
-    FileSearch,
-    FileText,
-    GripVertical,
-    Image,
-    Link2,
-    NotebookPen,
-    PanelsTopLeft,
-    Pause,
-    Play,
-    Plus,
-    RefreshCw,
-    Rocket,
-    RotateCcw,
-    Rows3,
-    Search,
-    Settings2,
-    Share2,
-    Sigma,
-    SkipBack,
-    SkipForward,
-    Square,
-    SquarePen,
-    Sun,
-    Upload,
-    Workflow,
-    X,
-  } from "lucide-svelte";
-
   export let name = "";
   export let size = 14;
   export let strokeWidth = 1.8;
   export let title = "";
   export let fallbackText = true;
-
-  const ICONS: Record<string, ComponentType> = {
-    play: Play,
-    pause: Pause,
-    "skip-back": SkipBack,
-    "skip-forward": SkipForward,
-    stop: Square,
-    square: Square,
-    close: X,
-    x: X,
-    copy: Copy,
-    search: Search,
-    "file-search": FileSearch,
-    link: Link2,
-    external: ExternalLink,
-    docs: BookOpen,
-    grip: GripVertical,
-    row: Rows3,
-    column: Columns2,
-    panels: PanelsTopLeft,
-    plus: Plus,
-    edit: SquarePen,
-    left: ArrowLeft,
-    right: ArrowRight,
-    up: ArrowUp,
-    down: ArrowDown,
-    check: Check,
-    circle: Circle,
-    "circle-dot": CircleDot,
-    text: FileText,
-    image: Image,
-    download: Download,
-    upload: Upload,
-    workflow: Workflow,
-    share: Share2,
-    refresh: RefreshCw,
-    reset: RotateCcw,
-    rocket: Rocket,
-    atom: Atom,
-    sigma: Sigma,
-    sun: Sun,
-    settings: Settings2,
-    notebook: NotebookPen,
-  };
 
   const ALIASES: Record<string, string> = {
     "▶": "play",
@@ -132,21 +45,66 @@
     CSV: "text",
   };
 
+  const GLYPHS: Record<string, string> = {
+    play: "▶",
+    pause: "⏸",
+    "skip-back": "⏮",
+    "skip-forward": "⏭",
+    stop: "⏹",
+    square: "□",
+    close: "✕",
+    x: "✕",
+    copy: "⧉",
+    search: "⌕",
+    "file-search": "🔎",
+    link: "🔗",
+    external: "↗",
+    docs: "📘",
+    grip: "⋮",
+    row: "⬌",
+    column: "⬍",
+    panels: "⧉",
+    plus: "+",
+    edit: "✎",
+    left: "←",
+    right: "→",
+    up: "↑",
+    down: "↓",
+    check: "✓",
+    circle: "●",
+    "circle-dot": "◉",
+    text: "TXT",
+    image: "IMG",
+    download: "⇩",
+    upload: "⇧",
+    workflow: "⇄",
+    share: "⇪",
+    refresh: "↻",
+    reset: "↺",
+    rocket: "⇢",
+    atom: "⚛",
+    sigma: "Σ",
+    sun: "☼",
+    settings: "⚙",
+    notebook: "📓",
+  };
+
   function normalize(raw: string): string {
     const trimmed = raw.trim();
     return ALIASES[trimmed] ?? trimmed.toLowerCase();
   }
 
   $: resolvedName = normalize(name);
-  $: iconComponent = ICONS[resolvedName] ?? null;
+  $: glyph = GLYPHS[resolvedName] ?? name;
 </script>
 
-{#if iconComponent}
-  <span class="spire-icon" title={title || undefined} aria-hidden={title ? undefined : true}>
-    <svelte:component this={iconComponent} {size} {strokeWidth} />
-  </span>
-{:else if fallbackText && name}
-  <span class="spire-icon spire-icon-fallback" title={title || undefined}>{name}</span>
+{#if fallbackText && name}
+  <span
+    class="spire-icon spire-icon-fallback"
+    title={title || undefined}
+    aria-hidden={title ? undefined : true}
+    style={`font-size: ${Math.max(10, size)}px; --icon-stroke-width: ${strokeWidth};`}
+  >{glyph}</span>
 {/if}
 
 <style>
@@ -164,5 +122,6 @@
 
   .spire-icon-fallback {
     font-size: 0.8em;
+    font-weight: 600;
   }
 </style>

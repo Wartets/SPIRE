@@ -1,5 +1,3 @@
-import SpireTooltip from "$lib/components/ui/SpireTooltip.svelte";
-
 export interface TooltipOptions {
   text: string;
   delay?: number;
@@ -9,11 +7,6 @@ export interface TooltipOptions {
 
 const VIEWPORT_MARGIN = 8;
 const TARGET_GAP = 8;
-
-interface TooltipRuntime {
-  host: HTMLDivElement;
-  component: SpireTooltip;
-}
 
 function canUseDom(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
@@ -74,7 +67,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     ...options,
   };
 
-  let runtime: TooltipRuntime | null = null;
+  let host: HTMLDivElement | null = null;
   let hoverTimer: ReturnType<typeof setTimeout> | null = null;
   let visible = false;
 
@@ -86,47 +79,54 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
   };
 
   const teardownRuntime = (): void => {
-    if (!runtime) return;
-    runtime.component.$destroy();
-    runtime.host.remove();
-    runtime = null;
+    if (!host) return;
+    host.remove();
+    host = null;
   };
 
   const syncPosition = (): void => {
-    if (!runtime || !visible) return;
+    if (!host || !visible) return;
     const targetRect = node.getBoundingClientRect();
-    const tooltipRect = runtime.host.getBoundingClientRect();
+    const tooltipRect = host.getBoundingClientRect();
     const position = computePosition(targetRect, tooltipRect, currentOptions.placement ?? "top");
-    runtime.component.$set({
-      top: position.top,
-      left: position.left,
-      visible: true,
-      text: currentOptions.text,
-      maxWidth: currentOptions.maxWidth ?? 360,
-    });
+    host.style.top = `${position.top}px`;
+    host.style.left = `${position.left}px`;
+  };
+
+  const ensureHost = (): HTMLDivElement => {
+    if (host) return host;
+    const element = document.createElement("div");
+    element.style.position = "fixed";
+    element.style.zIndex = "2000";
+    element.style.pointerEvents = "none";
+    element.style.padding = "0.2rem 0.45rem";
+    element.style.border = "1px solid var(--border)";
+    element.style.background = "var(--bg-primary)";
+    element.style.color = "var(--fg-primary)";
+    element.style.fontFamily = "var(--font-mono)";
+    element.style.fontSize = "0.66rem";
+    element.style.lineHeight = "1.2";
+    element.style.whiteSpace = "normal";
+    element.style.wordBreak = "break-word";
+    element.style.boxShadow = "0 10px 24px rgba(0, 0, 0, 0.34)";
+    element.style.opacity = "0";
+    element.style.transform = "translateY(-2px)";
+    element.style.transition = "opacity 120ms ease, transform 120ms ease";
+    document.body.appendChild(element);
+    host = element;
+    return element;
   };
 
   const show = (): void => {
     if (visible || !currentOptions.text?.trim()) return;
     visible = true;
 
-    if (!runtime) {
-      const host = document.createElement("div");
-      document.body.appendChild(host);
-      const component = new SpireTooltip({
-        target: host,
-        props: {
-          text: currentOptions.text,
-          visible: true,
-          top: -9999,
-          left: -9999,
-          maxWidth: currentOptions.maxWidth ?? 360,
-        },
-      });
-      runtime = { host, component };
-    } else {
-      runtime.component.$set({ text: currentOptions.text, visible: true });
-    }
+    const element = ensureHost();
+    element.textContent = currentOptions.text;
+    element.style.maxWidth = `${currentOptions.maxWidth ?? 360}px`;
+    element.style.display = "block";
+    element.style.opacity = "1";
+    element.style.transform = "translateY(0)";
 
     requestAnimationFrame(() => syncPosition());
     window.addEventListener("scroll", syncPosition, true);
@@ -136,8 +136,10 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
   const hide = (): void => {
     clearTimer();
     visible = false;
-    if (runtime) {
-      runtime.component.$set({ visible: false });
+    if (host) {
+      host.style.opacity = "0";
+      host.style.transform = "translateY(-2px)";
+      host.style.display = "none";
     }
     window.removeEventListener("scroll", syncPosition, true);
     window.removeEventListener("resize", syncPosition);
@@ -168,11 +170,9 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
         maxWidth: 360,
         ...next,
       };
-      if (runtime && visible) {
-        runtime.component.$set({
-          text: currentOptions.text,
-          maxWidth: currentOptions.maxWidth ?? 360,
-        });
+      if (host && visible) {
+        host.textContent = currentOptions.text;
+        host.style.maxWidth = `${currentOptions.maxWidth ?? 360}px`;
         syncPosition();
       }
     },

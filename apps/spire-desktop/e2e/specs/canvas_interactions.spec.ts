@@ -5,7 +5,7 @@ function widgetByTitle(page: Page, title: string): Locator {
   return page
     .locator(".canvas-widget")
     .filter({ has: page.locator(".cw-title", { hasText: title }) })
-    .first();
+    .last();
 }
 
 async function readWidgetBox(widget: Locator): Promise<{ left: number; top: number; width: number; height: number; z: number }> {
@@ -23,6 +23,19 @@ async function readWidgetBox(widget: Locator): Promise<{ left: number; top: numb
   });
 }
 
+async function dragWidgetByHeader(page: Page, widget: Locator, dx: number, dy: number): Promise<void> {
+  const header = widget.locator(".cw-header");
+  const box = await header.boundingBox();
+  if (!box) throw new Error("Widget header not measurable");
+
+  const startX = box.x + Math.max(12, Math.min(24, box.width - 8));
+  const startY = box.y + Math.max(6, Math.min(12, box.height - 6));
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(startX + dx, startY + dy);
+  await page.mouse.up();
+}
+
 test.describe("canvas interaction engine", () => {
   test("z-index focus, drag and resize are reliable on desktop", async ({ page }) => {
     const wb = new WorkbenchPage(page);
@@ -38,14 +51,17 @@ test.describe("canvas interaction engine", () => {
     await expect(notebook).toBeVisible();
     await expect(scanner).toBeVisible();
 
+    await dragWidgetByHeader(page, scanner, 360, 220);
+    await page.waitForTimeout(80);
+
     const transformBefore = await page.locator(".canvas-transform").getAttribute("style");
 
-    await notebook.locator(".cw-body").click({ position: { x: 20, y: 20 } });
+    await notebook.click({ position: { x: 24, y: 24 }, force: true });
     const zNotebookAfterClick = (await readWidgetBox(notebook)).z;
     const zScannerAfterNotebookClick = (await readWidgetBox(scanner)).z;
     expect(zNotebookAfterClick).toBeGreaterThan(zScannerAfterNotebookClick);
 
-    await scanner.locator(".cw-body").click({ position: { x: 20, y: 20 } });
+    await scanner.click({ position: { x: 24, y: 24 }, force: true });
     const zScannerAfterClick = (await readWidgetBox(scanner)).z;
     const zNotebookAfterScannerClick = (await readWidgetBox(notebook)).z;
     expect(zScannerAfterClick).toBeGreaterThan(zNotebookAfterScannerClick);
@@ -102,7 +118,7 @@ test.describe("canvas interaction engine", () => {
 test.describe("canvas interaction engine - touch", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 900, height: 1200 } });
 
-  test("touch drag updates widget position", async ({ page }) => {
+  test("mobile emulation drag updates widget position", async ({ page }) => {
     const wb = new WorkbenchPage(page);
     await wb.goto();
     await wb.ensureCanvasMode();
@@ -120,39 +136,10 @@ test.describe("canvas interaction engine - touch", () => {
     const startX = box.x + 24;
     const startY = box.y + 10;
 
-    await header.dispatchEvent("pointerdown", {
-      pointerId: 41,
-      pointerType: "touch",
-      button: 0,
-      buttons: 1,
-      isPrimary: true,
-      pressure: 0.5,
-      clientX: startX,
-      clientY: startY,
-      bubbles: true,
-    });
-    await header.dispatchEvent("pointermove", {
-      pointerId: 41,
-      pointerType: "touch",
-      button: 0,
-      buttons: 1,
-      isPrimary: true,
-      pressure: 0.5,
-      clientX: startX + 120,
-      clientY: startY + 90,
-      bubbles: true,
-    });
-    await header.dispatchEvent("pointerup", {
-      pointerId: 41,
-      pointerType: "touch",
-      button: 0,
-      buttons: 0,
-      isPrimary: true,
-      pressure: 0,
-      clientX: startX + 120,
-      clientY: startY + 90,
-      bubbles: true,
-    });
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 132, startY + 96);
+    await page.mouse.up();
 
     await page.waitForTimeout(140);
     const after = await readWidgetBox(notebook);

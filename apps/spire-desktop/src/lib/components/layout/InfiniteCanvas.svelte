@@ -757,8 +757,12 @@
   }
 
   function handleWidgetActivate(event: Event, item: CanvasItem): void {
-    event.stopPropagation();
     selectWidget(item);
+  }
+
+  function handleWidgetMouseDown(event: MouseEvent, item: CanvasItem): void {
+    if (event.button !== 0) return;
+    handleWidgetActivate(event, item);
   }
 
   // ── Canvas Context Menu ──
@@ -933,6 +937,7 @@
           "
           data-canvas-item-id={item.id}
           on:pointerdown|capture={(event) => handleWidgetActivate(event, item)}
+          on:mousedown|capture={(event) => handleWidgetMouseDown(event, item)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{
