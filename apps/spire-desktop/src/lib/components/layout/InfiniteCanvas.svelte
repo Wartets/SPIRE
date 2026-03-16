@@ -764,19 +764,27 @@
    * so stopPropagation() in child interactable actions cannot suppress it.
    */
   function capturePointerDown(node: HTMLElement, onDown: () => void) {
-    function handler(event: PointerEvent): void {
-      // Respond to left click (button 0) and any touch/pen contact.
-      // Middle click (button 1) and right click (button 2) do not activate.
+    function pointerHandler(event: PointerEvent): void {
+      // Mouse must be left button; touch/pen may report button -1 depending on host.
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (event.pointerType !== "mouse" && event.button > 0) return;
       onDown();
     }
-    node.addEventListener("pointerdown", handler, { capture: true });
+
+    function mouseHandler(event: MouseEvent): void {
+      if (event.button !== 0) return;
+      onDown();
+    }
+
+    node.addEventListener("pointerdown", pointerHandler, { capture: true });
+    node.addEventListener("mousedown", mouseHandler, { capture: true });
     return {
       update(newOnDown: () => void): void {
         onDown = newOnDown;
       },
       destroy(): void {
-        node.removeEventListener("pointerdown", handler, { capture: true });
+        node.removeEventListener("pointerdown", pointerHandler, { capture: true });
+        node.removeEventListener("mousedown", mouseHandler, { capture: true });
       },
     };
   }

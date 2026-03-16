@@ -193,4 +193,108 @@ describe("interactable action", () => {
     action.destroy?.();
     node.remove();
   });
+
+  it("accepts touch pointer starts even when button is -1", () => {
+    if (typeof PointerEvent === "undefined") {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const patches: Array<{ x: number; y: number }> = [];
+
+    const action = interactable(node, {
+      mode: "drag",
+      itemId: "touch-drag",
+      getZoom: () => 1,
+      getOrigin: () => ({ x: 10, y: 15 }),
+      onMove: (patch) => patches.push(patch),
+    });
+
+    node.dispatchEvent(new PointerEvent("pointerdown", {
+      pointerId: 91,
+      pointerType: "touch",
+      button: -1,
+      clientX: 20,
+      clientY: 30,
+      bubbles: true,
+    }));
+    node.dispatchEvent(new PointerEvent("pointermove", {
+      pointerId: 91,
+      pointerType: "touch",
+      button: -1,
+      clientX: 60,
+      clientY: 65,
+      bubbles: true,
+    }));
+    node.dispatchEvent(new PointerEvent("pointerup", {
+      pointerId: 91,
+      pointerType: "touch",
+      button: -1,
+      clientX: 60,
+      clientY: 65,
+      bubbles: true,
+    }));
+
+    expect(patches.at(-1)).toEqual({ x: 50, y: 50 });
+
+    action.destroy?.();
+    node.remove();
+  });
+
+  it("accepts touch pointer starts for resize interactions", () => {
+    if (typeof PointerEvent === "undefined") {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const endPatches: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    const action = interactable(node, {
+      mode: "resize",
+      itemId: "touch-resize",
+      direction: "se",
+      minWidth: 100,
+      minHeight: 80,
+      getZoom: () => 1,
+      getOrigin: () => ({ x: 10, y: 20, width: 120, height: 90 }),
+      onMove: () => {},
+      onEnd: (patch) => endPatches.push(patch),
+    });
+
+    node.dispatchEvent(new PointerEvent("pointerdown", {
+      pointerId: 92,
+      pointerType: "touch",
+      button: -1,
+      clientX: 100,
+      clientY: 120,
+      bubbles: true,
+    }));
+    node.dispatchEvent(new PointerEvent("pointermove", {
+      pointerId: 92,
+      pointerType: "touch",
+      button: -1,
+      clientX: 145,
+      clientY: 160,
+      bubbles: true,
+    }));
+    node.dispatchEvent(new PointerEvent("pointerup", {
+      pointerId: 92,
+      pointerType: "touch",
+      button: -1,
+      clientX: 145,
+      clientY: 160,
+      bubbles: true,
+    }));
+
+    expect(endPatches.at(-1)).toEqual({ x: 10, y: 20, width: 165, height: 130 });
+
+    action.destroy?.();
+    node.remove();
+  });
 });

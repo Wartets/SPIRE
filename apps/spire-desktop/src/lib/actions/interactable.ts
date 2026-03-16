@@ -101,7 +101,7 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
 
   function handlePointerDown(event: PointerEvent): void {
     if (options.enabled === false) return;
-    if (event.button !== 0) return;
+    if (!isPrimaryPointerStart(event)) return;
     lastPointerDownAt = Date.now();
 
     options.onBringToFront?.(options.itemId);
@@ -147,7 +147,7 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
 
   function handleMouseDown(event: MouseEvent): void {
     if (options.enabled === false) return;
-    if (event.button !== 0) return;
+    if (!isPrimaryMouseStart(event)) return;
     if (activePointerId !== null) return;
 
     // Ignore compatibility mouse events emitted immediately after pointerdown.
@@ -305,6 +305,19 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     interactionManager.cancel(event.pointerId);
     removeWindowFallbackListeners();
     activePointerId = null;
+  }
+
+  function isPrimaryPointerStart(event: PointerEvent): boolean {
+    // Mouse must be left button; touch/pen can report button -1 in some hosts.
+    if (event.pointerType === "mouse") {
+      return event.button === 0;
+    }
+    // For touch/pen, prefer primary contacts and avoid right/middle semantics.
+    return event.isPrimary !== false && event.button <= 0;
+  }
+
+  function isPrimaryMouseStart(event: MouseEvent): boolean {
+    return event.button === 0;
   }
 
   node.addEventListener("pointerdown", handlePointerDown);
