@@ -3,8 +3,17 @@ import { expect, type Locator, type Page } from "@playwright/test";
 export class WorkbenchPage {
   constructor(private readonly page: Page) {}
 
+  private escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
   async goto(): Promise<void> {
     await this.page.goto("/");
+    await this.page.evaluate(() => {
+      window.localStorage.removeItem("spire.toolbox.prefs.v2");
+      window.localStorage.removeItem("spire_workspace_state");
+    });
+    await this.page.reload();
     await expect(this.page.getByRole("button", { name: "+ Add Widget" })).toBeVisible();
   }
 
@@ -16,7 +25,16 @@ export class WorkbenchPage {
 
   async addWidgetByLabel(label: string): Promise<void> {
     await this.openAddWidgetMenu();
-    await this.page.getByRole("button", { name: label, exact: true }).click();
+    const search = this.page.locator(".toolbox-search");
+    await expect(search).toBeVisible();
+    await search.fill(label);
+
+    const escaped = this.escapeRegex(label.trim());
+    const widgetButton = this.page
+      .getByRole("button", { name: new RegExp(`^${escaped}(\\s+Drag)?$`) })
+      .first();
+    await expect(widgetButton).toBeVisible();
+    await widgetButton.click();
     await expect(this.page.locator(".toolbox-menu")).toBeHidden();
   }
 
