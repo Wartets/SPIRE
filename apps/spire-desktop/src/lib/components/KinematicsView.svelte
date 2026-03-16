@@ -134,7 +134,7 @@
             use:tooltip={{ text: "Minimum centre-of-mass energy √s for the reaction to proceed, i.e. √s_thr = Σ m_final" }}>
             √s<sub>thr</sub>
           </span>
-          <span class="data-value"
+          <span class="data-value" role="button" tabindex="0"
             on:contextmenu|stopPropagation={(e) =>
               openValueContext(e, "√s_thr", `${report!.threshold.threshold_energy.toFixed(6)} GeV`)}>
             {report.threshold.threshold_energy.toFixed(6)} GeV
@@ -156,7 +156,7 @@
             use:tooltip={{ text: "Invariant masses of all final-state particles [GeV/c²]" }}>
             m<sub>final</sub>
           </span>
-          <span class="data-value mono"
+          <span class="data-value mono" role="button" tabindex="0"
             on:contextmenu|stopPropagation={(e) =>
               openValueContext(e, "Final masses",
                 `[${report!.threshold.final_masses.map((m) => m.toFixed(4)).join(", ")}] GeV`)}>
@@ -258,8 +258,14 @@
             </span>
             <span class="data-value mono" role="button" tabindex="0"
               on:contextmenu|stopPropagation={(e) =>
-                openValueContext(e, "Final masses",
-                  `[${report!.threshold.final_masses.map((m) => m.toFixed(4)).join(", ")}] GeV`)}>
+                openValueContext(
+                  e,
+                  "masses",
+                  `[${report!.mandelstam_boundaries!.masses.map((m) => m.toFixed(4)).join(", ")}] GeV`,
+                )}>
+              [{report.mandelstam_boundaries.masses.map((m) => m.toFixed(4)).join(", ")}] GeV
+            </span>
+          </div>
         </div>
       {/if}
     {/if}

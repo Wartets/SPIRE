@@ -18,8 +18,8 @@
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
-    import { isolateEvents } from "$lib/actions/widgetEvents";
-    import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { isolateEvents } from "$lib/actions/widgetEvents";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
@@ -878,14 +878,13 @@
     <div class="field">
       <label for="x-obs-script">X Observable Script (Rhai):</label>
       <textarea
-        id="obs-script"
-        bind:value={observableScript}
-        on:input={handleScriptInput}
-        rows="3"
+        id="x-obs-script"
+        bind:value={xObservableScript}
+        rows="2"
         spellcheck="false"
-        class:invalid={!scriptValid}
-        use:isolateEvents={{ wheel: false, pointer: true, mouse: true, touch: false }}
       ></textarea>
+    </div>
+
     <div class="field">
       <label for="y-obs-script">Y Observable Script (Rhai):</label>
       <textarea
@@ -1088,7 +1087,7 @@
 
     <!-- Summary Statistics -->
     {#if result}
-      <div class="stats-panel" on:contextmenu={openStatsContext}>
+      <div class="stats-panel" role="region" aria-label="Analysis summary statistics" on:contextmenu={openStatsContext}>
         <div class="stat">
           <span class="stat-label">Events:</span>
           <span class="stat-value">
@@ -1131,6 +1130,8 @@
   <!-- Chart / Heatmap Canvas -->
   <div
     class="chart-container"
+    role="img"
+    aria-label="Analysis chart area"
     use:isolateEvents={{ wheel: true, pointer: false, mouse: false, touch: true }}
     on:contextmenu={openChartContext}
   >

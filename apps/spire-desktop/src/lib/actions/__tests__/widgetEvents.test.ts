@@ -18,7 +18,7 @@ describe("isolateEvents action", () => {
     child.dispatchEvent(evt);
 
     expect(parentWheelCount).toBe(0);
-    action.destroy();
+    action.destroy?.();
   });
 
   it("honors per-event options", () => {
@@ -48,6 +48,6 @@ describe("isolateEvents action", () => {
 
     expect(parentMouseDownCount).toBe(1);
     expect(parentWheelCount).toBe(0);
-    action.destroy();
+    action.destroy?.();
   });
 });
