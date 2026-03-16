@@ -36,6 +36,7 @@
   import { renderFeynmanDiagram } from "./diagram/feynmanRenderer";
   import { renderWorldsheet } from "./diagram/worldsheetRenderer";
   import { generateTikZ, generateTikZDocument } from "./diagram/tikzExport";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   // ── View Mode ──────────────────────────────────────────────────────────
 
@@ -300,6 +301,17 @@
     event.stopPropagation();
     const step = event.deltaY > 0 ? -0.1 : 0.1;
     diagramZoom = Math.min(3, Math.max(0.4, diagramZoom + step));
+  }
+
+  $: if (selectedDiagram) {
+    publishWidgetInterop("diagram", {
+      selectedDiagramId: selectedDiagram.id,
+      loopOrder: loopLabel(selectedDiagram.loop_order),
+      channelSummary: selectedDiagram.channels.join("+") || "-",
+      edgeCount: selectedDiagram.edges.length,
+      nodeCount: selectedDiagram.nodes.length,
+      viewMode,
+    });
   }
 </script>
 

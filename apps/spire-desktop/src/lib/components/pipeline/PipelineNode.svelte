@@ -87,7 +87,7 @@
   </header>
 
   {#if status === "error"}
-    <div class="node-error" title={errorMessage ?? "Execution failed"}>⚠ {errorMessage ?? "Execution failed"}</div>
+    <div class="node-error" title={errorMessage ?? "Execution failed"}>! {errorMessage ?? "Execution failed"}</div>
   {/if}
 
   <div class="node-body">

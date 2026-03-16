@@ -16,6 +16,7 @@
   import { exportAmplitudeLatex, deriveAmplitudeSteps, generateMathematicalProof } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
@@ -135,6 +136,13 @@
 
   onDestroy(() => {
     for (const id of AMP_CMD_IDS) unregisterCommand(id);
+  });
+
+  $: publishWidgetInterop("amplitude", {
+    selectedDiagramId,
+    activeExpression: selected || "",
+    amplitudeCount: results.length,
+    hasDerivation: derivationSteps.length > 0,
   });
 </script>
 

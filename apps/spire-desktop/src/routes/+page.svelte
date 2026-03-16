@@ -766,7 +766,7 @@
       title: "Customize Keyboard Shortcuts",
       category: "Navigation",
       execute: () => keybindPanelOpen.update((v) => !v),
-      icon: "⚙",
+      icon: "CFG",
     });
 
     // ── Edit Commands ──

@@ -411,7 +411,7 @@
             {validation.is_hermitian ? "✓" : "✗"} Hermitian
           </span>
           <span class="badge" class:pass={validation.is_renormalisable} class:warn={!validation.is_renormalisable}>
-            {validation.is_renormalisable ? "✓" : "⚠"} Dim-{validation.mass_dimension}
+            {validation.is_renormalisable ? "✓" : "!"} Dim-{validation.mass_dimension}
           </span>
         </div>
         <!-- Diagnostic messages -->

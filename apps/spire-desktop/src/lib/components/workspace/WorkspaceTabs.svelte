@@ -119,7 +119,7 @@
         type: "action",
         id: "ctx-ws-description",
         label: "Edit Description",
-        icon: "📝",
+        icon: "TXT",
         action: () => {
           const target = get(workspaces).find((w) => w.id === wsId);
           if (!target) return;

@@ -401,7 +401,7 @@
 </script>
 
 <div class="global-fit-dashboard">
-  <h2>⚙ Global Fit Dashboard</h2>
+  <h2>CFG Global Fit Dashboard</h2>
 
   <!-- Parameter Table -->
   <section class="params-section">

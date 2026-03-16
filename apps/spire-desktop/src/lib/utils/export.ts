@@ -157,7 +157,7 @@ export function canvasExportMenuItems(
     items.push({
       id: "export-png",
       label: "Export as PNG",
-      icon: "📷",
+      icon: "PNG",
       action: () => downloadAsPng(canvas, `${baseName}.png`),
       separator: true,
     });
@@ -167,7 +167,7 @@ export function canvasExportMenuItems(
     items.push({
       id: "export-json",
       label: "Export as JSON",
-      icon: "📄",
+      icon: "JSON",
       action: () => downloadAsJson(data, `${baseName}.json`),
     });
   }
@@ -189,7 +189,7 @@ export function svgExportMenuItems(
     items.push({
       id: "export-svg",
       label: "Export as SVG",
-      icon: "🖼",
+      icon: "SVG",
       action: () => downloadAsSvg(svgElement, `${baseName}.svg`),
       separator: true,
     });
@@ -199,7 +199,7 @@ export function svgExportMenuItems(
     items.push({
       id: "export-json",
       label: "Export as JSON",
-      icon: "📄",
+      icon: "JSON",
       action: () => downloadAsJson(data, `${baseName}.json`),
     });
   }
@@ -218,7 +218,7 @@ export function csvExportMenuItem(
   return {
     id: "export-csv",
     label: "Export as CSV",
-    icon: "📊",
+    icon: "CSV",
     separator: true,
     action: () => downloadAsCsv(headers, rows, `${baseName}.csv`),
   };

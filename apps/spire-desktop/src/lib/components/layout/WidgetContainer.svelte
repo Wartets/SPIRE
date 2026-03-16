@@ -69,8 +69,34 @@
   }
 
   /** Right-click on widget body → show widget-specific items + layout items. */
-  function openBodyContextAt(x: number, y: number): void {
+  function openBodyContextAt(x: number, y: number, target?: EventTarget | null): void {
     const widgetItems = getWidgetContextItems(node.widgetType);
+    const selectedText = (window.getSelection?.()?.toString() ?? "").trim();
+    const hit = target instanceof HTMLElement ? target : null;
+    const elementLabel = hit?.getAttribute("aria-label") || hit?.getAttribute("title") || hit?.tagName?.toLowerCase();
+
+    const elementItems: import("$lib/types/menu").ContextMenuItem[] = [
+      ...(selectedText
+        ? [{
+            type: "action" as const,
+            id: "copy-selected-text",
+            label: "Copy Selected Text",
+            icon: "TXT",
+            action: () => navigator.clipboard.writeText(selectedText),
+          }]
+        : []),
+      ...(elementLabel
+        ? [{
+            type: "action" as const,
+            id: "inspect-element",
+            label: `Element: ${elementLabel}`,
+            icon: "EL",
+            action: () => {},
+            disabled: true,
+          }]
+        : []),
+    ];
+
     const layoutItems: import("$lib/types/menu").ContextMenuItem[] = [
       { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
       { type: "action", id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
@@ -82,6 +108,10 @@
       ...(widgetItems.length > 0
         ? [{ type: "separator" as const, id: "sep-body" }]
         : []),
+      ...elementItems,
+      ...(elementItems.length > 0
+        ? [{ type: "separator" as const, id: "sep-body-element" }]
+        : []),
       ...layoutItems,
     ];
     showContextMenu(x, y, items);
@@ -90,7 +120,7 @@
   function handleBodyContext(e: MouseEvent): void {
     e.preventDefault();
     e.stopPropagation();
-    openBodyContextAt(e.clientX, e.clientY);
+    openBodyContextAt(e.clientX, e.clientY, e.target);
   }
 
   // ── Docking Drag-and-Drop ──

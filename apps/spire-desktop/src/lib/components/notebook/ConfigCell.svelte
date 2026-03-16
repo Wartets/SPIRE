@@ -72,7 +72,7 @@
       use:tooltip={{ text: "Load Model (Shift+Enter)" }}
     >
       {#if cell.running}
-        ⏳
+        ...
       {:else}
         ▶
       {/if}

@@ -245,7 +245,7 @@
             Script
           </button>
           <button class="nb-menu-item" on:click={() => addCellOfType("config")}>
-            <span class="nb-menu-icon" style="color: var(--hl-warning, #f1fa8c)">⚙</span>
+            <span class="nb-menu-icon" style="color: var(--hl-warning, #f1fa8c)">CFG</span>
             Config
           </button>
         </div>

@@ -27,6 +27,7 @@
     getWidgetUiSnapshot,
     setWidgetUiSnapshot,
   } from "$lib/stores/workspaceStore";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
   // ---------------------------------------------------------------------------
@@ -48,6 +49,15 @@
 
   function persistModelLoaderUi(patch: Record<string, unknown>): void {
     setWidgetUiSnapshot(MODEL_LOADER_UI_KEY, patch);
+  }
+
+  $: if ($theoreticalModel) {
+    publishWidgetInterop("model", {
+      modelName: $theoreticalModel.name,
+      fieldCount: $theoreticalModel.fields.length,
+      vertexCount: $theoreticalModel.vertex_factors.length,
+      framework: $activeFramework,
+    });
   }
 
   // ---------------------------------------------------------------------------

@@ -20,6 +20,7 @@
   import { tooltip } from "$lib/actions/tooltip";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
+  import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import WebglHeatmap from "./WebglHeatmap.svelte";
   import {
     Chart,
@@ -329,6 +330,7 @@
   // Script Validation
   // ---------------------------------------------------------------------------
   let validationTimer: ReturnType<typeof setTimeout> | null = null;
+  let interopUnsub: (() => void) | null = null;
 
   function handleScriptInput(): void {
     if (validationTimer) clearTimeout(validationTimer);
@@ -624,6 +626,21 @@
 
   onMount(() => {
     handleScriptInput();
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      const reactionPayload = state.reaction?.payload as
+        | { cmsEnergy?: number; finalState?: string[] }
+        | undefined;
+      if (!reactionPayload || loading || result) return;
+
+      if (typeof reactionPayload.cmsEnergy === "number" && Number.isFinite(reactionPayload.cmsEnergy)) {
+        cmsEnergy = reactionPayload.cmsEnergy;
+      }
+
+      if (Array.isArray(reactionPayload.finalState) && reactionPayload.finalState.length > 0) {
+        nFinalState = reactionPayload.finalState.length;
+      }
+    });
+
     registerCommand({
       id: "spire.analysis.run_mc",
       title: "Run Monte Carlo Integration",
@@ -637,11 +654,24 @@
 
   onDestroy(() => {
     for (const id of ANALYSIS_CMD_IDS) unregisterCommand(id);
+    interopUnsub?.();
     if (chart) {
       chart.destroy();
       chart = null;
     }
     if (validationTimer) clearTimeout(validationTimer);
+  });
+
+  $: publishWidgetInterop("analysis", {
+    mode: analysisMode,
+    cmsEnergy,
+    numEvents,
+    nFinalState,
+    eventsGenerated: result?.events_generated ?? null,
+    eventsPassed: result?.events_passed ?? null,
+    crossSection: result?.cross_section ?? null,
+    histogramCount: result?.histograms.length ?? 0,
+    histogram2DCount: result?.histograms_2d.length ?? 0,
   });
 </script>
 
@@ -928,9 +958,9 @@
         disabled={loading || (analysisMode === '1d' && !scriptValid)}
       >
         {#if loading}
-          ⏳ Running…
+          ... Running
         {:else}
-          ▶ Run Analysis
+          > Run Analysis
         {/if}
       </button>
       {#if activeHistogram && analysisMode === '1d'}

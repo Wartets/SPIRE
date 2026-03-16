@@ -105,7 +105,7 @@
   </button>
 
   {#if error}
-    <span class="error" use:tooltip={{ text: error }}>⚠</span>
+    <span class="error" use:tooltip={{ text: error }}>!</span>
   {/if}
 </div>
 

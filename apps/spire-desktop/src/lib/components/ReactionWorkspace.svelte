@@ -56,6 +56,7 @@
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { selectionBus, clearSelectionBus } from "$lib/stores/selectionBus";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   // --- Command Registration ---
   const REACTION_CMD_IDS = [
@@ -446,6 +447,18 @@
   function removeCut(idx: number): void {
     cutScripts.update((prev) => prev.filter((_, i) => i !== idx));
   }
+
+  $: publishWidgetInterop("reaction", {
+    initialState: $initialIdsInput,
+    finalState: $finalIdsInput,
+    cmsEnergy: $cmsEnergyInput,
+    maxLoopOrder: $maxLoopOrderInput,
+    hasReaction: Boolean($activeReaction),
+    reactionValid: $activeReaction?.is_valid ?? false,
+    diagramCount: $generatedDiagrams?.diagrams.length ?? 0,
+    amplitudeCount: $amplitudeResults.length,
+    hasKinematics: Boolean($kinematics),
+  });
 </script>
 
 <div class="reaction-workspace" data-tour-id="reaction-input">

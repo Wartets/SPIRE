@@ -22,6 +22,7 @@
   import { gridManager, gridSnapshot } from "$lib/services/ComputeGrid";
   import type { GridJobSnapshot, ConvergencePoint } from "$lib/types/compute";
   import type { AnalysisResult } from "$lib/types/spire";
+  import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import {
     Chart,
     LineController,
@@ -70,6 +71,7 @@
   let convergenceChart: Chart | null = null;
 
   let errorMsg: string = "";
+  let interopUnsub: (() => void) | null = null;
 
   function cssVar(name: string, fallback: string): string {
     if (typeof window === "undefined") return fallback;
@@ -279,12 +281,53 @@
   // Lifecycle
   // ---------------------------------------------------------------------------
 
+  onMount(() => {
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      if (isRunning) return;
+
+      const reactionPayload = state.reaction?.payload as
+        | { cmsEnergy?: number; finalState?: string[] }
+        | undefined;
+      if (reactionPayload) {
+        if (typeof reactionPayload.cmsEnergy === "number" && Number.isFinite(reactionPayload.cmsEnergy)) {
+          cmsEnergy = reactionPayload.cmsEnergy;
+        }
+        if (Array.isArray(reactionPayload.finalState) && reactionPayload.finalState.length > 0) {
+          nFinalState = reactionPayload.finalState.length;
+        }
+      }
+
+      const analysisPayload = state.analysis?.payload as
+        | { cmsEnergy?: number; numEvents?: number }
+        | undefined;
+      if (analysisPayload) {
+        if (typeof analysisPayload.cmsEnergy === "number" && Number.isFinite(analysisPayload.cmsEnergy)) {
+          cmsEnergy = analysisPayload.cmsEnergy;
+        }
+        if (typeof analysisPayload.numEvents === "number" && Number.isFinite(analysisPayload.numEvents)) {
+          numEvents = Math.max(1, Math.floor(analysisPayload.numEvents));
+        }
+      }
+    });
+  });
+
   onDestroy(() => {
+    interopUnsub?.();
     unsub();
     if (convergenceChart) {
       convergenceChart.destroy();
       convergenceChart = null;
     }
+  });
+
+  $: publishWidgetInterop("compute_grid", {
+    status: snapshot?.status ?? "idle",
+    cmsEnergy,
+    numEvents,
+    nFinalState,
+    progressPercent,
+    eventsCompleted: snapshot?.eventsCompleted ?? 0,
+    eventsTotal: snapshot?.totalEvents ?? 0,
   });
 </script>
 

@@ -8,9 +8,17 @@
 <script lang="ts">
   import { kinematics, mandelstamVars } from "$lib/stores/physicsStore";
   import type { KinematicsReport, MandelstamVars } from "$lib/types/spire";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   $: report = $kinematics;
   $: mvars = $mandelstamVars;
+
+  $: publishWidgetInterop("kinematics", {
+    hasReport: Boolean(report),
+    allowed: report?.is_allowed ?? null,
+    thresholdEnergy: report?.threshold.threshold_energy ?? null,
+    mandelstamS: mvars?.s ?? null,
+  });
 </script>
 
 <div class="kinematics-view">

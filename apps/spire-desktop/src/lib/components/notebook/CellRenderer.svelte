@@ -109,7 +109,7 @@
       menuSubmenu("ctx-insert-below", "Insert Cell Below", [
         menuAction("ctx-ins-script", "▶  Script", () => dispatch("insertBelow", { index, type: "script" })),
         menuAction("ctx-ins-markdown", "¶  Markdown", () => dispatch("insertBelow", { index, type: "markdown" })),
-        menuAction("ctx-ins-config", "⚙  Config", () => dispatch("insertBelow", { index, type: "config" })),
+        menuAction("ctx-ins-config", "CFG  Config", () => dispatch("insertBelow", { index, type: "config" })),
       ]),
     );
 

@@ -282,7 +282,7 @@
         role="button"
         tabindex="0"
       >
-        <span class="drop-icon">📄</span>
+        <span class="drop-icon">SLHA</span>
         <span>Drop .slha file here or</span>
         <label class="file-label">
           Browse…

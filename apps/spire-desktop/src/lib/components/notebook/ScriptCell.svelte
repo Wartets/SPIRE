@@ -75,7 +75,7 @@
       use:tooltip={{ text: "Run Cell (Shift+Enter)" }}
     >
       {#if cell.running}
-        ⏳
+        ...
       {:else}
         ▶
       {/if}
