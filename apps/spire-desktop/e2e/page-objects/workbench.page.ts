@@ -4,7 +4,7 @@ export class WorkbenchPage {
   constructor(private readonly page: Page) {}
 
   addWidgetButton(): Locator {
-    return this.page.locator(".toolbox-toggle").first();
+    return this.page.getByRole("button", { name: /add\s+widget/i }).first();
   }
 
   private escapeRegex(input: string): string {
@@ -12,6 +12,17 @@ export class WorkbenchPage {
   }
 
   async goto(): Promise<void> {
+    this.page.on("pageerror", (error) => {
+      // eslint-disable-next-line no-console
+      console.log("WORKBENCH_PAGEERROR", error.message);
+    });
+    this.page.on("console", (msg) => {
+      if (msg.type() === "error") {
+        // eslint-disable-next-line no-console
+        console.log("WORKBENCH_CONSOLE_ERROR", msg.text());
+      }
+    });
+
     await this.page.addInitScript(() => {
       if (window.sessionStorage.getItem("spire.e2e.bootstrap.cleared") === "1") {
         return;
@@ -22,7 +33,12 @@ export class WorkbenchPage {
       window.sessionStorage.setItem("spire.e2e.bootstrap.cleared", "1");
     });
     await this.page.goto("/");
-    await expect(this.addWidgetButton()).toBeVisible();
+    if (!(await this.addWidgetButton().isVisible())) {
+      const bodySnippet = (await this.page.locator("body").innerText()).slice(0, 260).replace(/\s+/g, " ");
+      // eslint-disable-next-line no-console
+      console.log("WORKBENCH_DEBUG_BODY", bodySnippet);
+    }
+    await expect(this.addWidgetButton()).toBeVisible({ timeout: 45_000 });
   }
 
   async openAddWidgetMenu(): Promise<void> {

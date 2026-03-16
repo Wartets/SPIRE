@@ -4,6 +4,11 @@ const basePath = process.env.BASE_PATH || "";
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
+  compilerOptions: {
+    compatibility: {
+      componentApi: 4,
+    },
+  },
   kit: {
     adapter: adapter({
       pages: "build",

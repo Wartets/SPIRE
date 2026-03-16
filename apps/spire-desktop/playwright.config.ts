@@ -40,6 +40,10 @@ export default defineConfig({
     port: PORT,
     timeout: 120_000,
     reuseExistingServer: true,
+    env: {
+      ...process.env,
+      BASE_PATH: "",
+    },
   },
   projects: [
     {

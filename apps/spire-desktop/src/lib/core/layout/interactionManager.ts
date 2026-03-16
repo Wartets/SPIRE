@@ -31,6 +31,7 @@ interface DragSession {
   startClientX: number;
   startClientY: number;
   origin: DragOrigin;
+  startedAt: number;
 }
 
 interface ResizeSession {
@@ -43,6 +44,7 @@ interface ResizeSession {
   origin: ResizeOrigin;
   minWidth: number;
   minHeight: number;
+  startedAt: number;
 }
 
 type InteractionSession = DragSession | ResizeSession;
@@ -50,6 +52,8 @@ type InteractionSession = DragSession | ResizeSession;
 export type InteractionPatch =
   | { mode: "drag"; itemId: string; patch: DragPatch }
   | { mode: "resize"; itemId: string; direction: ResizeDirection; patch: ResizePatch };
+
+const STALE_SESSION_TIMEOUT_MS = 12_000;
 
 /**
  * Centralized pointer interaction manager for canvas widgets.
@@ -64,6 +68,33 @@ export class CanvasInteractionManager {
     return this.session !== null;
   }
 
+  private now(): number {
+    return Date.now();
+  }
+
+  private isSessionStale(): boolean {
+    if (!this.session) return false;
+    return this.now() - this.session.startedAt > STALE_SESSION_TIMEOUT_MS;
+  }
+
+  private canStartWithPointer(pointerId: number): boolean {
+    if (!this.session) return true;
+
+    // Same pointer may restart after capture races.
+    if (this.session.pointerId === pointerId) {
+      this.session = null;
+      return true;
+    }
+
+    // Safety valve for interrupted lifecycle where pointerup/cancel was lost.
+    if (this.isSessionStale()) {
+      this.session = null;
+      return true;
+    }
+
+    return false;
+  }
+
   startDrag(params: {
     itemId: string;
     pointerId: number;
@@ -71,14 +102,8 @@ export class CanvasInteractionManager {
     clientY: number;
     origin: DragOrigin;
   }): boolean {
-    if (this.session !== null) {
-      // Prevent stale deadlock: if the same pointer re-enters start, reset session.
-      if (this.session.pointerId === params.pointerId) {
-        this.session = null;
-      } else {
-        return false;
-      }
-    }
+    if (!this.canStartWithPointer(params.pointerId)) return false;
+
     this.session = {
       mode: "drag",
       itemId: params.itemId,
@@ -86,6 +111,7 @@ export class CanvasInteractionManager {
       startClientX: params.clientX,
       startClientY: params.clientY,
       origin: params.origin,
+      startedAt: this.now(),
     };
     return true;
   }
@@ -100,13 +126,8 @@ export class CanvasInteractionManager {
     minWidth: number;
     minHeight: number;
   }): boolean {
-    if (this.session !== null) {
-      if (this.session.pointerId === params.pointerId) {
-        this.session = null;
-      } else {
-        return false;
-      }
-    }
+    if (!this.canStartWithPointer(params.pointerId)) return false;
+
     this.session = {
       mode: "resize",
       itemId: params.itemId,
@@ -117,6 +138,7 @@ export class CanvasInteractionManager {
       direction: params.direction,
       minWidth: params.minWidth,
       minHeight: params.minHeight,
+      startedAt: this.now(),
     };
     return true;
   }
@@ -200,6 +222,5 @@ export class CanvasInteractionManager {
   }
 }
 
-// Backward-compatible aliases for existing imports.
 export type InteractionManager = CanvasInteractionManager;
 export const interactionManager = new CanvasInteractionManager();

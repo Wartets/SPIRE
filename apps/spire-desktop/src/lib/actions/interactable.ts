@@ -3,7 +3,7 @@ import {
   type DragOrigin,
   type ResizeDirection,
   type ResizeOrigin,
-} from "$lib/core/layout/CanvasInteractionManager";
+} from "$lib/core/layout/interactionManager";
 
 interface BaseInteractableOptions {
   itemId: string;
@@ -42,6 +42,43 @@ type ActionReturn = {
 export function interactable(node: HTMLElement, initialOptions: InteractableOptions): ActionReturn {
   let options = initialOptions;
   let activePointerId: number | null = null;
+  let usingWindowFallback = false;
+
+  function safeSetCapture(pointerId: number): boolean {
+    try {
+      node.setPointerCapture(pointerId);
+      return node.hasPointerCapture(pointerId);
+    } catch {
+      // If capture cannot be set (e.g. transient detached node), continue gracefully.
+      return false;
+    }
+  }
+
+  function safeReleaseCapture(pointerId: number): void {
+    try {
+      if (node.hasPointerCapture(pointerId)) {
+        node.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore capture release races.
+    }
+  }
+
+  function addWindowFallbackListeners(): void {
+    if (usingWindowFallback) return;
+    usingWindowFallback = true;
+    window.addEventListener("pointermove", handlePointerMove, { passive: false });
+    window.addEventListener("pointerup", finishPointer, { passive: false });
+    window.addEventListener("pointercancel", handlePointerCancel, { passive: false });
+  }
+
+  function removeWindowFallbackListeners(): void {
+    if (!usingWindowFallback) return;
+    usingWindowFallback = false;
+    window.removeEventListener("pointermove", handlePointerMove);
+    window.removeEventListener("pointerup", finishPointer);
+    window.removeEventListener("pointercancel", handlePointerCancel);
+  }
 
   function handlePointerDown(event: PointerEvent): void {
     if (options.enabled === false) return;
@@ -72,7 +109,10 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     if (!started) return;
 
     activePointerId = event.pointerId;
-    node.setPointerCapture(event.pointerId);
+    const captured = safeSetCapture(event.pointerId);
+    if (!captured) {
+      addWindowFallbackListeners();
+    }
     event.preventDefault();
     event.stopPropagation();
   }
@@ -120,9 +160,8 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     }
 
     interactionManager.end(event.pointerId);
-    if (node.hasPointerCapture(event.pointerId)) {
-      node.releasePointerCapture(event.pointerId);
-    }
+    safeReleaseCapture(event.pointerId);
+    removeWindowFallbackListeners();
     activePointerId = null;
 
     event.preventDefault();
@@ -132,9 +171,8 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
   function handlePointerCancel(event: PointerEvent): void {
     if (activePointerId === null || event.pointerId !== activePointerId) return;
     interactionManager.cancel(event.pointerId);
-    if (node.hasPointerCapture(event.pointerId)) {
-      node.releasePointerCapture(event.pointerId);
-    }
+    safeReleaseCapture(event.pointerId);
+    removeWindowFallbackListeners();
     activePointerId = null;
     event.preventDefault();
     event.stopPropagation();
@@ -143,6 +181,7 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
   function handleLostPointerCapture(event: PointerEvent): void {
     if (activePointerId === null || event.pointerId !== activePointerId) return;
     interactionManager.cancel(event.pointerId);
+    removeWindowFallbackListeners();
     activePointerId = null;
   }
 
@@ -162,11 +201,10 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
       node.removeEventListener("pointerup", finishPointer);
       node.removeEventListener("pointercancel", handlePointerCancel);
       node.removeEventListener("lostpointercapture", handleLostPointerCapture);
+      removeWindowFallbackListeners();
       if (activePointerId !== null) {
         interactionManager.cancel(activePointerId);
-        if (node.hasPointerCapture(activePointerId)) {
-          node.releasePointerCapture(activePointerId);
-        }
+        safeReleaseCapture(activePointerId);
       }
     },
   };
