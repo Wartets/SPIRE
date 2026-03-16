@@ -9,8 +9,13 @@
   - Middle-click + drag             → Pan the viewport
   - Scroll wheel on background      → Zoom to cursor
   - Left-click on widget header     → Drag widget to reposition
-  - Corner handle                   → Resize widget
+  - Resize handle (8 directions)    → Resize widget
+  - Click anywhere on a widget      → Bring to front
   - Click on zoom indicator         → Reset to 100%
+
+  All canvas interactions (pan, drag, resize, bring-to-front) are driven
+  by a SINGLE capture-phase pointer handler on the canvas root.
+  No per-widget Svelte actions are used for dragging or resizing.
 
   The canvas state (items, viewport) lives in `layoutStore`.
 -->
@@ -18,9 +23,6 @@
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
-  import { type ResizeDirection } from "$lib/actions/interactable";
-  import { draggable } from "$lib/actions/draggable";
-  import { resizable } from "$lib/actions/resizable";
   import { get } from "svelte/store";
   import {
     canvasItems,
@@ -76,7 +78,6 @@
   let panY = 0;
   let zoom = 1;
 
-  // Subscribe to store
   const unsubViewport = canvasViewport.subscribe((vp) => {
     panX = vp.panX;
     panY = vp.panY;
@@ -85,9 +86,7 @@
 
   function nudgeCanvasRendering(): void {
     if (typeof window === "undefined") return;
-    if (repaintKickHandle !== null) {
-      cancelAnimationFrame(repaintKickHandle);
-    }
+    if (repaintKickHandle !== null) cancelAnimationFrame(repaintKickHandle);
     repaintKickHandle = requestAnimationFrame(() => {
       repaintKickHandle = requestAnimationFrame(() => {
         screenW = canvasEl?.clientWidth ?? screenW;
@@ -103,15 +102,14 @@
   }
 
   // ── Multi-Level Dot Grid ──
-  // Minor dots (20px spacing) fade when zoomed out; major dots (100px) persist.
   const MINOR_GRID = 20;
   const MAJOR_GRID = 100;
 
-  $: minorSize = MINOR_GRID * zoom;
-  $: majorSize = MAJOR_GRID * zoom;
+  $: minorSize    = MINOR_GRID * zoom;
+  $: majorSize    = MAJOR_GRID * zoom;
   $: minorOpacity = Math.min(1, Math.max(0, (zoom - 0.3) / 0.4));
-  $: minorDotR = Math.max(0.5, 0.8 * zoom);
-  $: majorDotR = Math.max(1, 1.4 * zoom);
+  $: minorDotR    = Math.max(0.5, 0.8 * zoom);
+  $: majorDotR    = Math.max(1,   1.4 * zoom);
 
   $: gridStyle = `
     background-position: ${panX}px ${panY}px;
@@ -123,88 +121,61 @@
       radial-gradient(circle, rgba(170,170,170,0.55) ${majorDotR}px, transparent ${majorDotR}px);
   `;
 
-  // ── Frustum Culling & LOD ──────────────────────────────────────────────
-  // Compute the visible world-space viewport, expanded by overscan, and
-  // the current LOD tier.  Widgets outside the frustum are replaced by
-  // lightweight empty placeholders to save DOM nodes and GPU memory.
-
-  /** Screen dimensions (updated via ResizeObserver). */
+  // ── Frustum Culling & LOD ──
   let screenW = 900;
   let screenH = 600;
 
-  $: worldViewport = expandByOverscan(
-    computeViewport(panX, panY, zoom, screenW, screenH),
-  );
-
+  $: worldViewport = expandByOverscan(computeViewport(panX, panY, zoom, screenW, screenH));
   $: lodLevel = zoomToLod(zoom);
 
-  /** Test whether a canvas item is within the visible frustum. */
   function itemIsVisible(item: CanvasItem): boolean {
     return isVisible(item.x, item.y, item.width, item.height, worldViewport);
   }
 
-  // ── Edge Snapping ──────────────────────────────────────────────────────
-  // When dragging, snap widget edges to sibling widget edges and to the
-  // visible viewport edges.  Threshold in world-space pixels.
-  const SNAP_THRESHOLD = 8;
-  const MIN_WIDGET_WIDTH = 280;
+  // ── Edge Snapping ──
+  const SNAP_THRESHOLD  = 8;
+  const MIN_WIDGET_WIDTH  = 280;
   const MIN_WIDGET_HEIGHT = 200;
 
   interface SnapResult { x: number; y: number; }
 
-  function snapToEdges(
-    dragId: string,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-  ): SnapResult {
-    let sx = x;
-    let sy = y;
+  function snapToEdges(dragId: string, x: number, y: number, w: number, h: number): SnapResult {
+    let sx = x, sy = y;
     let bestDx = SNAP_THRESHOLD + 1;
     let bestDy = SNAP_THRESHOLD + 1;
 
-    // Visible viewport in world coords
-    const rect = canvasEl?.getBoundingClientRect();
-    const vpLeft = -panX / zoom;
-    const vpTop = -panY / zoom;
-    const vpRight = vpLeft + (rect?.width ?? 900) / zoom;
-    const vpBottom = vpTop + (rect?.height ?? 600) / zoom;
+    const rect    = canvasEl?.getBoundingClientRect();
+    const vpLeft  = -panX / zoom;
+    const vpTop   = -panY / zoom;
+    const vpRight  = vpLeft + (rect?.width  ?? 900) / zoom;
+    const vpBottom = vpTop  + (rect?.height ?? 600) / zoom;
 
-    // Candidate edges: viewport bounds
     const xEdges = [vpLeft, vpRight];
     const yEdges = [vpTop, vpBottom];
 
-    // Sibling widgets
-    const items = get(canvasItems);
-    for (const sib of items) {
+    for (const sib of get(canvasItems)) {
       if (sib.id === dragId) continue;
       xEdges.push(sib.x, sib.x + sib.width);
       yEdges.push(sib.y, sib.y + sib.height);
     }
 
-    // Snap left/right edges of dragged widget
     for (const edge of xEdges) {
-      const dLeft = Math.abs(x - edge);
-      const dRight = Math.abs(x + w - edge);
-      if (dLeft < bestDx) { bestDx = dLeft; sx = edge; }
-      if (dRight < bestDx) { bestDx = dRight; sx = edge - w; }
+      const dL = Math.abs(x - edge), dR = Math.abs(x + w - edge);
+      if (dL < bestDx) { bestDx = dL; sx = edge; }
+      if (dR < bestDx) { bestDx = dR; sx = edge - w; }
     }
-
-    // Snap top/bottom edges of dragged widget
     for (const edge of yEdges) {
-      const dTop = Math.abs(y - edge);
-      const dBottom = Math.abs(y + h - edge);
-      if (dTop < bestDy) { bestDy = dTop; sy = edge; }
-      if (dBottom < bestDy) { bestDy = dBottom; sy = edge - h; }
+      const dT = Math.abs(y - edge), dB = Math.abs(y + h - edge);
+      if (dT < bestDy) { bestDy = dT; sy = edge; }
+      if (dB < bestDy) { bestDy = dB; sy = edge - h; }
     }
 
     return { x: sx, y: sy };
   }
 
-  // ── Spacebar Hold (grab-to-pan) ──
+  // ── Spacebar hold (grab-to-pan) ──
 
-  let spaceHeld = false;
+  let spaceHeld   = false;
   let spacePanning = false;
 
   function handleKeyDown(event: KeyboardEvent): void {
@@ -218,169 +189,309 @@
 
   function handleKeyUp(event: KeyboardEvent): void {
     if (event.code === "Space") {
-      spaceHeld = false;
+      spaceHeld    = false;
       spacePanning = false;
     }
   }
 
-  // ── Pan ──
-  // Pointer-unified pan: left on background (or Alt/Space), and middle-click.
+  // ══════════════════════════════════════════════════════════════════════════
+  // UNIFIED CANVAS GESTURE STATE MACHINE
+  // ══════════════════════════════════════════════════════════════════════════
+  //
+  // One capture-phase pointerdown handler on the canvas root classifies
+  // every press as: pan / drag / resize / focus-only.
+  //
+  // Benefits over the old per-widget use:draggable / use:resizable approach:
+  //   • No closure-over-loop-variable hazards in {#each} blocks
+  //   • No competing per-element event listeners (was 10+ per widget)
+  //   • z-index binding uses {zIndexById[item.id]} directly — Svelte tracks
+  //     this dependency and updates the style when zIndexById is reassigned
+  //   • Touch and pen work correctly (no button-check false negatives)
+  //   • Single onGestureMove / onGestureEnd drives all three operations
 
-  let isPanning = false;
-  let activePanPointerId: number | null = null;
-  let panStartX = 0;
-  let panStartY = 0;
-  let panStartPanX = 0;
-  let panStartPanY = 0;
+  type ResizeDir = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
-  /** Check whether a pointer target is the canvas background (not a widget). */
-  function isCanvasBackground(target: EventTarget | null): boolean {
-    if (!target || !(target instanceof HTMLElement)) return false;
-    // The canvas background elements have these classes
-    return (
-      target.classList.contains("infinite-canvas") ||
-      target.classList.contains("canvas-grid") ||
-      target.classList.contains("canvas-transform")
-    );
+  type Gesture =
+    | { mode: "idle" }
+    | { mode: "pan";    pid: number; sx: number; sy: number; spx: number; spy: number }
+    | { mode: "drag";   pid: number; wid: string; sx: number; sy: number; ox: number; oy: number }
+    | { mode: "resize"; pid: number; wid: string; dir: ResizeDir;
+        sx: number; sy: number; ox: number; oy: number; ow: number; oh: number };
+
+  let gesture: Gesture = { mode: "idle" };
+  let gestureWindowActive = false;
+
+  const RESIZE_DIRS: ResizeDir[] = ["nw", "ne", "sw", "se", "n", "s", "e", "w"];
+
+  /**
+   * Inspect the event's composedPath (innermost → outermost, stop at canvasEl)
+   * and return:
+   *   widgetId     – data-canvas-item-id on the .canvas-widget ancestor
+   *   resizeDir    – direction encoded in the first cw-resize-{dir} class found
+   *   isDragHandle – true when the hit element is .cw-header or .cw-body-minimal
+   *                  and NOT a button/input inside the header
+   */
+  function classifyPointerDown(event: PointerEvent): {
+    widgetId: string | null;
+    resizeDir: ResizeDir | null;
+    isDragHandle: boolean;
+  } {
+    const path = event.composedPath?.() ?? [];
+    let widgetId: string | null = null;
+    let resizeDir: ResizeDir | null = null;
+    let isDragHandle = false;
+    let hitInteractive = false;
+
+    for (const raw of path) {
+      if (!(raw instanceof HTMLElement)) continue;
+      if (raw === canvasEl) break;
+
+      // Widget identity
+      if (!widgetId && raw.dataset.canvasItemId) {
+        widgetId = raw.dataset.canvasItemId;
+      }
+
+      // Resize handle direction
+      if (!resizeDir) {
+        for (const dir of RESIZE_DIRS) {
+          if (raw.classList.contains(`cw-resize-${dir}`)) { resizeDir = dir; break; }
+        }
+      }
+
+      // Buttons/inputs come before .cw-header in the path (inner → outer).
+      // When found, they suppress drag so clicking cw-close / cw-link is safe.
+      if (!hitInteractive &&
+          (raw.tagName === "BUTTON" || raw.tagName === "INPUT" ||
+           raw.tagName === "TEXTAREA" || raw.tagName === "SELECT")) {
+        hitInteractive = true;
+      }
+
+      // Drag handle: the header bar, or the body in minimal-LOD mode
+      if (!isDragHandle && !hitInteractive) {
+        if (raw.classList.contains("cw-header") ||
+            raw.classList.contains("cw-body-minimal")) {
+          isDragHandle = true;
+        }
+      }
+    }
+
+    return { widgetId, resizeDir, isDragHandle };
   }
 
-  function handleCanvasPointerDown(event: PointerEvent): void {
-    const middleClick = event.button === 1;
-    const leftPanGesture =
-      event.button === 0 &&
-      (event.altKey || spaceHeld || isCanvasBackground(event.target));
+  function attachGestureWindowListeners(): void {
+    if (gestureWindowActive) return;
+    gestureWindowActive = true;
+    window.addEventListener("pointermove",   onGestureMove,   { passive: false });
+    window.addEventListener("pointerup",     onGestureEnd,    { passive: false });
+    window.addEventListener("pointercancel", onGestureCancel, { passive: false });
+  }
 
-    if (!middleClick && !leftPanGesture) return;
+  function detachGestureWindowListeners(): void {
+    if (!gestureWindowActive) return;
+    gestureWindowActive = false;
+    window.removeEventListener("pointermove",   onGestureMove);
+    window.removeEventListener("pointerup",     onGestureEnd);
+    window.removeEventListener("pointercancel", onGestureCancel);
+  }
 
+  /**
+   * Unified capture-phase pointerdown handler.
+   *
+   * Fires before any bubble-phase handler, including the isolateEvents action
+   * that widget bodies use to guard against accidental canvas panning.
+   *
+   * Responsibilities:
+   *  1. Always bring the clicked widget to the front.
+   *  2. Classify the press (pan / resize / drag / focus-only).
+   *  3. Start the gesture and attach window move/up listeners.
+   *
+   * event.preventDefault() is called ONLY when starting an actual gesture,
+   * so buttons, inputs, and other interactive elements inside widget bodies
+   * keep receiving focus and click events normally.
+   */
+  function onCanvasPointerDown(event: PointerEvent): void {
+    // Ignore non-primary touch contacts and all but left/middle mouse buttons
+    if (event.pointerType === "mouse"  && event.button > 1)    return;
+    if (event.pointerType !== "mouse"  && event.isPrimary === false) return;
+    // Ignore if a gesture is already in progress
+    if (gesture.mode !== "idle") return;
+
+    const { widgetId, resizeDir, isDragHandle } = classifyPointerDown(event);
+
+    // ── Bring-to-front on ANY widget press (before determining gesture type)
+    if (widgetId) bringToFrontById(widgetId);
+
+    // ── Middle-click → pan
+    if (event.button === 1) {
+      gesture = { mode: "pan", pid: event.pointerId,
+        sx: event.clientX, sy: event.clientY, spx: panX, spy: panY };
+      event.preventDefault();
+      attachGestureWindowListeners();
+      return;
+    }
+
+    // Left-click, primary touch, or pen from here
+    if (event.button !== 0 && event.pointerType !== "touch" && event.pointerType !== "pen") return;
+
+    // ── Alt key or Spacebar → pan
+    if (event.altKey || spaceHeld) {
+      if (spaceHeld) spacePanning = true;
+      gesture = { mode: "pan", pid: event.pointerId,
+        sx: event.clientX, sy: event.clientY, spx: panX, spy: panY };
+      event.preventDefault();
+      attachGestureWindowListeners();
+      return;
+    }
+
+    // ── Resize handle
+    if (resizeDir && widgetId) {
+      const item = get(canvasItems).find(i => i.id === widgetId);
+      if (item) {
+        gesture = {
+          mode: "resize", pid: event.pointerId, wid: widgetId, dir: resizeDir,
+          sx: event.clientX, sy: event.clientY,
+          ox: item.x, oy: item.y, ow: item.width, oh: item.height,
+        };
+        event.preventDefault();
+        attachGestureWindowListeners();
+        return;
+      }
+    }
+
+    // ── Drag handle (header title area, or minimal-LOD body — not a button)
+    if (isDragHandle && widgetId) {
+      const item = get(canvasItems).find(i => i.id === widgetId);
+      if (item) {
+        gesture = {
+          mode: "drag", pid: event.pointerId, wid: widgetId,
+          sx: event.clientX, sy: event.clientY,
+          ox: item.x, oy: item.y,
+        };
+        event.preventDefault();
+        attachGestureWindowListeners();
+        return;
+      }
+    }
+
+    // ── No widget → pan the canvas background
+    if (!widgetId) {
+      gesture = { mode: "pan", pid: event.pointerId,
+        sx: event.clientX, sy: event.clientY, spx: panX, spy: panY };
+      event.preventDefault();
+      attachGestureWindowListeners();
+      return;
+    }
+
+    // ── Widget body click (not header / resize handle): bring-to-front only.
+    //    No gesture started. No preventDefault(). Widget content works normally.
+  }
+
+  function onGestureMove(event: PointerEvent): void {
+    if (gesture.mode === "idle")              return;
+    if (event.pointerId !== gesture.pid)     return;
     event.preventDefault();
-    activePanPointerId = event.pointerId;
-    isPanning = true;
-    if (spaceHeld) spacePanning = true;
-    panStartX = event.clientX;
-    panStartY = event.clientY;
-    panStartPanX = panX;
-    panStartPanY = panY;
-    attachWindowGrabListeners();
+
+    if (gesture.mode === "pan") {
+      panX = gesture.spx + (event.clientX - gesture.sx);
+      panY = gesture.spy + (event.clientY - gesture.sy);
+      return;
+    }
+
+    const safeZoom = Math.max(zoom, 1e-6);
+    const dx = (event.clientX - gesture.sx) / safeZoom;
+    const dy = (event.clientY - gesture.sy) / safeZoom;
+
+    if (gesture.mode === "drag") {
+      queueDragPatch(gesture.wid, gesture.ox + dx, gesture.oy + dy);
+      return;
+    }
+
+    if (gesture.mode === "resize") {
+      const { ox, oy, ow, oh, dir } = gesture;
+      let nx = ox, ny = oy, nw = ow, nh = oh;
+      if (dir.includes("e")) nw = Math.max(MIN_WIDGET_WIDTH,  ow + dx);
+      if (dir.includes("s")) nh = Math.max(MIN_WIDGET_HEIGHT, oh + dy);
+      if (dir.includes("w")) { nw = Math.max(MIN_WIDGET_WIDTH,  ow - dx); nx = ox + (ow - nw); }
+      if (dir.includes("n")) { nh = Math.max(MIN_WIDGET_HEIGHT, oh - dy); ny = oy + (oh - nh); }
+      queueResizePatch(gesture.wid, { x: nx, y: ny, width: nw, height: nh });
+    }
   }
 
-  // ── Window-level grab listeners ──
-  // When the user starts a pan, drag, or resize we attach move/up
-  // listeners to `window` so events keep firing even if the cursor
-  // leaves the canvas boundary.
+  function onGestureEnd(event: PointerEvent): void {
+    if (gesture.mode === "idle")          return;
+    if (event.pointerId !== gesture.pid) return;
+    event.preventDefault();
 
-  let _grabListenersAttached = false;
+    // Apply final position
+    onGestureMove(event);
 
-  function attachWindowGrabListeners(): void {
-    if (_grabListenersAttached) return;
-    _grabListenersAttached = true;
-    window.addEventListener("pointermove", handleCanvasPointerMove, { passive: false });
-    window.addEventListener("pointerup", handleCanvasPointerUp, { passive: false });
-    window.addEventListener("pointercancel", handleCanvasPointerUp, { passive: false });
+    if (gesture.mode === "pan") {
+      spacePanning = false;
+      commitViewport();
+    } else if (gesture.mode === "drag") {
+      if (_rafPending) flushCanvasUpdates();
+      const wid = gesture.wid;
+      const current = get(canvasItems).find(i => i.id === wid);
+      if (current) {
+        const snapped = snapToEdges(current.id, current.x, current.y, current.width, current.height);
+        updateCanvasItem(current.id, { x: snapped.x, y: snapped.y });
+      }
+    } else if (gesture.mode === "resize") {
+      if (_rafPending) flushCanvasUpdates();
+    }
+
+    gesture = { mode: "idle" };
+    detachGestureWindowListeners();
   }
 
-  function detachWindowGrabListeners(): void {
-    if (!_grabListenersAttached) return;
-    _grabListenersAttached = false;
-    window.removeEventListener("pointermove", handleCanvasPointerMove);
-    window.removeEventListener("pointerup", handleCanvasPointerUp);
-    window.removeEventListener("pointercancel", handleCanvasPointerUp);
+  function onGestureCancel(event: PointerEvent): void {
+    if (gesture.mode === "idle")          return;
+    if (event.pointerId !== gesture.pid) return;
+    gesture      = { mode: "idle" };
+    spacePanning = false;
+    detachGestureWindowListeners();
   }
 
   // ── RAF-throttled store updates ──
-  // During drag/resize the mouse fires much faster than the display refresh
-  // rate (often 120 Hz+).  Writing the Svelte store on *every* mousemove
-  // allocates a new array and triggers re-renders of ALL canvas widgets.
-  // Instead we accumulate the latest desired position and flush once per
-  // animation frame.
+  // During drag/resize the pointer fires faster than the display refresh rate.
+  // We accumulate the latest desired geometry and flush once per animation frame
+  // to avoid re-rendering ALL widgets on every pointermove.
 
   let _rafPending = false;
   let _pendingDragPatch: { id: string; x: number; y: number } | null = null;
-  let _pendingResizePatch: {
-    id: string;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null = null;
+  let _pendingResizePatch: { id: string; x: number; y: number; width: number; height: number } | null = null;
 
   function flushCanvasUpdates(): void {
     _rafPending = false;
     if (_pendingDragPatch) {
-      updateCanvasItem(_pendingDragPatch.id, {
-        x: _pendingDragPatch.x,
-        y: _pendingDragPatch.y,
-      });
+      updateCanvasItem(_pendingDragPatch.id, { x: _pendingDragPatch.x, y: _pendingDragPatch.y });
       _pendingDragPatch = null;
     }
     if (_pendingResizePatch) {
       updateCanvasItem(_pendingResizePatch.id, {
-        x: _pendingResizePatch.x,
-        y: _pendingResizePatch.y,
-        width: _pendingResizePatch.width,
-        height: _pendingResizePatch.height,
+        x: _pendingResizePatch.x, y: _pendingResizePatch.y,
+        width: _pendingResizePatch.width, height: _pendingResizePatch.height,
       });
       _pendingResizePatch = null;
     }
   }
 
   function scheduleCanvasFlush(): void {
-    if (!_rafPending) {
-      _rafPending = true;
-      requestAnimationFrame(flushCanvasUpdates);
-    }
+    if (!_rafPending) { _rafPending = true; requestAnimationFrame(flushCanvasUpdates); }
   }
 
-  function handleInteractionMove(clientX: number, clientY: number): void {
-    if (isPanning) {
-      panX = panStartPanX + (clientX - panStartX);
-      panY = panStartPanY + (clientY - panStartY);
-    }
+  function queueDragPatch(itemId: string, x: number, y: number): void {
+    _pendingDragPatch = { id: itemId, x, y };
+    scheduleCanvasFlush();
   }
 
-  function handleCanvasPointerMove(event: PointerEvent): void {
-    if (activePanPointerId !== null && event.pointerId !== activePanPointerId) return;
-    if (!isPanning) return;
-    event.preventDefault();
-    handleInteractionMove(event.clientX, event.clientY);
-  }
-
-  function stopCanvasPan(): void {
-    if (isPanning) {
-      isPanning = false;
-      spacePanning = false;
-      commitViewport();
-    }
-    activePanPointerId = null;
-    detachWindowGrabListeners();
-  }
-
-  function handleCanvasPointerUp(event: PointerEvent): void {
-    if (activePanPointerId !== null && event.pointerId !== activePanPointerId) return;
-    event.preventDefault();
-    stopCanvasPan();
+  function queueResizePatch(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
+    _pendingResizePatch = { id: itemId, ...patch };
+    scheduleCanvasFlush();
   }
 
   // ── Zoom (scroll wheel) ──
-  // Priority-based wheel event routing:
-  //
-  //   1. If cursor is over a widget with an interactive <canvas> element
-  //      (Three.js OrbitControls, WebGL, etc.) or an element tagged with
-  //      data-wheel-capture → let the widget handle it (no canvas zoom).
-  //
-  //   2. If cursor is over a widget whose .cw-body content is scrollable
-  //      AND the content can still scroll in the wheel direction →
-  //      let the browser scroll the widget content.
-  //
-  //   3. Otherwise (cursor on background, or widget content is not
-  //      scrollable / is at scroll boundary) → zoom the canvas.
 
-  /**
-   * Walk from `el` up to (but not including) `boundary` and return true
-   * if any ancestor captures wheel events — marked via the
-   * `data-wheel-capture` attribute.  Widgets whose content uses its own
-   * wheel-driven interaction (Three.js OrbitControls, map viewers, etc.)
-   * should place this attribute on the relevant container.
-   */
   function elementCapturesWheel(el: HTMLElement | null, boundary: HTMLElement): boolean {
     let cur = el;
     while (cur && cur !== boundary) {
@@ -390,22 +501,10 @@
     return false;
   }
 
-  /**
-   * Return true when the scrollable element can still move in the
-   * direction indicated by deltaY.  If the user scrolls down but the
-   * element is already at the bottom (or up when at the top), the event
-   * should fall through to the canvas.
-   */
   function canScrollInDirection(el: HTMLElement, deltaY: number): boolean {
-    const tolerance = 1; // sub-pixel rounding guard
-    if (deltaY < 0) {
-      // Scrolling up — can scroll if not at the top
-      return el.scrollTop > tolerance;
-    }
-    if (deltaY > 0) {
-      // Scrolling down — can scroll if not at the bottom
-      return el.scrollTop + el.clientHeight < el.scrollHeight - tolerance;
-    }
+    const tol = 1;
+    if (deltaY < 0) return el.scrollTop > tol;
+    if (deltaY > 0) return el.scrollTop + el.clientHeight < el.scrollHeight - tol;
     return false;
   }
 
@@ -414,41 +513,20 @@
     const cwBody = target?.closest(".cw-body") as HTMLElement | null;
 
     if (cwBody) {
-      // ── Cursor is inside a widget ──
-
-      // 1. Interactive canvas (Three.js, WebGL) or explicit capture
-      if (target && elementCapturesWheel(target, cwBody)) {
-        // The widget's own controller (OrbitControls, etc.) handles
-        // the event.  Do NOT also zoom the canvas.
-        return;
-      }
-
-      // 2. Scrollable widget content
-      const hasOverflow =
-        cwBody.scrollHeight > cwBody.clientHeight + 1 ||
-        cwBody.scrollWidth > cwBody.clientWidth + 1;
-
-      if (hasOverflow && canScrollInDirection(cwBody, event.deltaY)) {
-        // Let the browser scroll the widget body natively.
-        return;
-      }
-
-      // 3. Widget content is not scrollable (or is at scroll boundary)
-      //    → fall through to canvas zoom below.
+      if (target && elementCapturesWheel(target, cwBody)) return;
+      const hasOverflow = cwBody.scrollHeight > cwBody.clientHeight + 1 ||
+                          cwBody.scrollWidth  > cwBody.clientWidth  + 1;
+      if (hasOverflow && canScrollInDirection(cwBody, event.deltaY)) return;
     }
 
-    // ── Global canvas zoom (cursor on background or non-interactive widget) ──
     event.preventDefault();
-    const factor = event.deltaY > 0 ? 0.92 : 1.08;
+    const factor  = event.deltaY > 0 ? 0.92 : 1.08;
     const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
-
-    const rect = canvasEl.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-
-    const worldX = (mouseX - panX) / zoom;
-    const worldY = (mouseY - panY) / zoom;
-
+    const rect    = canvasEl.getBoundingClientRect();
+    const mouseX  = event.clientX - rect.left;
+    const mouseY  = event.clientY - rect.top;
+    const worldX  = (mouseX - panX) / zoom;
+    const worldY  = (mouseY - panY) / zoom;
     panX = mouseX - worldX * newZoom;
     panY = mouseY - worldY * newZoom;
     zoom = newZoom;
@@ -459,51 +537,45 @@
 
   const zIndexManager = createZIndexManager();
   let selectedWidgetId: string | null = null;
+  // zIndexById is referenced DIRECTLY in the template as {zIndexById[item.id] ?? 1}.
+  // Svelte's compiler tracks the assignment `zIndexById = {...}` and re-evaluates
+  // that template expression every time syncZOrderState() runs — even when
+  // $canvasItems itself has not changed (e.g. pure bring-to-front click).
   let zIndexById: Record<string, number> = {};
-  let automationEnabled = false;
+  let automationEnabled        = false;
   let connectSourceWidgetId: string | null = null;
 
-  interface WidgetAutomationPorts {
-    source?: PipelineDataType;
-    sink?: PipelineDataType;
-  }
+  interface WidgetAutomationPorts { source?: PipelineDataType; sink?: PipelineDataType; }
 
   const WIDGET_AUTOMATION_PORTS: Partial<Record<WidgetType, WidgetAutomationPorts>> = {
-    model: { source: "model" },
-    reaction: { sink: "model", source: "reaction" },
-    diagram: { sink: "reaction", source: "diagram" },
-    amplitude: { sink: "diagram", source: "amplitude" },
-    kinematics: { sink: "reaction", source: "kinematics" },
-    dalitz: { sink: "kinematics" },
-    event_display: { sink: "kinematics" },
-    decay_calculator: { sink: "model", source: "decay_table" },
-    analysis: { sink: "amplitude", source: "analysis_result" },
-    notebook: { sink: "analysis_result" },
-    log: { sink: "analysis_result" },
+    model:            { source: "model" },
+    reaction:         { sink: "model",           source: "reaction" },
+    diagram:          { sink: "reaction",         source: "diagram" },
+    amplitude:        { sink: "diagram",          source: "amplitude" },
+    kinematics:       { sink: "reaction",         source: "kinematics" },
+    dalitz:           { sink: "kinematics" },
+    event_display:    { sink: "kinematics" },
+    decay_calculator: { sink: "model",            source: "decay_table" },
+    analysis:         { sink: "amplitude",        source: "analysis_result" },
+    notebook:         { sink: "analysis_result" },
+    log:              { sink: "analysis_result" },
   };
 
   function itemCenter(item: CanvasItem): { x: number; y: number } {
-    return {
-      x: item.x + item.width / 2,
-      y: item.y + item.height / 2,
-    };
+    return { x: item.x + item.width / 2, y: item.y + item.height / 2 };
   }
 
   function linkPath(linkId: string): string {
-    const link = $pipelineLinks.find((l) => l.id === linkId);
+    const link   = $pipelineLinks.find((l) => l.id === linkId);
     if (!link) return "";
-
     const source = $canvasItems.find((item) => item.id === link.source.widgetId);
-    const sink = $canvasItems.find((item) => item.id === link.sink.widgetId);
+    const sink   = $canvasItems.find((item) => item.id === link.sink.widgetId);
     if (!source || !sink) return "";
-
-    const from = itemCenter(source);
-    const to = itemCenter(sink);
-    const dx = Math.abs(to.x - from.x);
+    const from   = itemCenter(source);
+    const to     = itemCenter(sink);
+    const dx     = Math.abs(to.x - from.x);
     const offset = Math.max(70, Math.min(240, dx * 0.45));
-    const c1x = from.x + offset;
-    const c2x = to.x - offset;
-    return `M ${from.x} ${from.y} C ${c1x} ${from.y}, ${c2x} ${to.y}, ${to.x} ${to.y}`;
+    return `M ${from.x} ${from.y} C ${from.x + offset} ${from.y}, ${to.x - offset} ${to.y}, ${to.x} ${to.y}`;
   }
 
   function canAutomate(item: CanvasItem): boolean {
@@ -512,75 +584,53 @@
 
   function connectButtonTitle(item: CanvasItem): string {
     const ports = WIDGET_AUTOMATION_PORTS[item.widgetType];
-    if (!ports?.source && !ports?.sink) return "No automation ports";
-    if (!automationEnabled) return "Enable automation first";
+    if (!ports?.source && !ports?.sink)  return "No automation ports";
+    if (!automationEnabled)              return "Enable automation first";
     if (connectSourceWidgetId === item.id) return "Cancel source selection";
     if (!connectSourceWidgetId) {
-      return ports?.source
-        ? "Select as connection source"
-        : "This widget only accepts input";
+      return ports?.source ? "Select as connection source" : "This widget only accepts input";
     }
     return "Connect selected source to this widget";
   }
 
   function handleConnectClick(item: CanvasItem): void {
     if (!automationEnabled || !canAutomate(item)) return;
-    if (connectSourceWidgetId === item.id) {
-      connectSourceWidgetId = null;
-      return;
-    }
-
+    if (connectSourceWidgetId === item.id) { connectSourceWidgetId = null; return; }
     if (!connectSourceWidgetId) {
-      if (!WIDGET_AUTOMATION_PORTS[item.widgetType]?.source) {
-        return;
-      }
+      if (!WIDGET_AUTOMATION_PORTS[item.widgetType]?.source) return;
       connectSourceWidgetId = item.id;
       selectWidget(item);
       return;
     }
-
-    const created = createLink(connectSourceWidgetId, item.id);
+    createLink(connectSourceWidgetId, item.id);
     connectSourceWidgetId = null;
-    if (!created) {
-      // Incompatible ports are intentionally ignored.
-    }
   }
 
   function toggleAutomation(): void {
     automationEnabled = !automationEnabled;
-    if (!automationEnabled) {
-      connectSourceWidgetId = null;
-    }
+    if (!automationEnabled) connectSourceWidgetId = null;
   }
 
-  function selectWidget(item: CanvasItem): void {
-    bringToFrontById(item.id);
-  }
+  function selectWidget(item: CanvasItem): void { bringToFrontById(item.id); }
 
   function syncZOrderState(): void {
     const snapshot = zIndexManager.snapshot();
     selectedWidgetId = snapshot.selectedId;
-    zIndexById = snapshot.order.reduce<Record<string, number>>((acc, itemId, index) => {
-      acc[itemId] = index + 1;
+    zIndexById = snapshot.order.reduce<Record<string, number>>((acc, id, i) => {
+      acc[id] = i + 1;
       return acc;
     }, {});
   }
 
-  /** Bring an item to the foreground by ID (used when items are added). */
   function bringToFrontById(id: string): void {
     zIndexManager.bringToFront(id);
     syncZOrderState();
     nudgeCanvasRendering();
   }
 
-  function zIndexOf(itemId: string): number {
-    return zIndexById[itemId] ?? 1;
-  }
-
-  // ── Auto-select newly created widgets ──
-  // Track the previous item count; when it grows, bring the last item to front.
-  let _prevItemCount = 0;
-  let _previousCanvasIds = new Set<string>();
+  // ── Auto-select newly added widgets ──
+  let _prevItemCount      = 0;
+  let _previousCanvasIds  = new Set<string>();
 
   const unsubCanvasItems = canvasItems.subscribe((items) => {
     const ids = new Set(items.map((item) => item.id));
@@ -588,148 +638,59 @@
     syncZOrderState();
 
     if (items.length > _prevItemCount && items.length > 0) {
-      const newest = items[items.length - 1];
-      bringToFrontById(newest.id);
+      bringToFrontById(items[items.length - 1].id);
     } else if (_prevItemCount === 0 && items.length > 0) {
       nudgeCanvasRendering();
     }
     _prevItemCount = items.length;
 
     for (const removedId of _previousCanvasIds) {
-      if (!ids.has(removedId)) {
-        unregisterSource(removedId);
-        unregisterSink(removedId);
-      }
+      if (!ids.has(removedId)) { unregisterSource(removedId); unregisterSink(removedId); }
     }
-
     for (const link of get(pipelineLinks)) {
-      if (!ids.has(link.source.widgetId) || !ids.has(link.sink.widgetId)) {
-        removeLink(link.id);
-      }
+      if (!ids.has(link.source.widgetId) || !ids.has(link.sink.widgetId)) removeLink(link.id);
     }
-
     for (const item of items) {
       const ports = WIDGET_AUTOMATION_PORTS[item.widgetType];
-      if (ports?.source) {
-        registerSource(item.id, ports.source, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} output`);
-      }
-      if (ports?.sink) {
-        registerSink(item.id, ports.sink, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} input`, () => {});
-      }
+      if (ports?.source) registerSource(item.id, ports.source, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} output`);
+      if (ports?.sink)   registerSink(item.id, ports.sink, `${WIDGET_LABELS[item.widgetType] ?? item.widgetType} input`, () => {});
     }
-
     _previousCanvasIds = ids;
   });
 
-  function resetZoom(): void {
-    zoom = 1;
-    commitViewport();
-  }
+  function resetZoom(): void { zoom = 1; commitViewport(); }
 
   function duplicateCanvasWidget(item: CanvasItem): void {
     addCanvasItem(item.widgetType, item.x + 36, item.y + 36);
   }
 
   function resetCanvasWidgetSize(item: CanvasItem): void {
-    const def = WIDGET_DEFINITIONS.find((entry) => entry.type === item.widgetType);
-    const width = (def?.defaultColSpan ?? 2) * 320;
+    const def    = WIDGET_DEFINITIONS.find((e) => e.type === item.widgetType);
+    const width  = (def?.defaultColSpan ?? 2) * 320;
     const height = (def?.defaultRowSpan ?? 2) * 220;
     updateCanvasItem(item.id, { width, height });
-  }
-
-  function queueDragPatch(itemId: string, x: number, y: number): void {
-    _pendingDragPatch = { id: itemId, x, y };
-    scheduleCanvasFlush();
-  }
-
-  function queueResizePatch(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
-    _pendingResizePatch = {
-      id: itemId,
-      x: patch.x,
-      y: patch.y,
-      width: patch.width,
-      height: patch.height,
-    };
-    scheduleCanvasFlush();
-  }
-
-  function handleWidgetDragMove(itemId: string, patch: { x: number; y: number }): void {
-    queueDragPatch(itemId, patch.x, patch.y);
-  }
-
-  function handleWidgetDragEnd(itemId: string, patch: { x: number; y: number }): void {
-    if (_rafPending) {
-      flushCanvasUpdates();
-    }
-    const current = get(canvasItems).find((entry) => entry.id === itemId);
-    if (!current) return;
-    const snapped = snapToEdges(itemId, patch.x, patch.y, current.width, current.height);
-    updateCanvasItem(itemId, { x: snapped.x, y: snapped.y });
-  }
-
-  function handleWidgetResizeMove(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
-    queueResizePatch(itemId, patch);
-  }
-
-  function handleWidgetResizeEnd(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
-    queueResizePatch(itemId, patch);
-    if (_rafPending) {
-      flushCanvasUpdates();
-    }
-  }
-
-  function dragInteractableOptions(item: CanvasItem, enabled = true) {
-    return {
-      itemId: item.id,
-      enabled,
-      getZoom: () => zoom,
-      getOrigin: () => ({ x: item.x, y: item.y }),
-      onBringToFront: bringToFrontById,
-      onMove: (patch: { x: number; y: number }) => handleWidgetDragMove(item.id, patch),
-      onEnd: (patch: { x: number; y: number }) => handleWidgetDragEnd(item.id, patch),
-    };
-  }
-
-  function resizeInteractableOptions(item: CanvasItem, direction: ResizeDirection) {
-    return {
-      itemId: item.id,
-      direction,
-      minWidth: MIN_WIDGET_WIDTH,
-      minHeight: MIN_WIDGET_HEIGHT,
-      getZoom: () => zoom,
-      getOrigin: () => ({ x: item.x, y: item.y, width: item.width, height: item.height }),
-      onBringToFront: bringToFrontById,
-      onMove: (patch: { x: number; y: number; width: number; height: number }) => handleWidgetResizeMove(item.id, patch),
-      onEnd: (patch: { x: number; y: number; width: number; height: number }) => handleWidgetResizeEnd(item.id, patch),
-    };
   }
 
   function handleClose(item: CanvasItem): void {
     removeAllLinksForWidget(item.id);
     removeCanvasItem(item.id);
-    if (connectSourceWidgetId === item.id) {
-      connectSourceWidgetId = null;
-    }
+    if (connectSourceWidgetId === item.id) connectSourceWidgetId = null;
   }
 
-  /** Open a widget context menu at viewport coordinates. */
   function openWidgetContextAt(x: number, y: number, item: CanvasItem): void {
     const widgetItems = getWidgetContextItems(item.widgetType);
-    const items: import("$lib/types/menu").ContextMenuItem[] = [
+    const menuItems: import("$lib/types/menu").ContextMenuItem[] = [
       ...widgetItems,
-      ...(widgetItems.length > 0
-        ? [{ type: "separator" as const, id: "sep-cw" }]
-        : []),
-      { type: "action" as const, id: "cw-front", label: "Bring to Front", icon: "⇡", action: () => selectWidget(item) },
-      { type: "action" as const, id: "cw-duplicate", label: "Duplicate Widget", icon: "⧉", action: () => duplicateCanvasWidget(item) },
+      ...(widgetItems.length > 0 ? [{ type: "separator" as const, id: "sep-cw" }] : []),
+      { type: "action" as const, id: "cw-front",      label: "Bring to Front",    icon: "⇡", action: () => selectWidget(item) },
+      { type: "action" as const, id: "cw-duplicate",  label: "Duplicate Widget",  icon: "⧉", action: () => duplicateCanvasWidget(item) },
       { type: "action" as const, id: "cw-reset-size", label: "Reset Widget Size", icon: "□", action: () => resetCanvasWidgetSize(item) },
       { type: "separator" as const, id: "sep-cw-layout" },
-      { type: "action" as const, id: "cw-close", label: "Close Widget", icon: "✕", action: () => handleClose(item) },
+      { type: "action" as const, id: "cw-close",      label: "Close Widget",      icon: "✕", action: () => handleClose(item) },
     ];
-    showContextMenu(x, y, items);
+    showContextMenu(x, y, menuItems);
   }
 
-  /** Right-click on a canvas widget body — widget-specific items + close. */
   function handleWidgetBodyContext(e: MouseEvent, item: CanvasItem): void {
     e.preventDefault();
     e.stopPropagation();
@@ -745,78 +706,25 @@
   function handleCanvasDrop(event: DragEvent): void {
     const widgetType = event.dataTransfer?.getData("application/x-spire-widget-type");
     if (!widgetType) return;
-
     event.preventDefault();
-    const rect = canvasEl.getBoundingClientRect();
+    const rect   = canvasEl.getBoundingClientRect();
     const worldX = (event.clientX - rect.left - panX) / zoom;
-    const worldY = (event.clientY - rect.top - panY) / zoom;
+    const worldY = (event.clientY - rect.top  - panY) / zoom;
     addCanvasItem(widgetType as WidgetType, worldX, worldY);
     nudgeCanvasRendering();
   }
 
   function handleCanvasFocusRequest(event: Event): void {
     const detail = (event as CustomEvent<{ widgetId?: string }>).detail;
-    if (!detail?.widgetId) return;
-    bringToFrontById(detail.widgetId);
-  }
-
-  function findCanvasWidgetIdFromEvent(event: Event): string | null {
-    const path = typeof event.composedPath === "function"
-      ? event.composedPath()
-      : [];
-
-    for (const entry of path) {
-      if (!(entry instanceof HTMLElement)) continue;
-      const widgetId = entry.dataset.canvasItemId;
-      if (widgetId) return widgetId;
-      if (entry === canvasEl) break;
-    }
-
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) return null;
-    return target.closest<HTMLElement>("[data-canvas-item-id]")?.dataset.canvasItemId ?? null;
-  }
-
-  /**
-   * Capture-phase widget focus listener for the whole canvas.
-   *
-   * Keeping this at the canvas root ensures any pointer or mouse press inside a
-   * widget body raises it above siblings before child components can stop
-   * propagation in the bubble phase.
-   */
-  function captureCanvasWidgetPointerDown(node: HTMLElement) {
-    function pointerHandler(event: PointerEvent): void {
-      if (event.pointerType === "mouse" && event.button !== 0) return;
-      if (event.pointerType !== "mouse" && event.button > 0) return;
-      const widgetId = findCanvasWidgetIdFromEvent(event);
-      if (!widgetId) return;
-      bringToFrontById(widgetId);
-    }
-
-    function mouseHandler(event: MouseEvent): void {
-      if (event.button !== 0) return;
-      const widgetId = findCanvasWidgetIdFromEvent(event);
-      if (!widgetId) return;
-      bringToFrontById(widgetId);
-    }
-
-    node.addEventListener("pointerdown", pointerHandler, { capture: true });
-    node.addEventListener("mousedown", mouseHandler, { capture: true });
-    return {
-      destroy(): void {
-        node.removeEventListener("pointerdown", pointerHandler, { capture: true });
-        node.removeEventListener("mousedown", mouseHandler, { capture: true });
-      },
-    };
+    if (detail?.widgetId) bringToFrontById(detail.widgetId);
   }
 
   // ── Canvas Context Menu ──
 
   function openCanvasContextAt(clientX: number, clientY: number): void {
-    // Convert viewport coords to world coords for widget placement
-    const rect = canvasEl.getBoundingClientRect();
+    const rect   = canvasEl.getBoundingClientRect();
     const worldX = (clientX - rect.left - panX) / zoom;
-    const worldY = (clientY - rect.top - panY) / zoom;
+    const worldY = (clientY - rect.top  - panY) / zoom;
 
     const widgetSubItems: import("$lib/types/menu").ContextMenuItem[] = WIDGET_DEFINITIONS.map((def) => ({
       type: "action" as const,
@@ -828,46 +736,37 @@
     showContextMenu(clientX, clientY, [
       { type: "submenu", id: "ctx-add-widget", label: "Add Widget", icon: "+", children: widgetSubItems },
       { type: "separator", id: "sep-canvas" },
-      { type: "action", id: "ctx-reset-zoom", label: "Reset Zoom", shortcut: "Click %", action: () => resetZoom() },
-      { type: "action", id: "ctx-center-view", label: "Center View", action: () => { panX = 0; panY = 0; commitViewport(); } },
+      { type: "action", id: "ctx-reset-zoom",  label: "Reset Zoom",   shortcut: "Click %", action: () => resetZoom() },
+      { type: "action", id: "ctx-center-view", label: "Center View",  action: () => { panX = 0; panY = 0; commitViewport(); } },
     ]);
   }
 
   function handleCanvasContextMenu(event: MouseEvent): void {
-    // Shift + Right-click bypasses SPIRE and opens the native browser menu
-    if (event.shiftKey) return;
+    if (event.shiftKey) return; // allow native browser menu with Shift+right-click
     event.preventDefault();
     event.stopPropagation();
     openCanvasContextAt(event.clientX, event.clientY);
   }
 
-  // ── Global Shortcut Event Handlers ──
+  // ── Global Shortcut Handlers ──
 
   function handleDeleteSelected(): void {
-    if (selectedWidgetId) {
-      removeAllLinksForWidget(selectedWidgetId);
-      removeCanvasItem(selectedWidgetId);
-      if (connectSourceWidgetId === selectedWidgetId) {
-        connectSourceWidgetId = null;
-      }
-      selectedWidgetId = null;
-    }
+    if (!selectedWidgetId) return;
+    removeAllLinksForWidget(selectedWidgetId);
+    removeCanvasItem(selectedWidgetId);
+    if (connectSourceWidgetId === selectedWidgetId) connectSourceWidgetId = null;
+    selectedWidgetId = null;
   }
 
   function handleDuplicateSelected(): void {
     if (!selectedWidgetId) return;
-    const items = get(canvasItems);
-    const src = items.find((i) => i.id === selectedWidgetId);
-    if (!src) return;
-    addCanvasItem(src.widgetType, src.x + 30, src.y + 30);
+    const src = get(canvasItems).find((i) => i.id === selectedWidgetId);
+    if (src) addCanvasItem(src.widgetType, src.x + 30, src.y + 30);
   }
 
   function handleSelectAll(): void {
-    // In single-select mode, select the first item as a starting point.
     const items = get(canvasItems);
-    if (items.length > 0) {
-      selectedWidgetId = items[0].id;
-    }
+    if (items.length > 0) selectedWidgetId = items[0].id;
   }
 
   // ── Lifecycle ──
@@ -875,13 +774,13 @@
   let resizeObserver: ResizeObserver | null = null;
 
   onMount(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
+    window.addEventListener("keydown",  handleKeyDown);
+    window.addEventListener("keyup",    handleKeyUp);
+    window.addEventListener("spire:canvas:delete-selected",    handleDeleteSelected    as EventListener);
     window.addEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
-    window.addEventListener("spire:canvas:select-all", handleSelectAll as EventListener);
+    window.addEventListener("spire:canvas:select-all",         handleSelectAll         as EventListener);
+    window.addEventListener("spire:canvas:focus-widget",       handleCanvasFocusRequest as EventListener);
 
-    // Track canvas element dimensions for frustum culling
     if (canvasEl) {
       screenW = canvasEl.clientWidth;
       screenH = canvasEl.clientHeight;
@@ -894,29 +793,22 @@
       resizeObserver.observe(canvasEl);
     }
 
-    window.addEventListener("spire:canvas:focus-widget", handleCanvasFocusRequest as EventListener);
     nudgeCanvasRendering();
   });
 
   onDestroy(() => {
-    for (const item of get(canvasItems)) {
-      unregisterSource(item.id);
-      unregisterSink(item.id);
-    }
-
+    for (const item of get(canvasItems)) { unregisterSource(item.id); unregisterSink(item.id); }
     unsubViewport();
     unsubCanvasItems();
     resizeObserver?.disconnect();
-    detachWindowGrabListeners();
-    if (repaintKickHandle !== null) {
-      cancelAnimationFrame(repaintKickHandle);
-    }
-    window.removeEventListener("keydown", handleKeyDown);
-    window.removeEventListener("keyup", handleKeyUp);
-    window.removeEventListener("spire:canvas:delete-selected", handleDeleteSelected as EventListener);
+    detachGestureWindowListeners();
+    if (repaintKickHandle !== null) cancelAnimationFrame(repaintKickHandle);
+    window.removeEventListener("keydown",  handleKeyDown);
+    window.removeEventListener("keyup",    handleKeyUp);
+    window.removeEventListener("spire:canvas:delete-selected",    handleDeleteSelected    as EventListener);
     window.removeEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
-    window.removeEventListener("spire:canvas:select-all", handleSelectAll as EventListener);
-    window.removeEventListener("spire:canvas:focus-widget", handleCanvasFocusRequest as EventListener);
+    window.removeEventListener("spire:canvas:select-all",         handleSelectAll         as EventListener);
+    window.removeEventListener("spire:canvas:focus-widget",       handleCanvasFocusRequest as EventListener);
   });
 </script>
 
@@ -925,11 +817,10 @@
   class="infinite-canvas"
   class:space-held={spaceHeld && !spacePanning}
   class:space-panning={spacePanning}
-  class:is-panning={isPanning}
+  class:is-panning={gesture.mode === "pan"}
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
-  use:captureCanvasWidgetPointerDown
-  on:pointerdown={handleCanvasPointerDown}
+  on:pointerdown|capture={onCanvasPointerDown}
   on:wheel={handleWheel}
   on:dragover={handleCanvasDragOver}
   on:drop={handleCanvasDrop}
@@ -979,7 +870,7 @@
             top: {item.y}px;
             width: {item.width}px;
             height: {item.height}px;
-            z-index: {zIndexOf(item.id)};
+            z-index: {zIndexById[item.id] ?? 1};
           "
           data-canvas-item-id={item.id}
           on:focusin={() => selectWidget(item)}
@@ -992,11 +883,10 @@
           role="group"
           aria-label="{WIDGET_LABELS[item.widgetType] ?? item.widgetType} widget"
         >
-          <!-- Widget header (draggable) — hidden at minimal LOD -->
+          <!-- Widget header — acts as drag handle; hidden at minimal LOD -->
           {#if lodLevel !== "minimal"}
             <header
               class="cw-header"
-              use:draggable={dragInteractableOptions(item)}
               on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
               role="toolbar"
               tabindex="-1"
@@ -1027,16 +917,15 @@
             </header>
           {/if}
 
-          <!-- Widget body -->
+          <!-- Widget body — scrollable interactive content -->
           <div
             class="cw-body"
             class:cw-body-minimal={lodLevel === "minimal"}
-            use:draggable={dragInteractableOptions(item, lodLevel === "minimal")}
             on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
             role="region"
           >
             <CanvasLODWrapper widgetType={item.widgetType} {zoom}>
-              <!-- ═══ FULL LOD (zoom ≥ 0.6): interactive widget ═══ -->
+              <!-- FULL LOD: interactive widget component -->
               <div slot="full" class="zoom-adaptive-text">
                 {@const WidgetComponent = getWidgetComponent(item.widgetType)}
                 {#if WidgetComponent}
@@ -1046,7 +935,7 @@
                 {/if}
               </div>
 
-              <!-- ═══ SUMMARY LOD (0.3 ≤ zoom < 0.6): simplified card ═══ -->
+              <!-- SUMMARY LOD: simplified card -->
               <div slot="summary">
                 {@const SummaryComponent = getWidgetSummaryComponent(item.widgetType)}
                 {#if SummaryComponent}
@@ -1062,18 +951,18 @@
             </CanvasLODWrapper>
           </div>
 
-          <!-- Resize handle (hidden at minimal LOD) -->
+          <!-- 8-direction resize handles — hidden at minimal LOD -->
           {#if lodLevel !== "minimal"}
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <div class="cw-resize-layer" aria-hidden="true">
-              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" use:resizable={resizeInteractableOptions(item, "n")}></div>
-              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "ne")}></div>
-              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "e")}></div>
-              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "se")}></div>
-              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" use:resizable={resizeInteractableOptions(item, "s")}></div>
-              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "sw")}></div>
-              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "w")}></div>
-              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "nw")}></div>
+              <div class="cw-resize-handle cw-resize-n"  role="separator" aria-label="Resize north"      tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-e"  role="separator" aria-label="Resize east"       tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-s"  role="separator" aria-label="Resize south"      tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-w"  role="separator" aria-label="Resize west"       tabindex="-1"></div>
+              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1"></div>
             </div>
           {/if}
         </div>
@@ -1081,19 +970,14 @@
         <!-- Off-screen placeholder: maintains layout geometry without DOM cost -->
         <div
           class="cw-placeholder"
-          style="
-            left: {item.x}px;
-            top: {item.y}px;
-            width: {item.width}px;
-            height: {item.height}px;
-          "
+          style="left: {item.x}px; top: {item.y}px; width: {item.width}px; height: {item.height}px;"
           aria-hidden="true"
         ></div>
       {/if}
     {/each}
   </div>
 
-  <!-- Zoom indicator (click to reset to 100%) -->
+  <!-- Zoom indicator -->
   <button class="zoom-indicator" on:click={resetZoom} use:tooltip={{ text: "Reset zoom to 100%" }}>
     {Math.round(zoom * 100)}%
     {#if lodLevel !== "full"}
@@ -1122,14 +1006,9 @@
     touch-action: none;
   }
 
-  .infinite-canvas.space-held {
-    cursor: grab;
-  }
-
+  .infinite-canvas.space-held    { cursor: grab; }
   .infinite-canvas.space-panning,
-  .infinite-canvas.is-panning {
-    cursor: grabbing;
-  }
+  .infinite-canvas.is-panning    { cursor: grabbing; }
 
   .canvas-grid {
     position: absolute;
@@ -1173,10 +1052,7 @@
     flex-direction: column;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    /* Do NOT set overflow: hidden here — it would clip the resize handles
-       that extend 4-5 px outside the border-box. Clipping is applied to
-       .cw-body instead so widget content is still contained. */
-    overflow: visible;
+    overflow: visible;          /* must stay visible — resize handles extend outside */
     pointer-events: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     transition: box-shadow 0.12s, border-color 0.12s;
@@ -1200,9 +1076,7 @@
     touch-action: none;
   }
 
-  .cw-header:active {
-    cursor: grabbing;
-  }
+  .cw-header:active { cursor: grabbing; }
 
   .cw-header-icon {
     flex-shrink: 0;
@@ -1211,10 +1085,7 @@
     line-height: 0;
   }
 
-  .cw-header-icon :global(svg) {
-    width: 13px;
-    height: 13px;
-  }
+  .cw-header-icon :global(svg) { width: 13px; height: 13px; }
 
   .cw-title {
     flex: 1;
@@ -1250,26 +1121,10 @@
     font-family: var(--font-mono);
   }
 
-  .cw-link:hover:not(:disabled) {
-    color: var(--hl-symbol);
-    border-color: var(--border-focus);
-  }
-
-  .cw-link.active {
-    color: var(--hl-symbol);
-    border-color: var(--hl-symbol);
-    background: rgba(var(--color-accent-rgb), 0.1);
-  }
-
-  .cw-link:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
-
-  .cw-close:hover {
-    color: var(--hl-error);
-    border-color: var(--hl-error);
-  }
+  .cw-link:hover:not(:disabled) { color: var(--hl-symbol); border-color: var(--border-focus); }
+  .cw-link.active { color: var(--hl-symbol); border-color: var(--hl-symbol); background: rgba(var(--color-accent-rgb), 0.1); }
+  .cw-link:disabled { opacity: 0.35; cursor: not-allowed; }
+  .cw-close:hover   { color: var(--hl-error); border-color: var(--hl-error); }
 
   .cw-body {
     flex: 1;
@@ -1284,41 +1139,17 @@
     touch-action: none;
   }
 
-  .cw-body-minimal:active {
-    cursor: grabbing;
-  }
+  .cw-body-minimal:active { cursor: grabbing; }
 
-  /* ── Frustum Culling Placeholder ── */
   .cw-placeholder {
     position: absolute;
     pointer-events: none;
-    /* No background — completely invisible lightweight box */
   }
 
-  /* ── LOD Visual States ── */
-  .cw-lod-summary {
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  }
+  .cw-lod-summary { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+  .cw-lod-minimal { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); border-width: 1px; }
 
-  .cw-lod-minimal {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    border-width: 1px;
-  }
-
-  /* ── Font Scaling Floor ──
-      When the canvas is zoomed out aggressively, text rendered inside
-      widgets gets multiplied by the CSS zoom and can become microscopic.
-      The .zoom-adaptive-text utility applies a compensating scale so
-      that no text drops below ~9px screen-space.  Below the threshold
-      a translucent block replaces text to indicate content exists
-      without wasting GPU cycles on illegible glyphs. */
-  .zoom-adaptive-text {
-    /* Content container for full-LOD widgets.  The --canvas-zoom
-      variable is inherited and available to child components that
-      need zoom-aware styling (e.g. font scaling floors). */
-    width: 100%;
-    height: 100%;
-  }
+  .zoom-adaptive-text { width: 100%; height: 100%; }
 
   .cw-resize-layer {
     position: absolute;
@@ -1327,6 +1158,7 @@
     overflow: visible;
   }
 
+  /* Resize handles: slightly larger hit targets for easier grabbing */
   .cw-resize-handle {
     position: absolute;
     pointer-events: auto;
@@ -1334,38 +1166,19 @@
     touch-action: none;
   }
 
-  .cw-resize-n,
-  .cw-resize-s {
-    left: 4px;
-    right: 4px;
-    height: 4px;
-  }
+  .cw-resize-n, .cw-resize-s { left: 4px; right: 4px; height: 6px; }
+  .cw-resize-n { top: -3px;    cursor: ns-resize; }
+  .cw-resize-s { bottom: -3px; cursor: ns-resize; }
 
-  .cw-resize-n { top: -2px; cursor: ns-resize; }
-  .cw-resize-s { bottom: -2px; cursor: ns-resize; }
+  .cw-resize-e, .cw-resize-w { top: 4px; bottom: 4px; width: 6px; }
+  .cw-resize-e { right: -3px; cursor: ew-resize; }
+  .cw-resize-w { left: -3px;  cursor: ew-resize; }
 
-  .cw-resize-e,
-  .cw-resize-w {
-    top: 4px;
-    bottom: 4px;
-    width: 4px;
-  }
-
-  .cw-resize-e { right: -2px; cursor: ew-resize; }
-  .cw-resize-w { left: -2px; cursor: ew-resize; }
-
-  .cw-resize-ne,
-  .cw-resize-se,
-  .cw-resize-sw,
-  .cw-resize-nw {
-    width: 6px;
-    height: 6px;
-  }
-
-  .cw-resize-ne { top: -3px; right: -3px; cursor: nesw-resize; }
-  .cw-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
-  .cw-resize-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
-  .cw-resize-nw { top: -3px; left: -3px; cursor: nwse-resize; }
+  .cw-resize-ne, .cw-resize-se, .cw-resize-sw, .cw-resize-nw { width: 10px; height: 10px; }
+  .cw-resize-ne { top: -5px;    right: -5px;  cursor: nesw-resize; }
+  .cw-resize-se { bottom: -5px; right: -5px;  cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -5px; left: -5px;   cursor: nesw-resize; }
+  .cw-resize-nw { top: -5px;    left: -5px;   cursor: nwse-resize; }
 
   .cw-resize-layer .cw-resize-handle:hover {
     background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
@@ -1389,10 +1202,7 @@
     gap: 0.25rem;
   }
 
-  .zoom-indicator:hover {
-    border-color: var(--hl-symbol);
-    color: var(--fg-primary);
-  }
+  .zoom-indicator:hover { border-color: var(--hl-symbol); color: var(--fg-primary); }
 
   .lod-badge {
     font-size: 0.5rem;
@@ -1417,14 +1227,6 @@
     transition: border-color 0.15s, color 0.15s;
   }
 
-  .automation-toggle:hover {
-    border-color: var(--hl-symbol);
-    color: var(--fg-primary);
-  }
-
-  .automation-toggle.active {
-    border-color: var(--hl-symbol);
-    color: var(--hl-symbol);
-    background: rgba(var(--color-accent-rgb), 0.1);
-  }
+  .automation-toggle:hover  { border-color: var(--hl-symbol); color: var(--fg-primary); }
+  .automation-toggle.active { border-color: var(--hl-symbol); color: var(--hl-symbol); background: rgba(var(--color-accent-rgb), 0.1); }
 </style>
