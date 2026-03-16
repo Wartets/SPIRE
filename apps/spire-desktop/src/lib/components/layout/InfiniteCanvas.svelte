@@ -1060,7 +1060,7 @@
 
   .canvas-widget.cw-selected {
     border-color: var(--hl-symbol);
-    box-shadow: 0 4px 16px rgba(94, 184, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 4px 16px color-mix(in oklab, var(--hl-symbol) 76%, var(--border));
   }
 
   .cw-header {
