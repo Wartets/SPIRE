@@ -11,7 +11,6 @@ import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
 import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
 import EventDisplay from "$lib/components/EventDisplay.svelte";
 import ParticleAtlas from "$lib/components/ParticleAtlas.svelte";
-import DiagramEditor from "$lib/components/DiagramEditor.svelte";
 import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
 import ExternalModels from "$lib/components/ExternalModels.svelte";
 import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
@@ -41,7 +40,7 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   analysis: "Analysis",
   event_display: "Event Display",
   particle_atlas: "Particle Atlas",
-  diagram_editor: "Diagram Editor",
+  diagram_editor: "Unified Diagram Visualizer",
   lagrangian_workbench: "Lagrangian Workbench",
   external_models: "External Models",
   compute_grid: "Compute Grid",
@@ -68,7 +67,7 @@ export const WIDGET_COMPONENTS: Record<WidgetType, WidgetComponent> = {
   analysis: AnalysisWidget,
   event_display: EventDisplay,
   particle_atlas: ParticleAtlas,
-  diagram_editor: DiagramEditor,
+  diagram_editor: DiagramVisualizer,
   lagrangian_workbench: LagrangianWorkbench,
   external_models: ExternalModels,
   compute_grid: ComputeGridWidget,

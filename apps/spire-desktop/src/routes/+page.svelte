@@ -636,7 +636,7 @@
     });
     registerCommand({
       id: "spire.ui.add_diagram_editor",
-      title: "Add Diagram Editor",
+      title: "Add Unified Diagram Visualizer",
       category: "View",
       execute: () => spawnWidget("diagram_editor"),
     });

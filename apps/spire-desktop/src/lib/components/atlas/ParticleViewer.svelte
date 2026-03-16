@@ -18,6 +18,7 @@
   import CompositionSvg from "$lib/components/atlas/CompositionSvg.svelte";
   import DecayTree from "$lib/components/atlas/DecayTree.svelte";
   import MoleculePreview3D from "$lib/components/atlas/MoleculePreview3D.svelte";
+  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
 
   interface DecaySelectEvent {
     parentId: string;
@@ -68,6 +69,7 @@
   let selectedIsotopologueId = "natural";
 
   let selectedDecayIndex = 0;
+  let symbolicLatexMode: "rendered" | "raw" = "rendered";
   let vertexLayout: "s-channel" | "t-channel" | "split" = "split";
   let showCoupling = true;
   let emphasizeInteraction = true;
@@ -119,6 +121,12 @@
   function toSpinLabel(twiceSpin: number): string {
     if (!Number.isFinite(twiceSpin)) return "n/a";
     return twiceSpin % 2 === 0 ? `${twiceSpin / 2}` : `${twiceSpin}/2`;
+  }
+
+  function toSpinLatex(twiceSpin: number): string {
+    if (!Number.isFinite(twiceSpin)) return "\\text{n/a}";
+    if (twiceSpin % 2 === 0) return `${twiceSpin / 2}`;
+    return `\\frac{${twiceSpin}}{2}`;
   }
 
   function formatMaybe(v: number | null | undefined, digits = 6): string {
@@ -218,6 +226,10 @@
     ? `${toSpinLabel(qn.spin)}^{${qn.parity === "Even" ? "+" : "-"}${qn.charge_conjugation === "Even" ? "+" : qn.charge_conjugation === "Odd" ? "-" : "?"}}`
     : "n/a";
   $: isospin = qn ? `${(qn.weak_isospin / 2).toFixed(1)}` : "n/a";
+  $: spinParityLatex = qn
+    ? `J^{PC} = ${toSpinLatex(qn.spin)}^{${qn.parity === "Even" ? "+" : "-"}${qn.charge_conjugation === "Even" ? "+" : qn.charge_conjugation === "Odd" ? "-" : "?"}}`
+    : "";
+  $: isospinLatex = qn ? `I = ${formatMaybe(qn.weak_isospin / 2, 2)}` : "";
 
   // Nuclear-mode derived values
   $: isoN = isotope ? isotope.A - isotope.Z : 0;
@@ -527,6 +539,16 @@
       </section>
     {:else if mode === "quantum"}
       {#if particle}
+      <section class="symbolic-card">
+        <div class="symbolic-header">
+          <h5>Symbolic Quantum Labels</h5>
+          <button on:click={() => (symbolicLatexMode = symbolicLatexMode === "rendered" ? "raw" : "rendered")}>
+            {symbolicLatexMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
+          </button>
+        </div>
+        <LatexRenderer latex={spinParityLatex} mode={symbolicLatexMode} block={true} />
+        <LatexRenderer latex={isospinLatex} mode={symbolicLatexMode} block={true} />
+      </section>
       <section class="qn-card">
         <div><span>Mass</span><strong>{formatMaybe(particle.mass)} GeV</strong></div>
         <div><span>Width</span><strong>{formatMaybe(particle.width)} GeV</strong></div>
@@ -774,10 +796,38 @@
 
   .isotope-preview,
   .element-overview,
-  .synthesis-card {
+  .synthesis-card,
+  .symbolic-card {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
     padding: 0.45rem;
+  }
+
+  .symbolic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    margin-bottom: 0.28rem;
+  }
+
+  .symbolic-header h5 {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-text-primary, var(--fg-primary));
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .symbolic-header button {
+    border: 1px solid var(--color-border, var(--border));
+    background: var(--color-bg-surface, var(--bg-surface));
+    color: var(--color-text-muted, var(--fg-secondary));
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    padding: 0.14rem 0.3rem;
+    cursor: pointer;
   }
 
   .element-overview h5,

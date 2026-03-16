@@ -6,17 +6,48 @@
   export let block = true;
 
   let host: HTMLElement | null = null;
+  let hasRenderedMath = false;
+  let fallbackActive = false;
+  let renderError = "";
+
+  function setFallbackText(): void {
+    if (!host) return;
+    host.textContent = latex;
+    fallbackActive = true;
+    hasRenderedMath = false;
+  }
 
   async function typesetIfAvailable(): Promise<void> {
     if (!host || mode !== "rendered") return;
+    if (!latex.trim()) {
+      host.textContent = "";
+      fallbackActive = false;
+      hasRenderedMath = false;
+      renderError = "";
+      return;
+    }
+
     const mathJax = (window as Window & {
       MathJax?: {
         typesetPromise?: (elements?: Element[]) => Promise<void>;
       };
     }).MathJax;
 
-    if (mathJax?.typesetPromise) {
+    if (!mathJax?.typesetPromise) {
+      setFallbackText();
+      return;
+    }
+
+    fallbackActive = false;
+    host.textContent = block ? `\\[${latex}\\]` : `\\(${latex}\\)`;
+
+    try {
       await mathJax.typesetPromise([host]);
+      hasRenderedMath = true;
+      renderError = "";
+    } catch (error: unknown) {
+      renderError = error instanceof Error ? error.message : String(error);
+      setFallbackText();
     }
   }
 
@@ -32,9 +63,12 @@
 {#if mode === "raw"}
   <pre class="latex-raw"><code>{latex}</code></pre>
 {:else}
-  <div class:math-block={block} class="latex-render" bind:this={host}>
-    {`\\(${latex}\\)`}
+  <div class:math-block={block} class:latex-fallback={fallbackActive} class="latex-render" bind:this={host} aria-label="Mathematical expression">
+    {latex}
   </div>
+  {#if renderError && !hasRenderedMath}
+    <div class="latex-note">Rendering fallback active</div>
+  {/if}
 {/if}
 
 <style>
@@ -64,5 +98,17 @@
 
   .latex-raw code {
     font-family: var(--font-mono);
+  }
+
+  .latex-render.latex-fallback {
+    font-family: var(--font-mono);
+    color: var(--hl-value);
+  }
+
+  .latex-note {
+    margin-top: 0.25rem;
+    font-size: 0.64rem;
+    color: var(--fg-secondary);
+    font-style: italic;
   }
 </style>

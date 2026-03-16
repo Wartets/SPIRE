@@ -136,6 +136,61 @@ interface PositionedEdge {
   style: LineStyle;
 }
 
+function isExternalNode(kind: NodeKind): boolean {
+  return "ExternalIncoming" in kind || "ExternalOutgoing" in kind;
+}
+
+function nodeRenderRadius(kind: NodeKind): number {
+  return isExternalNode(kind) ? 4 : 5;
+}
+
+function nodeAttachRadius(kind: NodeKind): number {
+  return nodeRenderRadius(kind) + 2;
+}
+
+function centerPositionedNodes(
+  nodes: PositionedNode[],
+  width: number,
+  height: number,
+  padding: number,
+): PositionedNode[] {
+  if (nodes.length === 0) return nodes;
+
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+
+  for (const node of nodes) {
+    const r = nodeAttachRadius(node.kind);
+    minX = Math.min(minX, node.x - r);
+    maxX = Math.max(maxX, node.x + r);
+    minY = Math.min(minY, node.y - r);
+    maxY = Math.max(maxY, node.y + r);
+  }
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+  let dx = width / 2 - centerX;
+  let dy = height / 2 - centerY;
+
+  const projectedMinX = minX + dx;
+  const projectedMaxX = maxX + dx;
+  const projectedMinY = minY + dy;
+  const projectedMaxY = maxY + dy;
+
+  if (projectedMinX < padding) dx += padding - projectedMinX;
+  if (projectedMaxX > width - padding) dx -= projectedMaxX - (width - padding);
+  if (projectedMinY < padding) dy += padding - projectedMinY;
+  if (projectedMaxY > height - padding) dy -= projectedMaxY - (height - padding);
+
+  return nodes.map((node) => ({
+    ...node,
+    x: node.x + dx,
+    y: node.y + dy,
+  }));
+}
+
 function layoutDiagram(
   diag: FeynmanDiagram,
   width: number,
@@ -218,7 +273,7 @@ function layoutDiagram(
   }
 
   // Build positioned nodes
-  const pNodes: PositionedNode[] = diag.nodes.map((n) => {
+  const initialNodes: PositionedNode[] = diag.nodes.map((n) => {
     const pos = posMap.get(n.id) ?? { x: width / 2, y: height / 2 };
     let label = "";
     if ("ExternalIncoming" in n.kind) label = n.kind.ExternalIncoming.field.symbol;
@@ -226,10 +281,15 @@ function layoutDiagram(
     return { id: n.id, x: pos.x, y: pos.y, kind: n.kind, label };
   });
 
+  const pNodes = centerPositionedNodes(initialNodes, width, height, padding);
+  const centeredPosMap = new Map<number, { x: number; y: number }>(
+    pNodes.map((n) => [n.id, { x: n.x, y: n.y }]),
+  );
+
   // Build positioned edges
   const pEdges: PositionedEdge[] = diag.edges.map(([src, tgt, edge]) => {
-    const srcPos = posMap.get(src) ?? { x: 0, y: 0 };
-    const tgtPos = posMap.get(tgt) ?? { x: 0, y: 0 };
+    const srcPos = centeredPosMap.get(src) ?? { x: 0, y: 0 };
+    const tgtPos = centeredPosMap.get(tgt) ?? { x: 0, y: 0 };
     return {
       srcId: src,
       tgtId: tgt,
@@ -387,6 +447,7 @@ export function renderFeynmanDiagram(
   const { width, height, padding, colors } = o;
 
   const { nodes, edges } = layoutDiagram(diag, width, height, padding);
+  const nodeById = new Map<number, PositionedNode>(nodes.map((node) => [node.id, node]));
 
   // Collect unique marker IDs
   const markers: string[] = [];
@@ -414,18 +475,28 @@ export function renderFeynmanDiagram(
   const labelSvg: string[] = [];
 
   for (const pe of edges) {
-    const { srcX, srcY, tgtX, tgtY, edge, style } = pe;
+    const { srcId, tgtId, srcX, srcY, tgtX, tgtY, edge, style } = pe;
 
-    // Shorten lines so they don't overlap vertex dots
+    // Trim paths so links terminate at node boundaries, not node centers.
     const dx = tgtX - srcX;
     const dy = tgtY - srcY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const shrink = 8; // pixels to pull back from each end
-    const ratio = dist > 2 * shrink ? shrink / dist : 0;
-    const ax = srcX + dx * ratio;
-    const ay = srcY + dy * ratio;
-    const bx = tgtX - dx * ratio;
-    const by = tgtY - dy * ratio;
+    const srcNode = nodeById.get(srcId);
+    const tgtNode = nodeById.get(tgtId);
+    const srcInset = srcNode ? nodeAttachRadius(srcNode.kind) : 6;
+    const tgtInset = tgtNode ? nodeAttachRadius(tgtNode.kind) : 6;
+
+    let ax = srcX;
+    let ay = srcY;
+    let bx = tgtX;
+    let by = tgtY;
+
+    if (dist > srcInset + tgtInset + 1e-6) {
+      ax = srcX + (dx * srcInset) / dist;
+      ay = srcY + (dy * srcInset) / dist;
+      bx = tgtX - (dx * tgtInset) / dist;
+      by = tgtY - (dy * tgtInset) / dist;
+    }
 
     let path: string;
     let strokeColor: string;
