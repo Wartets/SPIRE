@@ -51,7 +51,7 @@ describe("CanvasInteractionManager", () => {
     });
   });
 
-  it("rejects different pointer while session is active", () => {
+  it("recovers when a different pointer starts while a session is active", () => {
     const manager = new CanvasInteractionManager();
     expect(
       manager.startDrag({
@@ -74,7 +74,18 @@ describe("CanvasInteractionManager", () => {
         minWidth: 10,
         minHeight: 10,
       }),
-    ).toBe(false);
+    ).toBe(true);
+
+    const patch = manager.move(2, 30, 40, 1);
+    expect(patch).toEqual({
+      mode: "resize",
+      itemId: "b",
+      direction: "se",
+      patch: { x: 0, y: 0, width: 130, height: 140 },
+    });
+
+    // Original pointer should no longer own the active session.
+    expect(manager.move(1, 10, 10, 1)).toBeNull();
   });
 
   it("recovers from stale same-pointer session and starts new interaction", () => {

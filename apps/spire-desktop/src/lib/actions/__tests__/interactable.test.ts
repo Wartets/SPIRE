@@ -70,4 +70,31 @@ describe("interactable action", () => {
     action.destroy?.();
     node.remove();
   });
+
+  it("supports mouse fallback drag when pointer stream is unavailable", () => {
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const bringCalls: string[] = [];
+    const patches: Array<{ x: number; y: number }> = [];
+
+    const action = interactable(node, {
+      mode: "drag",
+      itemId: "wid-mouse",
+      getZoom: () => 1,
+      getOrigin: () => ({ x: 4, y: 6 }),
+      onBringToFront: (id) => bringCalls.push(id),
+      onMove: (patch) => patches.push(patch),
+    });
+
+    node.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 10, clientY: 20, bubbles: true }));
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 40, clientY: 45, bubbles: true }));
+    window.dispatchEvent(new MouseEvent("mouseup", { clientX: 40, clientY: 45, bubbles: true }));
+
+    expect(bringCalls).toEqual(["wid-mouse"]);
+    expect(patches.at(-1)).toEqual({ x: 34, y: 31 });
+
+    action.destroy?.();
+    node.remove();
+  });
 });
