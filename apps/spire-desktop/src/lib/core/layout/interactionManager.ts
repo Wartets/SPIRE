@@ -87,12 +87,17 @@ export class CanvasInteractionManager {
     }
 
     // Safety valve for interrupted lifecycle where pointerup/cancel was lost.
+    // We prefer fail-open recovery over a hard lock that disables all input.
     if (this.isSessionStale()) {
       this.session = null;
       return true;
     }
 
-    return false;
+    // Different pointer started while a previous session appears active.
+    // In practice this usually means a missed termination event in host/webview.
+    // Reset aggressively so drag/resize never get stuck globally.
+    this.session = null;
+    return true;
   }
 
   startDrag(params: {
