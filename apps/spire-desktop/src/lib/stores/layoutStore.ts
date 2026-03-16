@@ -794,7 +794,10 @@ export function addWidgetToLayout(
 
   if (leafId) {
     splitNode(leafId, splitDirection, widgetType);
+    return;
   }
+
+  layoutRoot.set(createWidgetLeaf(widgetType));
 }
 
 /**
@@ -1056,16 +1059,25 @@ export function clearCanvas(): void {
   canvasViewport.set({ panX: 0, panY: 0, zoom: 1 });
 }
 
-function buildTabNodeFromItems(items: CanvasItem[]): StackNode {
-  const children = items.map((item) =>
+function layoutNodeFromItems(items: CanvasItem[]): LayoutNode {
+  if (items.length === 0) {
+    return createWidgetLeaf("log");
+  }
+
+  const leaves = items.map((item) =>
     createWidgetLeaf(item.widgetType, { ...item.widgetData }),
   );
+
+  if (leaves.length === 1) {
+    return leaves[0];
+  }
+
   return {
     id: makeLayoutId(),
-    type: "stack",
-    children,
-    activeIndex: 0,
-  };
+    type: "row",
+    children: leaves,
+    sizes: leaves.map(() => 1),
+  } as RowNode;
 }
 
 function layoutNodeFromSpatial(
@@ -1077,10 +1089,7 @@ function layoutNodeFromSpatial(
       .map((id) => itemById.get(id))
       .filter((item): item is CanvasItem => item !== undefined);
 
-    if (items.length === 0) {
-      return createWidgetLeaf("log");
-    }
-    return buildTabNodeFromItems(items);
+    return layoutNodeFromItems(items);
   }
 
   const children = node.children.map((child) => layoutNodeFromSpatial(child, itemById));
@@ -1248,6 +1257,15 @@ function randomWorkspaceColor(): string {
   return WORKSPACE_COLORS[Math.floor(Math.random() * WORKSPACE_COLORS.length)];
 }
 
+function createBlankDockingLayout(): LayoutNode {
+  return {
+    id: makeLayoutId(),
+    type: "stack",
+    children: [],
+    activeIndex: 0,
+  };
+}
+
 function createWorkspace(name: string, color?: string): Workspace {
   const now = new Date().toISOString();
   return {
@@ -1258,7 +1276,7 @@ function createWorkspace(name: string, color?: string): Workspace {
     createdAt: now,
     updatedAt: now,
     autoDescription: true,
-    dockingRoot: createDefaultLayout(),
+    dockingRoot: createBlankDockingLayout(),
     canvasItemList: [],
     viewport: { panX: 0, panY: 0, zoom: 1 },
     mode: "docking",
@@ -1306,9 +1324,9 @@ export function addWorkspace(name?: string): void {
   workspaces.update((list) => [...list, ws]);
   activeWorkspaceId.set(ws.id);
   // Sync the live stores to the new workspace
-  layoutRoot.set(ws.dockingRoot);
-  canvasItems.set(ws.canvasItemList);
-  canvasViewport.set(ws.viewport);
+  layoutRoot.set(structuredClone(ws.dockingRoot));
+  canvasItems.set(structuredClone(ws.canvasItemList));
+  canvasViewport.set(structuredClone(ws.viewport));
   viewMode.set(ws.mode);
 }
 
@@ -1326,9 +1344,9 @@ export function switchWorkspace(targetId: string): void {
   if (!target) return;
 
   activeWorkspaceId.set(targetId);
-  layoutRoot.set(target.dockingRoot);
-  canvasItems.set(target.canvasItemList);
-  canvasViewport.set(target.viewport);
+  layoutRoot.set(structuredClone(target.dockingRoot));
+  canvasItems.set(structuredClone(target.canvasItemList));
+  canvasViewport.set(structuredClone(target.viewport));
   viewMode.set(target.mode);
 }
 
@@ -1340,9 +1358,9 @@ export function saveCurrentWorkspaceState(): void {
       ws.id === currentId
         ? {
             ...ws,
-            dockingRoot: get(layoutRoot),
-            canvasItemList: get(canvasItems),
-            viewport: get(canvasViewport),
+            dockingRoot: structuredClone(get(layoutRoot)),
+            canvasItemList: structuredClone(get(canvasItems)),
+            viewport: structuredClone(get(canvasViewport)),
             mode: get(viewMode),
             updatedAt: new Date().toISOString(),
           }

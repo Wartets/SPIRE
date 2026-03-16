@@ -100,6 +100,31 @@ function sortForTabs(items: SpatialCanvasItem[]): SpatialCanvasItem[] {
   });
 }
 
+function forcedBisect(items: SpatialCanvasItem[]): AxisSplit {
+  const sorted = sortForTabs(items);
+
+  const minX = Math.min(...sorted.map((item) => item.x));
+  const maxX = Math.max(...sorted.map((item) => item.x + item.width));
+  const minY = Math.min(...sorted.map((item) => item.y));
+  const maxY = Math.max(...sorted.map((item) => item.y + item.height));
+
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+  const axis: "x" | "y" = spanX >= spanY ? "x" : "y";
+
+  const projected = project(sorted, axis);
+  const mid = Math.floor(projected.length / 2);
+  const left = projected.slice(0, mid).map((entry) => entry.item);
+  const right = projected.slice(mid).map((entry) => entry.item);
+
+  return {
+    index: Math.max(0, mid - 1),
+    gap: 0,
+    left: left.length > 0 ? left : [projected[0].item],
+    right: right.length > 0 ? right : [projected[projected.length - 1].item],
+  };
+}
+
 function inferRecursive(items: SpatialCanvasItem[]): SpatialDockNode {
   if (items.length <= 1) {
     return {
@@ -112,9 +137,18 @@ function inferRecursive(items: SpatialCanvasItem[]): SpatialDockNode {
   const ySplit = bestGapSplit(items, "y");
 
   if (!xSplit && !ySplit) {
+    const split = forcedBisect(items);
+    const chooseRow = (() => {
+      const minX = Math.min(...items.map((item) => item.x));
+      const maxX = Math.max(...items.map((item) => item.x + item.width));
+      const minY = Math.min(...items.map((item) => item.y));
+      const maxY = Math.max(...items.map((item) => item.y + item.height));
+      return (maxX - minX) >= (maxY - minY);
+    })();
+
     return {
-      type: "tab",
-      itemIds: sortForTabs(items).map((i) => i.id),
+      type: chooseRow ? "row" : "col",
+      children: [inferRecursive(split.left), inferRecursive(split.right)],
     };
   }
 
@@ -124,9 +158,10 @@ function inferRecursive(items: SpatialCanvasItem[]): SpatialDockNode {
 
   const split = useX ? xSplit : ySplit;
   if (!split) {
+    const forced = forcedBisect(items);
     return {
-      type: "tab",
-      itemIds: sortForTabs(items).map((i) => i.id),
+      type: "row",
+      children: [inferRecursive(forced.left), inferRecursive(forced.right)],
     };
   }
 

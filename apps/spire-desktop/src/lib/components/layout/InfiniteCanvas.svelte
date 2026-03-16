@@ -1052,7 +1052,7 @@
     flex-direction: column;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    overflow: visible;          /* must stay visible — resize handles extend outside */
+    overflow: visible; /* must stay visible — resize handles extend outside */
     pointer-events: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     transition: box-shadow 0.12s, border-color 0.12s;

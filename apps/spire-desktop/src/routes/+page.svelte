@@ -109,6 +109,11 @@
   let placementClientY = 0;
   let placementActive = false;
   let suppressToolboxClickForType: WidgetType | null = null;
+
+  type DockPreviewZone = "left" | "right" | "top" | "bottom" | "center";
+  let dockPlacementPreview:
+    | { left: number; top: number; width: number; height: number; zone: DockPreviewZone }
+    | null = null;
   const PLACEMENT_DRAG_THRESHOLD = 8;
   const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v2";
 
@@ -270,6 +275,30 @@
     return "center";
   }
 
+  function updateDockPlacementPreview(clientX: number, clientY: number): void {
+    if ($viewMode !== "docking") {
+      dockPlacementPreview = null;
+      return;
+    }
+
+    const hitElements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    const dockingTarget = hitElements.find((el) => el.dataset?.dockingDropTarget);
+    if (!dockingTarget) {
+      dockPlacementPreview = null;
+      return;
+    }
+
+    const zone = detectDockDropZone(dockingTarget, clientX, clientY);
+    const rect = dockingTarget.getBoundingClientRect();
+    dockPlacementPreview = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      zone,
+    };
+  }
+
   function placeWidgetAtPointer(type: WidgetType, clientX: number, clientY: number): void {
     const hitElements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
 
@@ -290,6 +319,7 @@
     if (dockingTarget?.dataset.dockingDropTarget) {
       const dropZone = detectDockDropZone(dockingTarget, clientX, clientY);
       insertWidgetRelative(dockingTarget.dataset.dockingDropTarget, dropZone, type);
+      dockPlacementPreview = null;
       toolboxOpen = false;
       return;
     }
@@ -301,6 +331,7 @@
     placementPointerId = null;
     placementWidgetType = null;
     placementActive = false;
+    dockPlacementPreview = null;
   }
 
   function handleToolboxPlacementMove(event: PointerEvent): void {
@@ -317,6 +348,7 @@
     }
 
     if (placementActive) {
+      updateDockPlacementPreview(event.clientX, event.clientY);
       event.preventDefault();
     }
   }
@@ -1148,6 +1180,19 @@
     </div>
   {/if}
 
+  {#if placementActive && dockPlacementPreview}
+    <div
+      class="docking-placement-preview"
+      class:preview-left={dockPlacementPreview.zone === "left"}
+      class:preview-right={dockPlacementPreview.zone === "right"}
+      class:preview-top={dockPlacementPreview.zone === "top"}
+      class:preview-bottom={dockPlacementPreview.zone === "bottom"}
+      class:preview-center={dockPlacementPreview.zone === "center"}
+      style="left: {dockPlacementPreview.left}px; top: {dockPlacementPreview.top}px; width: {dockPlacementPreview.width}px; height: {dockPlacementPreview.height}px;"
+      aria-hidden="true"
+    ></div>
+  {/if}
+
   <!-- ─── Workspace Canvas ─── -->
   {#if $viewMode === "docking"}
     <div
@@ -1445,6 +1490,35 @@
     font-size: 0.68rem;
     padding: 0.22rem 0.45rem;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .docking-placement-preview {
+    position: fixed;
+    pointer-events: none;
+    z-index: 240;
+    border: 1px solid color-mix(in srgb, var(--hl-symbol) 55%, transparent);
+    background: color-mix(in srgb, var(--hl-symbol) 12%, transparent);
+  }
+
+  .docking-placement-preview.preview-left {
+    border-left: 4px solid var(--hl-symbol);
+  }
+
+  .docking-placement-preview.preview-right {
+    border-right: 4px solid var(--hl-symbol);
+  }
+
+  .docking-placement-preview.preview-top {
+    border-top: 4px solid var(--hl-symbol);
+  }
+
+  .docking-placement-preview.preview-bottom {
+    border-bottom: 4px solid var(--hl-symbol);
+  }
+
+  .docking-placement-preview.preview-center {
+    outline: 2px dashed var(--hl-symbol);
+    outline-offset: -2px;
   }
 
   /* ── Docking Canvas ───────────────────────────────────────── */

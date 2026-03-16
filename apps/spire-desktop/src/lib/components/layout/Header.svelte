@@ -1,23 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
-  import type { TheoreticalFramework } from "$lib/types/spire";
-
-  export let framework: TheoreticalFramework;
-  export let isModelLoaded = false;
-  export let modelName: string | null = null;
-  export let backendKind: "tauri" | "wasm" | "mock" = "mock";
-  export let backendLabel = "Simulation";
 
   const dispatch = createEventDispatcher<{
-    frameworkChange: TheoreticalFramework;
     togglePalette: void;
+    toggleKernelManager: void;
   }>();
-
-  function handleFrameworkChange(event: Event): void {
-    const value = (event.currentTarget as HTMLSelectElement).value as TheoreticalFramework;
-    dispatch("frameworkChange", value);
-  }
 </script>
 
 <nav class="navbar">
@@ -35,35 +23,13 @@
   </div>
 
   <div class="navbar-controls">
-    <label class="nav-label">
-      Framework
-      <select class="nav-select" value={framework} on:change={handleFrameworkChange}>
-        <option value="StandardModel">Standard Model</option>
-        <option value="QED">QED</option>
-        <option value="QCD">QCD</option>
-        <option value="ElectroWeak">Electroweak</option>
-        <option value="BSM">BSM</option>
-      </select>
-    </label>
-
-    <span class="model-status" class:loaded={isModelLoaded}>
-      {#if isModelLoaded}
-        <span class="status-dot active"></span> {modelName ?? "Model loaded"}
-      {:else}
-        <span class="status-dot"></span> No model loaded
-      {/if}
-    </span>
-
-    <span
-      class="backend-indicator"
-      class:backend-native={backendKind === "tauri"}
-      class:backend-wasm={backendKind === "wasm"}
-      class:backend-mock={backendKind === "mock"}
-      use:tooltip={{ text: `Execution environment: ${backendLabel}` }}
+    <button
+      class="kernel-hint"
+      on:click={() => dispatch("toggleKernelManager")}
+      use:tooltip={{ text: "Open Kernel / Session Manager" }}
     >
-      <span class="backend-dot"></span>
-      {backendLabel}
-    </span>
+      Sessions
+    </button>
 
     <button
       class="palette-hint"
@@ -126,102 +92,7 @@
     overflow: hidden;
   }
 
-  .nav-label {
-    font-size: var(--text-xs);
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-  }
-
-  .nav-select {
-    background: var(--color-bg-inset);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-primary);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    font-size: var(--text-sm);
-    font-family: var(--font-mono);
-  }
-
-  .model-status {
-    font-size: var(--text-sm);
-    color: var(--color-text-muted);
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-inset);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-  }
-
-  .status-dot {
-    display: inline-block;
-    width: 0.5rem;
-    height: 0.5rem;
-    background: var(--color-text-muted);
-    flex-shrink: 0;
-  }
-
-  .status-dot.active {
-    background: var(--color-success);
-  }
-
-  .model-status.loaded {
-    color: var(--color-success);
-    border-color: var(--color-success);
-  }
-
-  .backend-indicator {
-    font-size: var(--text-xs);
-    padding: 0.15rem 0.45rem;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-inset);
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-  }
-
-  .backend-dot {
-    display: inline-block;
-    width: 0.45rem;
-    height: 0.45rem;
-    flex-shrink: 0;
-    background: var(--color-text-muted);
-  }
-
-  .backend-indicator.backend-native {
-    color: var(--color-success);
-    border-color: var(--color-success);
-  }
-
-  .backend-indicator.backend-native .backend-dot {
-    background: var(--color-success);
-  }
-
-  .backend-indicator.backend-wasm {
-    color: var(--color-accent);
-    border-color: var(--color-accent);
-  }
-
-  .backend-indicator.backend-wasm .backend-dot {
-    background: var(--color-accent);
-  }
-
-  .backend-indicator.backend-mock {
-    color: var(--hl-value);
-    border-color: var(--hl-value);
-  }
-
-  .backend-indicator.backend-mock .backend-dot {
-    background: var(--hl-value);
-  }
-
+  .kernel-hint,
   .palette-hint {
     font-family: var(--font-mono);
     font-size: var(--text-xs);
@@ -233,6 +104,7 @@
     white-space: nowrap;
   }
 
+  .kernel-hint:hover,
   .palette-hint:hover {
     border-color: var(--color-accent);
     color: var(--color-text-primary);

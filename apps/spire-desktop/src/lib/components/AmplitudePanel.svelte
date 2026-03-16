@@ -20,6 +20,7 @@
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { tooltip } from "$lib/actions/tooltip";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
 
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
@@ -74,6 +75,7 @@
   let derivationLoading: boolean = false;
   let derivationError: string = "";
   let proofStatus: string = "";
+  let latexViewMode: "rendered" | "raw" = "rendered";
 
   /** Generate and download a full LaTeX proof document for the selected diagram. */
   async function exportProof(): Promise<void> {
@@ -201,11 +203,21 @@
     <!-- Active Amplitude Display -->
     {#if selected}
       <div class="active-expression">
-        <pre on:contextmenu|stopPropagation={openExprContext}>{selected}</pre>
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div class="active-math" on:contextmenu|stopPropagation={openExprContext}>
+          <LatexRenderer latex={selected} mode={latexViewMode} block={true} />
+        </div>
         <div class="latex-row">
           <button class="latex-btn" on:click={copyLatex} disabled={selectedDiagramId === null}
             use:tooltip={{ text: "Copy the LaTeX representation of this amplitude to the clipboard" }}>
             Copy LaTeX
+          </button>
+          <button
+            class="latex-btn"
+            on:click={() => { latexViewMode = latexViewMode === "rendered" ? "raw" : "rendered"; }}
+            use:tooltip={{ text: "Toggle between rendered math and raw LaTeX" }}
+          >
+            {latexViewMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
           </button>
           <button
             class="latex-btn derivation-btn"
@@ -237,7 +249,9 @@
                   <div class="step-content">
                     <div class="step-label">{step.label}</div>
                     <div class="step-desc">{step.description}</div>
-                    <pre class="step-latex">{step.latex}</pre>
+                    <div class="step-latex">
+                      <LatexRenderer latex={step.latex} mode={latexViewMode} block={true} />
+                    </div>
                   </div>
                 </div>
               {/each}
@@ -314,13 +328,9 @@
     padding: 0.6rem;
     overflow-x: auto;
   }
-  .active-expression pre {
+  .active-math {
     margin: 0;
-    font-size: 0.82rem;
-    color: var(--hl-value);
-    white-space: pre-wrap;
-    word-break: break-all;
-    line-height: 1.5;
+    min-height: 1.8rem;
   }
   .latex-row {
     display: flex;
@@ -496,11 +506,6 @@
   }
   .step-latex {
     margin: 0;
-    font-size: 0.72rem;
-    color: var(--fg-primary);
-    white-space: pre-wrap;
-    word-break: break-all;
-    line-height: 1.4;
     background: var(--bg-primary);
     padding: 0.3rem 0.4rem;
     border: 1px solid var(--border);

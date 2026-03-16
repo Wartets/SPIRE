@@ -10,12 +10,7 @@
 <script lang="ts">
   import "../app.pcss";
   import { onMount, onDestroy } from "svelte";
-  import {
-    activeFramework,
-    isModelLoaded,
-    theoreticalModel,
-  } from "$lib/stores/physicsStore";
-  import { backendKind, backendLabel } from "$lib/core/backend";
+  import KernelSessionManager from "$lib/components/workspace/KernelSessionManager.svelte";
   import {
     paletteOpen,
     togglePalette,
@@ -42,11 +37,8 @@
   } from "$lib/stores/workspaceStore";
   import { initMainWindowSync } from "$lib/core/services/StoreSyncService";
   import Header from "$lib/components/layout/Header.svelte";
-  import type { TheoreticalFramework } from "$lib/types/spire";
 
-  function onFrameworkChange(value: TheoreticalFramework): void {
-    activeFramework.set(value);
-  }
+  let kernelManagerOpen = false;
 
   // ── Global Keybind Handler ─────────────────────────────────
   // Keyboard shortcuts are now managed by ShortcutService.ts which
@@ -94,13 +86,13 @@
 
 <div class="app-shell" style="--hl-symbol: {$activeWorkspace?.color ?? 'var(--color-accent)'};">
   <Header
-    framework={$activeFramework}
-    isModelLoaded={$isModelLoaded}
-    modelName={$theoreticalModel?.name ?? null}
-    backendKind={$backendKind}
-    backendLabel={$backendLabel}
-    on:frameworkChange={(event) => onFrameworkChange(event.detail)}
     on:togglePalette={() => togglePalette()}
+    on:toggleKernelManager={() => { kernelManagerOpen = !kernelManagerOpen; }}
+  />
+
+  <KernelSessionManager
+    open={kernelManagerOpen}
+    onClose={() => { kernelManagerOpen = false; }}
   />
 
   <!-- Command Palette Overlay -->
