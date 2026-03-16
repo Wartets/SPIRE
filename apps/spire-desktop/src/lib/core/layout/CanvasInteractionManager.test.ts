@@ -51,6 +51,75 @@ describe("CanvasInteractionManager", () => {
     });
   });
 
+  it("computes all eight resize directions correctly", () => {
+    const cases = [
+      {
+        direction: "n",
+        moveTo: { x: 100, y: 70 },
+        expected: { x: 10, y: -10, width: 120, height: 130 },
+      },
+      {
+        direction: "ne",
+        moveTo: { x: 145, y: 70 },
+        expected: { x: 10, y: -10, width: 165, height: 130 },
+      },
+      {
+        direction: "e",
+        moveTo: { x: 145, y: 100 },
+        expected: { x: 10, y: 20, width: 165, height: 100 },
+      },
+      {
+        direction: "se",
+        moveTo: { x: 145, y: 140 },
+        expected: { x: 10, y: 20, width: 165, height: 140 },
+      },
+      {
+        direction: "s",
+        moveTo: { x: 100, y: 140 },
+        expected: { x: 10, y: 20, width: 120, height: 140 },
+      },
+      {
+        direction: "sw",
+        moveTo: { x: 70, y: 140 },
+        expected: { x: -20, y: 20, width: 150, height: 140 },
+      },
+      {
+        direction: "w",
+        moveTo: { x: 70, y: 100 },
+        expected: { x: -20, y: 20, width: 150, height: 100 },
+      },
+      {
+        direction: "nw",
+        moveTo: { x: 70, y: 70 },
+        expected: { x: -20, y: -10, width: 150, height: 130 },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const manager = new CanvasInteractionManager();
+      const started = manager.startResize({
+        itemId: `resize-${testCase.direction}`,
+        pointerId: 5,
+        clientX: 100,
+        clientY: 100,
+        direction: testCase.direction,
+        origin: { x: 10, y: 20, width: 120, height: 100 },
+        minWidth: 60,
+        minHeight: 50,
+      });
+
+      expect(started).toBe(true);
+
+      const patch = manager.move(5, testCase.moveTo.x, testCase.moveTo.y, 1);
+      expect(patch).toEqual({
+        mode: "resize",
+        itemId: `resize-${testCase.direction}`,
+        direction: testCase.direction,
+        patch: testCase.expected,
+      });
+    }
+  });
+
   it("recovers when a different pointer starts while a session is active", () => {
     const manager = new CanvasInteractionManager();
     expect(

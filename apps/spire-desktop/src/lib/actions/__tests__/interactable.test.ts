@@ -97,4 +97,100 @@ describe("interactable action", () => {
     action.destroy?.();
     node.remove();
   });
+
+  it("emits resize patches for pointer-based resize interactions", () => {
+    if (typeof PointerEvent === "undefined") {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const bringCalls: string[] = [];
+    const movePatches: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const endPatches: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    const action = interactable(node, {
+      mode: "resize",
+      itemId: "resize-pointer",
+      direction: "sw",
+      minWidth: 100,
+      minHeight: 80,
+      getZoom: () => 1,
+      getOrigin: () => ({ x: 50, y: 60, width: 200, height: 150 }),
+      onBringToFront: (id) => bringCalls.push(id),
+      onMove: (patch) => movePatches.push(patch),
+      onEnd: (patch) => endPatches.push(patch),
+    });
+
+    node.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 7, button: 0, clientX: 300, clientY: 200, bubbles: true }));
+    node.dispatchEvent(new PointerEvent("pointermove", { pointerId: 7, clientX: 260, clientY: 240, bubbles: true }));
+    node.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7, clientX: 260, clientY: 240, bubbles: true }));
+
+    expect(bringCalls).toEqual(["resize-pointer"]);
+    expect(movePatches.at(-1)).toEqual({ x: 10, y: 60, width: 240, height: 190 });
+    expect(endPatches.at(-1)).toEqual({ x: 10, y: 60, width: 240, height: 190 });
+
+    action.destroy?.();
+    node.remove();
+  });
+
+  it("supports mouse fallback resize interactions", () => {
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const bringCalls: string[] = [];
+    const endPatches: Array<{ x: number; y: number; width: number; height: number }> = [];
+
+    const action = interactable(node, {
+      mode: "resize",
+      itemId: "resize-mouse",
+      direction: "ne",
+      minWidth: 100,
+      minHeight: 80,
+      getZoom: () => 2,
+      getOrigin: () => ({ x: 20, y: 30, width: 120, height: 100 }),
+      onBringToFront: (id) => bringCalls.push(id),
+      onMove: () => {},
+      onEnd: (patch) => endPatches.push(patch),
+    });
+
+    node.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 100, clientY: 100, bubbles: true }));
+    window.dispatchEvent(new MouseEvent("mousemove", { clientX: 140, clientY: 60, bubbles: true }));
+    window.dispatchEvent(new MouseEvent("mouseup", { clientX: 140, clientY: 60, bubbles: true }));
+
+    expect(bringCalls).toEqual(["resize-mouse"]);
+    expect(endPatches.at(-1)).toEqual({ x: 20, y: 10, width: 140, height: 120 });
+
+    action.destroy?.();
+    node.remove();
+  });
+
+  it("cleans up the active session on pointercancel", () => {
+    if (typeof PointerEvent === "undefined") {
+      expect(true).toBe(true);
+      return;
+    }
+
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+
+    const action = interactable(node, {
+      mode: "drag",
+      itemId: "wid-cancel",
+      getZoom: () => 1,
+      getOrigin: () => ({ x: 0, y: 0 }),
+      onMove: () => {},
+    });
+
+    node.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 13, button: 0, clientX: 10, clientY: 20, bubbles: true }));
+    expect(interactionManager.activePointerId()).toBe(13);
+
+    node.dispatchEvent(new PointerEvent("pointercancel", { pointerId: 13, bubbles: true }));
+    expect(interactionManager.activePointerId()).toBeNull();
+
+    action.destroy?.();
+    node.remove();
+  });
 });
