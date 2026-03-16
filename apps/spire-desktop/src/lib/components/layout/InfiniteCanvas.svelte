@@ -1315,36 +1315,36 @@
 
   .cw-resize-n,
   .cw-resize-s {
-    left: 10px;
-    right: 10px;
-    height: 8px;
+    left: 4px;
+    right: 4px;
+    height: 4px;
   }
 
-  .cw-resize-n { top: -4px; cursor: ns-resize; }
-  .cw-resize-s { bottom: -4px; cursor: ns-resize; }
+  .cw-resize-n { top: -2px; cursor: ns-resize; }
+  .cw-resize-s { bottom: -2px; cursor: ns-resize; }
 
   .cw-resize-e,
   .cw-resize-w {
-    top: 10px;
-    bottom: 10px;
-    width: 8px;
+    top: 4px;
+    bottom: 4px;
+    width: 4px;
   }
 
-  .cw-resize-e { right: -4px; cursor: ew-resize; }
-  .cw-resize-w { left: -4px; cursor: ew-resize; }
+  .cw-resize-e { right: -2px; cursor: ew-resize; }
+  .cw-resize-w { left: -2px; cursor: ew-resize; }
 
   .cw-resize-ne,
   .cw-resize-se,
   .cw-resize-sw,
   .cw-resize-nw {
-    width: 12px;
-    height: 12px;
+    width: 6px;
+    height: 6px;
   }
 
-  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
-  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
-  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+  .cw-resize-ne { top: -3px; right: -3px; cursor: nesw-resize; }
+  .cw-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
+  .cw-resize-nw { top: -3px; left: -3px; cursor: nwse-resize; }
 
   .cw-resize-layer .cw-resize-handle:hover {
     background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
