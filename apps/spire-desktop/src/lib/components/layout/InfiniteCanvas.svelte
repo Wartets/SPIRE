@@ -756,10 +756,29 @@
     bringToFrontById(detail.widgetId);
   }
 
-  function handleWidgetActivate(event: Event, item: CanvasItem): void {
-    const asPointer = event as PointerEvent;
-    if (typeof asPointer.button === "number" && asPointer.button !== 0) return;
-    bringToFrontById(item.id);
+  /**
+   * Svelte action that registers an imperative capture-phase pointerdown listener.
+   * This is necessary for reliable bring-to-front behavior in Svelte 5, where the
+   * `on:event|capture` directive syntax is legacy and may not work correctly.
+   * The capture phase fires BEFORE any child element's bubble-phase handler,
+   * so stopPropagation() in child interactable actions cannot suppress it.
+   */
+  function capturePointerDown(node: HTMLElement, onDown: () => void) {
+    function handler(event: PointerEvent): void {
+      // Respond to left click (button 0) and any touch/pen contact.
+      // Middle click (button 1) and right click (button 2) do not activate.
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      onDown();
+    }
+    node.addEventListener("pointerdown", handler, { capture: true });
+    return {
+      update(newOnDown: () => void): void {
+        onDown = newOnDown;
+      },
+      destroy(): void {
+        node.removeEventListener("pointerdown", handler, { capture: true });
+      },
+    };
   }
 
   // ── Canvas Context Menu ──
@@ -933,8 +952,7 @@
             z-index: {zIndexOf(item)};
           "
           data-canvas-item-id={item.id}
-          on:pointerdown|capture={(event) => handleWidgetActivate(event, item)}
-          on:mousedown|capture={(event) => handleWidgetActivate(event, item)}
+          use:capturePointerDown={() => bringToFrontById(item.id)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{
@@ -966,12 +984,14 @@
                 class:active={connectSourceWidgetId === item.id}
                 disabled={!automationEnabled || !canAutomate(item)}
                 on:click|stopPropagation={() => handleConnectClick(item)}
+                on:pointerdown|stopPropagation
                 on:mousedown|stopPropagation
                 use:tooltip={{ text: connectButtonTitle(item) }}
               >↔</button>
               <button
                 class="cw-close"
                 on:click={() => handleClose(item)}
+                on:pointerdown|stopPropagation
                 on:mousedown|stopPropagation
                 use:tooltip={{ text: "Close" }}
               >&times;</button>
@@ -1124,7 +1144,10 @@
     flex-direction: column;
     background: var(--bg-surface);
     border: 1px solid var(--border);
-    overflow: hidden;
+    /* Do NOT set overflow: hidden here — it would clip the resize handles
+       that extend 4-5 px outside the border-box. Clipping is applied to
+       .cw-body instead so widget content is still contained. */
+    overflow: visible;
     pointer-events: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     transition: box-shadow 0.12s, border-color 0.12s;
@@ -1272,50 +1295,59 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
+    /* overflow: visible ensures resize handles positioned outside the
+       widget border-box are accessible. The parent .canvas-widget
+       must also have overflow: visible for this to work. */
+    overflow: visible;
   }
 
   .cw-resize-handle {
     position: absolute;
     pointer-events: auto;
-    z-index: 2;
+    z-index: 10;
     touch-action: none;
+    /* Transparent by default — only visible on hover */
+    background: transparent;
   }
 
+  /* Edge handles: thicker for easier touch targeting */
   .cw-resize-n,
   .cw-resize-s {
-    left: 10px;
-    right: 10px;
-    height: 8px;
+    left: 12px;
+    right: 12px;
+    height: 10px;
   }
 
-  .cw-resize-n { top: -4px; cursor: ns-resize; }
-  .cw-resize-s { bottom: -4px; cursor: ns-resize; }
+  .cw-resize-n { top: -5px; cursor: n-resize; }
+  .cw-resize-s { bottom: -5px; cursor: s-resize; }
 
   .cw-resize-e,
   .cw-resize-w {
-    top: 10px;
-    bottom: 10px;
-    width: 8px;
+    top: 12px;
+    bottom: 12px;
+    width: 10px;
   }
 
-  .cw-resize-e { right: -4px; cursor: ew-resize; }
-  .cw-resize-w { left: -4px; cursor: ew-resize; }
+  .cw-resize-e { right: -5px; cursor: e-resize; }
+  .cw-resize-w { left: -5px; cursor: w-resize; }
 
+  /* Corner handles: larger for touch */
   .cw-resize-ne,
   .cw-resize-se,
   .cw-resize-sw,
   .cw-resize-nw {
-    width: 12px;
-    height: 12px;
+    width: 16px;
+    height: 16px;
   }
 
-  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
-  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
-  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+  .cw-resize-ne { top: -6px; right: -6px; cursor: ne-resize; }
+  .cw-resize-se { bottom: -6px; right: -6px; cursor: se-resize; }
+  .cw-resize-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
+  .cw-resize-nw { top: -6px; left: -6px; cursor: nw-resize; }
 
   .cw-resize-layer .cw-resize-handle:hover {
-    background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
+    background: color-mix(in srgb, var(--hl-symbol) 40%, transparent);
+    border-radius: 2px;
   }
 
   .zoom-indicator {
