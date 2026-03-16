@@ -3,7 +3,7 @@ import {
   type DragOrigin,
   type ResizeDirection,
   type ResizeOrigin,
-} from "$lib/core/layout/interactionManager";
+} from "$lib/core/layout/CanvasInteractionManager";
 
 interface BaseInteractableOptions {
   itemId: string;
@@ -140,10 +140,17 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     event.stopPropagation();
   }
 
+  function handleLostPointerCapture(event: PointerEvent): void {
+    if (activePointerId === null || event.pointerId !== activePointerId) return;
+    interactionManager.cancel(event.pointerId);
+    activePointerId = null;
+  }
+
   node.addEventListener("pointerdown", handlePointerDown);
   node.addEventListener("pointermove", handlePointerMove);
   node.addEventListener("pointerup", finishPointer);
   node.addEventListener("pointercancel", handlePointerCancel);
+  node.addEventListener("lostpointercapture", handleLostPointerCapture);
 
   return {
     update(newOptions: InteractableOptions): void {
@@ -154,6 +161,7 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
       node.removeEventListener("pointermove", handlePointerMove);
       node.removeEventListener("pointerup", finishPointer);
       node.removeEventListener("pointercancel", handlePointerCancel);
+      node.removeEventListener("lostpointercapture", handleLostPointerCapture);
       if (activePointerId !== null) {
         interactionManager.cancel(activePointerId);
         if (node.hasPointerCapture(activePointerId)) {

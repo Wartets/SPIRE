@@ -18,7 +18,9 @@
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
-  import { interactable, type ResizeDirection } from "$lib/actions/interactable";
+  import { type ResizeDirection } from "$lib/actions/interactable";
+  import { draggable } from "$lib/actions/draggable";
+  import { resizable } from "$lib/actions/resizable";
   import { get } from "svelte/store";
   import {
     canvasItems,
@@ -222,16 +224,16 @@
   }
 
   // ── Pan ──
-  // Left-click on background, middle-click anywhere, or spacebar+left.
+  // Pointer-unified pan: left on background (or Alt/Space), and middle-click.
 
   let isPanning = false;
-  let activeTouchPointerId: number | null = null;
+  let activePanPointerId: number | null = null;
   let panStartX = 0;
   let panStartY = 0;
   let panStartPanX = 0;
   let panStartPanY = 0;
 
-  /** Check whether a mousedown target is the canvas background (not a widget). */
+  /** Check whether a pointer target is the canvas background (not a widget). */
   function isCanvasBackground(target: EventTarget | null): boolean {
     if (!target || !(target instanceof HTMLElement)) return false;
     // The canvas background elements have these classes
@@ -242,33 +244,18 @@
     );
   }
 
-  function handleCanvasMouseDown(event: MouseEvent): void {
-    // Middle-click (button 1) always pans
+  function handleCanvasPointerDown(event: PointerEvent): void {
     const middleClick = event.button === 1;
-    // Left-click pans when on background, or with Alt/Space modifier
-    const leftOnBg =
+    const leftPanGesture =
       event.button === 0 &&
       (event.altKey || spaceHeld || isCanvasBackground(event.target));
 
-    if (middleClick || leftOnBg) {
-      event.preventDefault();
-      isPanning = true;
-      if (spaceHeld) spacePanning = true;
-      panStartX = event.clientX;
-      panStartY = event.clientY;
-      panStartPanX = panX;
-      panStartPanY = panY;
-      attachWindowGrabListeners();
-    }
-  }
+    if (!middleClick && !leftPanGesture) return;
 
-  function handleCanvasPointerDown(event: PointerEvent): void {
-    if (event.pointerType === "mouse") return;
-    if (event.button !== 0) return;
-    if (!isCanvasBackground(event.target)) return;
     event.preventDefault();
-    activeTouchPointerId = event.pointerId;
+    activePanPointerId = event.pointerId;
     isPanning = true;
+    if (spaceHeld) spacePanning = true;
     panStartX = event.clientX;
     panStartY = event.clientY;
     panStartPanX = panX;
@@ -286,8 +273,6 @@
   function attachWindowGrabListeners(): void {
     if (_grabListenersAttached) return;
     _grabListenersAttached = true;
-    window.addEventListener("mousemove", handleCanvasMouseMove);
-    window.addEventListener("mouseup", handleCanvasMouseUp);
     window.addEventListener("pointermove", handleCanvasPointerMove, { passive: false });
     window.addEventListener("pointerup", handleCanvasPointerUp, { passive: false });
     window.addEventListener("pointercancel", handleCanvasPointerUp, { passive: false });
@@ -296,8 +281,6 @@
   function detachWindowGrabListeners(): void {
     if (!_grabListenersAttached) return;
     _grabListenersAttached = false;
-    window.removeEventListener("mousemove", handleCanvasMouseMove);
-    window.removeEventListener("mouseup", handleCanvasMouseUp);
     window.removeEventListener("pointermove", handleCanvasPointerMove);
     window.removeEventListener("pointerup", handleCanvasPointerUp);
     window.removeEventListener("pointercancel", handleCanvasPointerUp);
@@ -354,33 +337,27 @@
     }
   }
 
-  function handleCanvasMouseMove(event: MouseEvent): void {
-    handleInteractionMove(event.clientX, event.clientY);
-  }
-
   function handleCanvasPointerMove(event: PointerEvent): void {
-    if (event.pointerType === "mouse") return;
-    if (activeTouchPointerId !== null && event.pointerId !== activeTouchPointerId) return;
+    if (activePanPointerId !== null && event.pointerId !== activePanPointerId) return;
     if (!isPanning) return;
     event.preventDefault();
     handleInteractionMove(event.clientX, event.clientY);
   }
 
-  function handleCanvasMouseUp(): void {
+  function stopCanvasPan(): void {
     if (isPanning) {
       isPanning = false;
       spacePanning = false;
       commitViewport();
     }
-    activeTouchPointerId = null;
+    activePanPointerId = null;
     detachWindowGrabListeners();
   }
 
   function handleCanvasPointerUp(event: PointerEvent): void {
-    if (event.pointerType === "mouse") return;
-    if (activeTouchPointerId !== null && event.pointerId !== activeTouchPointerId) return;
+    if (activePanPointerId !== null && event.pointerId !== activePanPointerId) return;
     event.preventDefault();
-    handleCanvasMouseUp();
+    stopCanvasPan();
   }
 
   // ── Zoom (scroll wheel) ──
@@ -699,7 +676,6 @@
 
   function dragInteractableOptions(item: CanvasItem, enabled = true) {
     return {
-      mode: "drag" as const,
       itemId: item.id,
       enabled,
       getZoom: () => zoom,
@@ -712,7 +688,6 @@
 
   function resizeInteractableOptions(item: CanvasItem, direction: ResizeDirection) {
     return {
-      mode: "resize" as const,
       itemId: item.id,
       direction,
       minWidth: MIN_WIDGET_WIDTH,
@@ -904,7 +879,6 @@
   class:is-panning={isPanning}
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
-  on:mousedown={handleCanvasMouseDown}
   on:pointerdown={handleCanvasPointerDown}
   on:wheel={handleWheel}
   on:dragover={handleCanvasDragOver}
@@ -973,7 +947,7 @@
           {#if lodLevel !== "minimal"}
             <header
               class="cw-header"
-              use:interactable={dragInteractableOptions(item)}
+              use:draggable={dragInteractableOptions(item)}
               on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
               role="toolbar"
               tabindex="-1"
@@ -1006,7 +980,7 @@
           <div
             class="cw-body"
             class:cw-body-minimal={lodLevel === "minimal"}
-            use:interactable={dragInteractableOptions(item, lodLevel === "minimal")}
+            use:draggable={dragInteractableOptions(item, lodLevel === "minimal")}
             on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
             role="region"
           >
@@ -1041,14 +1015,14 @@
           {#if lodLevel !== "minimal"}
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <div class="cw-resize-layer" aria-hidden="true">
-              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" use:interactable={resizeInteractableOptions(item, "n")}></div>
-              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "ne")}></div>
-              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "e")}></div>
-              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "se")}></div>
-              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" use:interactable={resizeInteractableOptions(item, "s")}></div>
-              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "sw")}></div>
-              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "w")}></div>
-              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "nw")}></div>
+              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" use:resizable={resizeInteractableOptions(item, "n")}></div>
+              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "ne")}></div>
+              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "e")}></div>
+              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" use:resizable={resizeInteractableOptions(item, "se")}></div>
+              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" use:resizable={resizeInteractableOptions(item, "s")}></div>
+              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "sw")}></div>
+              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "w")}></div>
+              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" use:resizable={resizeInteractableOptions(item, "nw")}></div>
             </div>
           {/if}
         </div>
@@ -1169,6 +1143,7 @@
     flex-shrink: 0;
     min-height: 1.4rem;
     cursor: grab;
+    touch-action: none;
   }
 
   .cw-header:active {
@@ -1252,6 +1227,7 @@
   .cw-body-minimal {
     padding: 0;
     cursor: grab;
+    touch-action: none;
   }
 
   .cw-body-minimal:active {
@@ -1300,6 +1276,7 @@
     position: absolute;
     pointer-events: auto;
     z-index: 2;
+    touch-action: none;
   }
 
   .cw-resize-n,

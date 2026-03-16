@@ -57,7 +57,7 @@ export type InteractionPatch =
  * Tracks at most one active interaction session globally so all drag/resize
  * math and pointer ownership is coordinated in one place.
  */
-export class InteractionManager {
+export class CanvasInteractionManager {
   private session: InteractionSession | null = null;
 
   hasActiveSession(): boolean {
@@ -71,7 +71,14 @@ export class InteractionManager {
     clientY: number;
     origin: DragOrigin;
   }): boolean {
-    if (this.session !== null) return false;
+    if (this.session !== null) {
+      // Prevent stale deadlock: if the same pointer re-enters start, reset session.
+      if (this.session.pointerId === params.pointerId) {
+        this.session = null;
+      } else {
+        return false;
+      }
+    }
     this.session = {
       mode: "drag",
       itemId: params.itemId,
@@ -93,7 +100,13 @@ export class InteractionManager {
     minWidth: number;
     minHeight: number;
   }): boolean {
-    if (this.session !== null) return false;
+    if (this.session !== null) {
+      if (this.session.pointerId === params.pointerId) {
+        this.session = null;
+      } else {
+        return false;
+      }
+    }
     this.session = {
       mode: "resize",
       itemId: params.itemId,
@@ -176,6 +189,17 @@ export class InteractionManager {
       this.session = null;
     }
   }
+
+  /** Force reset when DOM-side capture lifecycle is interrupted. */
+  forceReset(): void {
+    this.session = null;
+  }
+
+  activePointerId(): number | null {
+    return this.session?.pointerId ?? null;
+  }
 }
 
-export const interactionManager = new InteractionManager();
+// Backward-compatible aliases for existing imports.
+export type InteractionManager = CanvasInteractionManager;
+export const interactionManager = new CanvasInteractionManager();
