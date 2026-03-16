@@ -1158,30 +1158,78 @@
     overflow: visible;
   }
 
-  /* Resize handles: slightly larger hit targets for easier grabbing */
+  /* Resize handles: thin edge rails + directional hover accents */
   .cw-resize-handle {
     position: absolute;
     pointer-events: auto;
     z-index: 2;
     touch-action: none;
+    background: transparent;
+    transition: background-color 0.14s ease;
   }
 
-  .cw-resize-n, .cw-resize-s { left: 4px; right: 4px; height: 6px; }
-  .cw-resize-n { top: -3px;    cursor: ns-resize; }
-  .cw-resize-s { bottom: -3px; cursor: ns-resize; }
+  /* Edge handles */
+  .cw-resize-n,
+  .cw-resize-s {
+    left: -1px;
+    right: -1px;
+    height: 3px;
+    cursor: ns-resize;
+  }
 
-  .cw-resize-e, .cw-resize-w { top: 4px; bottom: 4px; width: 6px; }
-  .cw-resize-e { right: -3px; cursor: ew-resize; }
-  .cw-resize-w { left: -3px;  cursor: ew-resize; }
+  .cw-resize-e,
+  .cw-resize-w {
+    top: -1px;
+    bottom: -1px;
+    width: 3px;
+    cursor: ew-resize;
+  }
 
-  .cw-resize-ne, .cw-resize-se, .cw-resize-sw, .cw-resize-nw { width: 10px; height: 10px; }
-  .cw-resize-ne { top: -5px;    right: -5px;  cursor: nesw-resize; }
-  .cw-resize-se { bottom: -5px; right: -5px;  cursor: nwse-resize; }
-  .cw-resize-sw { bottom: -5px; left: -5px;   cursor: nesw-resize; }
-  .cw-resize-nw { top: -5px;    left: -5px;   cursor: nwse-resize; }
+  .cw-resize-n { top: -2px; }
+  .cw-resize-s { bottom: -2px; }
+  .cw-resize-e { right: -2px; }
+  .cw-resize-w { left: -2px; }
 
-  .cw-resize-layer .cw-resize-handle:hover {
-    background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
+  /* Corner handles */
+  .cw-resize-ne,
+  .cw-resize-se,
+  .cw-resize-sw,
+  .cw-resize-nw {
+    width: 10px;
+    height: 10px;
+  }
+
+  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+
+  .cw-resize-n:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
+    border-radius: 2px 2px 0 0;
+  }
+
+  .cw-resize-s:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .cw-resize-e:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
+    border-radius: 0 2px 2px 0;
+  }
+
+  .cw-resize-w:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
+    border-radius: 2px 0 0 2px;
+  }
+
+  .cw-resize-ne:hover,
+  .cw-resize-se:hover,
+  .cw-resize-sw:hover,
+  .cw-resize-nw:hover {
+    background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
+    border-radius: 2px;
   }
 
   .zoom-indicator {
