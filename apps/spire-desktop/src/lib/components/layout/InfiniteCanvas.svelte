@@ -129,6 +129,16 @@
   $: lodLevel = zoomToLod(zoom);
 
   function itemIsVisible(item: CanvasItem): boolean {
+    // Always show selected or actively transformed widgets
+    if (item.id === selectedWidgetId) return true;
+    if ((gesture.mode === "drag" || gesture.mode === "resize") && gesture.wid === item.id) return true;
+    // Ensure widgets are immediately visible on mount (no stale opacity/will-change)
+    // Defensive: forcibly set opacity to 1 for new widgets
+    const el = document.querySelector(`[data-canvas-item-id='${item.id}']`) as HTMLElement | null;
+    if (el) {
+      el.style.opacity = "1";
+      el.style.willChange = "auto";
+    }
     return isVisible(item.x, item.y, item.width, item.height, worldViewport);
   }
 

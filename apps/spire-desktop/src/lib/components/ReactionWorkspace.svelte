@@ -120,17 +120,25 @@
 
   // --- Listen-mode: auto-fills initial state from Atlas selectionBus ---
   let listenMode = false;
+  let listenTarget: "initial" | "final" = "initial";
   let unsubListenBus: (() => void) | null = null;
 
   function enableListenMode(): void {
     listenMode = true;
+    clearSelectionBus();
     unsubListenBus = selectionBus.subscribe((payload) => {
       if (!payload || !listenMode) return;
       if (payload.type === "PARTICLE_SELECTED") {
-        initialIdsInput.update((prev) =>
-          prev.includes(payload.data.id) ? prev : [...prev, payload.data.id],
-        );
-        appendLog(`Listen mode: appended ${payload.data.id} to initial state.`);
+        if (listenTarget === "initial") {
+          initialIdsInput.update((prev) =>
+            prev.includes(payload.data.id) ? prev : [...prev, payload.data.id],
+          );
+        } else {
+          finalIdsInput.update((prev) =>
+            prev.includes(payload.data.id) ? prev : [...prev, payload.data.id],
+          );
+        }
+        appendLog(`Listen mode: appended ${payload.data.id} to ${listenTarget} state.`);
         clearSelectionBus();
       }
     });
@@ -482,6 +490,13 @@
         >
           {listenMode ? "● Listening" : "⊙ Listen"}
         </button>
+        <label class="listen-target">
+          target
+          <select bind:value={listenTarget} aria-label="Listen mode target state">
+            <option value="initial">initial</option>
+            <option value="final">final</option>
+          </select>
+        </label>
       </legend>
       <div class="particle-tags" use:isolateEvents={{ wheel: false, pointer: true, mouse: true, touch: false }}>
         {#each $initialIdsInput as id, idx}
@@ -795,6 +810,26 @@
     border-color: var(--hl-success, #4ade80);
     color: var(--hl-success, #4ade80);
     animation: listen-pulse 1.6s ease-in-out infinite;
+  }
+
+  .listen-target {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.62rem;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+  }
+
+  .listen-target select {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
+    font-size: 0.62rem;
+    font-family: var(--font-mono);
+    padding: 0.08rem 0.2rem;
   }
 
   @keyframes listen-pulse {

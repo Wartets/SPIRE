@@ -221,6 +221,7 @@
   function handleReferenceParticleSelect(field: Field): void {
     selectedParticle = field;
     selectedReferenceComposite = null;
+    broadcastSelection({ type: "PARTICLE_SELECTED", data: field });
     triggerFlash(field.id);
     appendLog(`Atlas reference particle inspected: ${field.id}`);
   }

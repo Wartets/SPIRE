@@ -1140,7 +1140,31 @@ function shouldRebuildDockingFromCanvas(
 
   const leaves = collectWidgetLeaves(docking);
   if (leaves.length === 0) return true;
-  return leaves.length !== canvas.length;
+  if (leaves.length !== canvas.length) return true;
+
+  const leafIds = new Set(leaves.map((leaf) => leaf.id));
+  const canvasIds = new Set(canvas.map((item) => item.id));
+  if (leafIds.size !== canvasIds.size) return true;
+  for (const id of canvasIds) {
+    if (!leafIds.has(id)) return true;
+  }
+
+  const leafTypeCounts = new Map<WidgetType, number>();
+  for (const leaf of leaves) {
+    leafTypeCounts.set(leaf.widgetType, (leafTypeCounts.get(leaf.widgetType) ?? 0) + 1);
+  }
+
+  const canvasTypeCounts = new Map<WidgetType, number>();
+  for (const item of canvas) {
+    canvasTypeCounts.set(item.widgetType, (canvasTypeCounts.get(item.widgetType) ?? 0) + 1);
+  }
+
+  if (leafTypeCounts.size !== canvasTypeCounts.size) return true;
+  for (const [type, count] of canvasTypeCounts) {
+    if ((leafTypeCounts.get(type) ?? 0) !== count) return true;
+  }
+
+  return false;
 }
 
 // ===========================================================================

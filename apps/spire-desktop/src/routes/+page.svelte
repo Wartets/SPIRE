@@ -275,27 +275,39 @@
     return "center";
   }
 
+  function resolveDockingTargetAtPoint(clientX: number, clientY: number): {
+    targetId: string;
+    zone: DockPreviewZone;
+    rect: DOMRect;
+  } | null {
+    const hitElements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    const dockingTarget = hitElements.find((el) => el.dataset?.dockingDropTarget);
+    const targetId = dockingTarget?.dataset?.dockingDropTarget;
+    if (!dockingTarget || !targetId) return null;
+
+    const zone = detectDockDropZone(dockingTarget, clientX, clientY);
+    const rect = dockingTarget.getBoundingClientRect();
+    return { targetId, zone, rect };
+  }
+
   function updateDockPlacementPreview(clientX: number, clientY: number): void {
     if ($viewMode !== "docking") {
       dockPlacementPreview = null;
       return;
     }
 
-    const hitElements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
-    const dockingTarget = hitElements.find((el) => el.dataset?.dockingDropTarget);
-    if (!dockingTarget) {
+    const target = resolveDockingTargetAtPoint(clientX, clientY);
+    if (!target) {
       dockPlacementPreview = null;
       return;
     }
 
-    const zone = detectDockDropZone(dockingTarget, clientX, clientY);
-    const rect = dockingTarget.getBoundingClientRect();
     dockPlacementPreview = {
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-      zone,
+      left: target.rect.left,
+      top: target.rect.top,
+      width: target.rect.width,
+      height: target.rect.height,
+      zone: target.zone,
     };
   }
 
@@ -381,6 +393,7 @@
     if (!event.dataTransfer?.types.includes("application/x-spire-widget-type")) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
+    updateDockPlacementPreview(event.clientX, event.clientY);
   }
 
   function handleDockingCanvasDrop(event: DragEvent): void {
@@ -388,7 +401,19 @@
     const type = event.dataTransfer?.getData("application/x-spire-widget-type");
     if (!type) return;
     event.preventDefault();
-    addWidgetToLayout(type as WidgetType, "auto");
+    const target = resolveDockingTargetAtPoint(event.clientX, event.clientY);
+    if (target) {
+      insertWidgetRelative(target.targetId, target.zone, type as WidgetType);
+    } else {
+      addWidgetToLayout(type as WidgetType, "auto");
+    }
+    dockPlacementPreview = null;
+  }
+
+  function handleDockingCanvasDragLeave(event: DragEvent): void {
+    const next = event.relatedTarget as Node | null;
+    if (next && (event.currentTarget as HTMLElement)?.contains(next)) return;
+    dockPlacementPreview = null;
   }
 
   /** Download a proof document as a LaTeX .tex file. */
@@ -1198,6 +1223,7 @@
     <div
       class="docking-canvas"
       on:dragover={handleDockingCanvasDragOver}
+      on:dragleave={handleDockingCanvasDragLeave}
       on:drop={handleDockingCanvasDrop}
       role="region"
       aria-label="Docking workspace"

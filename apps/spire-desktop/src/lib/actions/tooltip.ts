@@ -178,8 +178,6 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     hide();
   };
 
-  node.addEventListener("mouseenter", onEnter);
-  node.addEventListener("mouseleave", onLeave);
   node.addEventListener("pointerenter", onEnter);
   node.addEventListener("pointerleave", onLeave);
   node.addEventListener("pointercancel", onLeave);
@@ -203,8 +201,6 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     destroy() {
       clearTimer();
       hide();
-      node.removeEventListener("mouseenter", onEnter);
-      node.removeEventListener("mouseleave", onLeave);
       node.removeEventListener("pointerenter", onEnter);
       node.removeEventListener("pointerleave", onLeave);
       node.removeEventListener("pointercancel", onLeave);
