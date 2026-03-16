@@ -1195,33 +1195,33 @@
   .cw-resize-se,
   .cw-resize-sw,
   .cw-resize-nw {
-    width: 10px;
-    height: 10px;
+    width: 7px;
+    height: 7px;
   }
 
-  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
-  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
-  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+  .cw-resize-ne { top: -3px; right: -3px; cursor: nesw-resize; }
+  .cw-resize-se { bottom: -3px; right: -3px; cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -3px; left: -3px; cursor: nesw-resize; }
+  .cw-resize-nw { top: -3px; left: -3px; cursor: nwse-resize; }
 
   .cw-resize-n:hover {
     background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
-    border-radius: 2px 2px 0 0;
+    border-radius: 3px 3px 0 0;
   }
 
   .cw-resize-s:hover {
     background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
-    border-radius: 0 0 2px 2px;
+    border-radius: 0 0 3px 3px;
   }
 
   .cw-resize-e:hover {
     background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
-    border-radius: 0 2px 2px 0;
+    border-radius: 0 3px 3px 0;
   }
 
   .cw-resize-w:hover {
     background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
-    border-radius: 2px 0 0 2px;
+    border-radius: 3px 0 0 3px;
   }
 
   .cw-resize-ne:hover,
@@ -1229,7 +1229,7 @@
   .cw-resize-sw:hover,
   .cw-resize-nw:hover {
     background: color-mix(in srgb, var(--hl-symbol) 42%, transparent);
-    border-radius: 2px;
+    border-radius: 3px;
   }
 
   .zoom-indicator {
