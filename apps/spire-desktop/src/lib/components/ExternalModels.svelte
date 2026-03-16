@@ -16,6 +16,7 @@
   import { appendLog, theoreticalModel } from "$lib/stores/physicsStore";
   import { importSlhaString, importUfoModel, deriveCounterterms } from "$lib/api";
   import { addCitations } from "$lib/core/services/CitationRegistry";
+  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
   import type {
     SlhaDocument,
     SlhaBlock,
@@ -34,6 +35,8 @@
   // ---------------------------------------------------------------------------
   type TabId = "slha" | "ufo" | "nlo";
   let activeTab: TabId = "slha";
+  /** Whether to show rendered math or raw LaTeX source (NLO results). */
+  let latexViewMode: "rendered" | "raw" = "rendered";
 
   // ---------------------------------------------------------------------------
   // SLHA State
@@ -537,6 +540,11 @@
 
       {#if nloResult}
         <div class="nlo-results">
+          <div class="nlo-results-header">
+            <button class="btn-small" on:click={() => (latexViewMode = latexViewMode === "rendered" ? "raw" : "rendered")}>
+              {latexViewMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
+            </button>
+          </div>
           <div class="section">
             <h4>Renormalization Constants ({nloResult.renorm_constants.length})</h4>
             <div class="const-list">
@@ -555,7 +563,7 @@
                 <div class="ct-header">Counterterm {i + 1}</div>
                 <div class="ct-desc">{ct.description}</div>
                 {#if ct.latex}
-                  <div class="ct-latex">{ct.latex}</div>
+                  <div class="ct-latex"><LatexRenderer latex={ct.latex} mode={latexViewMode} block={true} /></div>
                 {/if}
                 <div class="ct-params">
                   δ-parameters: {ct.delta_parameters.join(", ")}
@@ -570,7 +578,7 @@
               {#each nloResult.counterterm_rules as rule, i}
                 <div class="counterterm-card">
                   <div class="ct-header">{rule.n_legs}-point vertex (SF = {rule.symmetry_factor})</div>
-                  <div class="ct-latex">{rule.latex}</div>
+                  <div class="ct-latex"><LatexRenderer latex={rule.latex} mode={latexViewMode} block={true} /></div>
                 </div>
               {/each}
             </div>
@@ -926,13 +934,16 @@
     margin-bottom: 0.15rem;
   }
   .ct-latex {
-    font-family: "Fira Code", "Consolas", monospace;
-    font-size: 0.78rem;
     padding: 0.2rem 0.4rem;
     background: var(--bg, #161616);
     border-radius: 3px;
     margin: 0.2rem 0;
     overflow-x: auto;
+  }
+  .nlo-results-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
   }
   .ct-params {
     font-size: 0.75rem;

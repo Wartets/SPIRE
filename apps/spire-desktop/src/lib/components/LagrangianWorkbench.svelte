@@ -24,6 +24,7 @@
   } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
   import { tooltip } from "$lib/actions/tooltip";
     import { isolateEvents } from "$lib/actions/widgetEvents";
     import { showContextMenu } from "$lib/stores/contextMenuStore";
@@ -106,6 +107,8 @@
 
   /** Active tab: "term" | "rge" */
   let activeTab: "term" | "rge" = "term";
+  /** Whether to show rendered math or raw LaTeX source. */
+  let latexViewMode: "rendered" | "raw" = "rendered";
 
   // --- New field form ---
   let newFieldId = "";
@@ -478,8 +481,13 @@
       {#if derivedRule}
         <div class="derived-rule">
           <div class="rule-latex">
-            <strong>Vertex Factor:</strong>
-            <code>{derivedRule.latex}</code>
+            <span class="rule-latex-header">
+              <strong>Vertex Factor:</strong>
+              <button class="btn-sm" on:click={() => (latexViewMode = latexViewMode === "rendered" ? "raw" : "rendered")}>
+                {latexViewMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
+              </button>
+            </span>
+            <LatexRenderer latex={derivedRule.latex} mode={latexViewMode} block={true} />
           </div>
           <div class="rule-meta">
             <span>Legs: {derivedRule.n_legs}</span>
@@ -824,10 +832,11 @@
     border-radius: 6px;
     padding: 0.5rem;
   }
-  .rule-latex code {
-    font-family: "JetBrains Mono", "Fira Code", monospace;
-    font-size: 0.78rem;
-    color: var(--color-success);
+  .rule-latex-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
   }
   .rule-meta {
     display: flex;
