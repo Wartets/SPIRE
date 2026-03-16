@@ -17,6 +17,9 @@
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
+  import { isolateEvents } from "$lib/actions/widgetEvents";
+  import { tooltip } from "$lib/actions/tooltip";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
 
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
@@ -144,9 +147,52 @@
     amplitudeCount: results.length,
     hasDerivation: derivationSteps.length > 0,
   });
+
+  // ---------------------------------------------------------------------------
+  // Granular context menus
+  // ---------------------------------------------------------------------------
+  function openCardContext(e: MouseEvent, amp: AmplitudeResult): void {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, [
+      { type: "action", id: "select",      label: "Select this amplitude", icon: "✓",
+        action: () => selectAmplitude(amp) },
+      { type: "separator", id: "sep-0" },
+      { type: "action", id: "copy-expr",   label: "Copy expression",       icon: "CP",
+        action: () => navigator.clipboard.writeText(amp.expression) },
+      { type: "action", id: "copy-coup",   label: "Copy couplings",        icon: "λ",
+        action: () => navigator.clipboard.writeText(amp.couplings.join(", ")) },
+      { type: "action", id: "copy-latex",  label: "Copy LaTeX",            icon: "TEX",
+        action: async () => {
+          const diag = $generatedDiagrams?.diagrams.find((d) => d.id === amp.diagram_id);
+          if (diag) {
+            const latex = await exportAmplitudeLatex(diag);
+            await navigator.clipboard.writeText(latex);
+          }
+        }},
+      { type: "separator", id: "sep-1" },
+      { type: "action", id: "show-deriv",  label: "Show step-by-step derivation", icon: "∂",
+        action: () => { selectAmplitude(amp); showDerivation(); } },
+    ]);
+  }
+
+  function openExprContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const expr = selected ?? "";
+    showContextMenu(e.clientX, e.clientY, [
+      { type: "action", id: "copy-expr",  label: "Copy expression",  icon: "CP",
+        action: () => navigator.clipboard.writeText(expr) },
+      { type: "action", id: "copy-latex", label: "Copy LaTeX",       icon: "TEX",
+        action: () => copyLatex() },
+      { type: "separator", id: "sep-1" },
+      { type: "action", id: "export-proof", label: "Export LaTeX proof document", icon: "PDF",
+        action: () => exportProof() },
+    ]);
+  }
 </script>
 
-<div class="amplitude-panel">
+<div class="amplitude-panel" use:isolateEvents>
   <h3>Invariant Amplitudes</h3>
 
   {#if results.length === 0}
@@ -155,15 +201,17 @@
     <!-- Active Amplitude Display -->
     {#if selected}
       <div class="active-expression">
-        <pre>{selected}</pre>
+        <pre on:contextmenu|stopPropagation={openExprContext}>{selected}</pre>
         <div class="latex-row">
-          <button class="latex-btn" on:click={copyLatex} disabled={selectedDiagramId === null}>
+          <button class="latex-btn" on:click={copyLatex} disabled={selectedDiagramId === null}
+            use:tooltip={{ text: "Copy the LaTeX representation of this amplitude to the clipboard" }}>
             Copy LaTeX
           </button>
           <button
             class="latex-btn derivation-btn"
             on:click={showDerivation}
             disabled={selectedDiagramId === null || derivationLoading}
+            use:tooltip={{ text: "Fetch the CAS step-by-step derivation for this Feynman diagram" }}
           >
             {derivationLoading ? "Deriving…" : "Show Derivation"}
           </button>
@@ -206,14 +254,23 @@
           class="amp-card"
           class:active={amp.expression === selected}
           on:click={() => selectAmplitude(amp)}
+          on:contextmenu|preventDefault|stopPropagation={(e) => openCardContext(e, amp)}
         >
           <div class="amp-header">
-            <span class="amp-id">Diagram #{amp.diagram_id}</span>
-            <span class="amp-couplings">{amp.couplings.join(", ")}</span>
+            <span class="amp-id"
+              use:tooltip={{ text: "Index of the Feynman diagram this amplitude was derived from" }}>
+              Diagram #{amp.diagram_id}
+            </span>
+            <span class="amp-couplings"
+              use:tooltip={{ text: "Coupling constants entering this amplitude (product of vertex factors)" }}>
+              {amp.couplings.join(", ")}
+            </span>
           </div>
           <div class="amp-expr">{amp.expression}</div>
           <div class="amp-momenta">
-            Momenta: {amp.momenta_labels.join(", ")}
+            <span use:tooltip={{ text: "4-momentum labels assigned to the external lines of this diagram" }}>
+              Momenta: {amp.momenta_labels.join(", ")}
+            </span>
           </div>
         </button>
       {/each}

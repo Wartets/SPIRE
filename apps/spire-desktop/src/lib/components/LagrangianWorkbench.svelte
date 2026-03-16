@@ -25,6 +25,8 @@
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
+    import { isolateEvents } from "$lib/actions/widgetEvents";
+    import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import type {
     FieldSpin,
@@ -327,7 +329,7 @@
 <!-- TEMPLATE                                                                -->
 <!-- ====================================================================== -->
 
-<div class="lagrangian-workbench">
+<div class="lagrangian-workbench" use:isolateEvents>
   <!-- Tab Selector -->
   <div class="tabs">
     <button
@@ -401,16 +403,36 @@
       <section class="section">
         <h3>Consistency Checks</h3>
         <div class="badges">
-          <span class="badge" class:pass={validation.is_lorentz_scalar} class:fail={!validation.is_lorentz_scalar}>
+          <span
+            class="badge"
+            class:pass={validation.is_lorentz_scalar}
+            class:fail={!validation.is_lorentz_scalar}
+            use:tooltip={{ text: "Lorentz invariance: the term must be a scalar under Lorentz transformations (all Lorentz indices contracted)" }}
+          >
             {validation.is_lorentz_scalar ? "✓" : "✗"} Lorentz
           </span>
-          <span class="badge" class:pass={validation.is_gauge_singlet} class:fail={!validation.is_gauge_singlet}>
+          <span
+            class="badge"
+            class:pass={validation.is_gauge_singlet}
+            class:fail={!validation.is_gauge_singlet}
+            use:tooltip={{ text: "Gauge invariance: the term must be a singlet under the gauge group (all colour/weak indices contracted)" }}
+          >
             {validation.is_gauge_singlet ? "✓" : "✗"} Gauge
           </span>
-          <span class="badge" class:pass={validation.is_hermitian} class:fail={!validation.is_hermitian}>
+          <span
+            class="badge"
+            class:pass={validation.is_hermitian}
+            class:fail={!validation.is_hermitian}
+            use:tooltip={{ text: "Hermiticity: the Lagrangian must equal its Hermitian conjugate to ensure real eigenvalues and unitary evolution" }}
+          >
             {validation.is_hermitian ? "✓" : "✗"} Hermitian
           </span>
-          <span class="badge" class:pass={validation.is_renormalisable} class:warn={!validation.is_renormalisable}>
+          <span
+            class="badge"
+            class:pass={validation.is_renormalisable}
+            class:warn={!validation.is_renormalisable}
+            use:tooltip={{ text: `Mass dimension ${validation.mass_dimension}: operators with dim ≤ 4 are renormalisable; dim > 4 are EFT suppressed by Λ^(d−4)` }}
+          >
             {validation.is_renormalisable ? "✓" : "!"} Dim-{validation.mass_dimension}
           </span>
         </div>
@@ -512,7 +534,38 @@
     </section>
 
     <!-- RGE Chart -->
-    <section class="section chart-section">
+    <section
+      class="section chart-section"
+      role="img"
+      aria-label="RGE coupling flow chart"
+      use:isolateEvents={{ wheel: true, pointer: false, mouse: false, touch: true }}
+      on:contextmenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!rgeResult) return;
+        showContextMenu(e.clientX, e.clientY, [
+          {
+            type: "action",
+            id: "rge-copy-range",
+            label: "Copy μ range",
+            icon: "μ",
+            action: () => navigator.clipboard.writeText(
+              `μ: ${rgeResult!.mu_values[0].toFixed(2)} → ${rgeResult!.mu_values[rgeResult!.mu_values.length - 1].toFixed(2)} GeV`
+            ),
+          },
+          {
+            type: "action",
+            id: "rge-copy-coupling-end",
+            label: `Copy ${rgeResult.coupling_name} at μ₁`,
+            icon: "α",
+            action: () => {
+              const last = rgeResult!.coupling_values[rgeResult!.coupling_values.length - 1];
+              navigator.clipboard.writeText(`${rgeResult!.coupling_name}(μ₁) = ${last?.toFixed(6) ?? "N/A"}`);
+            },
+          },
+        ]);
+      }}
+    >
       <canvas bind:this={rgeCanvas} class="rge-canvas"></canvas>
       {#if !rgeResult}
         <p class="hint">Configure and run the RGE to see the coupling flow.</p>

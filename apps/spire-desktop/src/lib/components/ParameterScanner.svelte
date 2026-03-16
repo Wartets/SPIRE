@@ -16,6 +16,9 @@
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import { isolateEvents } from "$lib/actions/widgetEvents";
+  import { tooltip } from "$lib/actions/tooltip";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
   import type { ScanScale, ScanResult1D, TheoreticalModel } from "$lib/types/spire";
   import {
     Chart,
@@ -336,6 +339,22 @@
           scanMax = reactionPayload.cmsEnergy * 2;
         }
       }
+
+      // Auto-range around a decay resonance reported by Decay Calculator.
+      const decayPayload = state.decay_calculator?.payload as
+        | { totalWidth?: number | null; thresholdEnergy?: number | null }
+        | undefined;
+      if (decayPayload?.totalWidth && decayPayload.totalWidth > 0) {
+        const w = decayPayload.totalWidth;
+        const kinPayload = state.kinematics?.payload as { thresholdEnergy?: number | null } | undefined;
+        if (kinPayload?.thresholdEnergy && Number.isFinite(kinPayload.thresholdEnergy)) {
+          const E0 = kinPayload.thresholdEnergy;
+          if (!useCustomTarget && presets[selectedPresetIdx]?.target === "cms_energy") {
+            scanMin = Math.max(0.1, +(E0 - 5 * w).toPrecision(5));
+            scanMax = +(E0 + 5 * w).toPrecision(5);
+          }
+        }
+      }
     });
 
     registerCommand({
@@ -365,9 +384,61 @@
     scanning,
     points: result?.x_values.length ?? 0,
   });
+
+  // ---------------------------------------------------------------------------
+  // CSV Export
+  // ---------------------------------------------------------------------------
+  function exportCsv(): void {
+    if (!result) return;
+    const header = `${result.variable.target},sigma_pb,error_pb`;
+    const rows = result.x_values.map((x, i) =>
+      `${x},${result!.y_values[i]},${result!.y_errors[i]}`
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = "spire_scan.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    appendLog("[Scanner] CSV exported: spire_scan.csv");
+  }
+
+  // ---------------------------------------------------------------------------
+  // Context menus
+  // ---------------------------------------------------------------------------
+  function openChartContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!result) return;
+    const maxSigma = Math.max(...result.y_values);
+    showContextMenu(e.clientX, e.clientY, [
+      { type: "action", id: "export-csv",  label: "Export scan data as CSV", icon: "CSV",
+        action: exportCsv },
+      { type: "action", id: "copy-max",    label: `Copy peak σ = ${maxSigma.toExponential(4)} pb`, icon: "CP",
+        action: () => navigator.clipboard.writeText(`${maxSigma.toExponential(4)} pb`) },
+      { type: "separator", id: "sep-1" },
+      { type: "action", id: "copy-range",  label: "Copy scan range", icon: "RNG",
+        action: () =>
+          navigator.clipboard.writeText(`[${scanMin}, ${scanMax}] (${scanSteps} pts, ${scanScale})`) },
+    ]);
+  }
+
+  function openRowContext(e: MouseEvent, x: number, y: number, err: number): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const label = result?.variable.target ?? "x";
+    showContextMenu(e.clientX, e.clientY, [
+      { type: "action", id: "copy-point", label: `Copy: σ = ${y.toExponential(4)} ± ${err.toExponential(2)} pb`, icon: "CP",
+        action: () => navigator.clipboard.writeText(`${x} → ${y.toExponential(4)} ± ${err.toExponential(2)} pb`) },
+      { type: "action", id: "copy-x",    label: `Copy ${label} = ${x}`, icon: "X",
+        action: () => navigator.clipboard.writeText(String(x)) },
+    ]);
+  }
 </script>
 
-<div class="scanner-widget">
+<div class="scanner-widget" use:isolateEvents>
   <h3 class="widget-title">
     <HoverDef term="parameter_scan">Parameter Scanner</HoverDef>
   </h3>
@@ -441,7 +512,8 @@
     </div>
 
     <!-- Run Button -->
-    <button class="run-btn" on:click={runScan} disabled={scanning}>
+    <button class="run-btn" on:click={runScan} disabled={scanning}
+      use:tooltip={{ text: "Execute the 1D parameter scan and render σ vs parameter curve" }}>
       {#if scanning}
         <span class="spinner"></span> Scanning…
       {:else}
@@ -457,21 +529,29 @@
   <!-- Chart Area -->
   <div class="chart-area">
     {#if result}
-      <canvas bind:this={chartCanvas}></canvas>
+      <div class="canvas-wrap"
+        role="img"
+        aria-label="Parameter scan chart"
+        use:isolateEvents={{ wheel: true, pointer: false, mouse: false, touch: true }}
+        on:contextmenu|preventDefault|stopPropagation={openChartContext}>
+        <canvas bind:this={chartCanvas}></canvas>
+      </div>
 
       <!-- Summary Table -->
-      <div class="summary-table">
+      <div class="summary-table"
+        use:isolateEvents={{ wheel: true, pointer: false, mouse: false, touch: true }}>
         <table>
           <thead>
             <tr>
-              <th>{result.variable.target}</th>
-              <th>σ (pb)</th>
-              <th>δσ (pb)</th>
+              <th use:tooltip={{ text: "Scanned parameter value" }}>{result.variable.target}</th>
+              <th use:tooltip={{ text: "Monte Carlo cross-section estimate σ [pb]" }}>σ (pb)</th>
+              <th use:tooltip={{ text: "Statistical MC uncertainty on σ [pb]" }}>δσ (pb)</th>
             </tr>
           </thead>
           <tbody>
             {#each result.x_values as x, i}
-              <tr>
+              <tr on:contextmenu|preventDefault|stopPropagation={(e) =>
+                openRowContext(e, x, result?.y_values?.[i] ?? 0, result?.y_errors?.[i] ?? 0)}>
                 <td>{x >= 1000 || x < 0.01 ? x.toExponential(3) : x.toPrecision(4)}</td>
                 <td>{result.y_values[i].toExponential(4)}</td>
                 <td>{result.y_errors[i].toExponential(2)}</td>
@@ -479,6 +559,13 @@
             {/each}
           </tbody>
         </table>
+      </div>
+
+      <div class="export-row">
+        <button class="export-btn" on:click={exportCsv}
+          use:tooltip={{ text: "Download scan results as a CSV file" }}>
+          Export CSV
+        </button>
       </div>
     {:else if !scanning}
       <div class="empty-state">
@@ -506,7 +593,7 @@
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--color-text-primary);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.35rem;
   }
 
@@ -567,10 +654,10 @@
 
   input[type="text"],
   select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    color: #ddd;
+    background: var(--color-bg-inset);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
     padding: 0.3rem 0.45rem;
     font-size: 0.78rem;
     font-family: "JetBrains Mono", "Fira Code", monospace;
@@ -579,8 +666,8 @@
   input:focus,
   select:focus {
     outline: none;
-    border-color: #00d4ff;
-    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.25);
   }
 
   .run-btn {
@@ -590,8 +677,8 @@
     gap: 0.4rem;
     padding: 0.5rem 1rem;
     border: none;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #00d4ff, #0090ff);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.65));
     color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
@@ -625,12 +712,12 @@
   }
 
   .error-msg {
-    color: #ff6b6b;
+    color: var(--color-error);
     font-size: 0.75rem;
     padding: 0.3rem 0.5rem;
-    background: rgba(255, 107, 107, 0.1);
-    border-radius: 4px;
-    border-left: 3px solid #ff6b6b;
+    background: rgba(var(--color-error-rgb), 0.1);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-error);
   }
 
   /* ── Chart Area ───────────────────────────────────────────────────── */
@@ -644,6 +731,16 @@
   }
 
   .chart-area canvas {
+    width: 100% !important;
+    height: 260px !important;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    cursor: default;
+  }
+
+  .canvas-wrap canvas {
     width: 100% !important;
     height: 260px !important;
   }
@@ -668,8 +765,8 @@
   .summary-table {
     max-height: 200px;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
   }
 
   table {
@@ -682,14 +779,14 @@
   thead {
     position: sticky;
     top: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--color-bg-inset);
   }
 
   th {
     text-align: right;
     padding: 0.3rem 0.5rem;
     color: var(--color-text-muted);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--color-border);
     font-weight: 500;
   }
 
@@ -697,10 +794,34 @@
     text-align: right;
     padding: 0.25rem 0.5rem;
     color: var(--color-text-primary);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
 
   tr:hover td {
-    background: rgba(0, 212, 255, 0.05);
+    background: rgba(var(--color-accent-rgb), 0.05);
+  }
+
+  /* ── Export Row ─────────────────────────────────────────────────── */
+  .export-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .export-btn {
+    padding: 0.3rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .export-btn:hover {
+    background: rgba(var(--color-text-primary-rgb), 0.06);
+    border-color: rgba(var(--color-accent-rgb), 0.3);
+    color: var(--color-text-primary);
   }
 </style>

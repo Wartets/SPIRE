@@ -18,6 +18,8 @@
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
+    import { isolateEvents } from "$lib/actions/widgetEvents";
+    import { showContextMenu } from "$lib/stores/contextMenuStore";
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
@@ -618,6 +620,114 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Export & Context Menus
+  // ---------------------------------------------------------------------------
+  function exportHistogramCsv(): void {
+    if (!activeHistogram) return;
+    const h = activeHistogram;
+    const nBinsCount = h.bin_edges.length - 1;
+    const rows = ["bin_low,bin_high,contents,error,density"];
+    for (let i = 0; i < nBinsCount; i++) {
+      const lo = h.bin_edges[i];
+      const hi = h.bin_edges[i + 1];
+      const n = h.bin_contents[i] ?? 0;
+      const err = h.bin_errors[i] ?? 0;
+      const width = hi - lo;
+      const dens = width > 0 ? n / width : n;
+      rows.push(`${lo.toFixed(4)},${hi.toFixed(4)},${n.toFixed(6)},${err.toFixed(6)},${dens.toFixed(6)}`);
+    }
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${h.name || "histogram"}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openChartContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, [
+      {
+        type: "action",
+        id: "ana-export-csv",
+        label: "Export Histogram CSV",
+        icon: "⬇",
+        disabled: !activeHistogram,
+        action: exportHistogramCsv,
+      },
+      { type: "separator", id: "ana-sep1" },
+      {
+        type: "action",
+        id: "ana-copy-xsec",
+        label: "Copy Cross Section",
+        icon: "σ",
+        disabled: !result,
+        action: () => {
+          if (!result) return;
+          const pb = (result.cross_section * 0.3894e9).toExponential(4);
+          navigator.clipboard.writeText(`σ = ${pb} pb`);
+        },
+      },
+      {
+        type: "action",
+        id: "ana-copy-mean",
+        label: "Copy Mean Value",
+        icon: "μ",
+        disabled: !activeHistogram,
+        action: () => {
+          if (!activeHistogram) return;
+          navigator.clipboard.writeText(activeHistogram.mean.toFixed(6));
+        },
+      },
+      {
+        type: "action",
+        id: "ana-toggle-log",
+        label: activeHistogram ? (logScale ? "Switch to Linear Y" : "Switch to Log Y") : "Toggle Log Scale",
+        icon: "↕",
+        disabled: !activeHistogram,
+        action: toggleScale,
+      },
+    ]);
+  }
+
+  function openStatsContext(e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!result) return;
+    const pb = (result.cross_section * 0.3894e9).toExponential(4);
+    const pbErr = (result.cross_section_error * 0.3894e9).toExponential(2);
+    showContextMenu(e.clientX, e.clientY, [
+      {
+        type: "action",
+        id: "ana-copy-sigma",
+        label: "Copy σ ± δσ",
+        icon: "σ",
+        action: () => navigator.clipboard.writeText(`σ = ${pb} ± ${pbErr} pb`),
+      },
+      {
+        type: "action",
+        id: "ana-copy-events",
+        label: "Copy Event Count",
+        icon: "#",
+        action: () => navigator.clipboard.writeText(
+          `${result!.events_passed} / ${result!.events_generated} events`
+        ),
+      },
+      { type: "separator", id: "ana-sep2" },
+      {
+        type: "action",
+        id: "ana-export-csv2",
+        label: "Export Histogram CSV",
+        icon: "⬇",
+        disabled: !activeHistogram,
+        action: exportHistogramCsv,
+      },
+    ]);
+  }
+
+  // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
   const ANALYSIS_CMD_IDS = [
@@ -679,7 +789,7 @@
 <!-- Template                                                                 -->
 <!-- ======================================================================= -->
 
-<div class="analysis-widget" data-tour-id="analysis-widget">
+<div class="analysis-widget" data-tour-id="analysis-widget" use:isolateEvents>
   <!-- Configuration Panel -->
   <div class="config-panel">
     <!-- Mode Toggle -->
@@ -768,13 +878,14 @@
     <div class="field">
       <label for="x-obs-script">X Observable Script (Rhai):</label>
       <textarea
-        id="x-obs-script"
-        bind:value={xObservableScript}
-        rows="2"
+        id="obs-script"
+        bind:value={observableScript}
+        on:input={handleScriptInput}
+        rows="3"
         spellcheck="false"
+        class:invalid={!scriptValid}
+        use:isolateEvents={{ wheel: false, pointer: true, mouse: true, touch: false }}
       ></textarea>
-    </div>
-
     <div class="field">
       <label for="y-obs-script">Y Observable Script (Rhai):</label>
       <textarea
@@ -977,7 +1088,7 @@
 
     <!-- Summary Statistics -->
     {#if result}
-      <div class="stats-panel">
+      <div class="stats-panel" on:contextmenu={openStatsContext}>
         <div class="stat">
           <span class="stat-label">Events:</span>
           <span class="stat-value">
@@ -1018,7 +1129,11 @@
   </div>
 
   <!-- Chart / Heatmap Canvas -->
-  <div class="chart-container">
+  <div
+    class="chart-container"
+    use:isolateEvents={{ wheel: true, pointer: false, mouse: false, touch: true }}
+    on:contextmenu={openChartContext}
+  >
     {#if analysisMode === '1d'}
       <canvas bind:this={canvasEl}></canvas>
       {#if !activeHistogram && !loading}

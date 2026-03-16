@@ -9,6 +9,8 @@
     "build": "tauri build",
     "build:web": "svelte-kit sync && vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"
   },
@@ -29,8 +31,10 @@
     "@tauri-apps/cli": "^1.5.0",
     "@types/node": "^25.5.0",
     "@types/three": "^0.183.1",
+    "jsdom": "^26.1.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.0.0",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "vitest": "^2.1.8"
   }
 }

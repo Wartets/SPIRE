@@ -11,6 +11,8 @@
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { get } from "svelte/store";
+  import { isolateEvents } from "$lib/actions/widgetEvents";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
   import { calculateDecayTable, exportDecaySlha } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
@@ -314,7 +316,7 @@
   });
 </script>
 
-<div class="decay-widget">
+<div class="decay-widget" use:isolateEvents>
   <h3 class="widget-title">
     <HoverDef term="decay_table">Decay Calculator</HoverDef>
   </h3>
@@ -376,15 +378,45 @@
         <table>
           <thead>
             <tr>
-              <th class="left">Channel</th>
-              <th>Γ_partial (GeV)</th>
-              <th>BR</th>
-              <th>Vertex</th>
+              <th class="left"
+                use:tooltip={{ text: "Final-state particles of this decay channel" }}>
+                Channel
+              </th>
+              <th use:tooltip={{ text: "Partial decay width Γ_i for this channel [GeV]; Γ_total = Σ Γ_i" }}>
+                Γ<sub>partial</sub> (GeV)
+              </th>
+              <th use:tooltip={{ text: "Branching ratio BR_i = Γ_i / Γ_total (dimensionless fraction)" }}>
+                BR
+              </th>
+              <th use:tooltip={{ text: "Interaction vertex identifier from the loaded model" }}>
+                Vertex
+              </th>
             </tr>
           </thead>
           <tbody>
             {#each decayTable.channels as ch, i}
-              <tr>
+              <tr on:contextmenu|preventDefault|stopPropagation={(e) => {
+                  showContextMenu(e.clientX, e.clientY, [
+                    { type: "action", id: "copy-channel", label: `Copy channel: ${ch.final_state_names.join(" + ")}`, icon: "CP",
+                      action: () => navigator.clipboard.writeText(ch.final_state_names.join(" + ")) },
+                    { type: "action", id: "copy-br", label: `Copy BR: ${fmtBR(ch.branching_ratio)}`, icon: "BR",
+                      action: () => navigator.clipboard.writeText(fmtBR(ch.branching_ratio)) },
+                    { type: "action", id: "copy-width", label: `Copy Γ: ${fmtWidth(ch.partial_width)} GeV`, icon: "Γ",
+                      action: () => navigator.clipboard.writeText(`${fmtWidth(ch.partial_width)} GeV`) },
+                    { type: "separator", id: "sep-1" },
+                    { type: "action", id: "send-scanner", label: "Send BR to Parameter Scanner", icon: "→",
+                      action: () => {
+                        const val = (ch.branching_ratio * 100).toFixed(4);
+                        navigator.clipboard.writeText(val);
+                        appendLog(`[DecayCalc] Copied BR ${val}% for ${ch.final_state_names.join("+")} to clipboard.`);
+                      }},
+                    { type: "action", id: "copy-slha-line", label: "Copy as SLHA line", icon: "SL",
+                      action: () => {
+                        const line = `   ${ch.branching_ratio.toExponential(6)}   ${ch.final_state_names.length}   ${ch.final_state_names.join("   ")}   # ${ch.vertex_id}`;
+                        navigator.clipboard.writeText(line);
+                      }},
+                  ]);
+                }}>
                 <td class="left">
                   <span class="colour-dot" style="background:{PALETTE[i % PALETTE.length]}"></span>
                   {ch.final_state_names.join(" + ")}
@@ -427,6 +459,7 @@
     padding: 0.75rem;
     font-size: 0.8rem;
     color: var(--color-text-primary);
+    box-sizing: border-box;
   }
 
   .widget-title {
@@ -434,7 +467,7 @@
     font-size: 0.95rem;
     font-weight: 600;
     color: var(--color-text-primary);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.35rem;
   }
 
@@ -458,10 +491,10 @@
   }
 
   select {
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
-    color: #ddd;
+    background: var(--color-bg-inset);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
     padding: 0.3rem 0.45rem;
     font-size: 0.78rem;
     font-family: "JetBrains Mono", "Fira Code", monospace;
@@ -469,8 +502,8 @@
 
   select:focus {
     outline: none;
-    border-color: #00d4ff;
-    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px rgba(var(--color-accent-rgb), 0.25);
   }
 
   .run-btn {
@@ -480,8 +513,8 @@
     gap: 0.4rem;
     padding: 0.5rem 1rem;
     border: none;
-    border-radius: 5px;
-    background: linear-gradient(135deg, #00d4ff, #0090ff);
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.65));
     color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
@@ -513,12 +546,12 @@
   }
 
   .error-msg {
-    color: #ff6b6b;
+    color: var(--color-error);
     font-size: 0.75rem;
     padding: 0.3rem 0.5rem;
-    background: rgba(255, 107, 107, 0.1);
-    border-radius: 4px;
-    border-left: 3px solid #ff6b6b;
+    background: rgba(var(--color-error-rgb), 0.1);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-error);
   }
 
   /* ── Summary Banner ───────────────────────────────────────────── */
@@ -528,14 +561,14 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     padding: 0.4rem 0.6rem;
-    background: rgba(0, 212, 255, 0.06);
-    border: 1px solid rgba(0, 212, 255, 0.15);
-    border-radius: 4px;
+    background: rgba(var(--color-accent-rgb), 0.06);
+    border: 1px solid rgba(var(--color-accent-rgb), 0.15);
+    border-radius: var(--radius-sm);
     font-size: 0.76rem;
   }
 
   .summary-item strong {
-    color: #00d4ff;
+    color: var(--color-accent);
   }
 
   /* ── Chart ─────────────────────────────────────────────────────── */
@@ -564,8 +597,8 @@
   .data-table-wrap {
     max-height: 240px;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
   }
 
   table {
@@ -578,14 +611,14 @@
   thead {
     position: sticky;
     top: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--color-bg-inset);
   }
 
   th {
     text-align: right;
     padding: 0.3rem 0.5rem;
     color: var(--color-text-muted);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid var(--color-border);
     font-weight: 500;
   }
 
@@ -598,7 +631,7 @@
     text-align: right;
     padding: 0.25rem 0.5rem;
     color: var(--color-text-primary);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
 
   td.mono {
@@ -617,7 +650,7 @@
   }
 
   tr:hover td {
-    background: rgba(0, 212, 255, 0.05);
+    background: rgba(var(--color-accent-rgb), 0.05);
   }
 
   /* ── Export ─────────────────────────────────────────────────────── */
@@ -630,9 +663,9 @@
 
   .export-btn {
     padding: 0.35rem 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: transparent;
     color: var(--color-text-muted);
     font-size: 0.75rem;
     cursor: pointer;
@@ -640,8 +673,8 @@
   }
 
   .export-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(0, 212, 255, 0.3);
+    background: rgba(var(--color-text-primary-rgb), 0.06);
+    border-color: rgba(var(--color-accent-rgb), 0.3);
     color: #eee;
   }
 

@@ -55,6 +55,8 @@
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { tooltip } from "$lib/actions/tooltip";
+    import { isolateEvents } from "$lib/actions/widgetEvents";
+    import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { selectionBus, clearSelectionBus } from "$lib/stores/selectionBus";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
@@ -461,7 +463,7 @@
   });
 </script>
 
-<div class="reaction-workspace" data-tour-id="reaction-input">
+<div class="reaction-workspace" data-tour-id="reaction-input" use:isolateEvents>
   <h3>Reaction Workspace</h3>
 
   {#if !$isModelLoaded}
@@ -481,9 +483,24 @@
           {listenMode ? "● Listening" : "⊙ Listen"}
         </button>
       </legend>
-      <div class="particle-tags">
+      <div class="particle-tags" use:isolateEvents={{ wheel: false, pointer: true, mouse: true, touch: false }}>
         {#each $initialIdsInput as id, idx}
-          <span class="tag">
+          <span
+            class="tag"
+            role="button"
+            tabindex="0"
+            on:contextmenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showContextMenu(e.clientX, e.clientY, [
+                { type: "action", id: `init-copy-${idx}`, label: "Copy particle ID", icon: "⊕", action: () => navigator.clipboard.writeText(id) },
+                { type: "action", id: `init-copy-label-${idx}`, label: "Copy particle label", icon: "⊕", action: () => navigator.clipboard.writeText(label(id)) },
+                { type: "separator", id: `init-sep-${idx}` },
+                { type: "action", id: `init-remove-${idx}`, label: "Remove from state", icon: "×", action: () => removeInitial(idx) },
+              ]);
+            }}
+            on:keydown={(e) => e.key === "Delete" && removeInitial(idx)}
+          >
             {label(id)}
             <button class="tag-remove" on:click={() => removeInitial(idx)}>&times;</button>
           </span>
@@ -503,9 +520,24 @@
     <!-- Final State -->
     <fieldset class="state-group">
       <legend>Final State</legend>
-      <div class="particle-tags">
+      <div class="particle-tags" use:isolateEvents={{ wheel: false, pointer: true, mouse: true, touch: false }}>
         {#each $finalIdsInput as id, idx}
-          <span class="tag">
+          <span
+            class="tag"
+            role="button"
+            tabindex="0"
+            on:contextmenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showContextMenu(e.clientX, e.clientY, [
+                { type: "action", id: `fin-copy-${idx}`, label: "Copy particle ID", icon: "⊕", action: () => navigator.clipboard.writeText(id) },
+                { type: "action", id: `fin-copy-label-${idx}`, label: "Copy particle label", icon: "⊕", action: () => navigator.clipboard.writeText(label(id)) },
+                { type: "separator", id: `fin-sep-${idx}` },
+                { type: "action", id: `fin-remove-${idx}`, label: "Remove from state", icon: "×", action: () => removeFinal(idx) },
+              ]);
+            }}
+            on:keydown={(e) => e.key === "Delete" && removeFinal(idx)}
+          >
             {label(id)}
             <button class="tag-remove" on:click={() => removeFinal(idx)}>&times;</button>
           </span>
@@ -536,23 +568,54 @@
 
     <!-- Action Buttons -->
     <div class="actions">
-      <button class="action-btn" on:click={handleRunAll} disabled={busy} data-tour-id="reaction-run">
+      <button
+        class="action-btn"
+        on:click={handleRunAll}
+        disabled={busy}
+        data-tour-id="reaction-run"
+        use:tooltip={{ text: "Execute all pipeline steps: construct reaction → generate diagrams → compute amplitudes → kinematics" }}
+      >
         {busy ? "Running…" : "Run Full Pipeline"}
       </button>
       <div class="step-actions">
-        <button class="step-btn" on:click={handleConstructReaction} disabled={busy}>
+        <button
+          class="step-btn"
+          on:click={handleConstructReaction}
+          disabled={busy}
+          use:tooltip={{ text: "Build the reaction object from initial and final state particle IDs" }}
+        >
           Construct
         </button>
-        <button class="step-btn" on:click={handleReconstruct} disabled={busy}>
+        <button
+          class="step-btn"
+          on:click={handleReconstruct}
+          disabled={busy}
+          use:tooltip={{ text: "Reconstruct the reaction with updated particle IDs or parameters" }}
+        >
           Reconstruct
         </button>
-        <button class="step-btn" on:click={handleGenerateDiagrams} disabled={busy || !$activeReaction}>
+        <button
+          class="step-btn"
+          on:click={handleGenerateDiagrams}
+          disabled={busy || !$activeReaction}
+          use:tooltip={{ text: "Generate all Feynman diagrams up to the selected loop order for this reaction" }}
+        >
           <HoverDef term="feynman_diagram">Diagrams</HoverDef>
         </button>
-        <button class="step-btn" on:click={handleDeriveAmplitudes} disabled={busy || !$generatedDiagrams}>
+        <button
+          class="step-btn"
+          on:click={handleDeriveAmplitudes}
+          disabled={busy || !$generatedDiagrams}
+          use:tooltip={{ text: "Compute Feynman amplitude expressions from the generated diagrams using the model Feynman rules" }}
+        >
           Amplitudes
         </button>
-        <button class="step-btn" on:click={handleComputeKinematics} disabled={busy || !$activeReaction}>
+        <button
+          class="step-btn"
+          on:click={handleComputeKinematics}
+          disabled={busy || !$activeReaction}
+          use:tooltip={{ text: "Compute threshold energy, phase-space volume, and Mandelstam variable ranges for this reaction" }}
+        >
           <HoverDef term="phase_space">Kinematics</HoverDef>
         </button>
       </div>
