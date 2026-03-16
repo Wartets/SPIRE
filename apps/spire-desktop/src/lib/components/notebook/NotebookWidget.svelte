@@ -180,7 +180,7 @@
         on:click={() => executeAllCells()}
         disabled={$isExecuting}
         use:tooltip={{ text: "Run All Cells" }}
-      >▶▶ Run All</button>
+      >Run All</button>
       <button
         class="nb-action"
         on:click={() => clearAllOutputs()}
@@ -241,7 +241,7 @@
             Markdown
           </button>
           <button class="nb-menu-item" on:click={() => addCellOfType("script")}>
-            <span class="nb-menu-icon" style="color: var(--hl-success, #50fa7b)">▶</span>
+            <span class="nb-menu-icon" style="color: var(--hl-success, #50fa7b)">SCR</span>
             Script
           </button>
           <button class="nb-menu-item" on:click={() => addCellOfType("config")}>

@@ -175,7 +175,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
       return withGlobalWidgetActions(widgetType, [
         menuAction("ana-obs-count", `Observables: ${get(observableScripts).length}`, () => {}, { disabled: true }),
         menuAction("ana-cut-count", `Cuts: ${get(cutScripts).length}`, () => {}, { disabled: true }),
-        menuAction("ana-run-all", "Run Full Analysis Pipeline", () => appendLog("Analysis: run requested from context menu"), { icon: "▶" }),
+        menuAction("ana-run-all", "Run Full Analysis Pipeline", () => appendLog("Analysis: run requested from context menu"), { icon: "RUN" }),
       ]);
 
     case "event_display":
@@ -235,7 +235,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "notebook":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("nb-run-all", "Run All Cells", () => executeAllCells(), { icon: "▶" }),
+        menuAction("nb-run-all", "Run All Cells", () => executeAllCells(), { icon: "RUN" }),
         menuAction("nb-new-cell", "Insert New Cell", () => appendLog("Notebook: insert new cell requested"), { icon: "+" }),
         menuAction("nb-info", "Notebook (Rhai scripting)", () => {}, { disabled: true }),
       ]);
@@ -292,7 +292,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "global_fit_dashboard":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("fit-start", "Start Quick Fit", () => appendLog("Global Fit: quick fit started"), { icon: "▶" }),
+        menuAction("fit-start", "Start Quick Fit", () => appendLog("Global Fit: quick fit started"), { icon: "RUN" }),
         menuAction("fit-reset", "Reset Fit Session", () => appendLog("Global Fit: session reset"), { icon: "↺" }),
         menuAction("fit-snapshot", "Capture Fit Snapshot", () => appendLog("Global Fit: snapshot captured"), { icon: "◉" }),
       ]);

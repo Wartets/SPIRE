@@ -73,6 +73,8 @@
     const widgetItems = getWidgetContextItems(node.widgetType);
     const selectedText = (window.getSelection?.()?.toString() ?? "").trim();
     const hit = target instanceof HTMLElement ? target : null;
+    const anchor = hit?.closest("a") as HTMLAnchorElement | null;
+    const href = anchor?.href?.trim() || "";
     const elementLabel = hit?.getAttribute("aria-label") || hit?.getAttribute("title") || hit?.tagName?.toLowerCase();
 
     const elementItems: import("$lib/types/menu").ContextMenuItem[] = [
@@ -83,6 +85,39 @@
             label: "Copy Selected Text",
             icon: "TXT",
             action: () => navigator.clipboard.writeText(selectedText),
+          }, {
+            type: "action" as const,
+            id: "search-selected-text",
+            label: `Search Web for “${selectedText.slice(0, 44)}${selectedText.length > 44 ? "…" : ""}”`,
+            icon: "WEB",
+            action: () => {
+              const query = encodeURIComponent(selectedText);
+              window.open(`https://duckduckgo.com/?q=${query}`, "_blank", "noopener,noreferrer");
+            },
+          }, {
+            type: "action" as const,
+            id: "search-selected-arxiv",
+            label: "Search arXiv for Selection",
+            icon: "arX",
+            action: () => {
+              const query = encodeURIComponent(selectedText);
+              window.open(`https://arxiv.org/search/?query=${query}&searchtype=all`, "_blank", "noopener,noreferrer");
+            },
+          }]
+        : []),
+      ...(href
+        ? [{
+            type: "action" as const,
+            id: "open-clicked-link",
+            label: "Open Clicked Link",
+            icon: "URL",
+            action: () => window.open(href, "_blank", "noopener,noreferrer"),
+          }, {
+            type: "action" as const,
+            id: "copy-clicked-link",
+            label: "Copy Clicked Link",
+            icon: "CPY",
+            action: () => navigator.clipboard.writeText(href),
           }]
         : []),
       ...(elementLabel

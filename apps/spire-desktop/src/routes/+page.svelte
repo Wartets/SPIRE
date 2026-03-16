@@ -839,7 +839,7 @@
       category: "Pipeline",
       shortcut: "Mod+Shift+R",
       execute: () => void runPipelineExecution(),
-      icon: "▶",
+      icon: "RUN",
     });
 
     registerCommand({

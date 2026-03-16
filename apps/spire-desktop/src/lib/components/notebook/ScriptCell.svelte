@@ -77,7 +77,7 @@
       {#if cell.running}
         ...
       {:else}
-        ▶
+        RUN
       {/if}
     </button>
     <div class="sc-actions">

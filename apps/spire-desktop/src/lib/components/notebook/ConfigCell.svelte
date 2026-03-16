@@ -74,7 +74,7 @@
       {#if cell.running}
         ...
       {:else}
-        ▶
+        RUN
       {/if}
     </button>
     <div class="cc-actions">

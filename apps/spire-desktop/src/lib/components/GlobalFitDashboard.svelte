@@ -490,9 +490,9 @@
 
     <div class="action-row">
       {#if isRunning}
-        <button class="btn-stop" on:click={stopFit}>⏹ Stop</button>
+        <button class="btn-stop" on:click={stopFit}>Stop</button>
       {:else}
-        <button class="btn-start" on:click={startFit}>▶ Start Fit</button>
+        <button class="btn-start" on:click={startFit}>Start Fit</button>
       {/if}
     </div>
 

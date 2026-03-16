@@ -12,6 +12,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import { longpress } from "$lib/actions/longpress";
+  import { showContextMenu } from "$lib/stores/contextMenuStore";
   import {
     activeCitations,
     activeCitationCount,
@@ -80,6 +82,62 @@
     return `https://doi.org/${c.doi}`;
   }
 
+  function inspireUrl(c: Citation): string {
+    const title = encodeURIComponent(c.title);
+    return `https://inspirehep.net/literature?sort=mostrecent&size=25&page=1&q=${title}`;
+  }
+
+  function scholarUrl(c: Citation): string {
+    const title = encodeURIComponent(c.title);
+    return `https://scholar.google.com/scholar?q=${title}`;
+  }
+
+  function openCitationContext(citation: Citation, idx: number, x: number, y: number): void {
+    const plainText = `[${idx + 1}] ${formatCitation(citation)}`;
+    const arxiv = arxivUrl(citation);
+    const doi = doiUrl(citation);
+    showContextMenu(x, y, [
+      {
+        type: "action",
+        id: `citation-copy-${idx}`,
+        label: "Copy Citation",
+        icon: "CPY",
+        action: () => navigator.clipboard.writeText(plainText),
+      },
+      {
+        type: "action",
+        id: `citation-web-${idx}`,
+        label: "Search on INSPIRE",
+        icon: "WEB",
+        action: () => window.open(inspireUrl(citation), "_blank", "noopener,noreferrer"),
+      },
+      {
+        type: "action",
+        id: `citation-scholar-${idx}`,
+        label: "Search on Google Scholar",
+        icon: "WEB",
+        action: () => window.open(scholarUrl(citation), "_blank", "noopener,noreferrer"),
+      },
+      { type: "separator", id: `citation-sep-${idx}` },
+      {
+        type: "action",
+        id: `citation-open-arxiv-${idx}`,
+        label: "Open arXiv",
+        icon: "arX",
+        action: () => arxiv && window.open(arxiv, "_blank", "noopener,noreferrer"),
+        disabled: !arxiv,
+      },
+      {
+        type: "action",
+        id: `citation-open-doi-${idx}`,
+        label: "Open DOI",
+        icon: "DOI",
+        action: () => doi && window.open(doi, "_blank", "noopener,noreferrer"),
+        disabled: !doi,
+      },
+    ]);
+  }
+
   $: publishWidgetInterop("references", {
     count: $activeCitationCount,
     topCitation: $activeCitations[0]?.title ?? null,
@@ -120,7 +178,19 @@
   {:else}
     <ol class="ref-list">
       {#each $activeCitations as citation, idx}
-        <li class="ref-item">
+        <li
+          class="ref-item"
+          on:contextmenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openCitationContext(citation, idx, event.clientX, event.clientY);
+          }}
+          use:longpress={{
+            duration: 460,
+            moveTolerance: 12,
+            onLongPress: (detail) => openCitationContext(citation, idx, detail.x, detail.y),
+          }}
+        >
           <div class="ref-citation">
             <span class="ref-idx">[{idx + 1}]</span>
             <span class="ref-authors">{citation.authors.length <= 2 ? citation.authors.join(" and ") : `${citation.authors[0]} et al.`}</span>
@@ -138,15 +208,18 @@
           </div>
           <div class="ref-links">
             {#if citation.arxiv}
-              <a class="ref-link" href={arxivUrl(citation)} target="_blank" rel="noopener">
+              <a class="ref-link" href={arxivUrl(citation)} target="_blank" rel="noopener" use:tooltip={{ text: "Open arXiv" }}>
                 arXiv:{citation.arxiv}
               </a>
             {/if}
             {#if citation.doi}
-              <a class="ref-link" href={doiUrl(citation)} target="_blank" rel="noopener">
+              <a class="ref-link" href={doiUrl(citation)} target="_blank" rel="noopener" use:tooltip={{ text: "Open DOI" }}>
                 DOI
               </a>
             {/if}
+            <a class="ref-link" href={inspireUrl(citation)} target="_blank" rel="noopener" use:tooltip={{ text: "Search on INSPIRE" }}>
+              INSPIRE
+            </a>
           </div>
           {#if citation.context}
             <p class="ref-context">{citation.context}</p>

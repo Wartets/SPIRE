@@ -81,16 +81,16 @@
     // Execution commands (only for executable cells)
     if (cell.type !== "markdown") {
       items.push(
-        menuAction("ctx-run-cell", "▶  Run Cell", () => dispatch("execute", { id: cell.id }), { shortcut: "Shift+Enter" }),
+        menuAction("ctx-run-cell", "Run Cell", () => dispatch("execute", { id: cell.id }), { shortcut: "Shift+Enter" }),
       );
       if (index > 0) {
         items.push(
-          menuAction("ctx-run-above", "▲  Run All Above", () => dispatch("runAllAbove", { index })),
+          menuAction("ctx-run-above", "Run All Above", () => dispatch("runAllAbove", { index })),
         );
       }
       if (index < totalCells - 1) {
         items.push(
-          menuAction("ctx-run-below", "▼  Run All Below", () => dispatch("runAllBelow", { index })),
+          menuAction("ctx-run-below", "Run All Below", () => dispatch("runAllBelow", { index })),
         );
       }
       items.push(menuSeparator());
@@ -99,7 +99,7 @@
     // Output management
     if (cell.type !== "markdown" && cell.lastResult) {
       items.push(
-        menuAction("ctx-clear-output", "⌧  Clear Output", () => dispatch("clearOutput", { id: cell.id })),
+        menuAction("ctx-clear-output", "Clear Output", () => dispatch("clearOutput", { id: cell.id })),
         menuSeparator(),
       );
     }
@@ -107,9 +107,9 @@
     // Insert submenu
     items.push(
       menuSubmenu("ctx-insert-below", "Insert Cell Below", [
-        menuAction("ctx-ins-script", "▶  Script", () => dispatch("insertBelow", { index, type: "script" })),
-        menuAction("ctx-ins-markdown", "¶  Markdown", () => dispatch("insertBelow", { index, type: "markdown" })),
-        menuAction("ctx-ins-config", "CFG  Config", () => dispatch("insertBelow", { index, type: "config" })),
+        menuAction("ctx-ins-script", "Script", () => dispatch("insertBelow", { index, type: "script" })),
+        menuAction("ctx-ins-markdown", "Markdown", () => dispatch("insertBelow", { index, type: "markdown" })),
+        menuAction("ctx-ins-config", "Config", () => dispatch("insertBelow", { index, type: "config" })),
       ]),
     );
 
@@ -117,17 +117,17 @@
 
     // Movement
     if (index > 0) {
-      items.push(menuAction("ctx-move-up", "↑  Move Up", () => dispatch("moveUp", { id: cell.id })));
+      items.push(menuAction("ctx-move-up", "Move Up", () => dispatch("moveUp", { id: cell.id })));
     }
     if (index < totalCells - 1) {
-      items.push(menuAction("ctx-move-down", "↓  Move Down", () => dispatch("moveDown", { id: cell.id })));
+      items.push(menuAction("ctx-move-down", "Move Down", () => dispatch("moveDown", { id: cell.id })));
     }
 
     items.push(menuSeparator());
 
     // Destructive
     items.push(
-      menuAction("ctx-delete-cell", "✕  Delete Cell", () => dispatch("delete", { id: cell.id })),
+      menuAction("ctx-delete-cell", "Delete Cell", () => dispatch("delete", { id: cell.id })),
     );
 
     return items;
