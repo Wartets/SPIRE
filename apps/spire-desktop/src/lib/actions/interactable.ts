@@ -308,11 +308,16 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
   }
 
   function isPrimaryPointerStart(event: PointerEvent): boolean {
-    // Mouse must be left button; touch/pen can report button -1 in some hosts.
     if (event.pointerType === "mouse") {
       return event.button === 0;
     }
-    // For touch/pen, prefer primary contacts and avoid right/middle semantics.
+
+    if (event.pointerType === "touch") {
+      return event.isPrimary !== false;
+    }
+
+    // Pen and host-specific synthetic pointer streams may report button -1/0
+    // on contact. Treat any non-right/non-middle contact as a valid start.
     return event.isPrimary !== false && event.button <= 0;
   }
 

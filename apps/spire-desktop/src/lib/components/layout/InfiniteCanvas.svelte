@@ -459,6 +459,7 @@
 
   const zIndexManager = createZIndexManager();
   let selectedWidgetId: string | null = null;
+  let zIndexById: Record<string, number> = {};
   let automationEnabled = false;
   let connectSourceWidgetId: string | null = null;
 
@@ -556,15 +557,24 @@
     bringToFrontById(item.id);
   }
 
+  function syncZOrderState(): void {
+    const snapshot = zIndexManager.snapshot();
+    selectedWidgetId = snapshot.selectedId;
+    zIndexById = snapshot.order.reduce<Record<string, number>>((acc, itemId, index) => {
+      acc[itemId] = index + 1;
+      return acc;
+    }, {});
+  }
+
   /** Bring an item to the foreground by ID (used when items are added). */
   function bringToFrontById(id: string): void {
     zIndexManager.bringToFront(id);
-    selectedWidgetId = zIndexManager.snapshot().selectedId;
+    syncZOrderState();
     nudgeCanvasRendering();
   }
 
-  function zIndexOf(item: CanvasItem): number {
-    return zIndexManager.zIndexOf(item.id);
+  function zIndexOf(itemId: string): number {
+    return zIndexById[itemId] ?? 1;
   }
 
   // ── Auto-select newly created widgets ──
@@ -575,15 +585,12 @@
   const unsubCanvasItems = canvasItems.subscribe((items) => {
     const ids = new Set(items.map((item) => item.id));
     zIndexManager.sync(items.map((item) => item.id));
-    selectedWidgetId = zIndexManager.snapshot().selectedId;
+    syncZOrderState();
 
     if (items.length > _prevItemCount && items.length > 0) {
       const newest = items[items.length - 1];
       bringToFrontById(newest.id);
     } else if (_prevItemCount === 0 && items.length > 0) {
-      selectedWidgetId = selectedWidgetId && ids.has(selectedWidgetId)
-        ? selectedWidgetId
-        : zIndexManager.snapshot().selectedId;
       nudgeCanvasRendering();
     }
     _prevItemCount = items.length;
@@ -592,9 +599,6 @@
       if (!ids.has(removedId)) {
         unregisterSource(removedId);
         unregisterSink(removedId);
-        if (selectedWidgetId === removedId) {
-          selectedWidgetId = null;
-        }
       }
     }
 
@@ -756,32 +760,49 @@
     bringToFrontById(detail.widgetId);
   }
 
+  function findCanvasWidgetIdFromEvent(event: Event): string | null {
+    const path = typeof event.composedPath === "function"
+      ? event.composedPath()
+      : [];
+
+    for (const entry of path) {
+      if (!(entry instanceof HTMLElement)) continue;
+      const widgetId = entry.dataset.canvasItemId;
+      if (widgetId) return widgetId;
+      if (entry === canvasEl) break;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return null;
+    return target.closest<HTMLElement>("[data-canvas-item-id]")?.dataset.canvasItemId ?? null;
+  }
+
   /**
-   * Svelte action that registers an imperative capture-phase pointerdown listener.
-   * This is necessary for reliable bring-to-front behavior in Svelte 5, where the
-   * `on:event|capture` directive syntax is legacy and may not work correctly.
-   * The capture phase fires BEFORE any child element's bubble-phase handler,
-   * so stopPropagation() in child interactable actions cannot suppress it.
+   * Capture-phase widget focus listener for the whole canvas.
+   *
+   * Keeping this at the canvas root ensures any pointer or mouse press inside a
+   * widget body raises it above siblings before child components can stop
+   * propagation in the bubble phase.
    */
-  function capturePointerDown(node: HTMLElement, onDown: () => void) {
+  function captureCanvasWidgetPointerDown(node: HTMLElement) {
     function pointerHandler(event: PointerEvent): void {
-      // Mouse must be left button; touch/pen may report button -1 depending on host.
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (event.pointerType !== "mouse" && event.button > 0) return;
-      onDown();
+      const widgetId = findCanvasWidgetIdFromEvent(event);
+      if (!widgetId) return;
+      bringToFrontById(widgetId);
     }
 
     function mouseHandler(event: MouseEvent): void {
       if (event.button !== 0) return;
-      onDown();
+      const widgetId = findCanvasWidgetIdFromEvent(event);
+      if (!widgetId) return;
+      bringToFrontById(widgetId);
     }
 
     node.addEventListener("pointerdown", pointerHandler, { capture: true });
     node.addEventListener("mousedown", mouseHandler, { capture: true });
     return {
-      update(newOnDown: () => void): void {
-        onDown = newOnDown;
-      },
       destroy(): void {
         node.removeEventListener("pointerdown", pointerHandler, { capture: true });
         node.removeEventListener("mousedown", mouseHandler, { capture: true });
@@ -907,6 +928,7 @@
   class:is-panning={isPanning}
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
+  use:captureCanvasWidgetPointerDown
   on:pointerdown={handleCanvasPointerDown}
   on:wheel={handleWheel}
   on:dragover={handleCanvasDragOver}
@@ -957,10 +979,9 @@
             top: {item.y}px;
             width: {item.width}px;
             height: {item.height}px;
-            z-index: {zIndexOf(item)};
+            z-index: {zIndexOf(item.id)};
           "
           data-canvas-item-id={item.id}
-          use:capturePointerDown={() => bringToFrontById(item.id)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{
@@ -1285,16 +1306,16 @@
   }
 
   /* ── Font Scaling Floor ──
-     When the canvas is zoomed out aggressively, text rendered inside
-     widgets gets multiplied by the CSS zoom and can become microscopic.
-     The .zoom-adaptive-text utility applies a compensating scale so
-     that no text drops below ~9px screen-space.  Below the threshold
-     a translucent block replaces text to indicate content exists
-     without wasting GPU cycles on illegible glyphs. */
+      When the canvas is zoomed out aggressively, text rendered inside
+      widgets gets multiplied by the CSS zoom and can become microscopic.
+      The .zoom-adaptive-text utility applies a compensating scale so
+      that no text drops below ~9px screen-space.  Below the threshold
+      a translucent block replaces text to indicate content exists
+      without wasting GPU cycles on illegible glyphs. */
   .zoom-adaptive-text {
     /* Content container for full-LOD widgets.  The --canvas-zoom
-       variable is inherited and available to child components that
-       need zoom-aware styling (e.g. font scaling floors). */
+      variable is inherited and available to child components that
+      need zoom-aware styling (e.g. font scaling floors). */
     width: 100%;
     height: 100%;
   }
