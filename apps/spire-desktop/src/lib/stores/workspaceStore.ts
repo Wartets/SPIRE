@@ -98,18 +98,32 @@ function collectPersistedState(): PersistedWorkspaceState {
   };
 }
 
+function persistWorkspaceStateNow(): void {
+  if (!persistenceInitialised) return;
+
+  if (saveTimer !== null) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+
+  const payload = collectPersistedState();
+  const encoded = JSON.stringify(payload);
+  saveWorkspaceState(payload);
+  const kb = (encoded.length / 1024).toFixed(1);
+  console.info(`[Storage] Workspace state synced (${kb}kb)`);
+}
+
+function handleWindowPersistenceFlush(): void {
+  persistWorkspaceStateNow();
+}
+
 function schedulePersistedSave(): void {
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
   }
 
   saveTimer = setTimeout(() => {
-    saveTimer = null;
-    const payload = collectPersistedState();
-    const encoded = JSON.stringify(payload);
-    saveWorkspaceState(payload);
-    const kb = (encoded.length / 1024).toFixed(1);
-    console.info(`[Storage] Workspace state synced (${kb}kb)`);
+    persistWorkspaceStateNow();
   }, AUTO_SAVE_DEBOUNCE_MS);
 }
 
@@ -231,6 +245,11 @@ export function initWorkspacePersistence(): void {
     workspaceWidgetData.subscribe(() => schedulePersistedSave()),
   ];
 
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", handleWindowPersistenceFlush);
+    window.addEventListener("beforeunload", handleWindowPersistenceFlush);
+  }
+
   schedulePersistedSave();
 }
 
@@ -244,6 +263,13 @@ export function destroyWorkspacePersistence(): void {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
+
+  if (typeof window !== "undefined") {
+    window.removeEventListener("pagehide", handleWindowPersistenceFlush);
+    window.removeEventListener("beforeunload", handleWindowPersistenceFlush);
+  }
+
+  persistWorkspaceStateNow();
 
   persistenceInitialised = false;
 }

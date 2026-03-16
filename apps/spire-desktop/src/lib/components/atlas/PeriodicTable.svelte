@@ -196,6 +196,8 @@
 
   function beginDrag(event: PointerEvent): void {
     if (!periodicViewportEl) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest(".cell")) return;
     isDragging = true;
     activePointerId = event.pointerId;
     periodicViewportEl.setPointerCapture(event.pointerId);
@@ -844,6 +846,7 @@
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
     min-height: 4.75rem;
+    max-height: 4.75rem;
     padding: 0.18rem 0.24rem;
     display: flex;
     flex-direction: column;
@@ -853,6 +856,8 @@
     text-align: left;
     font-family: var(--font-mono);
     transition: background 0.12s;
+    overflow: hidden;
+    min-width: 0;
   }
 
   .cell:hover {
@@ -886,6 +891,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.16rem;
+    min-width: 0;
+  }
+
+  .cell-footline {
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow: hidden;
+    max-height: 1.2rem;
   }
 
   .mass {
@@ -898,6 +911,9 @@
     font-weight: 700;
     color: var(--color-text-primary, var(--fg-primary));
     line-height: 1.1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .ename {
@@ -915,6 +931,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .cell-chip {
@@ -923,6 +940,9 @@
     border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.2);
     padding: 0.02rem 0.12rem;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .fblock-label {

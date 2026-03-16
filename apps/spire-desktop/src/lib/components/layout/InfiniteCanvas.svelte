@@ -557,8 +557,7 @@
   // ── Widget Selection & Z-Index ──
 
   let selectedWidgetId: string | null = null;
-  let zCounter = 10;
-  let zMap: Record<string, number> = {};
+  let zOrder: string[] = [];
   let automationEnabled = false;
   let connectSourceWidgetId: string | null = null;
 
@@ -653,20 +652,20 @@
   }
 
   function selectWidget(item: CanvasItem): void {
-    selectedWidgetId = item.id;
-    zCounter += 1;
-    zMap = { ...zMap, [item.id]: zCounter };
+    bringToFrontById(item.id);
   }
 
   /** Bring an item to the foreground by ID (used when items are added). */
   function bringToFrontById(id: string): void {
     selectedWidgetId = id;
-    zCounter += 1;
-    zMap = { ...zMap, [id]: zCounter };
+    const current = zOrder.filter((entry) => entry !== id);
+    zOrder = [...current, id];
+    nudgeCanvasRendering();
   }
 
   function zIndexOf(item: CanvasItem): number {
-    return zMap[item.id] ?? 1;
+    const index = zOrder.indexOf(item.id);
+    return index >= 0 ? index + 1 : 1;
   }
 
   // ── Auto-select newly created widgets ──
@@ -675,17 +674,30 @@
   let _previousCanvasIds = new Set<string>();
 
   const unsubCanvasItems = canvasItems.subscribe((items) => {
+    const ids = new Set(items.map((item) => item.id));
+    const nextOrder = [...zOrder.filter((id) => ids.has(id)), ...items.map((item) => item.id).filter((id) => !zOrder.includes(id))];
+    if (nextOrder.length !== zOrder.length || nextOrder.some((id, index) => zOrder[index] !== id)) {
+      zOrder = nextOrder;
+    }
+
     if (items.length > _prevItemCount && items.length > 0) {
       const newest = items[items.length - 1];
       bringToFrontById(newest.id);
+    } else if (_prevItemCount === 0 && items.length > 0) {
+      selectedWidgetId = selectedWidgetId && ids.has(selectedWidgetId)
+        ? selectedWidgetId
+        : items[items.length - 1]?.id ?? null;
+      nudgeCanvasRendering();
     }
     _prevItemCount = items.length;
 
-    const ids = new Set(items.map((item) => item.id));
     for (const removedId of _previousCanvasIds) {
       if (!ids.has(removedId)) {
         unregisterSource(removedId);
         unregisterSink(removedId);
+        if (selectedWidgetId === removedId) {
+          selectedWidgetId = null;
+        }
       }
     }
 
@@ -873,6 +885,11 @@
     bringToFrontById(detail.widgetId);
   }
 
+  function handleWidgetActivate(event: Event, item: CanvasItem): void {
+    event.stopPropagation();
+    selectWidget(item);
+  }
+
   // ── Canvas Context Menu ──
 
   function openCanvasContextAt(clientX: number, clientY: number): void {
@@ -1045,8 +1062,9 @@
             z-index: {zIndexOf(item)};
           "
           data-canvas-item-id={item.id}
-          on:pointerdown|capture={() => selectWidget(item)}
-          on:mousedown|capture={() => selectWidget(item)}
+          on:pointerdown|capture={(event) => handleWidgetActivate(event, item)}
+          on:pointerup|capture={(event) => handleWidgetActivate(event, item)}
+          on:mousedown|capture={(event) => handleWidgetActivate(event, item)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{
@@ -1061,6 +1079,7 @@
           {#if lodLevel !== "minimal"}
             <header
               class="cw-header"
+              on:pointerup={(event) => handleWidgetActivate(event, item)}
               on:mousedown={(e) => handleWidgetDragStart(e, item)}
               on:pointerdown={(e) => handleWidgetPointerDragStart(e, item)}
               on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
@@ -1095,6 +1114,7 @@
           <div
             class="cw-body"
             class:cw-body-minimal={lodLevel === "minimal"}
+            on:pointerup={(event) => handleWidgetActivate(event, item)}
             on:mousedown={(e) => { if (lodLevel === "minimal") handleWidgetDragStart(e, item); }}
             on:pointerdown={(e) => { if (lodLevel === "minimal") handleWidgetPointerDragStart(e, item); }}
             on:contextmenu={(e) => handleWidgetBodyContext(e, item)}

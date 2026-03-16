@@ -51,7 +51,9 @@
         height: 100,
       };
     } else {
+      (el as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" });
       focusCanvasWidget(el as Element);
+      await tick();
       const rect = el.getBoundingClientRect();
       const pad = 6; // Padding around the element
       spotRect = {
@@ -77,6 +79,13 @@
           detail: { widgetId },
         }),
       );
+      requestAnimationFrame(() => {
+        window.dispatchEvent(
+          new CustomEvent("spire:canvas:focus-widget", {
+            detail: { widgetId },
+          }),
+        );
+      });
     }
   }
 
@@ -248,7 +257,7 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    z-index: 9990;
+    z-index: 12990;
     cursor: pointer;
   }
 
@@ -265,13 +274,13 @@
     position: fixed;
     border: 2px solid var(--color-accent);
     pointer-events: none;
-    z-index: 9991;
+    z-index: 12991;
     box-shadow: 0 0 0 2px rgba(94, 184, 255, 0.3);
   }
 
   .tutorial-tooltip {
     position: fixed;
-    z-index: 9995;
+    z-index: 12995;
     max-width: 400px;
     min-width: 280px;
     padding: 0.8rem 1rem;

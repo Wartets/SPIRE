@@ -21,6 +21,7 @@ const systemChromiumExecutable = resolveSystemChromiumExecutable();
 export default defineConfig({
   testDir: "./e2e/specs",
   timeout: 90_000,
+  workers: 1,
   expect: {
     timeout: 15_000,
   },

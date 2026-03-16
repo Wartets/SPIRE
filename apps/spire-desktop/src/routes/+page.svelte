@@ -17,6 +17,7 @@
     viewMode,
     totalWidgetCount,
     addWidgetToLayout,
+    insertWidgetRelative,
     dockingInsertPreference,
     addCanvasItem,
     resetDockingLayout,
@@ -94,10 +95,21 @@
   let showPaletteLauncher = true;
   let showTutorialLauncher = true;
   let showViewModeToggle = true;
+  let showResetButton = true;
+  let showToolbarShortcuts = true;
   let toolboxButtonEl: HTMLButtonElement | null = null;
   let toolboxMenuEl: HTMLDivElement | null = null;
   let customizerButtonEl: HTMLButtonElement | null = null;
   let customizerMenuEl: HTMLDivElement | null = null;
+  let placementPointerId: number | null = null;
+  let placementWidgetType: WidgetType | null = null;
+  let placementStartX = 0;
+  let placementStartY = 0;
+  let placementClientX = 0;
+  let placementClientY = 0;
+  let placementActive = false;
+  let suppressToolboxClickForType: WidgetType | null = null;
+  const PLACEMENT_DRAG_THRESHOLD = 8;
   const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v2";
 
   $: sortedWidgetDefinitions =
@@ -120,6 +132,14 @@
       addWidgetToLayout(type, "auto");
     }
     toolboxOpen = false;
+  }
+
+  function handleToolboxItemClick(type: WidgetType): void {
+    if (suppressToolboxClickForType === type) {
+      suppressToolboxClickForType = null;
+      return;
+    }
+    spawnWidget(type);
   }
 
   function handleToolboxSearchKeydown(event: KeyboardEvent): void {
@@ -151,9 +171,15 @@
   }
 
   function handleToolboxItemPointerDown(event: PointerEvent, type: WidgetType): void {
-    if (event.pointerType === "mouse") return;
+    if (event.button !== 0) return;
     event.preventDefault();
-    spawnWidget(type);
+    placementPointerId = event.pointerId;
+    placementWidgetType = type;
+    placementStartX = event.clientX;
+    placementStartY = event.clientY;
+    placementClientX = event.clientX;
+    placementClientY = event.clientY;
+    placementActive = false;
   }
 
   function handleWindowEscape(event: KeyboardEvent): void {
@@ -176,6 +202,8 @@
         showPaletteLauncher?: boolean;
         showTutorialLauncher?: boolean;
         showViewModeToggle?: boolean;
+        showResetButton?: boolean;
+        showToolbarShortcuts?: boolean;
       };
       if (parsed.sort === "workflow" || parsed.sort === "alpha") {
         widgetSortMode = parsed.sort;
@@ -201,6 +229,12 @@
       if (typeof parsed.showViewModeToggle === "boolean") {
         showViewModeToggle = parsed.showViewModeToggle;
       }
+      if (typeof parsed.showResetButton === "boolean") {
+        showResetButton = parsed.showResetButton;
+      }
+      if (typeof parsed.showToolbarShortcuts === "boolean") {
+        showToolbarShortcuts = parsed.showToolbarShortcuts;
+      }
     } catch {
       // Ignore malformed settings.
     }
@@ -218,16 +252,96 @@
         showPaletteLauncher,
         showTutorialLauncher,
         showViewModeToggle,
+        showResetButton,
+        showToolbarShortcuts,
       }),
     );
   }
 
-  function handleToolboxItemDragStart(event: DragEvent, type: WidgetType): void {
-    if (!event.dataTransfer) return;
-    event.dataTransfer.setData("application/x-spire-widget-type", type);
-    event.dataTransfer.setData("text/spire-widget-label", WIDGET_DEFINITIONS.find((def) => def.type === type)?.label ?? type);
-    event.dataTransfer.effectAllowed = "copy";
-    toolboxOpen = false;
+  function detectDockDropZone(target: HTMLElement, clientX: number, clientY: number): "left" | "right" | "top" | "bottom" | "center" {
+    const rect = target.getBoundingClientRect();
+    const relX = (clientX - rect.left) / Math.max(rect.width, 1);
+    const relY = (clientY - rect.top) / Math.max(rect.height, 1);
+    const edgeThreshold = 0.25;
+    if (relX < edgeThreshold) return "left";
+    if (relX > 1 - edgeThreshold) return "right";
+    if (relY < edgeThreshold) return "top";
+    if (relY > 1 - edgeThreshold) return "bottom";
+    return "center";
+  }
+
+  function placeWidgetAtPointer(type: WidgetType, clientX: number, clientY: number): void {
+    const hitElements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+
+    if ($viewMode === "canvas") {
+      const canvasSurface = hitElements.find((el) => el.classList.contains("infinite-canvas"));
+      if (canvasSurface) {
+        const rect = canvasSurface.getBoundingClientRect();
+        const viewport = $canvasViewport;
+        const worldX = (clientX - rect.left - viewport.panX) / viewport.zoom;
+        const worldY = (clientY - rect.top - viewport.panY) / viewport.zoom;
+        addCanvasItem(type, worldX, worldY);
+        toolboxOpen = false;
+        return;
+      }
+    }
+
+    const dockingTarget = hitElements.find((el) => el.dataset?.dockingDropTarget);
+    if (dockingTarget?.dataset.dockingDropTarget) {
+      const dropZone = detectDockDropZone(dockingTarget, clientX, clientY);
+      insertWidgetRelative(dockingTarget.dataset.dockingDropTarget, dropZone, type);
+      toolboxOpen = false;
+      return;
+    }
+
+    spawnWidget(type);
+  }
+
+  function clearToolboxPlacement(): void {
+    placementPointerId = null;
+    placementWidgetType = null;
+    placementActive = false;
+  }
+
+  function handleToolboxPlacementMove(event: PointerEvent): void {
+    if (placementPointerId === null || event.pointerId !== placementPointerId) return;
+    placementClientX = event.clientX;
+    placementClientY = event.clientY;
+
+    if (!placementActive) {
+      const dx = event.clientX - placementStartX;
+      const dy = event.clientY - placementStartY;
+      if (Math.hypot(dx, dy) >= PLACEMENT_DRAG_THRESHOLD) {
+        placementActive = true;
+      }
+    }
+
+    if (placementActive) {
+      event.preventDefault();
+    }
+  }
+
+  function handleToolboxPlacementEnd(event: PointerEvent): void {
+    if (placementPointerId === null || event.pointerId !== placementPointerId || !placementWidgetType) return;
+    const type = placementWidgetType;
+    const didPlaceByDrag = placementActive;
+    const dropX = event.clientX;
+    const dropY = event.clientY;
+    clearToolboxPlacement();
+    suppressToolboxClickForType = type;
+
+    if (didPlaceByDrag) {
+      placeWidgetAtPointer(type, dropX, dropY);
+      return;
+    }
+
+    spawnWidget(type);
+  }
+
+  function handleToolboxPlacementCancel(event: PointerEvent): void {
+    if (placementPointerId !== null && event.pointerId === placementPointerId) {
+      clearToolboxPlacement();
+    }
   }
 
   function handleDockingCanvasDragOver(event: DragEvent): void {
@@ -766,6 +880,9 @@
     registerGlobalCommands();
     workspaceControls?.checkAutoSave();
     window.addEventListener("pointerdown", handleWindowPointerDown, true);
+    window.addEventListener("pointermove", handleToolboxPlacementMove, { passive: false });
+    window.addEventListener("pointerup", handleToolboxPlacementEnd, true);
+    window.addEventListener("pointercancel", handleToolboxPlacementCancel, true);
     window.addEventListener("keydown", handleWindowEscape, true);
 
     unsubIdentityModel = theoreticalModel.subscribe(() => refreshActiveWorkspaceIdentity());
@@ -776,6 +893,9 @@
   onDestroy(() => {
     unregisterGlobalCommands();
     window.removeEventListener("pointerdown", handleWindowPointerDown, true);
+    window.removeEventListener("pointermove", handleToolboxPlacementMove);
+    window.removeEventListener("pointerup", handleToolboxPlacementEnd, true);
+    window.removeEventListener("pointercancel", handleToolboxPlacementCancel, true);
     window.removeEventListener("keydown", handleWindowEscape, true);
     unsubIdentityModel?.();
     unsubIdentityFramework?.();
@@ -820,20 +940,17 @@
                 <option value="alpha">A-Z</option>
               </select>
             </div>
-            <div class="toolbox-drag-hint">Click to add instantly, or drag from the list to place directly.</div>
+            <div class="toolbox-drag-hint">Click to add instantly, or press and drag from the list to place directly in canvas or docking mode.</div>
             {#if visibleWidgetDefinitions.length === 0}
               <div class="toolbox-empty">No widgets match “{toolboxQuery}”.</div>
             {:else}
               {#each visibleWidgetDefinitions as def}
                 <button
                   class="toolbox-item"
-                  draggable="true"
-                  on:click={() => spawnWidget(def.type)}
+                  on:click={() => handleToolboxItemClick(def.type)}
                   on:pointerdown={(event) => handleToolboxItemPointerDown(event, def.type)}
-                  on:dragstart={(event) => handleToolboxItemDragStart(event, def.type)}
                 >
                   <span>{def.label}</span>
-                  <span class="toolbox-item-meta">Drag</span>
                 </button>
               {/each}
             {/if}
@@ -891,6 +1008,23 @@
                 <input type="checkbox" bind:checked={showViewModeToggle} />
                 Show view-mode toggle
               </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showToolbarShortcuts} />
+                Show palette/tutorial chips
+              </label>
+              <label class="customize-toggle">
+                <input type="checkbox" bind:checked={showResetButton} />
+                Show reset button
+              </label>
+            </div>
+
+            <div class="customize-section customize-block">
+              <span class="customize-heading">Workflow links</span>
+              <div class="customize-links">
+                <button class="customize-link" on:click={() => openPalette()}>Command palette ↗</button>
+                <button class="customize-link" on:click={() => { keybindPanelOpen.set(true); customizerOpen = false; }}>Keyboard shortcuts ↗</button>
+                <button class="customize-link" on:click={() => { startTutorial(); customizerOpen = false; }}>Tutorial ↗</button>
+              </div>
             </div>
 
             <div class="customize-section customize-block">
@@ -939,6 +1073,7 @@
       </div>
     </div>
 
+    {#if showToolbarShortcuts}
     <div class="toolbar-group toolbar-shortcuts">
       {#if showPaletteLauncher}
         <button
@@ -961,6 +1096,7 @@
         </button>
       {/if}
     </div>
+    {/if}
 
     {#if showQuickToolbar}
       <div data-tour-id="quick-toolbar">
@@ -991,14 +1127,26 @@
       >
     {/if}
 
-    <button
-      class="toolbox-reset"
-      on:click={() => { resetDockingLayout(); clearCanvas(); }}
-      use:tooltip={{ text: "Reset to default layout" }}
-    >
-      Reset Layout
-    </button>
+    {#if showResetButton}
+      <button
+        class="toolbox-reset"
+        on:click={() => { resetDockingLayout(); clearCanvas(); }}
+        use:tooltip={{ text: "Reset to default layout" }}
+      >
+        Reset Layout
+      </button>
+    {/if}
   </div>
+
+  {#if placementActive && placementWidgetType}
+    <div
+      class="toolbox-placement-ghost"
+      style="left: {placementClientX + 14}px; top: {placementClientY + 14}px;"
+      aria-hidden="true"
+    >
+      Place {WIDGET_DEFINITIONS.find((def) => def.type === placementWidgetType)?.label ?? placementWidgetType}
+    </div>
+  {/if}
 
   <!-- ─── Workspace Canvas ─── -->
   {#if $viewMode === "docking"}
@@ -1134,6 +1282,8 @@
     cursor: pointer;
     font-family: var(--font-mono);
     text-align: left;
+    user-select: none;
+    touch-action: none;
   }
   .toolbox-item:last-child {
     border-bottom: none;
@@ -1141,12 +1291,6 @@
   .toolbox-item:hover {
     background: var(--bg-surface);
     color: var(--fg-accent);
-  }
-  .toolbox-item-meta {
-    color: var(--fg-secondary);
-    font-size: 0.62rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
   }
   .toolbox-empty {
     padding: 0.5rem 0.6rem;
@@ -1170,16 +1314,17 @@
   .customize-menu {
     position: absolute;
     top: 100%;
-    left: 0;
+    right: 0;
     margin-top: 0.35rem;
     z-index: 101;
-    min-width: 16rem;
+    width: min(24rem, calc(100vw - 1rem));
     background: var(--bg-primary);
     border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.45rem;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
   }
   .customize-section {
     display: flex;
@@ -1209,7 +1354,8 @@
     flex-wrap: wrap;
   }
   .customize-options button,
-  .customize-keybinds {
+  .customize-keybinds,
+  .customize-link {
     border: 1px solid var(--border);
     background: var(--bg-surface);
     color: var(--fg-secondary);
@@ -1224,6 +1370,14 @@
   }
   .customize-keybinds {
     align-self: stretch;
+    text-align: left;
+  }
+  .customize-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.25rem;
+  }
+  .customize-link {
     text-align: left;
   }
   .customize-actions {
@@ -1279,6 +1433,18 @@
   .toolbox-reset:hover {
     color: var(--hl-error);
     border-color: var(--hl-error);
+  }
+  .toolbox-placement-ghost {
+    position: fixed;
+    z-index: 250;
+    pointer-events: none;
+    border: 1px solid var(--hl-symbol);
+    background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    padding: 0.22rem 0.45rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
   }
 
   /* ── Docking Canvas ───────────────────────────────────────── */

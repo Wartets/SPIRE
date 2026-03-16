@@ -3,22 +3,30 @@ import { expect, type Locator, type Page } from "@playwright/test";
 export class WorkbenchPage {
   constructor(private readonly page: Page) {}
 
+  addWidgetButton(): Locator {
+    return this.page.locator(".toolbox-toggle").first();
+  }
+
   private escapeRegex(input: string): string {
     return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   async goto(): Promise<void> {
-    await this.page.goto("/");
-    await this.page.evaluate(() => {
+    await this.page.addInitScript(() => {
+      if (window.sessionStorage.getItem("spire.e2e.bootstrap.cleared") === "1") {
+        return;
+      }
+
       window.localStorage.removeItem("spire.toolbox.prefs.v2");
       window.localStorage.removeItem("spire_workspace_state");
+      window.sessionStorage.setItem("spire.e2e.bootstrap.cleared", "1");
     });
-    await this.page.reload();
-    await expect(this.page.getByRole("button", { name: "+ Add Widget" })).toBeVisible();
+    await this.page.goto("/");
+    await expect(this.addWidgetButton()).toBeVisible();
   }
 
   async openAddWidgetMenu(): Promise<void> {
-    const addWidgetButton = this.page.getByRole("button", { name: "+ Add Widget" });
+    const addWidgetButton = this.addWidgetButton();
     await addWidgetButton.click();
     await expect(this.page.locator(".toolbox-menu")).toBeVisible();
   }
