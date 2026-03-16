@@ -1295,59 +1295,51 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    /* overflow: visible ensures resize handles positioned outside the
-       widget border-box are accessible. The parent .canvas-widget
-       must also have overflow: visible for this to work. */
     overflow: visible;
   }
 
   .cw-resize-handle {
     position: absolute;
     pointer-events: auto;
-    z-index: 10;
+    z-index: 2;
     touch-action: none;
-    /* Transparent by default — only visible on hover */
-    background: transparent;
   }
 
-  /* Edge handles: thicker for easier touch targeting */
   .cw-resize-n,
   .cw-resize-s {
-    left: 12px;
-    right: 12px;
-    height: 10px;
+    left: 10px;
+    right: 10px;
+    height: 8px;
   }
 
-  .cw-resize-n { top: -5px; cursor: n-resize; }
-  .cw-resize-s { bottom: -5px; cursor: s-resize; }
+  .cw-resize-n { top: -4px; cursor: ns-resize; }
+  .cw-resize-s { bottom: -4px; cursor: ns-resize; }
 
   .cw-resize-e,
   .cw-resize-w {
-    top: 12px;
-    bottom: 12px;
-    width: 10px;
+    top: 10px;
+    bottom: 10px;
+    width: 8px;
   }
 
-  .cw-resize-e { right: -5px; cursor: e-resize; }
-  .cw-resize-w { left: -5px; cursor: w-resize; }
+  .cw-resize-e { right: -4px; cursor: ew-resize; }
+  .cw-resize-w { left: -4px; cursor: ew-resize; }
 
-  /* Corner handles: larger for touch */
   .cw-resize-ne,
   .cw-resize-se,
   .cw-resize-sw,
   .cw-resize-nw {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
   }
 
-  .cw-resize-ne { top: -6px; right: -6px; cursor: ne-resize; }
-  .cw-resize-se { bottom: -6px; right: -6px; cursor: se-resize; }
-  .cw-resize-sw { bottom: -6px; left: -6px; cursor: sw-resize; }
-  .cw-resize-nw { top: -6px; left: -6px; cursor: nw-resize; }
+  .cw-resize-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+  .cw-resize-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+  .cw-resize-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+  .cw-resize-nw { top: -5px; left: -5px; cursor: nwse-resize; }
 
   .cw-resize-layer .cw-resize-handle:hover {
-    background: color-mix(in srgb, var(--hl-symbol) 40%, transparent);
-    border-radius: 2px;
+    background: color-mix(in srgb, var(--hl-symbol) 35%, transparent);
   }
 
   .zoom-indicator {
