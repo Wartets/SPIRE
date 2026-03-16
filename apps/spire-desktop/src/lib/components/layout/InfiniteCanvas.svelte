@@ -18,6 +18,7 @@
   import { onMount, onDestroy } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
+  import { interactable, type ResizeDirection } from "$lib/actions/interactable";
   import { get } from "svelte/store";
   import {
     canvasItems,
@@ -49,6 +50,7 @@
     unregisterSource,
     type PipelineDataType,
   } from "$lib/core/services/PipelineService";
+  import { createZIndexManager } from "$lib/core/layout/zIndexManager";
 
   // ── LOD & Frustum Culling ──
   import CanvasLODWrapper from "$lib/components/canvas/CanvasLODWrapper.svelte";
@@ -147,7 +149,6 @@
   const MIN_WIDGET_HEIGHT = 200;
 
   interface SnapResult { x: number; y: number; }
-  type ResizeDirection = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
   function snapToEdges(
     dragId: string,
@@ -351,58 +352,6 @@
       panX = panStartPanX + (clientX - panStartX);
       panY = panStartPanY + (clientY - panStartY);
     }
-
-    if (isDragging && dragItemId) {
-      const dx = (clientX - dragStartX) / zoom;
-      const dy = (clientY - dragStartY) / zoom;
-      const newX = dragItemStartX + dx;
-      const newY = dragItemStartY + dy;
-      // Track live position for snapping in mouseUp
-      dragCurrentX = newX;
-      dragCurrentY = newY;
-      // Batch — only flush to store at display refresh rate
-      _pendingDragPatch = { id: dragItemId, x: newX, y: newY };
-      scheduleCanvasFlush();
-    }
-
-    if (isResizing && resizeItemId) {
-      const dx = (clientX - resizeStartX) / zoom;
-      const dy = (clientY - resizeStartY) / zoom;
-
-      let nextX = resizeStartItemX;
-      let nextY = resizeStartItemY;
-      let nextW = resizeStartW;
-      let nextH = resizeStartH;
-
-      if (resizeDirection.includes("e")) {
-        nextW = Math.max(MIN_WIDGET_WIDTH, resizeStartW + dx);
-      }
-
-      if (resizeDirection.includes("s")) {
-        nextH = Math.max(MIN_WIDGET_HEIGHT, resizeStartH + dy);
-      }
-
-      if (resizeDirection.includes("w")) {
-        const proposedW = resizeStartW - dx;
-        nextW = Math.max(MIN_WIDGET_WIDTH, proposedW);
-        nextX = resizeStartItemX + (resizeStartW - nextW);
-      }
-
-      if (resizeDirection.includes("n")) {
-        const proposedH = resizeStartH - dy;
-        nextH = Math.max(MIN_WIDGET_HEIGHT, proposedH);
-        nextY = resizeStartItemY + (resizeStartH - nextH);
-      }
-
-      _pendingResizePatch = {
-        id: resizeItemId,
-        x: nextX,
-        y: nextY,
-        width: nextW,
-        height: nextH,
-      };
-      scheduleCanvasFlush();
-    }
   }
 
   function handleCanvasMouseMove(event: MouseEvent): void {
@@ -412,41 +361,16 @@
   function handleCanvasPointerMove(event: PointerEvent): void {
     if (event.pointerType === "mouse") return;
     if (activeTouchPointerId !== null && event.pointerId !== activeTouchPointerId) return;
-    if (!(isPanning || isDragging || isResizing)) return;
+    if (!isPanning) return;
     event.preventDefault();
     handleInteractionMove(event.clientX, event.clientY);
   }
 
   function handleCanvasMouseUp(): void {
-    // Flush any pending RAF updates immediately so snap reads the latest state
-    if (_rafPending) {
-      flushCanvasUpdates();
-    }
-
     if (isPanning) {
       isPanning = false;
       spacePanning = false;
       commitViewport();
-    }
-    if (isDragging && dragItemId) {
-      // Edge snap on drop
-      const current = get(canvasItems).find((i) => i.id === dragItemId);
-      if (current) {
-        const snapped = snapToEdges(
-          dragItemId,
-          dragCurrentX,
-          dragCurrentY,
-          current.width,
-          current.height,
-        );
-        updateCanvasItem(dragItemId, { x: snapped.x, y: snapped.y });
-      }
-      isDragging = false;
-      dragItemId = null;
-    }
-    if (isResizing) {
-      isResizing = false;
-      resizeItemId = null;
     }
     activeTouchPointerId = null;
     detachWindowGrabListeners();
@@ -556,8 +480,8 @@
 
   // ── Widget Selection & Z-Index ──
 
+  const zIndexManager = createZIndexManager();
   let selectedWidgetId: string | null = null;
-  let zOrder: string[] = [];
   let automationEnabled = false;
   let connectSourceWidgetId: string | null = null;
 
@@ -657,15 +581,13 @@
 
   /** Bring an item to the foreground by ID (used when items are added). */
   function bringToFrontById(id: string): void {
-    selectedWidgetId = id;
-    const current = zOrder.filter((entry) => entry !== id);
-    zOrder = [...current, id];
+    zIndexManager.bringToFront(id);
+    selectedWidgetId = zIndexManager.snapshot().selectedId;
     nudgeCanvasRendering();
   }
 
   function zIndexOf(item: CanvasItem): number {
-    const index = zOrder.indexOf(item.id);
-    return index >= 0 ? index + 1 : 1;
+    return zIndexManager.zIndexOf(item.id);
   }
 
   // ── Auto-select newly created widgets ──
@@ -675,10 +597,8 @@
 
   const unsubCanvasItems = canvasItems.subscribe((items) => {
     const ids = new Set(items.map((item) => item.id));
-    const nextOrder = [...zOrder.filter((id) => ids.has(id)), ...items.map((item) => item.id).filter((id) => !zOrder.includes(id))];
-    if (nextOrder.length !== zOrder.length || nextOrder.some((id, index) => zOrder[index] !== id)) {
-      zOrder = nextOrder;
-    }
+    zIndexManager.sync(items.map((item) => item.id));
+    selectedWidgetId = zIndexManager.snapshot().selectedId;
 
     if (items.length > _prevItemCount && items.length > 0) {
       const newest = items[items.length - 1];
@@ -686,7 +606,7 @@
     } else if (_prevItemCount === 0 && items.length > 0) {
       selectedWidgetId = selectedWidgetId && ids.has(selectedWidgetId)
         ? selectedWidgetId
-        : items[items.length - 1]?.id ?? null;
+        : zIndexManager.snapshot().selectedId;
       nudgeCanvasRendering();
     }
     _prevItemCount = items.length;
@@ -736,97 +656,73 @@
     updateCanvasItem(item.id, { width, height });
   }
 
-  // ── Widget Drag (left-click on header) ──
-
-  let isDragging = false;
-  let dragItemId: string | null = null;
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let dragItemStartX = 0;
-  let dragItemStartY = 0;
-  let dragCurrentX = 0;
-  let dragCurrentY = 0;
-
-  function handleWidgetDragStart(event: MouseEvent, item: CanvasItem): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectWidget(item);
-    isDragging = true;
-    dragItemId = item.id;
-    dragStartX = event.clientX;
-    dragStartY = event.clientY;
-    dragItemStartX = item.x;
-    dragItemStartY = item.y;
-    dragCurrentX = item.x;
-    dragCurrentY = item.y;
-    attachWindowGrabListeners();
+  function queueDragPatch(itemId: string, x: number, y: number): void {
+    _pendingDragPatch = { id: itemId, x, y };
+    scheduleCanvasFlush();
   }
 
-  function handleWidgetPointerDragStart(event: PointerEvent, item: CanvasItem): void {
-    if (event.pointerType === "mouse") return;
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    activeTouchPointerId = event.pointerId;
-    selectWidget(item);
-    isDragging = true;
-    dragItemId = item.id;
-    dragStartX = event.clientX;
-    dragStartY = event.clientY;
-    dragItemStartX = item.x;
-    dragItemStartY = item.y;
-    dragCurrentX = item.x;
-    dragCurrentY = item.y;
-    attachWindowGrabListeners();
+  function queueResizePatch(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
+    _pendingResizePatch = {
+      id: itemId,
+      x: patch.x,
+      y: patch.y,
+      width: patch.width,
+      height: patch.height,
+    };
+    scheduleCanvasFlush();
   }
 
-  // ── Widget Resize (bottom-right corner) ──
-
-  let isResizing = false;
-  let resizeItemId: string | null = null;
-  let resizeStartX = 0;
-  let resizeStartY = 0;
-  let resizeStartItemX = 0;
-  let resizeStartItemY = 0;
-  let resizeStartW = 0;
-  let resizeStartH = 0;
-  let resizeDirection: ResizeDirection = "se";
-
-  function handleResizeStart(event: MouseEvent, item: CanvasItem, direction: ResizeDirection): void {
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    selectWidget(item);
-    isResizing = true;
-    resizeItemId = item.id;
-    resizeDirection = direction;
-    resizeStartX = event.clientX;
-    resizeStartY = event.clientY;
-    resizeStartItemX = item.x;
-    resizeStartItemY = item.y;
-    resizeStartW = item.width;
-    resizeStartH = item.height;
-    attachWindowGrabListeners();
+  function handleWidgetDragMove(itemId: string, patch: { x: number; y: number }): void {
+    queueDragPatch(itemId, patch.x, patch.y);
   }
 
-  function handlePointerResizeStart(event: PointerEvent, item: CanvasItem, direction: ResizeDirection): void {
-    if (event.pointerType === "mouse") return;
-    if (event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    activeTouchPointerId = event.pointerId;
-    selectWidget(item);
-    isResizing = true;
-    resizeItemId = item.id;
-    resizeDirection = direction;
-    resizeStartX = event.clientX;
-    resizeStartY = event.clientY;
-    resizeStartItemX = item.x;
-    resizeStartItemY = item.y;
-    resizeStartW = item.width;
-    resizeStartH = item.height;
-    attachWindowGrabListeners();
+  function handleWidgetDragEnd(itemId: string, patch: { x: number; y: number }): void {
+    if (_rafPending) {
+      flushCanvasUpdates();
+    }
+    const current = get(canvasItems).find((entry) => entry.id === itemId);
+    if (!current) return;
+    const snapped = snapToEdges(itemId, patch.x, patch.y, current.width, current.height);
+    updateCanvasItem(itemId, { x: snapped.x, y: snapped.y });
+  }
+
+  function handleWidgetResizeMove(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
+    queueResizePatch(itemId, patch);
+  }
+
+  function handleWidgetResizeEnd(itemId: string, patch: { x: number; y: number; width: number; height: number }): void {
+    queueResizePatch(itemId, patch);
+    if (_rafPending) {
+      flushCanvasUpdates();
+    }
+  }
+
+  function dragInteractableOptions(item: CanvasItem, enabled = true) {
+    return {
+      mode: "drag" as const,
+      itemId: item.id,
+      enabled,
+      getZoom: () => zoom,
+      getOrigin: () => ({ x: item.x, y: item.y }),
+      onBringToFront: bringToFrontById,
+      onMove: (patch: { x: number; y: number }) => handleWidgetDragMove(item.id, patch),
+      onEnd: (patch: { x: number; y: number }) => handleWidgetDragEnd(item.id, patch),
+    };
+  }
+
+  function resizeInteractableOptions(item: CanvasItem, direction: ResizeDirection) {
+    return {
+      mode: "resize" as const,
+      itemId: item.id,
+      direction,
+      minWidth: MIN_WIDGET_WIDTH,
+      minHeight: MIN_WIDGET_HEIGHT,
+      getZoom: () => zoom,
+      getOrigin: () => ({ x: item.x, y: item.y, width: item.width, height: item.height }),
+      onBringToFront: bringToFrontById,
+      onMove: (patch: { x: number; y: number; width: number; height: number }) => handleWidgetResizeMove(item.id, patch),
+      onEnd: (patch: { x: number; y: number; width: number; height: number }) => handleWidgetResizeEnd(item.id, patch),
+    };
   }
 
   function handleClose(item: CanvasItem): void {
@@ -1063,8 +959,6 @@
           "
           data-canvas-item-id={item.id}
           on:pointerdown|capture={(event) => handleWidgetActivate(event, item)}
-          on:pointerup|capture={(event) => handleWidgetActivate(event, item)}
-          on:mousedown|capture={(event) => handleWidgetActivate(event, item)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{
@@ -1079,9 +973,7 @@
           {#if lodLevel !== "minimal"}
             <header
               class="cw-header"
-              on:pointerup={(event) => handleWidgetActivate(event, item)}
-              on:mousedown={(e) => handleWidgetDragStart(e, item)}
-              on:pointerdown={(e) => handleWidgetPointerDragStart(e, item)}
+              use:interactable={dragInteractableOptions(item)}
               on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
               role="toolbar"
               tabindex="-1"
@@ -1114,9 +1006,7 @@
           <div
             class="cw-body"
             class:cw-body-minimal={lodLevel === "minimal"}
-            on:pointerup={(event) => handleWidgetActivate(event, item)}
-            on:mousedown={(e) => { if (lodLevel === "minimal") handleWidgetDragStart(e, item); }}
-            on:pointerdown={(e) => { if (lodLevel === "minimal") handleWidgetPointerDragStart(e, item); }}
+            use:interactable={dragInteractableOptions(item, lodLevel === "minimal")}
             on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
             role="region"
           >
@@ -1151,14 +1041,14 @@
           {#if lodLevel !== "minimal"}
             <!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
             <div class="cw-resize-layer" aria-hidden="true">
-              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "n")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "n")}></div>
-              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "ne")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "ne")}></div>
-              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "e")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "e")}></div>
-              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "se")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "se")}></div>
-              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "s")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "s")}></div>
-              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "sw")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "sw")}></div>
-              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "w")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "w")}></div>
-              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" on:mousedown={(e) => handleResizeStart(e, item, "nw")} on:pointerdown={(e) => handlePointerResizeStart(e, item, "nw")}></div>
+              <div class="cw-resize-handle cw-resize-n" role="separator" aria-label="Resize north" tabindex="-1" use:interactable={resizeInteractableOptions(item, "n")}></div>
+              <div class="cw-resize-handle cw-resize-ne" role="separator" aria-label="Resize north-east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "ne")}></div>
+              <div class="cw-resize-handle cw-resize-e" role="separator" aria-label="Resize east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "e")}></div>
+              <div class="cw-resize-handle cw-resize-se" role="separator" aria-label="Resize south-east" tabindex="-1" use:interactable={resizeInteractableOptions(item, "se")}></div>
+              <div class="cw-resize-handle cw-resize-s" role="separator" aria-label="Resize south" tabindex="-1" use:interactable={resizeInteractableOptions(item, "s")}></div>
+              <div class="cw-resize-handle cw-resize-sw" role="separator" aria-label="Resize south-west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "sw")}></div>
+              <div class="cw-resize-handle cw-resize-w" role="separator" aria-label="Resize west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "w")}></div>
+              <div class="cw-resize-handle cw-resize-nw" role="separator" aria-label="Resize north-west" tabindex="-1" use:interactable={resizeInteractableOptions(item, "nw")}></div>
             </div>
           {/if}
         </div>
