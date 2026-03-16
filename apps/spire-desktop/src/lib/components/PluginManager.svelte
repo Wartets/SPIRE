@@ -14,6 +14,7 @@
   import { tooltip } from "$lib/actions/tooltip";
   import { loadPlugin, listActivePlugins, unloadPlugin } from "$lib/api";
   import type { PluginInfo } from "$lib/api";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   // ── State ──
   let plugins: PluginInfo[] = [];
@@ -104,6 +105,13 @@
     };
     return map[cap] ?? cap;
   }
+
+  $: publishWidgetInterop("plugin_manager", {
+    loading,
+    pluginCount: plugins.length,
+    pluginNames: plugins.map((p) => p.name),
+    hasError: error.length > 0,
+  });
 </script>
 
 <div class="plugin-manager">
@@ -145,7 +153,7 @@
   <!-- Plugin list -->
   {#if plugins.length === 0}
     <div class="pm-empty">
-      <div class="pm-empty-icon">🧩</div>
+      <div class="pm-empty-icon">PLG</div>
       <p>No plugins loaded</p>
       <p class="pm-empty-hint">
         Load a <code>.wasm</code> plugin to extend SPIRE with custom

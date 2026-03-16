@@ -13,6 +13,7 @@
   import { theoreticalModel, activeReaction, appendLog } from "$lib/stores/physicsStore";
   import { runParameterScan1D } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import type { ScanScale, ScanResult1D, TheoreticalModel } from "$lib/types/spire";
@@ -126,6 +127,7 @@
 
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: Chart | null = null;
+  let interopUnsub: (() => void) | null = null;
 
   // -------------------------------------------------------------------------
   // Reactive Model Subscription
@@ -321,6 +323,21 @@
   // -------------------------------------------------------------------------
 
   onMount(() => {
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      if (scanning) return;
+
+      const reactionPayload = state.reaction?.payload as
+        | { cmsEnergy?: number }
+        | undefined;
+      if (reactionPayload?.cmsEnergy && Number.isFinite(reactionPayload.cmsEnergy)) {
+        const current = presets.find((p) => p.target === "cms_energy");
+        if (current && !useCustomTarget) {
+          scanMin = Math.max(1, reactionPayload.cmsEnergy * 0.2);
+          scanMax = reactionPayload.cmsEnergy * 2;
+        }
+      }
+    });
+
     registerCommand({
       id: "spire.runParameterScan",
       title: "Run Parameter Scan",
@@ -330,12 +347,23 @@
   });
 
   onDestroy(() => {
+    interopUnsub?.();
     unsubModel();
     unregisterCommand("spire.runParameterScan");
     if (chartInstance) {
       chartInstance.destroy();
       chartInstance = null;
     }
+  });
+
+  $: publishWidgetInterop("parameter_scanner", {
+    target: useCustomTarget ? customTarget : (presets[selectedPresetIdx]?.target ?? "cms_energy"),
+    range: [scanMin, scanMax],
+    steps: scanSteps,
+    scale: scanScale,
+    eventsPerPoint,
+    scanning,
+    points: result?.x_values.length ?? 0,
   });
 </script>
 
@@ -417,7 +445,7 @@
       {#if scanning}
         <span class="spinner"></span> Scanning…
       {:else}
-        ▶ Run Scan
+        Run Scan
       {/if}
     </button>
 
@@ -454,7 +482,7 @@
       </div>
     {:else if !scanning}
       <div class="empty-state">
-        <p>Configure a scan target and range above, then press <strong>▶ Run Scan</strong>.</p>
+        <p>Configure a scan target and range above, then press <strong>Run Scan</strong>.</p>
         <p class="hint">Tip: Load a model and set up a reaction for realistic final-state masses.</p>
       </div>
     {/if}

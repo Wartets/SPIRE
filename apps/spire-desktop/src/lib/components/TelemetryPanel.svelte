@@ -26,6 +26,7 @@
     clearTelemetry,
     pushProfile,
   } from "$lib/core/services/TelemetryService";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { ProfileEntry } from "$lib/core/services/TelemetryService";
 
   // ── Formatting Helpers ──────────────────────────────────
@@ -130,6 +131,16 @@
   // ── Bar Max ─────────────────────────────────────────────
 
   $: barMax = $stageTimings.length > 0 ? $stageTimings[0][1] : 1;
+
+  $: publishWidgetInterop("telemetry", {
+    profileCount: $profileCount,
+    label: $latestLabel || null,
+    totalMs: $latestProfile?.total_time_ms ?? null,
+    peakMemoryMb: $latestProfile?.peak_memory_mb ?? null,
+    threadsUsed: $latestProfile?.threads_used ?? null,
+    stageCount: $stageTimings.length,
+    hasConvergence: $convergenceData.length >= 2,
+  });
 </script>
 
 <div class="telemetry-panel">

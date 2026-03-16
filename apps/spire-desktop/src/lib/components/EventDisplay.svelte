@@ -15,6 +15,7 @@
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
   import { generateDisplayBatch } from "$lib/api";
+  import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import type {
     EventDisplayData,
     DisplayJet,
@@ -87,6 +88,7 @@
   let animatedTracks: AnimatedTrack[] = [];
   let animatedJets: AnimatedJet[] = [];
   let animatedMET: AnimatedArrow | null = null;
+  let interopUnsub: (() => void) | null = null;
 
   // ---------------------------------------------------------------------------
   // Derived State
@@ -453,6 +455,24 @@
 
   onMount(() => {
     initScene();
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      if (loading || eventBatch.length > 0) return;
+      const reactionPayload = state.reaction?.payload as
+        | { cmsEnergy?: number; nFinalState?: number; finalState?: string[] }
+        | undefined;
+
+      if (reactionPayload) {
+        if (typeof reactionPayload.cmsEnergy === "number" && Number.isFinite(reactionPayload.cmsEnergy)) {
+          cmsEnergy = reactionPayload.cmsEnergy;
+        }
+        if (typeof reactionPayload.nFinalState === "number" && Number.isFinite(reactionPayload.nFinalState)) {
+          nFinal = Math.max(2, Math.min(8, Math.floor(reactionPayload.nFinalState)));
+        } else if (Array.isArray(reactionPayload.finalState) && reactionPayload.finalState.length > 0) {
+          nFinal = Math.max(2, Math.min(8, reactionPayload.finalState.length));
+        }
+      }
+    });
+
     // Use ResizeObserver for container-level resize (canvas mode, docking splits)
     resizeObserver = new ResizeObserver(() => handleResize());
     if (containerEl) resizeObserver.observe(containerEl);
@@ -460,6 +480,7 @@
   });
 
   onDestroy(() => {
+    interopUnsub?.();
     resizeObserver?.disconnect();
     window.removeEventListener("resize", handleResize);
     cancelAnimationFrame(animFrameId);
@@ -468,6 +489,17 @@
     if (renderer && containerEl?.contains(renderer.domElement)) {
       containerEl.removeChild(renderer.domElement);
     }
+  });
+
+  $: publishWidgetInterop("event_display", {
+    cmsEnergy,
+    nFinal,
+    detectorPreset,
+    batchSize,
+    playbackState,
+    currentEventIdx,
+    bufferedEvents: eventBatch.length,
+    simTime,
   });
 </script>
 
@@ -518,13 +550,13 @@
     <!-- Playback Controls -->
     {#if eventBatch.length > 0}
       <div class="playback-bar">
-        <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }}>⏮</button>
+        <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }}>|&lt;</button>
         {#if playbackState === "playing"}
-          <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }}>⏸</button>
+          <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }}>| |</button>
         {:else}
-          <button class="ctrl-btn ctrl-play" on:click={play} use:tooltip={{ text: "Play" }}>▶</button>
+          <button class="ctrl-btn ctrl-play" on:click={play} use:tooltip={{ text: "Play" }}>&gt;</button>
         {/if}
-        <button class="ctrl-btn" on:click={stepForward} use:tooltip={{ text: "Next Event" }}>⏭</button>
+        <button class="ctrl-btn" on:click={stepForward} use:tooltip={{ text: "Next Event" }}>&gt;|</button>
 
         <div class="speed-control">
           <label for="ed-speed">Speed:</label>

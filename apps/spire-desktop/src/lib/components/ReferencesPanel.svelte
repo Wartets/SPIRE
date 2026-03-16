@@ -20,6 +20,7 @@
   } from "$lib/core/services/CitationRegistry";
   import type { Citation } from "$lib/core/services/CitationRegistry";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   let copyMsg = "";
 
@@ -78,6 +79,11 @@
     if (!c.doi) return null;
     return `https://doi.org/${c.doi}`;
   }
+
+  $: publishWidgetInterop("references", {
+    count: $activeCitationCount,
+    topCitation: $activeCitations[0]?.title ?? null,
+  });
 </script>
 
 <div class="references-panel">

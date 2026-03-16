@@ -70,7 +70,11 @@ function buildInteropActions(widgetType: WidgetType): ContextMenuItem[] {
 
   const syncItems: ContextMenuItem[] = [];
 
-  if ((widgetType === "analysis" || widgetType === "compute_grid") && reactionInterop?.cmsEnergy) {
+  if ((widgetType === "analysis"
+      || widgetType === "compute_grid"
+      || widgetType === "event_display"
+      || widgetType === "parameter_scanner")
+      && reactionInterop?.cmsEnergy) {
     syncItems.push(
       menuAction(
         `${widgetType}-sync-cms`,

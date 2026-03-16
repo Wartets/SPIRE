@@ -377,14 +377,14 @@
     <!-- Action Buttons -->
     <div class="action-row">
       {#if isRunning}
-        <button class="cancel-btn" on:click={handleCancel}>✕ Cancel</button>
+        <button class="cancel-btn" on:click={handleCancel}>Cancel</button>
       {:else}
         <button class="launch-btn" on:click={handleLaunch} disabled={isComplete && snapshot?.status === "complete"}>
-          ▶ Launch Grid
+          Launch Grid
         </button>
       {/if}
       {#if isComplete}
-        <span class="complete-badge">✓ Complete</span>
+        <span class="complete-badge">Complete</span>
       {/if}
     </div>
 
@@ -427,7 +427,7 @@
               <span class="node-id">{node.id}</span>
               <span class="node-status">{node.status}</span>
               {#if node.retries > 0}
-                <span class="node-retries">⟳{node.retries}</span>
+                <span class="node-retries">r{node.retries}</span>
               {/if}
             </div>
           </div>

@@ -14,6 +14,7 @@
   import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
   import { calculateDecayTable, exportDecaySlha } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
+  import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import type { TheoreticalModel, CalcDecayTable, CalcDecayChannel } from "$lib/types/spire";
   import {
@@ -53,6 +54,7 @@
 
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: Chart | null = null;
+  let interopUnsub: (() => void) | null = null;
 
   // -------------------------------------------------------------------------
   // Model subscription
@@ -263,6 +265,27 @@
   // -------------------------------------------------------------------------
 
   onMount(() => {
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      if (computing || massiveParticles.length === 0) return;
+
+      const modelPayload = state.model?.payload as { modelName?: string } | undefined;
+      if (modelPayload?.modelName) {
+        // Model updates are already reflected via store subscription.
+        // This branch intentionally keeps the interop channel warm for future routing.
+      }
+
+      const reactionPayload = state.reaction?.payload as
+        | { initialState?: string[] }
+        | undefined;
+      if (reactionPayload?.initialState?.length) {
+        const candidate = reactionPayload.initialState[0]?.toLowerCase() ?? "";
+        const idx = massiveParticles.findIndex((p) =>
+          p.id.toLowerCase().includes(candidate) || p.name.toLowerCase().includes(candidate)
+        );
+        if (idx >= 0) selectedIdx = idx;
+      }
+    });
+
     registerCommand({
       id: "spire.calculateDecayTable",
       title: "Calculate Decay Table",
@@ -272,12 +295,22 @@
   });
 
   onDestroy(() => {
+    interopUnsub?.();
     unsubModel();
     unregisterCommand("spire.calculateDecayTable");
     if (chartInstance) {
       chartInstance.destroy();
       chartInstance = null;
     }
+  });
+
+  $: publishWidgetInterop("decay_calculator", {
+    selectedParticle: massiveParticles[selectedIdx]?.id ?? null,
+    selectedParticleName: massiveParticles[selectedIdx]?.name ?? null,
+    computing,
+    channels: decayTable?.channels.length ?? 0,
+    totalWidth: decayTable?.total_width ?? null,
+    lifetimeSeconds: decayTable?.lifetime_seconds ?? null,
   });
 </script>
 
@@ -306,7 +339,7 @@
       {#if computing}
         <span class="spinner"></span> Computing…
       {:else}
-        ▶ Compute Decays
+        Compute Decays
       {/if}
     </button>
 
@@ -368,16 +401,16 @@
       <!-- SLHA Export -->
       <div class="export-row">
         <button class="export-btn" on:click={copySlha} use:tooltip={{ text: "Copy SLHA DECAY block to clipboard" }}>
-          📋 Copy SLHA
+          Copy SLHA
         </button>
         <button class="export-btn" on:click={downloadSlha} use:tooltip={{ text: "Download SLHA DECAY block as .slha file" }}>
-          💾 Download .slha
+          Download .slha
         </button>
       </div>
 
     {:else if !computing}
       <div class="empty-state">
-        <p>Select a parent particle above, then press <strong>▶ Compute Decays</strong>.</p>
+        <p>Select a parent particle above, then press <strong>Compute Decays</strong>.</p>
         <p class="hint">The engine discovers all kinematically allowed 2-body channels from the loaded model.</p>
       </div>
     {/if}
