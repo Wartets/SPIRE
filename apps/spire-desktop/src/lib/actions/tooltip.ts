@@ -1,7 +1,7 @@
 export interface TooltipOptions {
   text: string;
   delay?: number;
-  placement?: "top" | "bottom";
+  placement?: "top" | "bottom" | "auto";
   maxWidth?: number;
 }
 
@@ -15,18 +15,30 @@ function canUseDom(): boolean {
 function computePosition(
   targetRect: DOMRect,
   tooltipRect: DOMRect,
-  placement: "top" | "bottom",
+  placement: "top" | "bottom" | "auto",
 ): { top: number; left: number } {
-  const preferredTop =
-    placement === "bottom"
-      ? targetRect.bottom + TARGET_GAP
-      : targetRect.top - tooltipRect.height - TARGET_GAP;
+  const topCandidate = targetRect.top - tooltipRect.height - TARGET_GAP;
+  const bottomCandidate = targetRect.bottom + TARGET_GAP;
 
-  let top = preferredTop;
-  if (placement === "top" && top < VIEWPORT_MARGIN) {
-    top = targetRect.bottom + TARGET_GAP;
-  } else if (placement === "bottom" && top + tooltipRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-    top = targetRect.top - tooltipRect.height - TARGET_GAP;
+  const canFitTop = topCandidate >= VIEWPORT_MARGIN;
+  const canFitBottom = bottomCandidate + tooltipRect.height <= window.innerHeight - VIEWPORT_MARGIN;
+
+  let resolved: "top" | "bottom";
+  if (placement === "top" || placement === "bottom") {
+    resolved = placement;
+  } else if (canFitTop) {
+    resolved = "top";
+  } else if (canFitBottom) {
+    resolved = "bottom";
+  } else {
+    resolved = topCandidate > bottomCandidate ? "top" : "bottom";
+  }
+
+  let top = resolved === "bottom" ? bottomCandidate : topCandidate;
+  if (resolved === "top" && !canFitTop && canFitBottom) {
+    top = bottomCandidate;
+  } else if (resolved === "bottom" && !canFitBottom && canFitTop) {
+    top = topCandidate;
   }
 
   if (top < VIEWPORT_MARGIN) {
@@ -62,7 +74,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
 
   let currentOptions: TooltipOptions = {
     delay: 400,
-    placement: "top",
+    placement: "auto",
     maxWidth: 360,
     ...options,
   };
@@ -86,11 +98,16 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
 
   const syncPosition = (): void => {
     if (!host || !visible) return;
+    host.style.visibility = "hidden";
+    host.style.display = "block";
+
     const targetRect = node.getBoundingClientRect();
     const tooltipRect = host.getBoundingClientRect();
-    const position = computePosition(targetRect, tooltipRect, currentOptions.placement ?? "top");
+    const position = computePosition(targetRect, tooltipRect, currentOptions.placement ?? "auto");
+
     host.style.top = `${position.top}px`;
     host.style.left = `${position.left}px`;
+    host.style.visibility = "visible";
   };
 
   const ensureHost = (): HTMLDivElement => {
@@ -112,6 +129,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     element.style.opacity = "0";
     element.style.transform = "translateY(-2px)";
     element.style.transition = "opacity 120ms ease, transform 120ms ease";
+    element.style.willChange = "transform, opacity, top, left";
     document.body.appendChild(element);
     host = element;
     return element;
@@ -128,7 +146,10 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     element.style.opacity = "1";
     element.style.transform = "translateY(0)";
 
-    requestAnimationFrame(() => syncPosition());
+    requestAnimationFrame(() => {
+      if (!visible) return;
+      syncPosition();
+    });
     window.addEventListener("scroll", syncPosition, true);
     window.addEventListener("resize", syncPosition);
   };
@@ -166,7 +187,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     update(next: TooltipOptions) {
       currentOptions = {
         delay: 400,
-        placement: "top",
+        placement: "auto",
         maxWidth: 360,
         ...next,
       };

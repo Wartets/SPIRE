@@ -756,13 +756,32 @@
     bringToFrontById(detail.widgetId);
   }
 
-  function handleWidgetActivate(event: Event, item: CanvasItem): void {
-    selectWidget(item);
+  function widgetIdFromEvent(event: Event): string | null {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    for (const entry of path) {
+      if (!(entry instanceof HTMLElement)) continue;
+      const id = entry.dataset?.canvasItemId;
+      if (id) return id;
+    }
+    const target = event.target;
+    if (target instanceof HTMLElement) {
+      return target.closest<HTMLElement>("[data-canvas-item-id]")?.dataset.canvasItemId ?? null;
+    }
+    return null;
   }
 
-  function handleWidgetMouseDown(event: MouseEvent, item: CanvasItem): void {
+  function handleWidgetPointerCaptureFocus(event: PointerEvent): void {
     if (event.button !== 0) return;
-    handleWidgetActivate(event, item);
+    const widgetId = widgetIdFromEvent(event);
+    if (!widgetId) return;
+    bringToFrontById(widgetId);
+  }
+
+  function handleWidgetMouseCaptureFocus(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    const widgetId = widgetIdFromEvent(event);
+    if (!widgetId) return;
+    bringToFrontById(widgetId);
   }
 
   // ── Canvas Context Menu ──
@@ -906,9 +925,12 @@
   <div class="canvas-grid" style={gridStyle}></div>
 
   <!-- Transform layer -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
     class="canvas-transform"
     style="transform: translate({panX}px, {panY}px) scale({zoom});"
+    on:pointerdown|capture={handleWidgetPointerCaptureFocus}
+    on:mousedown|capture={handleWidgetMouseCaptureFocus}
   >
     {#if automationEnabled}
       <svg class="automation-links" aria-hidden="true">
@@ -936,8 +958,6 @@
             z-index: {zIndexOf(item)};
           "
           data-canvas-item-id={item.id}
-          on:pointerdown|capture={(event) => handleWidgetActivate(event, item)}
-          on:mousedown|capture={(event) => handleWidgetMouseDown(event, item)}
           on:focusin={() => selectWidget(item)}
           on:contextmenu={(e) => handleWidgetBodyContext(e, item)}
           use:longpress={{

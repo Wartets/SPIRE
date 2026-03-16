@@ -86,7 +86,7 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
 
     options.onBringToFront?.(options.itemId);
 
-    const started =
+    const startInteraction = () =>
       options.mode === "drag"
         ? interactionManager.startDrag({
             itemId: options.itemId,
@@ -106,13 +106,21 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
             minHeight: options.minHeight,
           });
 
+    let started = startInteraction();
+    if (!started) {
+      // Defensive recovery: an interrupted pointer lifecycle can leave
+      // a stale global session that blocks all future drags/resizes.
+      interactionManager.forceReset();
+      started = startInteraction();
+    }
+
     if (!started) return;
 
     activePointerId = event.pointerId;
-    const captured = safeSetCapture(event.pointerId);
-    if (!captured) {
-      addWindowFallbackListeners();
-    }
+    safeSetCapture(event.pointerId);
+    // Keep fallback listeners even when capture succeeds.
+    // WebView capture delivery can be inconsistent across hosts.
+    addWindowFallbackListeners();
     event.preventDefault();
     event.stopPropagation();
   }
