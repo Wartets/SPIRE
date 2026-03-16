@@ -18,6 +18,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
+  import Icon from "$lib/components/ui/Icon.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import { gridManager, gridSnapshot } from "$lib/services/ComputeGrid";
   import type { GridJobSnapshot, ConvergencePoint } from "$lib/types/compute";
@@ -377,14 +378,14 @@
     <!-- Action Buttons -->
     <div class="action-row">
       {#if isRunning}
-        <button class="cancel-btn" on:click={handleCancel}>Cancel</button>
+        <button class="cancel-btn" on:click={handleCancel}><Icon name="stop" size={14} /> <span>Cancel</span></button>
       {:else}
         <button class="launch-btn" on:click={handleLaunch} disabled={isComplete && snapshot?.status === "complete"}>
-          Launch Grid
+          <Icon name="play" size={14} /> <span>Launch Grid</span>
         </button>
       {/if}
       {#if isComplete}
-        <span class="complete-badge">Complete</span>
+        <span class="complete-badge"><Icon name="check" size={13} /> <span>Complete</span></span>
       {/if}
     </div>
 

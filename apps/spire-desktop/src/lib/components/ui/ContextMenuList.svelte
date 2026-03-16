@@ -14,6 +14,7 @@
   import { tooltip } from "$lib/actions/tooltip";
   import { hideContextMenu } from "$lib/stores/contextMenuStore";
   import type { ContextMenuItem } from "$lib/types/menu";
+  import Icon from "$lib/components/ui/Icon.svelte";
 
   /** The items to render. */
   export let items: ContextMenuItem[] = [];
@@ -202,7 +203,9 @@
           {/if}
 
           {#if item.icon}
-            <span class="ctx-icon" style={item.iconColor ? `color: ${item.iconColor}` : ''}>{item.icon}</span>
+            <span class="ctx-icon" style={item.iconColor ? `color: ${item.iconColor}` : ''}>
+              <Icon name={item.icon} size={14} />
+            </span>
           {/if}
 
           <span class="ctx-label">{item.label}</span>

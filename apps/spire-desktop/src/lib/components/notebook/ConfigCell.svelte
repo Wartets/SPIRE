@@ -11,8 +11,9 @@
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
   import { tooltip } from "$lib/actions/tooltip";
+  import Icon from "$lib/components/ui/Icon.svelte";
 
-  export let cell: CellData;
+  export let cell = {} as CellData;
 
   const dispatch = createEventDispatcher<{
     sourceChange: string;
@@ -74,13 +75,13 @@
       {#if cell.running}
         ...
       {:else}
-        RUN
+        <Icon name="play" size={14} />
       {/if}
     </button>
     <div class="cc-actions">
-      <button class="cc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}>↑</button>
-      <button class="cc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}>↓</button>
-      <button class="cc-btn cc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}>✕</button>
+      <button class="cc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}><Icon name="up" size={13} /></button>
+      <button class="cc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}><Icon name="down" size={13} /></button>
+      <button class="cc-btn cc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}><Icon name="close" size={13} /></button>
     </div>
   </div>
 

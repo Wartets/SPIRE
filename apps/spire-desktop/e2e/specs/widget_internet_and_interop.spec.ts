@@ -61,4 +61,27 @@ test.describe("widget internet + interop", () => {
     await expect(page.locator(".ctx-item .ctx-label", { hasText: "Search Web for" })).toBeVisible();
     await expect(page.locator(".ctx-item .ctx-label", { hasText: "Search arXiv for Selection" })).toBeVisible();
   });
+
+  test("widget controls render SVG library icons instead of text placeholders", async ({ page }) => {
+    const wb = new WorkbenchPage(page);
+    await wb.goto();
+    await wb.ensureDockingMode();
+
+    await wb.addWidgetByLabel("Notebook");
+    await wb.addWidgetByLabel("Plugin Manager");
+
+    const notebookWidget = page
+      .locator(".widget-container")
+      .filter({ has: page.locator(".wc-title", { hasText: "Notebook" }) })
+      .last();
+    const pluginWidget = page
+      .locator(".widget-container")
+      .filter({ has: page.locator(".wc-title", { hasText: "Plugin Manager" }) })
+      .last();
+
+    await expect(notebookWidget.locator(".nb-action svg").first()).toBeVisible();
+    await expect(pluginWidget.locator(".pm-refresh-btn svg")).toBeVisible();
+    await expect(pluginWidget.locator(".pm-empty-icon svg")).toBeVisible();
+    await expect(notebookWidget.locator(".wc-btn svg").first()).toBeVisible();
+  });
 });

@@ -22,6 +22,7 @@
   import { getWidgetContextItems } from "$lib/core/services/widgetContextActions";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
+  import Icon from "$lib/components/ui/Icon.svelte";
 
   export let node: WidgetLeaf;
 
@@ -240,10 +241,10 @@
       role="button"
       tabindex="-1"
       aria-label="Drag handle"
-    >⠿</span>
+    ><Icon name="grip" size={13} /></span>
     <span class="wc-title">{label}</span>
     {#if linked}
-      <span class="wc-link-badge" use:tooltip={{ text: "Connected via pipeline" }}>⟷</span>
+      <span class="wc-link-badge" use:tooltip={{ text: "Connected via pipeline" }}><Icon name="workflow" size={12} /></span>
     {/if}
     <div class="wc-controls">
       <button
@@ -251,25 +252,25 @@
         on:click={handleSplitH}
         use:tooltip={{ text: "Split Horizontal" }}
         aria-label="Split Horizontal"
-      >⬌</button>
+      ><Icon name="row" size={13} /></button>
       <button
         class="wc-btn"
         on:click={handleSplitV}
         use:tooltip={{ text: "Split Vertical" }}
         aria-label="Split Vertical"
-      >⬍</button>
+      ><Icon name="column" size={13} /></button>
       <button
         class="wc-btn"
         on:click={handleTearOff}
         use:tooltip={{ text: "Tear Off to New Window" }}
         aria-label="Tear Off"
-      >⧉</button>
+      ><Icon name="panels" size={13} /></button>
       <button
         class="wc-btn wc-close"
         on:click={handleClose}
         use:tooltip={{ text: "Close Widget" }}
         aria-label="Close"
-      >&times;</button>
+      ><Icon name="close" size={13} /></button>
     </div>
   </header>
 

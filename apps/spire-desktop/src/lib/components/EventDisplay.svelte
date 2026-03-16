@@ -26,6 +26,7 @@
   } from "$lib/types/spire";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import SpireSlider from "$lib/components/ui/SpireSlider.svelte";
+  import Icon from "$lib/components/ui/Icon.svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import * as THREE from "three";
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -550,13 +551,13 @@
     <!-- Playback Controls -->
     {#if eventBatch.length > 0}
       <div class="playback-bar">
-        <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }}>|&lt;</button>
+        <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }} aria-label="Previous Event"><Icon name="skip-back" size={16} /></button>
         {#if playbackState === "playing"}
-          <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }}>| |</button>
+          <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }} aria-label="Pause"><Icon name="pause" size={16} /></button>
         {:else}
-          <button class="ctrl-btn ctrl-play" on:click={play} use:tooltip={{ text: "Play" }}>&gt;</button>
+          <button class="ctrl-btn ctrl-play" on:click={play} use:tooltip={{ text: "Play" }} aria-label="Play"><Icon name="play" size={16} /></button>
         {/if}
-        <button class="ctrl-btn" on:click={stepForward} use:tooltip={{ text: "Next Event" }}>&gt;|</button>
+        <button class="ctrl-btn" on:click={stepForward} use:tooltip={{ text: "Next Event" }} aria-label="Next Event"><Icon name="skip-forward" size={16} /></button>
 
         <div class="speed-control">
           <label for="ed-speed">Speed:</label>

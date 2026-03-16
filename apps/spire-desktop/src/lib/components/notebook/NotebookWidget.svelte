@@ -12,6 +12,7 @@
 <script lang="ts">
   import { onDestroy, onMount, tick } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import Icon from "$lib/components/ui/Icon.svelte";
   import type { CellType } from "$lib/core/domain/notebook";
   import {
     getWidgetUiSnapshot,
@@ -180,17 +181,17 @@
         on:click={() => executeAllCells()}
         disabled={$isExecuting}
         use:tooltip={{ text: "Run All Cells" }}
-      >Run All</button>
+      ><Icon name="play" size={13} /> <span>Run All</span></button>
       <button
         class="nb-action"
         on:click={() => clearAllOutputs()}
         use:tooltip={{ text: "Clear All Outputs" }}
-      >⌧ Clear</button>
+      ><Icon name="close" size={13} /> <span>Clear</span></button>
       <button
         class="nb-action"
         on:click={() => resetSession()}
         use:tooltip={{ text: "Reset Session (clears scope and model)" }}
-      >↺ Reset</button>
+      ><Icon name="reset" size={13} /> <span>Reset</span></button>
     </div>
 
     <span class="nb-cell-count">{$cellCount} cells</span>
@@ -237,15 +238,15 @@
       {#if showAddMenu}
         <div class="nb-add-menu">
           <button class="nb-menu-item" on:click={() => addCellOfType("markdown")}>
-            <span class="nb-menu-icon" style="color: var(--hl-info, #4a9eff)">¶</span>
+            <span class="nb-menu-icon" style="color: var(--hl-info, #4a9eff)"><Icon name="text" size={14} /></span>
             Markdown
           </button>
           <button class="nb-menu-item" on:click={() => addCellOfType("script")}>
-            <span class="nb-menu-icon" style="color: var(--hl-success, #50fa7b)">SCR</span>
+            <span class="nb-menu-icon" style="color: var(--hl-success, #50fa7b)"><Icon name="play" size={14} /></span>
             Script
           </button>
           <button class="nb-menu-item" on:click={() => addCellOfType("config")}>
-            <span class="nb-menu-icon" style="color: var(--hl-warning, #f1fa8c)">CFG</span>
+            <span class="nb-menu-icon" style="color: var(--hl-warning, #f1fa8c)"><Icon name="settings" size={14} /></span>
             Config
           </button>
         </div>

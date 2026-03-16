@@ -14,6 +14,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import Icon from "$lib/components/ui/Icon.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import {
     startMcmcFit,
@@ -431,7 +432,7 @@
             <td><SpireNumberInput bind:value={p.min} step={0.1} ariaLabel="Parameter minimum" /></td>
             <td><SpireNumberInput bind:value={p.max} step={0.1} ariaLabel="Parameter maximum" /></td>
             <td>
-              <button class="btn-remove" on:click={() => removeParameter(i)}>✕</button>
+              <button class="btn-remove" on:click={() => removeParameter(i)}><Icon name="close" size={13} /></button>
             </td>
           </tr>
         {/each}
@@ -461,7 +462,7 @@
             <td><SpireNumberInput bind:value={c.observed} step={0.1} ariaLabel="Observed value" /></td>
             <td><SpireNumberInput bind:value={c.sigma} step={0.1} ariaLabel="Constraint sigma" /></td>
             <td>
-              <button class="btn-remove" on:click={() => removeConstraint(i)}>✕</button>
+              <button class="btn-remove" on:click={() => removeConstraint(i)}><Icon name="close" size={13} /></button>
             </td>
           </tr>
         {/each}
@@ -490,9 +491,9 @@
 
     <div class="action-row">
       {#if isRunning}
-        <button class="btn-stop" on:click={stopFit}>Stop</button>
+        <button class="btn-stop" on:click={stopFit}><Icon name="stop" size={14} /> <span>Stop</span></button>
       {:else}
-        <button class="btn-start" on:click={startFit}>Start Fit</button>
+        <button class="btn-start" on:click={startFit}><Icon name="play" size={14} /> <span>Start Fit</span></button>
       {/if}
     </div>
 

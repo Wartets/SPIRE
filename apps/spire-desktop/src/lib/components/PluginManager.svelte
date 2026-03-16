@@ -12,6 +12,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import Icon from "$lib/components/ui/Icon.svelte";
   import { loadPlugin, listActivePlugins, unloadPlugin } from "$lib/api";
   import type { PluginInfo } from "$lib/api";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
@@ -125,7 +126,8 @@
       {#if loading}
         Loading…
       {:else}
-        ＋ Load Plugin (.wasm)
+        <Icon name="plus" size={14} />
+        <span>Load Plugin (.wasm)</span>
       {/if}
     </button>
     <button
@@ -133,7 +135,7 @@
       on:click={refreshPlugins}
       disabled={loading}
       use:tooltip={{ text: "Refresh plugin list" }}
-    >↻</button>
+    ><Icon name="refresh" size={15} /></button>
   </div>
 
   <!-- Feedback messages -->
@@ -153,7 +155,7 @@
   <!-- Plugin list -->
   {#if plugins.length === 0}
     <div class="pm-empty">
-      <div class="pm-empty-icon">PLG</div>
+      <div class="pm-empty-icon"><Icon name="panels" size={30} /></div>
       <p>No plugins loaded</p>
       <p class="pm-empty-hint">
         Load a <code>.wasm</code> plugin to extend SPIRE with custom
@@ -172,7 +174,7 @@
               on:click={() => handleUnload(plugin.name)}
               use:tooltip={{ text: "Unload plugin" }}
               disabled={loading}
-            >✕</button>
+            ><Icon name="close" size={13} /></button>
           </div>
           <div class="pm-card-desc">{plugin.description}</div>
           <div class="pm-card-meta">
