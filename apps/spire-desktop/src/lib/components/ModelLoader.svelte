@@ -206,6 +206,33 @@
   /** Toggle between showing/hiding TOML editors (always shown in custom mode). */
   let showEditors: boolean = false;
 
+  $: interactionSummary = (() => {
+    if (!$theoreticalModel) return "";
+    const counts = new Map<string, number>();
+    for (const field of $theoreticalModel.fields) {
+      for (const interaction of field.interactions ?? []) {
+        counts.set(interaction, (counts.get(interaction) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([name, count]) => `${name} (${count})`)
+      .join(" · ");
+  })();
+
+  $: spinSummary = (() => {
+    if (!$theoreticalModel) return "";
+    const spins = new Set($theoreticalModel.fields.map((f) => String(f.quantum_numbers?.spin ?? "?")));
+    return [...spins].sort().join(", ");
+  })();
+
+  $: gaugeSummary = (() => {
+    const gauge = $theoreticalModel?.gauge_symmetry;
+    if (!gauge) return "Not specified";
+    return gauge.label || `${gauge.groups.length} gauge groups`;
+  })();
+
   $: persistModelLoaderUi({ showEditors });
 
   let scrollPersistRaf: number | null = null;
@@ -306,7 +333,12 @@
   bind:this={rootScroller}
   on:scroll={handleRootScroll}
 >
-  <h3>Model Loader</h3>
+  <div class="header-row">
+    <h3>Model Loader</h3>
+    {#if $theoreticalModel}
+      <span class="loaded-chip">Loaded</span>
+    {/if}
+  </div>
 
   <!-- Framework Selector -->
   <label class="field-label">
@@ -375,6 +407,14 @@
       {$theoreticalModel.name} - {fieldCount} fields, {vertexCount} vertices
     </div>
 
+    <div class="model-metadata">
+      <div><span>Gauge</span> {gaugeSummary}</div>
+      <div><span>Terms</span> {$theoreticalModel.terms.length} total</div>
+      <div><span>Propagators</span> {$theoreticalModel.propagators.length} rules</div>
+      <div><span>Spins</span> {spinSummary || "Unknown"}</div>
+      <div><span>Top interactions</span> {interactionSummary || "Not available"}</div>
+    </div>
+
     <!-- UFO Export -->
     <button class="ufo-btn" on:click={handleExportUfo} disabled={ufoExporting}>
       {#if ufoExporting}
@@ -441,6 +481,23 @@
     color: var(--fg-accent);
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .loaded-chip {
+    border: 1px solid var(--hl-success);
+    color: var(--hl-success);
+    background: var(--bg-inset);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    font-weight: 600;
   }
   .field-label {
     display: flex;
@@ -513,6 +570,22 @@
     background: var(--bg-inset);
     color: var(--hl-success);
     border: 1px solid var(--hl-success);
+  }
+  .model-metadata {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.74rem;
+    color: var(--fg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-inset);
+    padding: 0.45rem 0.55rem;
+  }
+  .model-metadata span {
+    color: var(--fg-accent);
+    margin-right: 0.35rem;
+    font-weight: 600;
   }
   .custom-controls {
     display: flex;

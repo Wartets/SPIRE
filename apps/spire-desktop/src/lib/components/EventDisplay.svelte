@@ -390,6 +390,8 @@
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(containerEl.clientWidth, containerEl.clientHeight);
+    renderer.domElement.setAttribute("data-pointer-passthrough", "true");
+    renderer.domElement.style.touchAction = "none";
     containerEl.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);

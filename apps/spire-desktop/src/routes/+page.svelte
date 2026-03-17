@@ -356,6 +356,9 @@
       const dy = event.clientY - placementStartY;
       if (Math.hypot(dx, dy) >= PLACEMENT_DRAG_THRESHOLD) {
         placementActive = true;
+        // In docking mode, close the toolbox menu so it doesn't block
+        // document.elementsFromPoint() from finding docking drop targets.
+        if ($viewMode === "docking") toolboxOpen = false;
       }
     }
 

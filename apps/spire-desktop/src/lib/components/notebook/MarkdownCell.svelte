@@ -24,9 +24,18 @@
   let editing = false;
   let textareaEl: HTMLTextAreaElement | undefined;
 
+  function autoSizeEditor(): void {
+    if (!textareaEl) return;
+    textareaEl.style.height = "0px";
+    textareaEl.style.height = `${Math.max(90, textareaEl.scrollHeight)}px`;
+  }
+
   function startEditing(): void {
     editing = true;
-    requestAnimationFrame(() => textareaEl?.focus());
+    requestAnimationFrame(() => {
+      textareaEl?.focus();
+      autoSizeEditor();
+    });
   }
 
   function stopEditing(): void {
@@ -36,6 +45,7 @@
   function handleInput(e: Event): void {
     const target = e.target as HTMLTextAreaElement;
     dispatch("sourceChange", target.value);
+    autoSizeEditor();
   }
 
   function handleKeydown(e: KeyboardEvent): void {
@@ -87,6 +97,9 @@
   }
 
   $: renderedHtml = renderMarkdown(cell.source);
+  $: if (editing && textareaEl) {
+    requestAnimationFrame(() => autoSizeEditor());
+  }
 </script>
 
 <div class="md-cell" class:editing>
@@ -180,7 +193,8 @@
     border: none;
     font-family: var(--font-mono, "Fira Code", monospace);
     font-size: 0.75rem;
-    resize: vertical;
+    resize: none;
+    overflow: hidden;
     outline: none;
     box-sizing: border-box;
   }

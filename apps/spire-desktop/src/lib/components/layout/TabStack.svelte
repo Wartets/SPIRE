@@ -134,9 +134,11 @@
 
   $: activeIndex = Math.min(node.activeIndex, node.children.length - 1);
   $: activeChild = node.children[activeIndex] ?? null;
+  $: isEmpty = node.children.length === 0;
 </script>
 
 <div class="tab-stack">
+  {#if !isEmpty}
   <div
     class="tab-bar"
     on:dragover={allowDrop}
@@ -167,6 +169,7 @@
       </button>
     {/each}
   </div>
+  {/if}
   <div class="tab-content" on:dragleave={clearEdgeHover} role="region">
     <div
       class="edge-drop edge-left"
@@ -203,6 +206,12 @@
 
     {#if activeChild}
       <slot name="child" node={activeChild} />
+    {:else if isEmpty}
+      <div class="empty-workspace">
+        <div class="empty-workspace-icon">⊞</div>
+        <p class="empty-workspace-title">Empty Workspace</p>
+        <p class="empty-workspace-hint">Use <kbd>+ Add Widget</kbd> in the toolbar to populate this workspace.</p>
+      </div>
     {/if}
   </div>
 </div>
@@ -331,5 +340,55 @@
 
   .edge-bottom.edge-active {
     border-bottom: 4px solid var(--hl-symbol);
+  }
+
+  /* ── Empty workspace placeholder ── */
+  .empty-workspace {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: var(--fg-secondary);
+    user-select: none;
+    text-align: center;
+  }
+
+  .empty-workspace-icon {
+    font-size: 2.5rem;
+    opacity: 0.35;
+    line-height: 1;
+  }
+
+  .empty-workspace-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-secondary);
+    margin: 0;
+    opacity: 0.7;
+  }
+
+  .empty-workspace-hint {
+    font-size: 0.68rem;
+    color: var(--fg-secondary);
+    margin: 0;
+    opacity: 0.55;
+    max-width: 22rem;
+    line-height: 1.5;
+  }
+
+  .empty-workspace-hint kbd {
+    display: inline-block;
+    padding: 0.05rem 0.3rem;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    color: var(--fg-primary);
   }
 </style>

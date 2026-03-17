@@ -8,6 +8,7 @@
   Shift+Enter executes the cell and advances focus.
 -->
 <script lang="ts">
+  import { onMount } from "svelte";
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
   import { tooltip } from "$lib/actions/tooltip";
@@ -26,9 +27,16 @@
 
   let textareaEl: HTMLTextAreaElement | undefined;
 
+  function autoSizeEditor(): void {
+    if (!textareaEl) return;
+    textareaEl.style.height = "0px";
+    textareaEl.style.height = `${Math.max(80, textareaEl.scrollHeight)}px`;
+  }
+
   function handleInput(e: Event): void {
     const target = e.target as HTMLTextAreaElement;
     dispatch("sourceChange", target.value);
+    autoSizeEditor();
   }
 
   function handleKeydown(e: KeyboardEvent): void {
@@ -54,6 +62,14 @@
   /** Focus this cell's textarea (called by parent). */
   export function focus(): void {
     textareaEl?.focus();
+  }
+
+  onMount(() => {
+    autoSizeEditor();
+  });
+
+  $: if (textareaEl) {
+    requestAnimationFrame(() => autoSizeEditor());
   }
 
   $: executionLabel =
@@ -204,7 +220,8 @@
     font-family: var(--font-mono, "Fira Code", monospace);
     font-size: 0.75rem;
     line-height: 1.5;
-    resize: vertical;
+    resize: none;
+    overflow: hidden;
     outline: none;
     box-sizing: border-box;
     tab-size: 2;

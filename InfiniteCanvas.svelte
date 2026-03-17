@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   SPIRE - Infinite Canvas
 
   Whiteboard-mode workspace.  Widgets are placed at arbitrary (x, y)
@@ -129,11 +129,25 @@
   $: lodLevel = zoomToLod(zoom);
 
   function itemIsVisible(item: CanvasItem): boolean {
-    // Always show selected or actively transformed widgets.
+    // Always show selected or actively transformed widgets
     if (item.id === selectedWidgetId) return true;
     if ((gesture.mode === "drag" || gesture.mode === "resize") && gesture.wid === item.id) return true;
+    // Ensure widgets are immediately visible on mount (no stale opacity/will-change)
+    // Defensive: forcibly set opacity to 1 for new widgets
+    const el = document.querySelector(`[data-canvas-item-id='${item.id}']`) as HTMLElement | null;
+    if (el) {
+      el.style.opacity = "1";
+      el.style.willChange = "auto";
+    }
     return isVisible(item.x, item.y, item.width, item.height, worldViewport);
   }
+
+    function itemIsVisible(item: CanvasItem): boolean {
+      // Always show selected or actively transformed widgets.
+      if (item.id === selectedWidgetId) return true;
+      if ((gesture.mode === "drag" || gesture.mode === "resize") && gesture.wid === item.id) return true;
+      return isVisible(item.x, item.y, item.width, item.height, worldViewport);
+    }
 
   // ── Edge Snapping ──
   const SNAP_THRESHOLD  = 8;
@@ -318,15 +332,6 @@
     if (event.pointerType !== "mouse"  && event.isPrimary === false) return;
     // Ignore if a gesture is already in progress
     if (gesture.mode !== "idle") return;
-
-    // Allow widgets tagged data-pointer-passthrough (e.g. Three.js canvas in
-    // EventDisplay) to receive pointer events natively so OrbitControls works.
-    const hitTarget = event.target as HTMLElement | null;
-    if (hitTarget?.closest("[data-pointer-passthrough]")) {
-      const widgetEl = hitTarget.closest("[data-canvas-item-id]") as HTMLElement | null;
-      if (widgetEl?.dataset.canvasItemId) bringToFrontById(widgetEl.dataset.canvasItemId);
-      return;
-    }
 
     const { widgetId, resizeDir, isDragHandle } = classifyPointerDown(event);
 
@@ -1068,9 +1073,6 @@
     pointer-events: auto;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
     transition: box-shadow 0.12s, border-color 0.12s;
-    isolation: isolate;
-    opacity: 1;
-    contain: layout style;
   }
 
   .canvas-widget.cw-selected {

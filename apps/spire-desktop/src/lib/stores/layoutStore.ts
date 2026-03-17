@@ -1109,7 +1109,8 @@ function layoutNodeFromSpatial(
 /** Build a docking tree that approximates the current canvas geometry. */
 export function rebuildDockingFromCanvas(items: CanvasItem[]): LayoutNode {
   if (items.length === 0) {
-    return getDefaultLayout();
+      // Keep docking empty when canvas has no widgets.
+      return createBlankDockingLayout();
   }
   const spatial = inferDockingTreeFromCanvas(
     items.map((item) => ({

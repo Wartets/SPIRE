@@ -580,12 +580,13 @@
   .scanner-widget {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
     height: 100%;
     overflow-y: auto;
     padding: 0.75rem;
     font-size: 0.8rem;
     color: var(--color-text-primary);
+    align-content: flex-start;
   }
 
   .widget-title {
@@ -600,7 +601,9 @@
   .config-panel {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.45rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .field {
@@ -723,11 +726,12 @@
   /* ── Chart Area ───────────────────────────────────────────────────── */
 
   .chart-area {
-    flex: 1;
-    min-height: 200px;
+    flex: 0 0 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    padding-top: 0.1rem;
   }
 
   .chart-area canvas {
@@ -738,6 +742,10 @@
   .canvas-wrap {
     position: relative;
     cursor: default;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem;
+    background: var(--color-bg-inset);
   }
 
   .canvas-wrap canvas {
@@ -763,7 +771,7 @@
   /* ── Summary Table ────────────────────────────────────────────────── */
 
   .summary-table {
-    max-height: 200px;
+    max-height: 180px;
     overflow-y: auto;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
