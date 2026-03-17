@@ -16,7 +16,6 @@
 <script lang="ts">
   import type { LayoutNode, RowNode, ColNode, StackNode, WidgetLeaf } from "$lib/stores/layoutStore";
   import SplitPane from "./SplitPane.svelte";
-  import TabStack from "./TabStack.svelte";
   import WidgetContainer from "./WidgetContainer.svelte";
 
   export let node: LayoutNode;
@@ -37,11 +36,25 @@
   </SplitPane>
 {:else if node.type === "stack"}
   {@const stack = node}
-  <TabStack {node}>
-    <svelte:fragment slot="child" let:node={childNode}>
-      <svelte:self node={childNode} />
-    </svelte:fragment>
-  </TabStack>
+  {#if stack.children.length === 0}
+    <div style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--fg-secondary); font-size: 0.75rem;">
+      Empty workspace
+    </div>
+  {:else if stack.children.length === 1}
+    <svelte:self node={stack.children[0]} />
+  {:else}
+    <SplitPane
+      nodeId={stack.id}
+      direction="row"
+      sizes={stack.children.map(() => 1)}
+    >
+      <svelte:fragment slot="child" let:index>
+        {#if stack.children[index]}
+          <svelte:self node={stack.children[index]} />
+        {/if}
+      </svelte:fragment>
+    </SplitPane>
+  {/if}
 {:else if node.type === "widget"}
   <WidgetContainer node={node} />
 {:else}

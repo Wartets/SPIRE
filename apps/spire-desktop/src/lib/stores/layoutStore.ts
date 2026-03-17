@@ -1373,12 +1373,7 @@ function randomWorkspaceColor(): string {
 }
 
 function createBlankDockingLayout(): LayoutNode {
-  return {
-    id: makeLayoutId(),
-    type: "stack",
-    children: [createWidgetLeaf("model")],
-    activeIndex: 0,
-  };
+  return createWidgetLeaf("model");
 }
 
 function createDefaultWorkspaceInputs(): WorkspaceInputSnapshot {
@@ -1464,7 +1459,7 @@ function nextWorkspaceName(): string {
 }
 
 function applyWorkspaceRuntimeState(ws: Workspace): void {
-  layoutRoot.set(structuredClone(ws.dockingRoot));
+  layoutRoot.set(normalizeDockingWithoutStacks(structuredClone(ws.dockingRoot)));
   canvasItems.set(structuredClone(ws.canvasItemList));
   canvasViewport.set(structuredClone(ws.viewport));
   viewMode.set(ws.mode);
@@ -1522,12 +1517,13 @@ export function switchWorkspace(targetId: string): void {
 export function saveCurrentWorkspaceState(): void {
   const currentId = get(activeWorkspaceId);
   const inputSnapshot = get(workspaceInputsSnapshot);
+  const currentDocking = normalizeDockingWithoutStacks(structuredClone(get(layoutRoot)));
   workspaces.update((list) =>
     list.map((ws) =>
       ws.id === currentId
         ? {
             ...ws,
-            dockingRoot: structuredClone(get(layoutRoot)),
+            dockingRoot: currentDocking,
             canvasItemList: structuredClone(get(canvasItems)),
             viewport: structuredClone(get(canvasViewport)),
             mode: get(viewMode),
@@ -1566,9 +1562,8 @@ export function removeWorkspace(wsId: string): void {
   if (wsList.length <= 1) return;
 
   const currentId = get(activeWorkspaceId);
-  if (currentId !== wsId) {
-    saveCurrentWorkspaceState();
-  }
+  const removeIndex = wsList.findIndex((w) => w.id === wsId);
+  saveCurrentWorkspaceState();
 
   workspaces.update((list) => list.filter((w) => w.id !== wsId));
 
@@ -1576,7 +1571,8 @@ export function removeWorkspace(wsId: string): void {
   if (currentId === wsId) {
     const remaining = get(workspaces);
     if (remaining.length > 0) {
-      const fallback = remaining[0];
+      const fallbackIndex = Math.max(0, Math.min(removeIndex - 1, remaining.length - 1));
+      const fallback = remaining[fallbackIndex];
       activeWorkspaceId.set(fallback.id);
       applyWorkspaceRuntimeState(fallback);
     }
@@ -1631,6 +1627,34 @@ export function setWorkspaceColor(wsId: string, color: string): void {
         : ws,
     ),
   );
+}
+
+/** Reset a workspace to a clean default state while keeping metadata. */
+export function resetWorkspaceById(wsId: string): void {
+  const now = new Date().toISOString();
+  workspaces.update((list) =>
+    list.map((ws) =>
+      ws.id === wsId
+        ? {
+            ...ws,
+            dockingRoot: createBlankDockingLayout(),
+            canvasItemList: [],
+            viewport: { panX: 0, panY: 0, zoom: 1 },
+            mode: "docking",
+            inputs: createDefaultWorkspaceInputs(),
+            physics: createDefaultWorkspacePhysics(),
+            updatedAt: now,
+          }
+        : ws,
+    ),
+  );
+
+  if (get(activeWorkspaceId) === wsId) {
+    const target = get(workspaces).find((ws) => ws.id === wsId);
+    if (target) {
+      applyWorkspaceRuntimeState(target);
+    }
+  }
 }
 
 /** Duplicate a workspace (deep clone) and switch to the copy. */

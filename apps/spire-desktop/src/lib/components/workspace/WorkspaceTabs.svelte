@@ -12,6 +12,7 @@
     switchWorkspace,
     workspaces,
     setWorkspaceDescription,
+    resetWorkspaceById,
   } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { tooltip } from "$lib/actions/tooltip";
@@ -146,20 +147,7 @@
       { type: "action", id: "ctx-ws-save", label: "Save Workspace Snapshot", icon: "💾", action: () => downloadWorkspace(get(workspaces).find((w) => w.id === wsId)?.name ?? "workspace") },
       { type: "action", id: "ctx-ws-duplicate", label: "Duplicate Workspace", action: () => duplicateWorkspace(wsId) },
       { type: "action", id: "ctx-ws-new", label: "New Workspace", shortcut: "+", action: () => addWorkspace() },
-      {
-        type: "action",
-        id: "ctx-ws-link",
-        label: "Link to Active Workspace",
-        icon: "⇄",
-        action: () => appendLog("Workspace link request captured. Linked views will be introduced in the workspace manager.")
-      },
-      {
-        type: "action",
-        id: "ctx-ws-unlink",
-        label: "Unlink Workspace",
-        icon: "⤫",
-        action: () => appendLog("Workspace unlink request captured. This workspace is currently independent.")
-      },
+      { type: "action", id: "ctx-ws-reset", label: "Reset Workspace Data", icon: "↺", action: () => resetWorkspaceById(wsId) },
       ...(($workspaces.length > 1)
         ? [
             { type: "separator" as const, id: "sep-ws-move" },

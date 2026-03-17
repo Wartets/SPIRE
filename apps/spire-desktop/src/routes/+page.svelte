@@ -88,15 +88,15 @@
   let workspaceControls: WorkspaceControls;
   let toolboxQuery = "";
   let widgetSortMode: "workflow" | "alpha" = "workflow";
-  let showWidgetCount = false;
-  let compactToolbar = false;
-  let showQuickToolbar = false;
-  let showWorkspaceActions = false;
-  let showPaletteLauncher = false;
-  let showTutorialLauncher = false;
-  let showViewModeToggle = false;
-  let showResetButton = false;
-  let showToolbarShortcuts = false;
+  let showWidgetCount = true;
+  let compactToolbar = true;
+  let showQuickToolbar = true;
+  let showWorkspaceActions = true;
+  let showPaletteLauncher = true;
+  let showTutorialLauncher = true;
+  let showViewModeToggle = true;
+  let showResetButton = true;
+  let showToolbarShortcuts = true;
   let toolboxButtonEl: HTMLButtonElement | null = null;
   let toolboxMenuEl: HTMLDivElement | null = null;
   let customizerButtonEl: HTMLButtonElement | null = null;
@@ -116,7 +116,188 @@
     | { left: number; top: number; width: number; height: number; zone: DockPreviewZone }
     | null = null;
   const PLACEMENT_DRAG_THRESHOLD = 8;
-  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v2";
+  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v3";
+
+  function resetCustomizationDefaults(): void {
+    widgetSortMode = "workflow";
+    showWidgetCount = true;
+    compactToolbar = true;
+    showQuickToolbar = true;
+    showWorkspaceActions = true;
+    showPaletteLauncher = true;
+    showTutorialLauncher = true;
+    showViewModeToggle = true;
+    showResetButton = true;
+    showToolbarShortcuts = true;
+  }
+
+  function openToolbarContextMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+
+    showContextMenu(event.clientX, event.clientY, [
+      {
+        type: "submenu",
+        id: "ctx-toolbar-layout",
+        label: "Toolbar Layout",
+        icon: "UI",
+        children: [
+          {
+            type: "toggle",
+            id: "ctx-toggle-compact",
+            label: "Compact toolbar",
+            checked: compactToolbar,
+            action: (checked) => {
+              compactToolbar = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-widget-count",
+            label: "Show widget count",
+            checked: showWidgetCount,
+            action: (checked) => {
+              showWidgetCount = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-quick-toolbar",
+            label: "Show quick toolbar",
+            checked: showQuickToolbar,
+            action: (checked) => {
+              showQuickToolbar = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-workspace-controls",
+            label: "Show workspace controls",
+            checked: showWorkspaceActions,
+            action: (checked) => {
+              showWorkspaceActions = checked;
+            },
+          },
+        ],
+      },
+      {
+        type: "submenu",
+        id: "ctx-toolbar-helpers",
+        label: "Helpers",
+        icon: "?",
+        children: [
+          {
+            type: "toggle",
+            id: "ctx-toggle-shortcuts",
+            label: "Show palette/tutorial chips",
+            checked: showToolbarShortcuts,
+            action: (checked) => {
+              showToolbarShortcuts = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-palette",
+            label: "Show palette launcher",
+            checked: showPaletteLauncher,
+            action: (checked) => {
+              showPaletteLauncher = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-tutorial",
+            label: "Show tutorial launcher",
+            checked: showTutorialLauncher,
+            action: (checked) => {
+              showTutorialLauncher = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-view-mode",
+            label: "Show view-mode toggle",
+            checked: showViewModeToggle,
+            action: (checked) => {
+              showViewModeToggle = checked;
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-toggle-reset",
+            label: "Show reset button",
+            checked: showResetButton,
+            action: (checked) => {
+              showResetButton = checked;
+            },
+          },
+        ],
+      },
+      {
+        type: "submenu",
+        id: "ctx-toolbar-docking",
+        label: "Dock insertion",
+        icon: "↔",
+        children: [
+          {
+            type: "toggle",
+            id: "ctx-dock-smart",
+            label: "Smart",
+            checked: $dockingInsertPreference === "smart",
+            action: (checked) => {
+              if (checked) dockingInsertPreference.set("smart");
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-dock-row",
+            label: "Row",
+            checked: $dockingInsertPreference === "row",
+            action: (checked) => {
+              if (checked) dockingInsertPreference.set("row");
+            },
+          },
+          {
+            type: "toggle",
+            id: "ctx-dock-col",
+            label: "Column",
+            checked: $dockingInsertPreference === "col",
+            action: (checked) => {
+              if (checked) dockingInsertPreference.set("col");
+            },
+          },
+        ],
+      },
+      { type: "separator", id: "ctx-toolbar-sep-1" },
+      {
+        type: "action",
+        id: "ctx-toolbar-open-customizer",
+        label: "Open Customize panel",
+        icon: "CFG",
+        action: () => {
+          customizerOpen = true;
+          toolboxOpen = false;
+        },
+      },
+      {
+        type: "action",
+        id: "ctx-toolbar-reset-defaults",
+        label: "Reset customization defaults",
+        icon: "↺",
+        action: () => {
+          resetCustomizationDefaults();
+        },
+      },
+    ]);
+  }
+
+  function toolbarContextMenu(node: HTMLElement): { destroy: () => void } {
+    const handler = (event: MouseEvent) => openToolbarContextMenu(event);
+    node.addEventListener("contextmenu", handler);
+    return {
+      destroy: () => node.removeEventListener("contextmenu", handler),
+    };
+  }
 
   $: sortedWidgetDefinitions =
     widgetSortMode === "alpha"
@@ -983,7 +1164,7 @@
   </div>
 
   <!-- ─── Toolbox Bar ─── -->
-  <div class="toolbox-bar" class:toolbox-compact={compactToolbar}>
+  <div class="toolbox-bar" class:toolbox-compact={compactToolbar} use:toolbarContextMenu role="toolbar" tabindex="-1" aria-label="Workbench toolbar">
     <div class="toolbar-group toolbar-identity">
       <span class="toolbar-title">{activeWorkspaceName}</span>
       <button
