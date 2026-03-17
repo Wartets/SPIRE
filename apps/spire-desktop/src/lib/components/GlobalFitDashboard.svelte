@@ -69,6 +69,12 @@
   // Corner plot
   let cornerCanvas: HTMLCanvasElement;
 
+  function cssVar(name: string, fallback: string): string {
+    if (typeof window === "undefined") return fallback;
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback;
+  }
+
   // === Parameter table helpers ===
   function addParameter() {
     parameters = [
@@ -230,7 +236,13 @@
     cornerCanvas.width = padding * 2 + cellSize * nDim;
     cornerCanvas.height = padding * 2 + cellSize * nDim;
 
-    ctx.fillStyle = "#1e1e2e";
+    const bgSurface = cssVar("--color-bg-surface", "#1e1e2e");
+    const border = cssVar("--color-border", "#444");
+    const accent = cssVar("--color-accent", "#89b4fa");
+    const error = cssVar("--color-error", "#f38ba8");
+    const textPrimary = cssVar("--color-text-primary", "#cdd6f4");
+
+    ctx.fillStyle = bgSurface;
     ctx.fillRect(0, 0, cornerCanvas.width, cornerCanvas.height);
 
     // Compute bounds per parameter
@@ -255,12 +267,12 @@
         const y0 = padding + row * cellSize;
 
         // Cell border
-        ctx.strokeStyle = "#444";
+        ctx.strokeStyle = border;
         ctx.strokeRect(x0, y0, cellSize, cellSize);
 
         if (row === col) {
           // Diagonal: 1D histogram
-          draw1DHistogram(ctx, flatSamples!, row, x0, y0, cellSize, mins[row], maxs[row]);
+          draw1DHistogram(ctx, flatSamples!, row, x0, y0, cellSize, mins[row], maxs[row], accent, error);
         } else {
           // Off-diagonal: 2D scatter
           draw2DScatter(
@@ -281,7 +293,7 @@
     }
 
     // Axis labels
-    ctx.fillStyle = "#cdd6f4";
+    ctx.fillStyle = textPrimary;
     ctx.font = "11px monospace";
     ctx.textAlign = "center";
     for (let d = 0; d < nDim; d++) {
@@ -309,6 +321,8 @@
     size: number,
     lo: number,
     hi: number,
+    accent: string,
+    error: string,
   ) {
     const nBins = 30;
     const binWidth = (hi - lo) / nBins;
@@ -323,7 +337,8 @@
     const barW = size / nBins;
     const inset = 4;
 
-    ctx.fillStyle = "rgba(137, 180, 250, 0.6)";
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.6;
     for (let i = 0; i < nBins; i++) {
       const barH = ((size - inset * 2) * counts[i]) / maxCount;
       ctx.fillRect(
@@ -333,13 +348,14 @@
         barH,
       );
     }
+    ctx.globalAlpha = 1;
 
     // Mean line
     let mean = 0;
     for (const s of samples) mean += s[dim];
     mean /= samples.length;
     const meanX = x0 + ((mean - lo) / (hi - lo)) * size;
-    ctx.strokeStyle = "#f38ba8";
+    ctx.strokeStyle = error;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(meanX, y0 + inset);
@@ -552,26 +568,38 @@
 
 <style>
   .global-fit-dashboard {
-    padding: 1rem;
-    color: var(--text-primary, #cdd6f4);
+    padding: 0.75rem;
+    color: var(--color-text-primary, var(--fg-primary));
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
     height: 100%;
     overflow-y: auto;
     min-height: 0;
   }
 
   h2 {
-    margin: 0 0 0.5rem;
-    font-size: 1.1rem;
-    color: var(--hl-accent, #89b4fa);
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    color: var(--fg-accent);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
   }
 
   h3 {
     margin: 0 0 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary, #a6adc8);
+    font-size: 0.85rem;
+    color: var(--fg-secondary);
+  }
+
+  .params-section,
+  .constraints-section,
+  .mcmc-controls,
+  .status-section,
+  .corner-section {
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    padding: 0.55rem;
   }
 
   .fit-table {
@@ -584,7 +612,7 @@
     text-align: left;
     padding: 4px 6px;
     border-bottom: 1px solid var(--border, #45475a);
-    color: var(--text-secondary, #a6adc8);
+    color: var(--fg-secondary);
     font-weight: 500;
   }
 
@@ -593,10 +621,9 @@
   }
 
   .input-sm {
-    background: var(--bg-secondary, #313244);
-    border: 1px solid var(--border, #45475a);
-    color: var(--text-primary, #cdd6f4);
-    border-radius: 3px;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-primary);
     padding: 3px 6px;
     font-size: 0.8rem;
     width: 100%;
@@ -604,7 +631,7 @@
   }
 
   .input-sm:focus {
-    border-color: var(--hl-accent, #89b4fa);
+    border-color: var(--border-focus);
     outline: none;
   }
 
@@ -614,18 +641,17 @@
 
   .btn-add {
     background: transparent;
-    border: 1px dashed var(--border, #45475a);
-    color: var(--hl-accent, #89b4fa);
+    border: 1px dashed var(--border);
+    color: var(--fg-accent);
     padding: 4px 12px;
-    border-radius: 4px;
     cursor: pointer;
     font-size: 0.8rem;
     margin-top: 4px;
   }
 
   .btn-add:hover {
-    border-color: var(--hl-accent, #89b4fa);
-    background: rgba(137, 180, 250, 0.1);
+    border-color: var(--fg-accent);
+    background: rgba(var(--color-accent-rgb), 0.1);
   }
 
   .btn-remove {
@@ -648,7 +674,7 @@
     flex-direction: column;
     gap: 2px;
     font-size: 0.8rem;
-    color: var(--text-secondary, #a6adc8);
+    color: var(--fg-secondary);
   }
 
   .action-row {
@@ -658,11 +684,10 @@
   }
 
   .btn-start {
-    background: var(--hl-accent, #89b4fa);
-    color: var(--bg-primary, #1e1e2e);
+    background: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg-surface));
+    color: var(--color-text-primary);
     border: none;
     padding: 6px 20px;
-    border-radius: 4px;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.85rem;
@@ -673,18 +698,17 @@
   }
 
   .btn-stop {
-    background: var(--hl-error, #f38ba8);
-    color: var(--bg-primary, #1e1e2e);
+    background: color-mix(in srgb, var(--color-error) 70%, var(--color-bg-surface));
+    color: var(--color-text-primary);
     border: none;
     padding: 6px 20px;
-    border-radius: 4px;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.85rem;
   }
 
   .error-msg {
-    color: var(--hl-error, #f38ba8);
+    color: var(--hl-error, var(--color-error));
     font-size: 0.8rem;
     margin-top: 4px;
   }
@@ -704,32 +728,30 @@
   }
 
   .badge.running {
-    background: rgba(166, 227, 161, 0.2);
-    color: #a6e3a1;
+    background: rgba(var(--color-success-rgb), 0.2);
+    color: var(--color-success);
   }
 
   .badge.stopped {
-    background: rgba(243, 139, 168, 0.2);
-    color: #f38ba8;
+    background: rgba(var(--color-error-rgb), 0.2);
+    color: var(--color-error);
   }
 
   .badge.done {
-    background: rgba(137, 180, 250, 0.2);
-    color: #89b4fa;
+    background: rgba(var(--color-accent-rgb), 0.2);
+    color: var(--color-accent);
   }
 
   .progress-bar {
     height: 6px;
-    background: var(--bg-secondary, #313244);
-    border-radius: 3px;
+    background: var(--bg-inset);
     margin-top: 6px;
     overflow: hidden;
   }
 
   .progress-fill {
     height: 100%;
-    background: var(--hl-accent, #89b4fa);
-    border-radius: 3px;
+    background: var(--color-accent);
     transition: width 0.3s ease;
   }
 
@@ -737,19 +759,18 @@
     width: 100%;
     max-width: 600px;
     height: auto;
-    border: 1px solid var(--border, #45475a);
-    border-radius: 4px;
+    border: 1px solid var(--border);
   }
 
   .sample-count {
     font-size: 0.75rem;
-    color: var(--text-secondary, #a6adc8);
+    color: var(--fg-secondary);
     margin-top: 4px;
   }
 
   .placeholder-text {
     font-size: 0.8rem;
-    color: var(--text-secondary, #a6adc8);
+    color: var(--fg-secondary);
     font-style: italic;
   }
 </style>

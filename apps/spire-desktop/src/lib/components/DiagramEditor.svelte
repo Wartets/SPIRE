@@ -381,6 +381,7 @@
   {:else}
     <!-- Diagram Selector -->
     <div class="selector-bar">
+      <span class="mode-chip">Editable topology mode</span>
       <span class="selector-label">Diagram:</span>
       <div class="selector-buttons">
         {#each diagrams as d, idx}
@@ -400,6 +401,7 @@
         <span class="sim-badge">Simulating…</span>
       {/if}
     </div>
+    <p class="editor-hint">For polished rendering/export, open the unified Diagram Visualizer view.</p>
 
     <!-- SVG Canvas -->
     <svg
@@ -535,9 +537,18 @@
     gap: 0.4rem;
     flex-wrap: wrap;
     padding: 0.4rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     flex-shrink: 0;
+  }
+  .mode-chip {
+    padding: 0.1rem 0.3rem;
+    font-size: 0.62rem;
+    color: var(--fg-accent);
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
   .selector-label {
     color: var(--color-accent);
@@ -571,7 +582,6 @@
     padding: 0.2rem 0.5rem;
     font-size: 0.72rem;
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
     color: var(--color-text-muted);
     cursor: pointer;
@@ -580,7 +590,14 @@
   .relayout-btn:hover { background: rgba(255, 255, 255, 0.12); color: var(--color-text-primary); }
   .sim-badge {
     font-size: 0.68rem;
-    color: #ff9800;
+    color: var(--hl-value);
+    font-style: italic;
+  }
+
+  .editor-hint {
+    margin: -0.2rem 0 0;
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
     font-style: italic;
   }
 
@@ -588,8 +605,8 @@
   .diagram-svg {
     flex: 1;
     min-height: 200px;
-    background: #111118;
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+    border: 1px solid var(--border);
     cursor: default;
     user-select: none;
   }

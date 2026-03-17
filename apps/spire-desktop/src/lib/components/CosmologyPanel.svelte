@@ -11,7 +11,7 @@
     • Classification badge (under-abundant / compatible / over-closes)
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onDestroy } from "svelte";
   import { calculateRelicDensity } from "$lib/api";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
   import type { RelicConfig, RelicDensityReport, FreezeOutPoint } from "$lib/types/spire";
@@ -237,11 +237,19 @@
   .cosmo-panel {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
     padding: 0.75rem;
     height: 100%;
     overflow-y: auto;
     font-family: var(--font-mono, "JetBrains Mono", monospace);
+  }
+
+  .cosmo-form,
+  .cosmo-results,
+  .cosmo-chart {
+    background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+    padding: 0.55rem;
   }
 
   h3 {
@@ -278,10 +286,9 @@
   .btn-compute {
     width: 100%;
     padding: 0.5rem;
-    background: var(--accent, #4fc3f7);
-    color: #000;
+    background: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg-surface));
+    color: var(--color-text-primary, var(--fg-primary));
     border: none;
-    border-radius: 4px;
     font-weight: 600;
     font-size: 0.85rem;
     cursor: pointer;
@@ -313,9 +320,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: var(--bg-input, #1e1e2e);
-    border: 1px solid var(--border, #333);
-    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     padding: 0.5rem;
   }
 
@@ -337,8 +343,7 @@
     font-size: 0.75rem;
     font-weight: 700;
     padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    color: #000;
+    color: var(--color-bg-base);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }

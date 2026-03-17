@@ -171,11 +171,19 @@
   </div>
 
   {#if $activeCitationCount === 0}
-    <p class="ref-empty">
-      No active references. Perform calculations (construct reactions,
-      generate diagrams, run analyses) to automatically populate citations.
-    </p>
+    <div class="ref-empty">
+      <p>
+        No active references yet. Citations are captured automatically while you run
+        model loading, diagram generation, amplitudes, and analysis steps.
+      </p>
+      <ul class="ref-empty-tips">
+        <li>Run a physics workflow to populate this panel.</li>
+        <li>Use <kbd>Ctrl</kbd>+<kbd>K</kbd> then “Copy References” for quick export.</li>
+        <li>Right-click any citation for arXiv/DOI/INSPIRE actions.</li>
+      </ul>
+    </div>
   {:else}
+    <p class="ref-hint">Tip: right-click (or long-press) an entry for quick citation actions.</p>
     <ol class="ref-list">
       {#each $activeCitations as citation, idx}
         <li
@@ -286,9 +294,36 @@
   .ref-empty {
     color: var(--fg-secondary);
     font-size: 0.75rem;
-    font-style: italic;
     margin: 1rem 0;
     line-height: 1.5;
+  }
+
+  .ref-empty p {
+    margin: 0 0 0.45rem;
+    font-style: italic;
+  }
+
+  .ref-empty-tips {
+    margin: 0;
+    padding-left: 1rem;
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+  }
+
+  .ref-empty-tips kbd {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    padding: 0.05rem 0.25rem;
+  }
+
+  .ref-hint {
+    margin: 0;
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
+    font-style: italic;
   }
 
   .ref-list {
