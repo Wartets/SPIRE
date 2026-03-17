@@ -44,8 +44,38 @@
   let slhaText: string = "";
   let slhaDoc: SlhaDocument | null = null;
   let slhaError: string = "";
+  let slhaErrorHints: string[] = [];
   let slhaLoading: boolean = false;
   let slhaBlockFilter: string = "";
+
+  function buildImportErrorHints(message: string, kind: "slha" | "ufo" | "nlo"): string[] {
+    const lower = message.toLowerCase();
+    const hints: string[] = [];
+    const lineCol = message.match(/line\s*(\d+)(?:\s*[,;:]?\s*col(?:umn)?\s*(\d+))?/i);
+    if (lineCol) {
+      hints.push(`Parser location: line ${lineCol[1]}, column ${lineCol[2] ?? "?"}.`);
+    }
+
+    if (kind === "slha") {
+      if (lower.includes("block")) hints.push("Ensure each SLHA block starts with 'BLOCK <NAME>' and uses numeric entries.");
+      if (lower.includes("decay")) hints.push("Check DECAY headers and daughter multiplicity columns in each channel row.");
+      hints.push("Try loading only MASS and DECAY blocks first to isolate malformed sections.");
+    }
+
+    if (kind === "ufo") {
+      if (lower.includes("particles")) hints.push("particles.py is mandatory. Re-export UFO package and upload particles.py first.");
+      if (lower.includes("syntax") || lower.includes("parse")) hints.push("Verify Python syntax in uploaded files (trailing commas, unmatched brackets, indentation)." );
+      if (lower.includes("name") || lower.includes("vertex")) hints.push("Check that particle names referenced in vertices.py exist in particles.py.");
+      hints.push("Upload the core set: particles.py, vertices.py, couplings.py, parameters.py, lorentz.py.");
+    }
+
+    if (kind === "nlo") {
+      hints.push("Verify field IDs in the external leg list exist in the known fields table.");
+      hints.push("Use explicit multiplication symbols in the term (e.g. e * psi_bar * gamma_mu * psi * A^mu).");
+    }
+
+    return hints;
+  }
 
   async function handleSlhaImport(): Promise<void> {
     if (!slhaText.trim()) {
@@ -53,6 +83,7 @@
       return;
     }
     slhaError = "";
+    slhaErrorHints = [];
     slhaLoading = true;
     try {
       slhaDoc = await importSlhaString(slhaText);
@@ -61,6 +92,7 @@
       appendLog(`SLHA imported: ${nBlocks} blocks, ${nDecays} decay tables`);
     } catch (e: unknown) {
       slhaError = e instanceof Error ? e.message : String(e);
+      slhaErrorHints = buildImportErrorHints(slhaError, "slha");
       appendLog(`SLHA import error: ${slhaError}`);
     } finally {
       slhaLoading = false;
@@ -110,6 +142,7 @@
   let ufoModel: UfoModel | null = null;
   let ufoTheoreticalModel: TheoreticalModel | null = null;
   let ufoError: string = "";
+  let ufoErrorHints: string[] = [];
   let ufoLoading: boolean = false;
 
   const UFO_FILE_KEYS: { key: keyof UfoFileContents; label: string }[] = [
@@ -138,6 +171,7 @@
       return;
     }
     ufoError = "";
+    ufoErrorHints = [];
     ufoLoading = true;
     try {
       const [model, theoretical] = await importUfoModel(ufoFiles, ufoModelName);
@@ -149,6 +183,7 @@
       );
     } catch (e: unknown) {
       ufoError = e instanceof Error ? e.message : String(e);
+      ufoErrorHints = buildImportErrorHints(ufoError, "ufo");
       appendLog(`UFO import error: ${ufoError}`);
     } finally {
       ufoLoading = false;
@@ -307,6 +342,13 @@
 
       {#if slhaError}
         <div class="error-msg">{slhaError}</div>
+        {#if slhaErrorHints.length > 0}
+          <ul class="error-hints">
+            {#each slhaErrorHints as hint}
+              <li>{hint}</li>
+            {/each}
+          </ul>
+        {/if}
       {/if}
 
       <!-- Results -->
@@ -413,6 +455,13 @@
 
       {#if ufoError}
         <div class="error-msg">{ufoError}</div>
+        {#if ufoErrorHints.length > 0}
+          <ul class="error-hints">
+            {#each ufoErrorHints as hint}
+              <li>{hint}</li>
+            {/each}
+          </ul>
+        {/if}
       {/if}
 
       {#if ufoModel}
@@ -756,8 +805,16 @@
     background: rgba(248, 81, 73, 0.1);
     padding: 0.3rem 0.5rem;
     border-radius: 4px;
-    margin: 0.5rem 0;
+    margin: 0.5rem 0 0.25rem;
     font-size: 0.78rem;
+  }
+
+  .error-hints {
+    margin: 0 0 0.5rem;
+    padding-left: 1rem;
+    color: var(--text-muted, var(--color-text-muted));
+    font-size: 0.74rem;
+    line-height: 1.35;
   }
 
   /* ── Sections & Data ── */

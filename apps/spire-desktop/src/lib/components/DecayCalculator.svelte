@@ -557,10 +557,10 @@
   /* ── Summary Banner ───────────────────────────────────────────── */
 
   .summary-banner {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 0.4rem 0.6rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.5rem;
+    padding: 0.45rem 0.6rem;
     background: rgba(var(--color-accent-rgb), 0.06);
     border: 1px solid rgba(var(--color-accent-rgb), 0.15);
     border-radius: var(--radius-sm);

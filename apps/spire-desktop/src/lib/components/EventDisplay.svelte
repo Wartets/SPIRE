@@ -564,6 +564,7 @@
     <!-- Playback Controls -->
     {#if eventBatch.length > 0}
       <div class="playback-bar">
+        <span class="orbit-hint">Drag: rotate · Shift+drag: pan · Wheel: zoom</span>
         <button class="ctrl-btn" on:click={stepBack} use:tooltip={{ text: "Previous Event" }} aria-label="Previous Event"><Icon name="skip-back" size={16} /></button>
         {#if playbackState === "playing"}
           <button class="ctrl-btn ctrl-pause" on:click={pause} use:tooltip={{ text: "Pause" }} aria-label="Pause"><Icon name="pause" size={16} /></button>
@@ -716,6 +717,13 @@
     flex-wrap: wrap;
     padding: 0.3rem 0;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .orbit-hint {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    margin-right: 0.25rem;
   }
 
   .ctrl-btn {

@@ -726,12 +726,12 @@
   /* ── Chart Area ───────────────────────────────────────────────────── */
 
   .chart-area {
-    flex: 0 0 auto;
+    flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    padding-top: 0.1rem;
+    gap: 0.35rem;
+    padding-top: 0;
   }
 
   .chart-area canvas {
@@ -759,7 +759,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    height: 200px;
+    min-height: 140px;
     color: var(--color-text-muted);
     text-align: center;
   }

@@ -33,6 +33,38 @@ import {
   runSpatialInferenceSelfChecks,
   type SpatialDockNode,
 } from "$lib/core/layout/spatialInference";
+import {
+  DEFAULT_CMS_ENERGY,
+  DEFAULT_FINAL_IDS,
+  DEFAULT_INITIAL_IDS,
+  DEFAULT_PARTICLES_TOML,
+  DEFAULT_VERTICES_TOML,
+} from "$lib/data/defaults";
+import {
+  activeAmplitude,
+  activeFramework,
+  activeReaction,
+  amplitudeResults,
+  cutScripts,
+  generatedDiagrams,
+  kinematics,
+  logs,
+  observableScripts,
+  reconstructedStates,
+  theoreticalModel,
+} from "$lib/stores/physicsStore";
+import { setAllInputs, workspaceInputsSnapshot } from "$lib/stores/workspaceInputsStore";
+import type {
+  AmplitudeResult,
+  CutScript,
+  KinematicsReport,
+  ObservableScript,
+  Reaction,
+  ReconstructedFinalState,
+  TheoreticalFramework,
+  TheoreticalModel,
+  TopologySet,
+} from "$lib/types/spire";
 
 // ===========================================================================
 // Layout Node Types (JSON-serialisable discriminated union)
@@ -127,6 +159,30 @@ export const dockingInsertPreference = writable<DockInsertPreference>("smart");
 // Workspace (Multi-Workspace Support)
 // ===========================================================================
 
+export interface WorkspaceInputSnapshot {
+  particlesToml: string;
+  verticesToml: string;
+  modelName: string;
+  initialIds: string[];
+  finalIds: string[];
+  cmsEnergy: number;
+  maxLoopOrder: number;
+}
+
+export interface WorkspacePhysicsSnapshot {
+  framework: TheoreticalFramework;
+  theoreticalModel: TheoreticalModel | null;
+  activeReaction: Reaction | null;
+  reconstructedStates: ReconstructedFinalState[];
+  generatedDiagrams: TopologySet | null;
+  amplitudeResults: AmplitudeResult[];
+  activeAmplitude: string;
+  kinematics: KinematicsReport | null;
+  observableScripts: ObservableScript[];
+  cutScripts: CutScript[];
+  logs: string[];
+}
+
 /** A self-contained workspace holding its own layout, canvas, and view mode. */
 export interface Workspace {
   id: string;
@@ -140,6 +196,8 @@ export interface Workspace {
   canvasItemList: CanvasItem[];
   viewport: CanvasViewport;
   mode: ViewMode;
+  inputs: WorkspaceInputSnapshot;
+  physics: WorkspacePhysicsSnapshot;
 }
 
 /**
@@ -1318,8 +1376,36 @@ function createBlankDockingLayout(): LayoutNode {
   return {
     id: makeLayoutId(),
     type: "stack",
-    children: [],
+    children: [createWidgetLeaf("model")],
     activeIndex: 0,
+  };
+}
+
+function createDefaultWorkspaceInputs(): WorkspaceInputSnapshot {
+  return {
+    particlesToml: DEFAULT_PARTICLES_TOML,
+    verticesToml: DEFAULT_VERTICES_TOML,
+    modelName: "Standard Model",
+    initialIds: [...DEFAULT_INITIAL_IDS],
+    finalIds: [...DEFAULT_FINAL_IDS],
+    cmsEnergy: DEFAULT_CMS_ENERGY,
+    maxLoopOrder: 0,
+  };
+}
+
+function createDefaultWorkspacePhysics(): WorkspacePhysicsSnapshot {
+  return {
+    framework: "StandardModel",
+    theoreticalModel: null,
+    activeReaction: null,
+    reconstructedStates: [],
+    generatedDiagrams: null,
+    amplitudeResults: [],
+    activeAmplitude: "",
+    kinematics: null,
+    observableScripts: [],
+    cutScripts: [],
+    logs: [],
   };
 }
 
@@ -1337,6 +1423,8 @@ function createWorkspace(name: string, color?: string): Workspace {
     canvasItemList: [],
     viewport: { panX: 0, panY: 0, zoom: 1 },
     mode: "docking",
+    inputs: createDefaultWorkspaceInputs(),
+    physics: createDefaultWorkspacePhysics(),
   };
 }
 
@@ -1375,16 +1463,42 @@ function nextWorkspaceName(): string {
   return `Workspace ${n}`;
 }
 
-/** Add a new empty workspace and switch to it. */
-export function addWorkspace(name?: string): void {
-  const ws = createWorkspace(name ?? nextWorkspaceName());
-  workspaces.update((list) => [...list, ws]);
-  activeWorkspaceId.set(ws.id);
-  // Sync the live stores to the new workspace
+function applyWorkspaceRuntimeState(ws: Workspace): void {
   layoutRoot.set(structuredClone(ws.dockingRoot));
   canvasItems.set(structuredClone(ws.canvasItemList));
   canvasViewport.set(structuredClone(ws.viewport));
   viewMode.set(ws.mode);
+
+  setAllInputs({
+    particlesToml: ws.inputs.particlesToml,
+    verticesToml: ws.inputs.verticesToml,
+    modelName: ws.inputs.modelName,
+    initialIds: [...ws.inputs.initialIds],
+    finalIds: [...ws.inputs.finalIds],
+    cmsEnergy: ws.inputs.cmsEnergy,
+    maxLoopOrder: ws.inputs.maxLoopOrder,
+  });
+
+  activeFramework.set(ws.physics.framework);
+  theoreticalModel.set(structuredClone(ws.physics.theoreticalModel));
+  activeReaction.set(structuredClone(ws.physics.activeReaction));
+  reconstructedStates.set(structuredClone(ws.physics.reconstructedStates));
+  generatedDiagrams.set(structuredClone(ws.physics.generatedDiagrams));
+  amplitudeResults.set(structuredClone(ws.physics.amplitudeResults));
+  activeAmplitude.set(ws.physics.activeAmplitude);
+  kinematics.set(structuredClone(ws.physics.kinematics));
+  observableScripts.set(structuredClone(ws.physics.observableScripts));
+  cutScripts.set(structuredClone(ws.physics.cutScripts));
+  logs.set(structuredClone(ws.physics.logs));
+}
+
+/** Add a new empty workspace and switch to it. */
+export function addWorkspace(name?: string): void {
+  saveCurrentWorkspaceState();
+  const ws = createWorkspace(name ?? nextWorkspaceName());
+  workspaces.update((list) => [...list, ws]);
+  activeWorkspaceId.set(ws.id);
+  applyWorkspaceRuntimeState(ws);
 }
 
 /** Switch to a workspace by ID, saving the current workspace first. */
@@ -1401,15 +1515,13 @@ export function switchWorkspace(targetId: string): void {
   if (!target) return;
 
   activeWorkspaceId.set(targetId);
-  layoutRoot.set(structuredClone(target.dockingRoot));
-  canvasItems.set(structuredClone(target.canvasItemList));
-  canvasViewport.set(structuredClone(target.viewport));
-  viewMode.set(target.mode);
+  applyWorkspaceRuntimeState(target);
 }
 
 /** Persist current live store state back into the workspace array. */
 export function saveCurrentWorkspaceState(): void {
   const currentId = get(activeWorkspaceId);
+  const inputSnapshot = get(workspaceInputsSnapshot);
   workspaces.update((list) =>
     list.map((ws) =>
       ws.id === currentId
@@ -1419,6 +1531,28 @@ export function saveCurrentWorkspaceState(): void {
             canvasItemList: structuredClone(get(canvasItems)),
             viewport: structuredClone(get(canvasViewport)),
             mode: get(viewMode),
+            inputs: {
+              particlesToml: inputSnapshot.particlesToml,
+              verticesToml: inputSnapshot.verticesToml,
+              modelName: inputSnapshot.modelName,
+              initialIds: [...inputSnapshot.initialIds],
+              finalIds: [...inputSnapshot.finalIds],
+              cmsEnergy: inputSnapshot.cmsEnergy,
+              maxLoopOrder: inputSnapshot.maxLoopOrder,
+            },
+            physics: {
+              framework: get(activeFramework),
+              theoreticalModel: structuredClone(get(theoreticalModel)),
+              activeReaction: structuredClone(get(activeReaction)),
+              reconstructedStates: structuredClone(get(reconstructedStates)),
+              generatedDiagrams: structuredClone(get(generatedDiagrams)),
+              amplitudeResults: structuredClone(get(amplitudeResults)),
+              activeAmplitude: get(activeAmplitude),
+              kinematics: structuredClone(get(kinematics)),
+              observableScripts: structuredClone(get(observableScripts)),
+              cutScripts: structuredClone(get(cutScripts)),
+              logs: structuredClone(get(logs)),
+            },
             updatedAt: new Date().toISOString(),
           }
         : ws,
@@ -1432,13 +1566,19 @@ export function removeWorkspace(wsId: string): void {
   if (wsList.length <= 1) return;
 
   const currentId = get(activeWorkspaceId);
+  if (currentId !== wsId) {
+    saveCurrentWorkspaceState();
+  }
+
   workspaces.update((list) => list.filter((w) => w.id !== wsId));
 
-  // If we removed the active workspace, switch to the first remaining
+  // If we removed the active workspace, switch to the first remaining.
   if (currentId === wsId) {
     const remaining = get(workspaces);
     if (remaining.length > 0) {
-      switchWorkspace(remaining[0].id);
+      const fallback = remaining[0];
+      activeWorkspaceId.set(fallback.id);
+      applyWorkspaceRuntimeState(fallback);
     }
   }
 }

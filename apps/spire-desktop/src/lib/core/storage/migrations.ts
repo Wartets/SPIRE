@@ -22,6 +22,8 @@ export interface PersistedWorkspaceRecord {
   updatedAt: string;
   autoDescription: boolean;
   layout: PersistedWorkspaceLayout;
+  inputs?: Workspace["inputs"];
+  physicsState?: Workspace["physics"];
   widgetData: Record<string, Record<string, unknown>>;
 }
 
@@ -124,6 +126,8 @@ const migrationChain: MigrationStep[] = [
             panX: typeof viewport.panX === "number" ? viewport.panX : 0,
             panY: typeof viewport.panY === "number" ? viewport.panY : 0,
           },
+          inputs: isObject(ws.inputs) ? (ws.inputs as unknown as Workspace["inputs"]) : undefined,
+          physicsState: isObject(ws.physicsState) ? (ws.physicsState as unknown as Workspace["physics"]) : undefined,
           widgetData: isObject(ws.widgetData)
             ? (ws.widgetData as Record<string, Record<string, unknown>>)
             : {},

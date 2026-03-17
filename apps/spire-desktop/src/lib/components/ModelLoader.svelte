@@ -44,6 +44,8 @@
   let vertexCount: number = 0;
   let lastLoadedAt = "";
   let modelFingerprint = "";
+  let unstableFieldCount = 0;
+  let massWindow = "-";
   let isCustom: boolean = false;
   let savedIndicator: string = "";
   let rootScroller: HTMLDivElement | null = null;
@@ -187,6 +189,20 @@
   // ---------------------------------------------------------------------------
   // Model loading
   // ---------------------------------------------------------------------------
+  function parseLocationHint(message: string): string {
+    const lineCol = message.match(/line\s*(\d+)(?:\s*[,;:]?\s*col(?:umn)?\s*(\d+))?/i);
+    if (lineCol) {
+      const line = lineCol[1];
+      const col = lineCol[2] ?? "?";
+      return `Parser location: line ${line}, column ${col}.`;
+    }
+    const tuple = message.match(/\((\d+)\s*,\s*(\d+)\)/);
+    if (tuple) {
+      return `Parser location: line ${tuple[1]}, column ${tuple[2]}.`;
+    }
+    return "";
+  }
+
   async function handleLoad(): Promise<void> {
     loading = true;
     errorMsg = "";
@@ -196,6 +212,14 @@
       theoreticalModel.set(model);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
+      unstableFieldCount = model.fields.filter((field) => Number.isFinite(field.width) && field.width > 0).length;
+      const masses = model.fields
+        .map((field) => field.mass)
+        .filter((mass) => Number.isFinite(mass) && mass > 0)
+        .sort((a, b) => a - b);
+      massWindow = masses.length > 0
+        ? `${masses[0].toExponential(2)} … ${masses[masses.length - 1].toExponential(2)} GeV`
+        : "No massive fields";
       lastLoadedAt = new Date().toLocaleString();
       modelFingerprint = [
         model.name,
@@ -210,9 +234,11 @@
       errorMsg = msg;
       const msgLc = msg.toLowerCase();
       errorDetails = [
+        parseLocationHint(msg),
         msgLc.includes("toml") ? "Verify TOML syntax (quotes, commas, and array brackets)." : "",
         msgLc.includes("particle") ? "Check that every vertex field_id exists in the particle table." : "",
         msgLc.includes("vertex") ? "Ensure each vertex has coupling_symbol, field_ids, and interaction_type." : "",
+        msgLc.includes("unknown field") ? "Unknown field detected: cross-check particle IDs and case sensitivity." : "",
         "Use the Custom template scaffold to validate required fields incrementally.",
       ].filter((line) => line.length > 0);
       appendLog(`ERROR loading model: ${msg}`);
@@ -437,6 +463,8 @@
       <div><span>Terms</span> {$theoreticalModel.terms.length} total</div>
       <div><span>Propagators</span> {$theoreticalModel.propagators.length} rules</div>
       <div><span>Spins</span> {spinSummary || "Unknown"}</div>
+      <div><span>Mass window</span> {massWindow}</div>
+      <div><span>Unstable fields</span> {unstableFieldCount}</div>
       <div><span>Top interactions</span> {interactionSummary || "Not available"}</div>
       <div><span>Loaded at</span> {lastLoadedAt || "-"}</div>
       <div><span>Fingerprint</span> {modelFingerprint || "-"}</div>

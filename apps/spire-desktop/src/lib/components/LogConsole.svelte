@@ -261,8 +261,16 @@
   }
 
   .lf-chip input {
-    width: 0.7rem;
-    height: 0.7rem;
+    width: 0.72rem;
+    height: 0.72rem;
+    accent-color: var(--hl-symbol);
+    cursor: pointer;
+  }
+
+  .lf-chip:has(input:checked) {
+    border-color: color-mix(in srgb, var(--hl-symbol) 55%, var(--border));
+    color: var(--fg-primary);
+    background: color-mix(in srgb, var(--bg-surface) 78%, var(--hl-symbol) 22%);
   }
 
   @media (max-width: 560px) {

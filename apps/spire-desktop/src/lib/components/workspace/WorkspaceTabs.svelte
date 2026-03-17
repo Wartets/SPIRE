@@ -16,6 +16,8 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
+  import { downloadWorkspace } from "$lib/services/workspaceManager";
+  import { appendLog } from "$lib/stores/physicsStore";
 
   let dragTabId: string | null = null;
   let dropTargetTabId: string | null = null;
@@ -103,6 +105,17 @@
     reorderWorkspaces(wsId, all[targetIndex].id);
   }
 
+  function closeWorkspaceWithConfirmation(wsId: string): void {
+    const all = get(workspaces);
+    if (all.length <= 1) return;
+    const target = all.find((ws) => ws.id === wsId);
+    if (!target) return;
+    const confirmed = window.confirm(`Close workspace "${target.name}"?\n\nUnsaved runtime state in this tab will be removed from the active session.`);
+    if (!confirmed) return;
+    removeWorkspace(wsId);
+    appendLog(`Workspace closed: ${target.name}`);
+  }
+
   function buildWorkspaceContextItems(wsId: string): import("$lib/types/menu").ContextMenuItem[] {
     const colorSubmenuItems: import("$lib/types/menu").ContextMenuItem[] = WORKSPACE_COLORS.map((c, i) => ({
       type: "action" as const,
@@ -130,8 +143,23 @@
       },
       { type: "submenu", id: "ctx-ws-color", label: "Accent Color", icon: "●", children: colorSubmenuItems },
       { type: "separator", id: "sep-ws-1" },
+      { type: "action", id: "ctx-ws-save", label: "Save Workspace Snapshot", icon: "💾", action: () => downloadWorkspace(get(workspaces).find((w) => w.id === wsId)?.name ?? "workspace") },
       { type: "action", id: "ctx-ws-duplicate", label: "Duplicate Workspace", action: () => duplicateWorkspace(wsId) },
       { type: "action", id: "ctx-ws-new", label: "New Workspace", shortcut: "+", action: () => addWorkspace() },
+      {
+        type: "action",
+        id: "ctx-ws-link",
+        label: "Link to Active Workspace",
+        icon: "⇄",
+        action: () => appendLog("Workspace link request captured. Linked views will be introduced in the workspace manager.")
+      },
+      {
+        type: "action",
+        id: "ctx-ws-unlink",
+        label: "Unlink Workspace",
+        icon: "⤫",
+        action: () => appendLog("Workspace unlink request captured. This workspace is currently independent.")
+      },
       ...(($workspaces.length > 1)
         ? [
             { type: "separator" as const, id: "sep-ws-move" },
@@ -141,7 +169,7 @@
         : []),
       { type: "separator", id: "sep-ws-2" },
       ...(($workspaces.length > 1)
-        ? [{ type: "action" as const, id: "ctx-ws-close", label: "Close Workspace", icon: "✕", action: () => removeWorkspace(wsId) }]
+        ? [{ type: "action" as const, id: "ctx-ws-close", label: "Close Workspace", icon: "✕", action: () => closeWorkspaceWithConfirmation(wsId) }]
         : []),
     ];
   }
@@ -205,7 +233,7 @@
       {#if $workspaces.length > 1}
         <button
           class="ws-tab-close"
-          on:click|stopPropagation={() => removeWorkspace(ws.id)}
+          on:click|stopPropagation={() => closeWorkspaceWithConfirmation(ws.id)}
           aria-label="Close workspace"
         >&times;</button>
       {/if}

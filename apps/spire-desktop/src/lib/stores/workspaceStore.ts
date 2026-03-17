@@ -10,8 +10,27 @@ import {
   type Workspace,
 } from "$lib/stores/layoutStore";
 import { notebookDocument } from "$lib/stores/notebookDocumentStore";
-import { activeFramework } from "$lib/stores/physicsStore";
+import {
+  activeAmplitude,
+  activeFramework,
+  activeReaction,
+  amplitudeResults,
+  cutScripts,
+  generatedDiagrams,
+  kinematics,
+  logs,
+  observableScripts,
+  reconstructedStates,
+  theoreticalModel,
+} from "$lib/stores/physicsStore";
 import { workspaceInputsSnapshot, setAllInputs } from "$lib/stores/workspaceInputsStore";
+import {
+  DEFAULT_CMS_ENERGY,
+  DEFAULT_FINAL_IDS,
+  DEFAULT_INITIAL_IDS,
+  DEFAULT_PARTICLES_TOML,
+  DEFAULT_VERTICES_TOML,
+} from "$lib/data/defaults";
 import {
   loadWorkspaceState,
   saveWorkspaceState,
@@ -64,6 +83,8 @@ function mapWorkspaceToPersisted(
       panX: ws.viewport.panX,
       panY: ws.viewport.panY,
     },
+    inputs: ws.inputs,
+    physicsState: ws.physics,
     widgetData: widgetDataByWorkspace[ws.id] ?? {},
   };
 }
@@ -127,7 +148,38 @@ function schedulePersistedSave(): void {
   }, AUTO_SAVE_DEBOUNCE_MS);
 }
 
+function defaultInputsFromPersisted(state: PersistedWorkspaceState): Workspace["inputs"] {
+  return {
+    particlesToml: state.physics.particlesToml || DEFAULT_PARTICLES_TOML,
+    verticesToml: state.physics.verticesToml || DEFAULT_VERTICES_TOML,
+    modelName: state.physics.modelName || "Standard Model",
+    initialIds: state.physics.initialIds.length > 0 ? [...state.physics.initialIds] : [...DEFAULT_INITIAL_IDS],
+    finalIds: state.physics.finalIds.length > 0 ? [...state.physics.finalIds] : [...DEFAULT_FINAL_IDS],
+    cmsEnergy: Number.isFinite(state.physics.cmsEnergy) ? state.physics.cmsEnergy : DEFAULT_CMS_ENERGY,
+    maxLoopOrder: Number.isFinite(state.physics.maxLoopOrder) ? state.physics.maxLoopOrder : 0,
+  };
+}
+
+function defaultPhysicsFromPersisted(state: PersistedWorkspaceState): Workspace["physics"] {
+  return {
+    framework: state.physics.framework,
+    theoreticalModel: null,
+    activeReaction: null,
+    reconstructedStates: [],
+    generatedDiagrams: null,
+    amplitudeResults: [],
+    activeAmplitude: "",
+    kinematics: null,
+    observableScripts: [],
+    cutScripts: [],
+    logs: [],
+  };
+}
+
 function hydrateFromState(state: PersistedWorkspaceState): void {
+  const defaultInputs = defaultInputsFromPersisted(state);
+  const defaultPhysics = defaultPhysicsFromPersisted(state);
+
   const restoredWorkspaces: Workspace[] = state.workspaces.map((ws) => ({
     id: ws.id,
     name: ws.name,
@@ -144,6 +196,28 @@ function hydrateFromState(state: PersistedWorkspaceState): void {
       panY: ws.layout.panY,
     },
     mode: ws.layout.mode,
+    inputs: ws.inputs ? {
+      particlesToml: ws.inputs.particlesToml,
+      verticesToml: ws.inputs.verticesToml,
+      modelName: ws.inputs.modelName,
+      initialIds: [...ws.inputs.initialIds],
+      finalIds: [...ws.inputs.finalIds],
+      cmsEnergy: ws.inputs.cmsEnergy,
+      maxLoopOrder: ws.inputs.maxLoopOrder,
+    } : structuredClone(defaultInputs),
+    physics: ws.physicsState ? {
+      framework: ws.physicsState.framework,
+      theoreticalModel: structuredClone(ws.physicsState.theoreticalModel),
+      activeReaction: structuredClone(ws.physicsState.activeReaction),
+      reconstructedStates: structuredClone(ws.physicsState.reconstructedStates ?? []),
+      generatedDiagrams: structuredClone(ws.physicsState.generatedDiagrams),
+      amplitudeResults: structuredClone(ws.physicsState.amplitudeResults ?? []),
+      activeAmplitude: ws.physicsState.activeAmplitude ?? "",
+      kinematics: structuredClone(ws.physicsState.kinematics),
+      observableScripts: structuredClone(ws.physicsState.observableScripts ?? []),
+      cutScripts: structuredClone(ws.physicsState.cutScripts ?? []),
+      logs: structuredClone(ws.physicsState.logs ?? []),
+    } : structuredClone(defaultPhysics),
   }));
 
   if (restoredWorkspaces.length === 0) {
@@ -164,16 +238,29 @@ function hydrateFromState(state: PersistedWorkspaceState): void {
   canvasViewport.set(selectedWorkspace.viewport);
   viewMode.set(selectedWorkspace.mode);
 
+  const initialInputs = selectedWorkspace.inputs ?? defaultInputs;
   setAllInputs({
-    particlesToml: state.physics.particlesToml,
-    verticesToml: state.physics.verticesToml,
-    modelName: state.physics.modelName,
-    initialIds: state.physics.initialIds,
-    finalIds: state.physics.finalIds,
-    cmsEnergy: state.physics.cmsEnergy,
-    maxLoopOrder: state.physics.maxLoopOrder,
+    particlesToml: initialInputs.particlesToml,
+    verticesToml: initialInputs.verticesToml,
+    modelName: initialInputs.modelName,
+    initialIds: [...initialInputs.initialIds],
+    finalIds: [...initialInputs.finalIds],
+    cmsEnergy: initialInputs.cmsEnergy,
+    maxLoopOrder: initialInputs.maxLoopOrder,
   });
-  activeFramework.set(state.physics.framework);
+
+  const initialPhysics = selectedWorkspace.physics ?? defaultPhysics;
+  activeFramework.set(initialPhysics.framework);
+  theoreticalModel.set(structuredClone(initialPhysics.theoreticalModel));
+  activeReaction.set(structuredClone(initialPhysics.activeReaction));
+  reconstructedStates.set(structuredClone(initialPhysics.reconstructedStates));
+  generatedDiagrams.set(structuredClone(initialPhysics.generatedDiagrams));
+  amplitudeResults.set(structuredClone(initialPhysics.amplitudeResults));
+  activeAmplitude.set(initialPhysics.activeAmplitude);
+  kinematics.set(structuredClone(initialPhysics.kinematics));
+  observableScripts.set(structuredClone(initialPhysics.observableScripts));
+  cutScripts.set(structuredClone(initialPhysics.cutScripts));
+  logs.set(structuredClone(initialPhysics.logs));
 
   notebookDocument.set(state.notebookDocument);
 

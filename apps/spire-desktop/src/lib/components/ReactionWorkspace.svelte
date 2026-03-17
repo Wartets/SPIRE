@@ -111,12 +111,22 @@
       } else {
         finalIdsInput.update((prev) => [...prev, sel.particleId]);
       }
+      pulseAtlasSelection(sel.target, sel.particleId);
       appendLog(`Reaction Workspace accepted atlas particle: ${sel.particleId} → ${sel.target}`);
       clearAtlasSelectionResult();
     });
   });
 
   let unsubAtlasSelection: (() => void) | null = null;
+  let atlasHighlightKey = "";
+
+  function pulseAtlasSelection(target: "initial" | "final", particleId: string): void {
+    atlasHighlightKey = `${target}:${particleId}:${Date.now()}`;
+    const currentKey = atlasHighlightKey;
+    setTimeout(() => {
+      if (atlasHighlightKey === currentKey) atlasHighlightKey = "";
+    }, 1400);
+  }
 
   // --- Listen-mode: auto-fills initial state from Atlas selectionBus ---
   let listenMode = false;
@@ -138,6 +148,7 @@
             prev.includes(payload.data.id) ? prev : [...prev, payload.data.id],
           );
         }
+        pulseAtlasSelection(listenTarget, payload.data.id);
         appendLog(`Listen mode: appended ${payload.data.id} to ${listenTarget} state.`);
         clearSelectionBus();
       }
@@ -502,6 +513,7 @@
         {#each $initialIdsInput as id, idx}
           <span
             class="tag"
+            class:tag-atlas-highlight={atlasHighlightKey.includes(`initial:${id}:`)}
             role="button"
             tabindex="0"
             on:contextmenu={(e) => {
@@ -539,6 +551,7 @@
         {#each $finalIdsInput as id, idx}
           <span
             class="tag"
+            class:tag-atlas-highlight={atlasHighlightKey.includes(`final:${id}:`)}
             role="button"
             tabindex="0"
             on:contextmenu={(e) => {
@@ -851,6 +864,12 @@
     padding: 0.15rem 0.4rem;
     font-size: 0.75rem;
     color: var(--fg-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .tag-atlas-highlight {
+    border-color: var(--hl-symbol);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--hl-symbol) 55%, transparent);
   }
   .tag-remove {
     background: none;

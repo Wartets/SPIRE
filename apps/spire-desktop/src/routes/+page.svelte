@@ -88,21 +88,22 @@
   let workspaceControls: WorkspaceControls;
   let toolboxQuery = "";
   let widgetSortMode: "workflow" | "alpha" = "workflow";
-  let showWidgetCount = true;
+  let showWidgetCount = false;
   let compactToolbar = false;
-  let showQuickToolbar = true;
-  let showWorkspaceActions = true;
-  let showPaletteLauncher = true;
-  let showTutorialLauncher = true;
-  let showViewModeToggle = true;
-  let showResetButton = true;
-  let showToolbarShortcuts = true;
+  let showQuickToolbar = false;
+  let showWorkspaceActions = false;
+  let showPaletteLauncher = false;
+  let showTutorialLauncher = false;
+  let showViewModeToggle = false;
+  let showResetButton = false;
+  let showToolbarShortcuts = false;
   let toolboxButtonEl: HTMLButtonElement | null = null;
   let toolboxMenuEl: HTMLDivElement | null = null;
   let customizerButtonEl: HTMLButtonElement | null = null;
   let customizerMenuEl: HTMLDivElement | null = null;
   let placementPointerId: number | null = null;
   let placementWidgetType: WidgetType | null = null;
+  let activeWorkspaceName = "Workspace";
   let placementStartX = 0;
   let placementStartY = 0;
   let placementClientX = 0;
@@ -504,6 +505,13 @@
 
   $: if ($activeWorkspaceId) {
     refreshActiveWorkspaceIdentity();
+  }
+
+  $: activeWorkspaceName =
+    $workspaces.find((item) => item.id === $activeWorkspaceId)?.name ?? "Workspace";
+
+  $: if (typeof document !== "undefined") {
+    document.title = `SPIRE - ${activeWorkspaceName}`;
   }
 
   // ── Global Command IDs ──────────────────────────────────
@@ -976,6 +984,15 @@
 
   <!-- ─── Toolbox Bar ─── -->
   <div class="toolbox-bar" class:toolbox-compact={compactToolbar}>
+    <div class="toolbar-group toolbar-identity">
+      <span class="toolbar-title">{activeWorkspaceName}</span>
+      <button
+        class="toolbar-kbd"
+        on:click={() => openPalette()}
+        use:tooltip={{ text: "Open Command Palette" }}
+      >Ctrl+K</button>
+    </div>
+
     <div class="toolbar-group toolbar-launchers">
       <div class="toolbar-menu-anchor">
         <button
@@ -1278,6 +1295,33 @@
     align-items: center;
     gap: 0.35rem;
     min-width: 0;
+  }
+  .toolbar-identity {
+    gap: 0.45rem;
+    padding-right: 0.35rem;
+    border-right: 1px solid var(--border);
+    margin-right: 0.1rem;
+  }
+  .toolbar-title {
+    font-size: 0.75rem;
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .toolbar-kbd {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.14rem 0.4rem;
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+  }
+  .toolbar-kbd:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
   }
   .toolbar-launchers,
   .toolbar-shortcuts {
