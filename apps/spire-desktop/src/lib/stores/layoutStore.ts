@@ -1373,7 +1373,7 @@ function randomWorkspaceColor(): string {
 }
 
 function createBlankDockingLayout(): LayoutNode {
-  return createWidgetLeaf("model");
+  return createDefaultLayout();
 }
 
 function createDefaultWorkspaceInputs(): WorkspaceInputSnapshot {
@@ -1487,7 +1487,7 @@ function applyWorkspaceRuntimeState(ws: Workspace): void {
   logs.set(structuredClone(ws.physics.logs));
 }
 
-/** Add a new empty workspace and switch to it. */
+/** Add a new workspace with the default starter layout and switch to it. */
 export function addWorkspace(name?: string): void {
   saveCurrentWorkspaceState();
   const ws = createWorkspace(name ?? nextWorkspaceName());

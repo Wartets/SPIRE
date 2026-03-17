@@ -24,6 +24,7 @@
   } from "$lib/core/services/ShortcutService";
   import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
   import ContextMenu from "$lib/components/ui/ContextMenu.svelte";
+  import PopupHost from "$lib/components/ui/PopupHost.svelte";
   import CheatSheetOverlay from "$lib/components/ui/CheatSheetOverlay.svelte";
   import KeybindPanel from "$lib/components/settings/KeybindPanel.svelte";
   import TutorialOverlay from "$lib/components/ui/TutorialOverlay.svelte";
@@ -102,6 +103,9 @@
 
   <!-- Global Context Menu Overlay -->
   <ContextMenu />
+
+  <!-- Global Popup Overlay -->
+  <PopupHost />
 
   <!-- Shortcut Cheat Sheet -->
   {#if $cheatSheetOpen}

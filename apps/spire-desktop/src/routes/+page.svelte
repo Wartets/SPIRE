@@ -1625,12 +1625,17 @@
     margin-top: 0.35rem;
     z-index: 101;
     width: min(24rem, calc(100vw - 1rem));
+    max-width: calc(100vw - 0.75rem);
+    max-height: calc(100vh - 4.75rem);
     background: var(--bg-primary);
     border: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
     padding: 0.45rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
   }
   .customize-section {

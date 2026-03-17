@@ -13,12 +13,15 @@
     workspaces,
     setWorkspaceDescription,
     resetWorkspaceById,
+    saveCurrentWorkspaceState,
+    type LayoutNode,
   } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
   import { downloadWorkspace } from "$lib/services/workspaceManager";
   import { appendLog } from "$lib/stores/physicsStore";
+  import { openPopup } from "$lib/stores/popupStore";
 
   let dragTabId: string | null = null;
   let dropTargetTabId: string | null = null;
@@ -106,13 +109,54 @@
     reorderWorkspaces(wsId, all[targetIndex].id);
   }
 
-  function closeWorkspaceWithConfirmation(wsId: string): void {
+  function countLayoutWidgets(node: LayoutNode): number {
+    if (node.type === "widget") return 1;
+    return node.children.reduce((sum, child) => sum + countLayoutWidgets(child), 0);
+  }
+
+  async function closeWorkspaceWithConfirmation(wsId: string): Promise<void> {
     const all = get(workspaces);
     if (all.length <= 1) return;
     const target = all.find((ws) => ws.id === wsId);
     if (!target) return;
-    const confirmed = window.confirm(`Close workspace "${target.name}"?\n\nUnsaved runtime state in this tab will be removed from the active session.`);
-    if (!confirmed) return;
+
+    const dockCount = countLayoutWidgets(target.dockingRoot);
+    const canvasCount = target.canvasItemList.length;
+    const totalWidgets = dockCount + canvasCount;
+
+    const action = await openPopup({
+      title: `Close workspace \"${target.name}\"?`,
+      tone: "warn",
+      message: "Choose how you want to proceed before closing this workspace.",
+      meta: [
+        { label: "Workspace", value: target.name },
+        { label: "Description", value: target.description || "Untitled workspace" },
+        { label: "Updated", value: new Date(target.updatedAt).toLocaleString() },
+        { label: "Mode", value: target.mode },
+        { label: "Widgets", value: `${totalWidgets} (Docking ${dockCount} · Canvas ${canvasCount})` },
+      ],
+      details: [
+        "Save and Close exports a workspace snapshot first.",
+        "Don't Save closes immediately.",
+        "Cancel keeps everything open.",
+      ],
+      actions: [
+        { id: "save-close", label: "Save and Close", variant: "primary", autofocus: true },
+        { id: "dont-save", label: "Don't Save", variant: "danger" },
+        { id: "cancel", label: "Cancel", variant: "ghost" },
+      ],
+      closeActionId: "cancel",
+      maxWidth: 640,
+    });
+
+    if (action === "cancel") return;
+
+    if (action === "save-close") {
+      saveCurrentWorkspaceState();
+      downloadWorkspace(target.name);
+      appendLog(`Workspace saved before close: ${target.name}`);
+    }
+
     removeWorkspace(wsId);
     appendLog(`Workspace closed: ${target.name}`);
   }
@@ -157,7 +201,7 @@
         : []),
       { type: "separator", id: "sep-ws-2" },
       ...(($workspaces.length > 1)
-        ? [{ type: "action" as const, id: "ctx-ws-close", label: "Close Workspace", icon: "✕", action: () => closeWorkspaceWithConfirmation(wsId) }]
+        ? [{ type: "action" as const, id: "ctx-ws-close", label: "Close Workspace", icon: "✕", action: () => { void closeWorkspaceWithConfirmation(wsId); } }]
         : []),
     ];
   }
@@ -221,7 +265,7 @@
       {#if $workspaces.length > 1}
         <button
           class="ws-tab-close"
-          on:click|stopPropagation={() => closeWorkspaceWithConfirmation(ws.id)}
+          on:click|stopPropagation={() => { void closeWorkspaceWithConfirmation(ws.id); }}
           aria-label="Close workspace"
         >&times;</button>
       {/if}

@@ -128,10 +128,7 @@ function persistWorkspaceStateNow(): void {
   }
 
   const payload = collectPersistedState();
-  const encoded = JSON.stringify(payload);
   saveWorkspaceState(payload);
-  const kb = (encoded.length / 1024).toFixed(1);
-  console.info(`[Storage] Workspace state synced (${kb}kb)`);
 }
 
 function handleWindowPersistenceFlush(): void {
