@@ -16,7 +16,7 @@
   import { appendLog, theoreticalModel } from "$lib/stores/physicsStore";
   import { importSlhaString, importUfoModel, deriveCounterterms } from "$lib/api";
   import { addCitations } from "$lib/core/services/CitationRegistry";
-  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
   import type {
     SlhaDocument,
     SlhaBlock,
@@ -563,7 +563,7 @@
                 <div class="ct-header">Counterterm {i + 1}</div>
                 <div class="ct-desc">{ct.description}</div>
                 {#if ct.latex}
-                  <div class="ct-latex"><LatexRenderer latex={ct.latex} mode={latexViewMode} block={true} /></div>
+                  <div class="ct-latex"><MathRenderer latex={ct.latex} mode={latexViewMode} block={true} /></div>
                 {/if}
                 <div class="ct-params">
                   δ-parameters: {ct.delta_parameters.join(", ")}
@@ -578,7 +578,7 @@
               {#each nloResult.counterterm_rules as rule, i}
                 <div class="counterterm-card">
                   <div class="ct-header">{rule.n_legs}-point vertex (SF = {rule.symmetry_factor})</div>
-                  <div class="ct-latex"><LatexRenderer latex={rule.latex} mode={latexViewMode} block={true} /></div>
+                  <div class="ct-latex"><MathRenderer latex={rule.latex} mode={latexViewMode} block={true} /></div>
                 </div>
               {/each}
             </div>

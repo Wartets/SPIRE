@@ -39,8 +39,11 @@
 
   let loading: boolean = false;
   let errorMsg: string = "";
+  let errorDetails: string[] = [];
   let fieldCount: number = 0;
   let vertexCount: number = 0;
+  let lastLoadedAt = "";
+  let modelFingerprint = "";
   let isCustom: boolean = false;
   let savedIndicator: string = "";
   let rootScroller: HTMLDivElement | null = null;
@@ -187,16 +190,31 @@
   async function handleLoad(): Promise<void> {
     loading = true;
     errorMsg = "";
+    errorDetails = [];
     try {
       const model = await loadModel($particlesTomlInput, $verticesTomlInput, $modelNameInput);
       theoreticalModel.set(model);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
+      lastLoadedAt = new Date().toLocaleString();
+      modelFingerprint = [
+        model.name,
+        `${model.fields.length}f`,
+        `${model.vertex_factors.length}v`,
+        `${model.terms.length}t`,
+      ].join(" • ");
       addCitations(["pdg2024", "weinberg1967", "glashow1961"]);
       appendLog(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errorMsg = msg;
+      const msgLc = msg.toLowerCase();
+      errorDetails = [
+        msgLc.includes("toml") ? "Verify TOML syntax (quotes, commas, and array brackets)." : "",
+        msgLc.includes("particle") ? "Check that every vertex field_id exists in the particle table." : "",
+        msgLc.includes("vertex") ? "Ensure each vertex has coupling_symbol, field_ids, and interaction_type." : "",
+        "Use the Custom template scaffold to validate required fields incrementally.",
+      ].filter((line) => line.length > 0);
       appendLog(`ERROR loading model: ${msg}`);
     } finally {
       loading = false;
@@ -400,6 +418,13 @@
   <!-- Status -->
   {#if errorMsg}
     <p class="error-msg">{errorMsg}</p>
+    {#if errorDetails.length > 0}
+      <ul class="error-details">
+        {#each errorDetails as detail}
+          <li>{detail}</li>
+        {/each}
+      </ul>
+    {/if}
   {/if}
 
   {#if $theoreticalModel}
@@ -413,6 +438,8 @@
       <div><span>Propagators</span> {$theoreticalModel.propagators.length} rules</div>
       <div><span>Spins</span> {spinSummary || "Unknown"}</div>
       <div><span>Top interactions</span> {interactionSummary || "Not available"}</div>
+      <div><span>Loaded at</span> {lastLoadedAt || "-"}</div>
+      <div><span>Fingerprint</span> {modelFingerprint || "-"}</div>
     </div>
 
     <!-- UFO Export -->
@@ -561,6 +588,13 @@
     color: var(--hl-error);
     font-size: 0.78rem;
     margin: 0;
+  }
+  .error-details {
+    margin: 0;
+    padding-left: 1rem;
+    color: var(--fg-secondary);
+    font-size: 0.7rem;
+    line-height: 1.4;
   }
   .status-badge {
     font-size: 0.78rem;

@@ -129,6 +129,9 @@
   $: lodLevel = zoomToLod(zoom);
 
   function itemIsVisible(item: CanvasItem): boolean {
+    // While viewport geometry is stabilising (mode switch / first paint),
+    // skip culling so widgets do not appear only after interaction.
+    if (screenW <= 2 || screenH <= 2) return true;
     // Always show selected or actively transformed widgets.
     if (item.id === selectedWidgetId) return true;
     if ((gesture.mode === "drag" || gesture.mode === "resize") && gesture.wid === item.id) return true;
@@ -1070,7 +1073,7 @@
     transition: box-shadow 0.12s, border-color 0.12s;
     isolation: isolate;
     opacity: 1;
-    contain: layout style;
+    contain: layout;
   }
 
   .canvas-widget.cw-selected {

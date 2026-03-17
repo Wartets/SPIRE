@@ -16,6 +16,7 @@
   import { appendLog } from "$lib/stores/physicsStore";
   import { generateDisplayBatch } from "$lib/api";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
+  import { pipelineRunState } from "$lib/stores/pipelineGraphStore";
   import type {
     EventDisplayData,
     DisplayJet,
@@ -98,6 +99,9 @@
   $: batchInfo = eventBatch.length > 0
     ? `Event ${currentEventIdx + 1} / ${eventBatch.length}`
     : "No events";
+  $: pipelineEdgeCount = Object.keys($pipelineRunState.edgeStates).length;
+  $: pipelineCompletedEdges = Object.values($pipelineRunState.edgeStates)
+    .filter((state) => state.status === "completed").length;
 
   // ---------------------------------------------------------------------------
   // Detector Geometry
@@ -550,6 +554,13 @@
       <div class="error-box">{errorMsg}</div>
     {/if}
 
+    <div class="pipeline-status" aria-live="polite">
+      <span class="pipeline-chip" class:running={$pipelineRunState.isRunning}>
+        Pipeline {$pipelineRunState.isRunning ? "running" : "idle"}
+      </span>
+      <span class="pipeline-chip">Edges {pipelineCompletedEdges}/{pipelineEdgeCount}</span>
+    </div>
+
     <!-- Playback Controls -->
     {#if eventBatch.length > 0}
       <div class="playback-bar">
@@ -593,7 +604,7 @@
   </div>
 
   <!-- 3D Viewport -->
-  <div class="viewport" bind:this={containerEl} data-wheel-capture>
+  <div class="viewport" bind:this={containerEl} data-wheel-capture data-pointer-passthrough>
     {#if eventBatch.length === 0 && !loading}
       <div class="placeholder">
         Click <strong>Generate Batch</strong> to produce events for animated playback.
@@ -673,6 +684,28 @@
     color: var(--color-error);
     font-size: 0.78rem;
     word-break: break-word;
+  }
+
+  .pipeline-status {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .pipeline-chip {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    padding: 0.1rem 0.35rem;
+    font-family: var(--font-mono, "JetBrains Mono", monospace);
+  }
+
+  .pipeline-chip.running {
+    border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+    color: var(--color-accent);
   }
 
   /* --- Playback Controls --- */

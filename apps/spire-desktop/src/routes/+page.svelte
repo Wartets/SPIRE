@@ -187,6 +187,12 @@
     placementActive = false;
   }
 
+  function handleToolboxItemDragStart(event: DragEvent, type: WidgetType): void {
+    if (!event.dataTransfer) return;
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("application/x-spire-widget-type", type);
+  }
+
   function handleWindowEscape(event: KeyboardEvent): void {
     if (event.key === "Escape") {
       toolboxOpen = false;
@@ -1007,8 +1013,10 @@
               {#each visibleWidgetDefinitions as def}
                 <button
                   class="toolbox-item"
+                  draggable="true"
                   on:click={() => handleToolboxItemClick(def.type)}
                   on:pointerdown={(event) => handleToolboxItemPointerDown(event, def.type)}
+                  on:dragstart={(event) => handleToolboxItemDragStart(event, def.type)}
                 >
                   <span>{def.label}</span>
                 </button>

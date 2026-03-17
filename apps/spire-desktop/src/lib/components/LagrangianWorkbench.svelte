@@ -24,7 +24,7 @@
   } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
-  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
   import { tooltip } from "$lib/actions/tooltip";
     import { isolateEvents } from "$lib/actions/widgetEvents";
     import { showContextMenu } from "$lib/stores/contextMenuStore";
@@ -487,7 +487,7 @@
                 {latexViewMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
               </button>
             </span>
-            <LatexRenderer latex={derivedRule.latex} mode={latexViewMode} block={true} />
+            <MathRenderer latex={derivedRule.latex} mode={latexViewMode} block={true} />
           </div>
           <div class="rule-meta">
             <span>Legs: {derivedRule.n_legs}</span>

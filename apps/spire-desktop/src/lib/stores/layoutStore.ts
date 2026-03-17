@@ -1168,6 +1168,32 @@ function shouldRebuildDockingFromCanvas(
   return false;
 }
 
+function normalizeDockingWithoutStacks(node: LayoutNode): LayoutNode {
+  if (node.type === "widget") return node;
+
+  if (node.type === "stack") {
+    const children = node.children.map((child) => normalizeDockingWithoutStacks(child));
+    if (children.length === 0) {
+      return createBlankDockingLayout();
+    }
+    if (children.length === 1) {
+      return children[0];
+    }
+    return {
+      id: makeLayoutId(),
+      type: "row",
+      children,
+      sizes: children.map(() => 1),
+    } as RowNode;
+  }
+
+  const children = node.children.map((child) => normalizeDockingWithoutStacks(child));
+  return {
+    ...node,
+    children,
+  } as RowNode | ColNode;
+}
+
 // ===========================================================================
 // View Mode Toggle
 // ===========================================================================
@@ -1198,6 +1224,12 @@ export function toggleViewMode(): void {
       const spacingX = 420;
       const spacingY = 360;
 
+      const rows = Math.max(1, Math.ceil(leaves.length / cols));
+      const totalW = (cols - 1) * spacingX;
+      const totalH = (rows - 1) * spacingY;
+      const startX = centerX - totalW / 2;
+      const startY = centerY - totalH / 2;
+
       const seeded: CanvasItem[] = leaves.map((leaf, i) => {
         const def = WIDGET_DEFINITIONS.find((d) => d.type === leaf.widgetType);
         const w = (def?.defaultColSpan ?? 2) * 200;
@@ -1208,8 +1240,8 @@ export function toggleViewMode(): void {
           id: leaf.id,
           widgetType: leaf.widgetType,
           widgetData: { ...leaf.widgetData },
-          x: centerX + col * spacingX,
-          y: centerY + row * spacingY,
+          x: startX + col * spacingX,
+          y: startY + row * spacingY,
           width: w,
           height: h,
         };
@@ -1225,7 +1257,7 @@ export function toggleViewMode(): void {
     const currentDocking = get(layoutRoot);
 
     if (shouldRebuildDockingFromCanvas(currentDocking, currentCanvas)) {
-      layoutRoot.set(rebuildDockingFromCanvas(currentCanvas));
+      layoutRoot.set(normalizeDockingWithoutStacks(rebuildDockingFromCanvas(currentCanvas)));
     }
   }
 

@@ -6,10 +6,13 @@
   is populated by appendLog() calls throughout the application.
 -->
 <script lang="ts">
+  import { onMount, onDestroy } from "svelte";
   import { logs } from "$lib/stores/physicsStore";
   import { afterUpdate } from "svelte";
 
   let scrollContainer: HTMLDivElement;
+  let compactWrap = false;
+  let resizeObserver: ResizeObserver | null = null;
 
   type LogLevel = "info" | "warn" | "error" | "success" | "debug";
 
@@ -76,6 +79,19 @@
 
   $: entries = $logs.map(parseEntry);
   $: filteredEntries = entries.filter((entry) => levelEnabled(entry.level));
+
+  onMount(() => {
+    if (!scrollContainer) return;
+    resizeObserver = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? scrollContainer.clientWidth;
+      compactWrap = width < 560;
+    });
+    resizeObserver.observe(scrollContainer);
+  });
+
+  onDestroy(() => {
+    resizeObserver?.disconnect();
+  });
 </script>
 
 <div class="log-console">
@@ -102,6 +118,7 @@
       {#each filteredEntries as entry}
         <div
           class="log-entry"
+          class:compact-wrap={compactWrap}
           class:error={entry.level === "error"}
           class:warn={entry.level === "warn"}
           class:success={entry.level === "success"}
@@ -187,6 +204,29 @@
   }
   .log-msg {
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    text-indent: 0;
+  }
+
+  .log-entry:not(.compact-wrap) .log-msg {
+    padding-left: 0;
+  }
+
+  .log-entry:not(.compact-wrap) .log-msg :global(br) {
+    line-height: inherit;
+  }
+
+  .log-entry.compact-wrap {
+    display: block;
+  }
+
+  .log-entry.compact-wrap .log-ts {
+    display: inline;
+    margin-right: 0.25rem;
+  }
+
+  .log-entry.compact-wrap .log-msg {
+    display: inline;
   }
   .log-entry.error {
     color: var(--hl-error);
@@ -228,13 +268,6 @@
   @media (max-width: 560px) {
     .log-entry {
       display: block;
-    }
-    .log-ts {
-      display: inline;
-      margin-right: 0.25rem;
-    }
-    .log-msg {
-      display: inline;
     }
   }
 </style>
