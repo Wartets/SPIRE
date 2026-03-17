@@ -123,7 +123,7 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
     element.style.fontFamily = "var(--font-mono)";
     element.style.fontSize = "0.66rem";
     element.style.lineHeight = "1.2";
-    element.style.whiteSpace = "normal";
+    element.style.whiteSpace = "pre-line";
     element.style.wordBreak = "break-word";
     element.style.boxShadow = "0 10px 24px rgba(0, 0, 0, 0.34)";
     element.style.opacity = "0";
@@ -181,6 +181,8 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
   node.addEventListener("pointerenter", onEnter);
   node.addEventListener("pointerleave", onLeave);
   node.addEventListener("pointercancel", onLeave);
+  node.addEventListener("mouseenter", onEnter);
+  node.addEventListener("mouseleave", onLeave);
   node.addEventListener("focusin", onEnter);
   node.addEventListener("focusout", onLeave);
 
@@ -204,6 +206,8 @@ export function tooltip(node: HTMLElement, options: TooltipOptions) {
       node.removeEventListener("pointerenter", onEnter);
       node.removeEventListener("pointerleave", onLeave);
       node.removeEventListener("pointercancel", onLeave);
+      node.removeEventListener("mouseenter", onEnter);
+      node.removeEventListener("mouseleave", onLeave);
       node.removeEventListener("focusin", onEnter);
       node.removeEventListener("focusout", onLeave);
       teardownRuntime();
