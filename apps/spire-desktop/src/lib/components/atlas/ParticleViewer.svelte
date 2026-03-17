@@ -18,7 +18,7 @@
   import CompositionSvg from "$lib/components/atlas/CompositionSvg.svelte";
   import DecayTree from "$lib/components/atlas/DecayTree.svelte";
   import MoleculePreview3D from "$lib/components/atlas/MoleculePreview3D.svelte";
-  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
 
   interface DecaySelectEvent {
     parentId: string;
@@ -546,8 +546,8 @@
             {symbolicLatexMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
           </button>
         </div>
-        <LatexRenderer latex={spinParityLatex} mode={symbolicLatexMode} block={true} />
-        <LatexRenderer latex={isospinLatex} mode={symbolicLatexMode} block={true} />
+        <MathRenderer latex={spinParityLatex} mode={symbolicLatexMode} block={true} />
+        <MathRenderer latex={isospinLatex} mode={symbolicLatexMode} block={true} />
       </section>
       <section class="qn-card">
         <div><span>Mass</span><strong>{formatMaybe(particle.mass)} GeV</strong></div>

@@ -20,7 +20,7 @@
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { tooltip } from "$lib/actions/tooltip";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
-  import LatexRenderer from "$lib/components/math/LatexRenderer.svelte";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
 
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
@@ -205,7 +205,7 @@
       <div class="active-expression">
         <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div class="active-math" on:contextmenu|stopPropagation={openExprContext}>
-          <LatexRenderer latex={selected} mode={latexViewMode} block={true} />
+          <MathRenderer latex={selected} mode={latexViewMode} block={true} />
         </div>
         <div class="latex-row">
           <button class="latex-btn" on:click={copyLatex} disabled={selectedDiagramId === null}
@@ -250,7 +250,7 @@
                     <div class="step-label">{step.label}</div>
                     <div class="step-desc">{step.description}</div>
                     <div class="step-latex">
-                      <LatexRenderer latex={step.latex} mode={latexViewMode} block={true} />
+                      <MathRenderer latex={step.latex} mode={latexViewMode} block={true} />
                     </div>
                   </div>
                 </div>
