@@ -64,10 +64,6 @@ SPIRE_logo.md
 /apps/spire-desktop/blob-report
 /apps/spire-desktop/.playwright
 /apps/spire-desktop/.cache
+.github/copilot-instructions.md
 /.venv
 /venv
-WIDGET_INTERACTION_QUICK_REFERENCE.md
-WIDGET_INTERACTION_SYSTEM_MAP.md
-WIDGET_INTERACTION_VISUAL_DIAGRAMS.md
-WIDGET_INTERACTION_ANALYSIS.md
-WIDGET_INTERACTION_TESTING.md
