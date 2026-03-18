@@ -19,7 +19,6 @@
  */
 
 import { writable, derived, get } from "svelte/store";
-import { invoke } from "@tauri-apps/api/tauri";
 import {
   type CellType,
   type CellData,
@@ -43,6 +42,21 @@ import {
   initialIdsInput,
   finalIdsInput,
 } from "$lib/stores/workspaceInputsStore";
+
+let _invoke:
+  | ((command: string, args?: Record<string, unknown>) => Promise<unknown>)
+  | null = null;
+
+async function invokeTauri(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<unknown> {
+  if (!_invoke) {
+    const mod = await import("@tauri-apps/api/tauri");
+    _invoke = mod.invoke;
+  }
+  return _invoke(command, args);
+}
 
 // ===========================================================================
 // Store
@@ -76,7 +90,7 @@ async function ensureSession(): Promise<string> {
   const doc = get(notebookDocument);
   if (doc.sessionId) return doc.sessionId;
 
-  const sessionId: string = await invoke("session_create");
+  const sessionId = (await invokeTauri("session_create")) as string;
 
   notebookDocument.update((d) => ({ ...d, sessionId }));
   return sessionId;
@@ -279,7 +293,7 @@ export async function executeCell(
       invokeArgs.physicsContext = gatherPhysicsContext();
     }
 
-    const result: CellExecutionResult = await invoke(command, invokeArgs);
+    const result = (await invokeTauri(command, invokeArgs)) as CellExecutionResult;
 
     // Write result back
     notebookDocument.update((d) => ({
@@ -368,7 +382,7 @@ export async function resetSession(): Promise<void> {
   const doc = get(notebookDocument);
   if (doc.sessionId) {
     try {
-      await invoke("session_reset", { sessionId: doc.sessionId });
+      await invokeTauri("session_reset", { sessionId: doc.sessionId });
     } catch {
       // If the session was already gone, ignore
     }
@@ -384,7 +398,7 @@ export async function destroySession(): Promise<void> {
   const doc = get(notebookDocument);
   if (doc.sessionId) {
     try {
-      await invoke("session_destroy", { sessionId: doc.sessionId });
+      await invokeTauri("session_destroy", { sessionId: doc.sessionId });
     } catch {
       // Ignore
     }
