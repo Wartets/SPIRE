@@ -27,7 +27,7 @@
   function autoSizeEditor(): void {
     if (!textareaEl) return;
     textareaEl.style.height = "0px";
-    textareaEl.style.height = `${Math.max(90, textareaEl.scrollHeight)}px`;
+    textareaEl.style.height = `${Math.max(60, textareaEl.scrollHeight)}px`;
   }
 
   function startEditing(): void {
@@ -186,7 +186,7 @@
 
   .md-editor {
     width: 100%;
-    min-height: 5rem;
+    min-height: 3.25rem;
     padding: 0.4rem;
     background: var(--color-bg-base);
     color: var(--color-text-primary);
@@ -197,6 +197,7 @@
     overflow: hidden;
     outline: none;
     box-sizing: border-box;
+    field-sizing: content;
   }
 
   .md-preview {

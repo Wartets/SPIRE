@@ -418,7 +418,7 @@
 </script>
 
 <div class="global-fit-dashboard">
-  <h2>CFG Global Fit Dashboard</h2>
+  <h2>Global Fit Dashboard</h2>
 
   <!-- Parameter Table -->
   <section class="params-section">
@@ -522,6 +522,16 @@
   {#if status}
     <section class="status-section">
       <h3>Status</h3>
+      <div class="status-cards">
+        <div class="status-card">
+          <span class="status-card-label">Step</span>
+          <span class="status-card-value">{status.current_step} / {status.total_steps}</span>
+        </div>
+        <div class="status-card">
+          <span class="status-card-label">Acceptance</span>
+          <span class="status-card-value">{(status.acceptance_fraction * 100).toFixed(1)}%</span>
+        </div>
+      </div>
       <div class="status-grid">
         <span>Step:</span>
         <span>{status.current_step} / {status.total_steps}</span>
@@ -572,7 +582,7 @@
     color: var(--color-text-primary, var(--fg-primary));
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.7rem;
     height: 100%;
     overflow-y: auto;
     min-height: 0;
@@ -580,7 +590,7 @@
 
   h2 {
     margin: 0 0 0.35rem;
-    font-size: 1rem;
+    font-size: 0.98rem;
     color: var(--fg-accent);
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
@@ -600,6 +610,7 @@
     background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     padding: 0.55rem;
+    border-radius: var(--radius-md);
   }
 
   .fit-table {
@@ -647,6 +658,7 @@
     cursor: pointer;
     font-size: 0.8rem;
     margin-top: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .btn-add:hover {
@@ -684,9 +696,13 @@
   }
 
   .btn-start {
-    background: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg-surface));
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     color: var(--color-text-primary);
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
+    border-radius: var(--radius-sm);
     padding: 6px 20px;
     font-weight: 600;
     cursor: pointer;
@@ -694,17 +710,26 @@
   }
 
   .btn-start:hover {
-    filter: brightness(1.1);
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
   }
 
   .btn-stop {
-    background: color-mix(in srgb, var(--color-error) 70%, var(--color-bg-surface));
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: color-mix(in srgb, var(--color-error) 20%, var(--color-bg-surface));
     color: var(--color-text-primary);
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-error) 70%, var(--color-border));
+    border-radius: var(--radius-sm);
     padding: 6px 20px;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.85rem;
+  }
+
+  .btn-stop:hover {
+    background: color-mix(in srgb, var(--color-error) 30%, var(--color-bg-surface));
   }
 
   .error-msg {
@@ -718,6 +743,36 @@
     grid-template-columns: auto 1fr;
     gap: 2px 12px;
     font-size: 0.8rem;
+  }
+
+  .status-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .status-card {
+    border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+    background: color-mix(in srgb, var(--color-bg-base) 78%, transparent);
+    border-radius: var(--radius-sm);
+    padding: 0.3rem 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .status-card-label {
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-card-value {
+    font-size: 0.82rem;
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
   }
 
   .badge {
@@ -760,6 +815,7 @@
     max-width: 600px;
     height: auto;
     border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
   }
 
   .sample-count {

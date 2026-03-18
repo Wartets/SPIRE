@@ -545,20 +545,25 @@
   }
 
   .launch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.4rem 1.2rem;
     font-size: 0.85rem;
     font-weight: 600;
     border: none;
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, var(--color-accent) 20%, var(--color-bg-surface));
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     border: 1px solid color-mix(in srgb, var(--color-accent) 70%, var(--color-border));
     color: var(--color-text-primary);
     cursor: pointer;
-    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+    transition: opacity var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
   }
 
   .launch-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
   }
 
   .launch-btn:disabled {
@@ -567,15 +572,22 @@
   }
 
   .cancel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     padding: 0.4rem 1.2rem;
     font-size: 0.85rem;
     font-weight: 600;
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-error) 70%, var(--color-border));
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--color-error) 20%, var(--color-bg-surface));
     border: 1px solid color-mix(in srgb, var(--color-error) 70%, var(--color-border));
     color: var(--color-text-primary);
     cursor: pointer;
+  }
+
+  .cancel-btn:hover {
+    background: color-mix(in srgb, var(--color-error) 32%, var(--color-bg-surface));
   }
 
   .complete-badge {
@@ -732,6 +744,13 @@
     background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     border-radius: var(--radius-md);
+  }
+
+  .results-panel .stat {
+    padding: 0.25rem 0.45rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-bg-base) 78%, transparent);
   }
 
   .stats-row {

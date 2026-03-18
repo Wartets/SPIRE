@@ -132,9 +132,49 @@
   let scanError = "";
   let result: ScanResult1D | null = null;
 
+  let suggestedThresholdEnergy: number | null = null;
+  let suggestedTotalWidth: number | null = null;
+  let suggestedEventsPerPoint: number | null = null;
+
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: Chart | null = null;
   let interopUnsub: (() => void) | null = null;
+
+  function applyThresholdWindow(spanMultiplier = 0.2): void {
+    if (!Number.isFinite(suggestedThresholdEnergy ?? NaN) || !suggestedThresholdEnergy) return;
+    const centre = suggestedThresholdEnergy;
+    const halfSpan = Math.max(centre * spanMultiplier, 1e-3);
+    scanMin = Math.max(1e-3, +(centre - halfSpan).toPrecision(6));
+    scanMax = +(centre + halfSpan).toPrecision(6);
+    if (!useCustomTarget) {
+      const cmsIdx = presets.findIndex((p) => p.target === "cms_energy");
+      if (cmsIdx >= 0) selectedPresetIdx = cmsIdx;
+    }
+  }
+
+  function applyResonanceWindow(widthMultiplier = 5): void {
+    if (
+      !Number.isFinite(suggestedThresholdEnergy ?? NaN)
+      || !Number.isFinite(suggestedTotalWidth ?? NaN)
+      || !suggestedThresholdEnergy
+      || !suggestedTotalWidth
+      || suggestedTotalWidth <= 0
+    ) return;
+
+    const centre = suggestedThresholdEnergy;
+    const halfSpan = Math.max(widthMultiplier * suggestedTotalWidth, 1e-3);
+    scanMin = Math.max(1e-3, +(centre - halfSpan).toPrecision(6));
+    scanMax = +(centre + halfSpan).toPrecision(6);
+    if (!useCustomTarget) {
+      const cmsIdx = presets.findIndex((p) => p.target === "cms_energy");
+      if (cmsIdx >= 0) selectedPresetIdx = cmsIdx;
+    }
+  }
+
+  function applySuggestedEvents(): void {
+    if (!Number.isFinite(suggestedEventsPerPoint ?? NaN) || !suggestedEventsPerPoint) return;
+    eventsPerPoint = Math.max(100, Math.floor(suggestedEventsPerPoint));
+  }
 
   // -------------------------------------------------------------------------
   // Reactive Model Subscription
@@ -344,10 +384,33 @@
         }
       }
 
+      const analysisPayload = state.analysis?.payload as
+        | { numEvents?: number; cmsEnergy?: number }
+        | undefined;
+      if (analysisPayload?.numEvents && Number.isFinite(analysisPayload.numEvents)) {
+        suggestedEventsPerPoint = Math.max(100, Math.floor(Math.max(analysisPayload.numEvents / 10, 100)));
+      }
+
+      const kinematicsPayload = state.kinematics?.payload as
+        | { thresholdEnergy?: number | null }
+        | undefined;
+      if (
+        kinematicsPayload?.thresholdEnergy != null
+        && Number.isFinite(kinematicsPayload.thresholdEnergy)
+      ) {
+        suggestedThresholdEnergy = kinematicsPayload.thresholdEnergy;
+      }
+
       // Auto-range around a decay resonance reported by Decay Calculator.
       const decayPayload = state.decay_calculator?.payload as
         | { totalWidth?: number | null; thresholdEnergy?: number | null }
         | undefined;
+      if (decayPayload?.totalWidth && Number.isFinite(decayPayload.totalWidth)) {
+        suggestedTotalWidth = decayPayload.totalWidth;
+      }
+      if (decayPayload?.thresholdEnergy && Number.isFinite(decayPayload.thresholdEnergy)) {
+        suggestedThresholdEnergy = decayPayload.thresholdEnergy;
+      }
       if (decayPayload?.totalWidth && decayPayload.totalWidth > 0) {
         const w = decayPayload.totalWidth;
         const kinPayload = state.kinematics?.payload as { thresholdEnergy?: number | null } | undefined;
@@ -513,6 +576,19 @@
         <HoverDef term="mc_events">Events / Point</HoverDef>
       </label>
       <SpireNumberInput inputId="scan-events" min={100} step={100} bind:value={eventsPerPoint} ariaLabel="Events per point" />
+    </div>
+
+    <div class="quick-actions">
+      <span class="quick-actions-label">Quick presets</span>
+      <button class="quick-btn" on:click={() => applyThresholdWindow(0.2)} disabled={!suggestedThresholdEnergy}>
+        Threshold ±20%
+      </button>
+      <button class="quick-btn" on:click={() => applyResonanceWindow(5)} disabled={!suggestedThresholdEnergy || !suggestedTotalWidth}>
+        Resonance ±5Γ
+      </button>
+      <button class="quick-btn" on:click={applySuggestedEvents} disabled={!suggestedEventsPerPoint}>
+        Suggested events
+      </button>
     </div>
 
     <!-- Run Button -->
@@ -683,18 +759,19 @@
     justify-content: center;
     gap: 0.4rem;
     padding: 0.5rem 1rem;
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.65));
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: background 0.15s, border-color 0.15s, opacity 0.15s;
   }
 
   .run-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
   }
 
   .run-btn:disabled {
@@ -710,6 +787,39 @@
     border-top-color: var(--color-text-primary);
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
+  }
+
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.1rem;
+  }
+
+  .quick-actions-label {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    margin-right: 0.2rem;
+  }
+
+  .quick-btn {
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg-surface) 88%, transparent);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    padding: 0.18rem 0.48rem;
+    cursor: pointer;
+  }
+
+  .quick-btn:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  }
+
+  .quick-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   @keyframes spin {

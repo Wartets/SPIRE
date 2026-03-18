@@ -242,6 +242,7 @@
     height: 100%;
     overflow-y: auto;
     font-family: var(--font-mono, "JetBrains Mono", monospace);
+    font-size: 0.82rem;
   }
 
   .cosmo-form,
@@ -250,6 +251,7 @@
     background: color-mix(in srgb, var(--color-bg-elevated) 55%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     padding: 0.55rem;
+    border-radius: var(--radius-md);
   }
 
   h3 {
@@ -286,13 +288,14 @@
   .btn-compute {
     width: 100%;
     padding: 0.5rem;
-    background: color-mix(in srgb, var(--color-accent) 70%, var(--color-bg-surface));
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     color: var(--color-text-primary, var(--fg-primary));
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
+    border-radius: var(--radius-sm);
     font-weight: 600;
     font-size: 0.85rem;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
   }
 
   .btn-compute:disabled {
@@ -301,7 +304,9 @@
   }
 
   .btn-compute:hover:not(:disabled) {
-    opacity: 0.85;
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
   }
 
   .error-msg {
@@ -323,6 +328,7 @@
     background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
     border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
     padding: 0.5rem;
+    border-radius: var(--radius-sm);
   }
 
   .result-label {
@@ -346,6 +352,7 @@
     color: var(--color-bg-base);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    border-radius: 999px;
   }
 
   .cosmo-chart {

@@ -30,7 +30,7 @@
   function autoSizeEditor(): void {
     if (!textareaEl) return;
     textareaEl.style.height = "0px";
-    textareaEl.style.height = `${Math.max(80, textareaEl.scrollHeight)}px`;
+    textareaEl.style.height = `${Math.max(56, textareaEl.scrollHeight)}px`;
   }
 
   function handleInput(e: Event): void {
@@ -212,7 +212,7 @@
 
   .cc-editor {
     width: 100%;
-    min-height: 4rem;
+    min-height: 3rem;
     padding: 0.4rem;
     background: var(--color-bg-base);
     color: var(--color-text-primary);
@@ -225,6 +225,7 @@
     outline: none;
     box-sizing: border-box;
     tab-size: 2;
+    field-sizing: content;
   }
 
   .cc-output {

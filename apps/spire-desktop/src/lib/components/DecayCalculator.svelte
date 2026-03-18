@@ -15,6 +15,7 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
   import { calculateDecayTable, exportDecaySlha } from "$lib/api";
+  import { pipelineGraph, pipelineRunState } from "$lib/stores/pipelineGraphStore";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
@@ -50,9 +51,14 @@
   // State
   // -------------------------------------------------------------------------
 
+  let modelFromStore: TheoreticalModel | null = null;
+  let pipelineModelOverride: TheoreticalModel | null = null;
   let model: TheoreticalModel | null = null;
   let massiveParticles: { id: string; name: string; mass: number; pdgCode: number }[] = [];
   let selectedIdx = 0;
+  let particleFilter = "";
+  let particleSort: "mass_desc" | "mass_asc" | "name" = "mass_desc";
+  let preferredParticleIds: string[] = [];
 
   let computing = false;
   let errorMsg = "";
@@ -67,12 +73,39 @@
   // -------------------------------------------------------------------------
 
   const unsubModel = theoreticalModel.subscribe((m) => {
-    model = m;
-    buildParticleList(m);
+    modelFromStore = m;
   });
+
+  $: model = pipelineModelOverride ?? modelFromStore;
+
+  $: buildParticleList(model);
+
+  function isTheoreticalModelLike(value: unknown): value is TheoreticalModel {
+    return (
+      typeof value === "object"
+      && value !== null
+      && Array.isArray((value as { fields?: unknown }).fields)
+    );
+  }
+
+  $: {
+    let nextPipelineModel: TheoreticalModel | null = null;
+    for (const [edgeId, payload] of Object.entries($pipelineRunState.edgePayloads)) {
+      const edge = $pipelineGraph.edges[edgeId];
+      if (!edge) continue;
+      const source = $pipelineGraph.nodes[edge.sourceNodeId];
+      if (source?.type !== "model_source") continue;
+      if (isTheoreticalModelLike(payload)) {
+        nextPipelineModel = payload;
+        break;
+      }
+    }
+    pipelineModelOverride = nextPipelineModel;
+  }
 
   /** Rebuild the list of massive particles when the model changes. */
   function buildParticleList(m: TheoreticalModel | null): void {
+    const previousId = massiveParticles[selectedIdx]?.id ?? null;
     if (!m) {
       massiveParticles = [];
       return;
@@ -95,8 +128,40 @@
         });
       }
     }
+
+    if (particleSort === "name") {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (particleSort === "mass_asc") {
+      result.sort((a, b) => a.mass - b.mass);
+    } else {
+      result.sort((a, b) => b.mass - a.mass);
+    }
+
     massiveParticles = result;
+
+    if (previousId) {
+      const idx = massiveParticles.findIndex((p) => p.id === previousId);
+      if (idx >= 0) {
+        selectedIdx = idx;
+        return;
+      }
+    }
+
+    if (selectedIdx >= massiveParticles.length) {
+      selectedIdx = Math.max(0, massiveParticles.length - 1);
+    }
   }
+
+  $: visibleParticles = massiveParticles.filter((p) => {
+    if (!particleFilter.trim()) return true;
+    const q = particleFilter.trim().toLowerCase();
+    return p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q);
+  });
+
+  $: visibleOptions = visibleParticles.map((p) => ({
+    particle: p,
+    idx: massiveParticles.findIndex((m) => m.id === p.id),
+  })).filter((o) => o.idx >= 0);
 
   // -------------------------------------------------------------------------
   // Core logic
@@ -281,14 +346,26 @@
       }
 
       const reactionPayload = state.reaction?.payload as
-        | { initialState?: string[] }
+        | { initialState?: string[]; finalState?: string[] }
         | undefined;
-      if (reactionPayload?.initialState?.length) {
-        const candidate = reactionPayload.initialState[0]?.toLowerCase() ?? "";
-        const idx = massiveParticles.findIndex((p) =>
-          p.id.toLowerCase().includes(candidate) || p.name.toLowerCase().includes(candidate)
-        );
-        if (idx >= 0) selectedIdx = idx;
+      if (reactionPayload?.initialState?.length || reactionPayload?.finalState?.length) {
+        const merged = [
+          ...(reactionPayload.initialState ?? []),
+          ...(reactionPayload.finalState ?? []),
+        ];
+        preferredParticleIds = merged
+          .map((s) => String(s).trim().toLowerCase())
+          .filter((s, i, arr) => s.length > 0 && arr.indexOf(s) === i)
+          .slice(0, 6);
+
+        const matchIdx = massiveParticles.findIndex((p) => {
+          const pid = p.id.toLowerCase();
+          const pname = p.name.toLowerCase();
+          return preferredParticleIds.some((candidate) =>
+            pid.includes(candidate) || pname.includes(candidate),
+          );
+        });
+        if (matchIdx >= 0) selectedIdx = matchIdx;
       }
     });
 
@@ -316,8 +393,20 @@
     computing,
     channels: decayTable?.channels.length ?? 0,
     totalWidth: decayTable?.total_width ?? null,
+    thresholdEnergy: massiveParticles[selectedIdx]?.mass ?? null,
     lifetimeSeconds: decayTable?.lifetime_seconds ?? null,
   });
+
+  function selectPreferredParticle(token: string): void {
+    const q = token.trim().toLowerCase();
+    if (!q) return;
+    const idx = massiveParticles.findIndex((p) =>
+      p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q),
+    );
+    if (idx >= 0) {
+      selectedIdx = idx;
+    }
+  }
 </script>
 
 <div class="decay-widget" use:isolateEvents>
@@ -327,19 +416,51 @@
 
   <!-- Configuration -->
   <div class="config-panel">
+    <div class="config-top-row">
+      <div class="field grow">
+        <label for="decay-filter">Filter particles</label>
+        <input
+          id="decay-filter"
+          type="text"
+          bind:value={particleFilter}
+          placeholder="Search by id or name"
+        />
+      </div>
+      <div class="field compact">
+        <label for="decay-sort">Sort</label>
+        <select id="decay-sort" bind:value={particleSort}>
+          <option value="mass_desc">Mass ↓</option>
+          <option value="mass_asc">Mass ↑</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+    </div>
+
     <div class="field">
       <label for="decay-particle">
         <HoverDef term="parent_particle">Parent Particle</HoverDef>
       </label>
       <select id="decay-particle" bind:value={selectedIdx} disabled={computing}>
-        {#each massiveParticles as p, i}
-          <option value={i}>{p.name} ({p.id}) - {p.mass.toPrecision(4)} GeV</option>
+        {#each visibleOptions as option}
+          <option value={option.idx}>{option.particle.name} ({option.particle.id}) - {option.particle.mass.toPrecision(4)} GeV</option>
         {/each}
+        {#if visibleOptions.length === 0}
+          <option value={selectedIdx} disabled>No particles match filter</option>
+        {/if}
         {#if massiveParticles.length === 0}
           <option value={0} disabled>Load a model first</option>
         {/if}
       </select>
     </div>
+
+    {#if preferredParticleIds.length > 0}
+      <div class="preferred-row">
+        <span class="preferred-label">From reaction</span>
+        {#each preferredParticleIds as token}
+          <button class="preferred-chip" on:click={() => selectPreferredParticle(token)}>{token}</button>
+        {/each}
+      </div>
+    {/if}
 
     <button class="run-btn" on:click={computeDecay} disabled={computing || massiveParticles.length === 0}>
       {#if computing}
@@ -481,6 +602,22 @@
     gap: 0.5rem;
   }
 
+  .config-top-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: end;
+    flex-wrap: wrap;
+  }
+
+  .field.grow {
+    flex: 1;
+    min-width: 12rem;
+  }
+
+  .field.compact {
+    min-width: 7.5rem;
+  }
+
   .field {
     display: flex;
     flex-direction: column;
@@ -494,6 +631,7 @@
     letter-spacing: 0.04em;
   }
 
+  input[type="text"],
   select {
     background: var(--color-bg-inset);
     border: 1px solid var(--color-border);
@@ -504,6 +642,7 @@
     font-family: "JetBrains Mono", "Fira Code", monospace;
   }
 
+  input[type="text"]:focus,
   select:focus {
     outline: none;
     border-color: var(--color-accent);
@@ -516,18 +655,19 @@
     justify-content: center;
     gap: 0.4rem;
     padding: 0.5rem 1rem;
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
     border-radius: var(--radius-md);
-    background: linear-gradient(135deg, var(--color-accent), rgba(var(--color-accent-rgb), 0.65));
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     color: var(--color-text-primary);
     font-weight: 600;
     font-size: 0.82rem;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
   }
 
   .run-btn:hover:not(:disabled) {
-    opacity: 0.9;
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
   }
 
   .run-btn:disabled {
@@ -562,7 +702,7 @@
 
   .summary-banner {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
     gap: 0.5rem;
     padding: 0.45rem 0.6rem;
     background: rgba(var(--color-accent-rgb), 0.06);
@@ -603,6 +743,32 @@
     overflow-y: auto;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
+  }
+
+  .preferred-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .preferred-label {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+
+  .preferred-chip {
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg-surface) 88%, transparent);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    padding: 0.14rem 0.45rem;
+    cursor: pointer;
+  }
+
+  .preferred-chip:hover {
+    color: var(--color-text-primary);
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
   }
 
   table {

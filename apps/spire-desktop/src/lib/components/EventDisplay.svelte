@@ -927,14 +927,18 @@
     padding: 0.35rem 1rem;
     font-size: 0.82rem;
     font-weight: 600;
-    border: none;
+    border: 1px solid color-mix(in srgb, var(--color-accent) 65%, var(--color-border));
     border-radius: 5px;
-    background: linear-gradient(135deg, var(--color-accent), var(--color-accent));
+    background: color-mix(in srgb, var(--color-accent) 14%, var(--color-bg-surface));
     color: var(--color-text-primary);
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
   }
-  .run-btn:hover:not(:disabled) { opacity: 0.9; }
+  .run-btn:hover:not(:disabled) {
+    opacity: 1;
+    background: color-mix(in srgb, var(--color-accent) 24%, var(--color-bg-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 90%, var(--color-border));
+  }
   .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .error-box {
