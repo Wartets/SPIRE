@@ -79,16 +79,21 @@ function sanitizeId(id: number): string {
 }
 
 function sanitizeLabel(s: string): string {
-  // Escape special LaTeX characters, but keep common physics symbols
+  // If label already contains LaTeX commands, preserve them and only normalize unicode superscripts.
+  if (/\\[a-zA-Z]+/.test(s)) {
+    return s
+      .replace(/⁻/g, "^{-}")
+      .replace(/⁺/g, "^{+}")
+      .replace(/⁰/g, "^{0}");
+  }
+
+  // Escape only problematic text-mode chars, then map common physics unicode to LaTeX math.
   return s
-    .replace(/\\/g, "\\textbackslash{}")
     .replace(/#/g, "\\#")
     .replace(/%/g, "\\%")
     .replace(/&/g, "\\&")
-    .replace(/_/g, "\\_")
     .replace(/\{/g, "\\{")
     .replace(/\}/g, "\\}")
-    // Common particle symbols → LaTeX
     .replace(/γ/g, "\\gamma")
     .replace(/μ/g, "\\mu")
     .replace(/τ/g, "\\tau")
@@ -98,6 +103,13 @@ function sanitizeLabel(s: string): string {
     .replace(/⁰/g, "^{0}")
     .replace(/e⁻/g, "e^{-}")
     .replace(/e⁺/g, "e^{+}");
+}
+
+function toMathLabel(s: string): string {
+  const t = sanitizeLabel(s).trim();
+  if (!t) return "";
+  if (t.startsWith("$") && t.endsWith("$")) return t.slice(1, -1);
+  return t;
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +179,7 @@ export function generateTikZ(diag: FeynmanDiagram): string {
   lines.push("    % --- Nodes ---");
   for (const inc of incoming) {
     const [x, y] = nodePositions.get(inc.id) ?? [0, 0];
-    lines.push(`    \\vertex (${sanitizeId(inc.id)}) at (${x}, ${y}) {$${sanitizeLabel(inc.label)}$};`);
+    lines.push(`    \\vertex (${sanitizeId(inc.id)}) at (${x}, ${y}) {$${toMathLabel(inc.label)}$};`);
   }
   for (const id of internal) {
     const [x, y] = nodePositions.get(id) ?? [3, 0];
@@ -175,7 +187,7 @@ export function generateTikZ(diag: FeynmanDiagram): string {
   }
   for (const out of outgoing) {
     const [x, y] = nodePositions.get(out.id) ?? [6, 0];
-    lines.push(`    \\vertex (${sanitizeId(out.id)}) at (${x}, ${y}) {$${sanitizeLabel(out.label)}$};`);
+    lines.push(`    \\vertex (${sanitizeId(out.id)}) at (${x}, ${y}) {$${toMathLabel(out.label)}$};`);
   }
 
   lines.push("");
@@ -227,7 +239,12 @@ function loopOrderStr(lo: FeynmanDiagram["loop_order"]): string {
 function sanitizeMomentum(mom: string): string {
   // Convert momentum labels to proper LaTeX
   return mom
-    .replace(/p(\d+)/g, "p_{$1}")
-    .replace(/k(\d+)/g, "k_{$1}")
-    .replace(/q(\d*)/g, "q_{$1}");
+    .trim()
+    .replace(/\\/g, "")
+    .replace(/([pkqℓl])(\d+)/g, "$1_{$2}")
+    .replace(/([pkqℓl])_(\d+)/g, "$1_{$2}")
+    .replace(/\bq\b/g, "q")
+    .replace(/\bell\b/gi, "\\ell")
+    .replace(/ℓ/g, "\\ell")
+    .replace(/→/g, "\\to ");
 }

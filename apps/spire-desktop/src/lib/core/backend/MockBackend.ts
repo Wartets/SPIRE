@@ -232,6 +232,8 @@ export class MockBackend implements SpireBackend {
     });
 
     const mediatorField = makeField("gamma", "γ", 0, 2);
+    const neutralMediatorField = makeField("Z0", "Z⁰", 91.1876, 2);
+    const scalarMediatorField = makeField("H", "H", 125.0, 0);
 
     const diagrams: FeynmanDiagram[] = [];
     let nextDiagramId = 0;
@@ -255,6 +257,26 @@ export class MockBackend implements SpireBackend {
         is_external: isExternal,
       };
     };
+
+    const propagatorEdge = (
+      field: FeynmanEdge["field"],
+      momentumLabel: string,
+      expression: string,
+      form: "MasslessVector" | "MassiveVector" | "Scalar" = "MasslessVector",
+    ): FeynmanEdge => ({
+      field,
+      propagator: {
+        field_id: field.id,
+        spin: form === "Scalar" ? 0 : 2,
+        mass: field.mass,
+        width: field.width,
+        expression,
+        gauge_parameter: null,
+        form,
+      },
+      momentum_label: momentumLabel,
+      is_external: false,
+    });
 
     // ── S-channel backbone (works for any 2→N) ──
     const sNodes: FeynmanNode[] = [
@@ -514,6 +536,387 @@ export class MockBackend implements SpireBackend {
         symmetry_factor: 1,
         is_connected: true,
         is_one_particle_irreducible: false,
+      });
+    }
+
+    // ── Multiplicity >= 4: add split-decay tree with explicit sub-interactions ──
+    if (final_.length >= 4) {
+      const treeNodes: FeynmanNode[] = [];
+      const treeEdges: [number, number, FeynmanEdge][] = [];
+
+      let nodeId = 0;
+      const inNodeIds = initial.map((state, idx) => {
+        const id = nodeId++;
+        treeNodes.push({
+          id,
+          kind: { ExternalIncoming: state.particle },
+          position: [0.0, 1.1 + idx * 2.3] as [number, number],
+        });
+        return id;
+      });
+
+      const vProd = nodeId++;
+      const vBranchA = nodeId++;
+      const vBranchB = nodeId++;
+
+      treeNodes.push(
+        {
+          id: vProd,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-tree-prod",
+              field_ids: [...initial.map((s) => s.particle.field.id), mediatorField.id],
+              expression: "-ieγ^μ",
+              coupling_value: 0.3028,
+              n_legs: initial.length + 1,
+            },
+          },
+          position: [2.1, 2.2] as [number, number],
+        },
+        {
+          id: vBranchA,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-tree-branch-a",
+              field_ids: [mediatorField.id, neutralMediatorField.id, final_[0].particle.field.id],
+              expression: "-ig_Zγ",
+              coupling_value: 0.21,
+              n_legs: 3,
+            },
+          },
+          position: [4.0, 1.1] as [number, number],
+        },
+        {
+          id: vBranchB,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-tree-branch-b",
+              field_ids: [mediatorField.id, scalarMediatorField.id, final_[final_.length - 1].particle.field.id],
+              expression: "-iy",
+              coupling_value: 0.15,
+              n_legs: 3,
+            },
+          },
+          position: [4.0, 3.3] as [number, number],
+        },
+      );
+
+      inNodeIds.forEach((inId, idx) => {
+        treeEdges.push([inId, vProd, edgeFor(initial[idx].particle.field, `p${idx + 1}`, true)]);
+      });
+
+      treeEdges.push(
+        [vProd, vBranchA, propagatorEdge(mediatorField, "q_a", "-ig_{μν}/q_a²", "MasslessVector")],
+        [vProd, vBranchB, propagatorEdge(neutralMediatorField, "q_b", "-ig_{μν}/(q_b²-m_Z²)", "MassiveVector")],
+        [vBranchA, vBranchB, propagatorEdge(scalarMediatorField, "q_h", "i/(q_h²-m_H²)", "Scalar")],
+      );
+
+      const splitIndex = Math.ceil(final_.length / 2);
+      const branchAFinal = final_.slice(0, splitIndex);
+      const branchBFinal = final_.slice(splitIndex);
+
+      branchAFinal.forEach((state, idx) => {
+        const outId = nodeId++;
+        treeNodes.push({
+          id: outId,
+          kind: { ExternalOutgoing: state.particle },
+          position: [7.1, 0.4 + idx * 1.1] as [number, number],
+        });
+        treeEdges.push([vBranchA, outId, edgeFor(state.particle.field, `k${idx + 1}`, true)]);
+      });
+
+      branchBFinal.forEach((state, idx) => {
+        const outId = nodeId++;
+        treeNodes.push({
+          id: outId,
+          kind: { ExternalOutgoing: state.particle },
+          position: [7.1, 2.7 + idx * 1.1] as [number, number],
+        });
+        treeEdges.push([vBranchB, outId, edgeFor(state.particle.field, `k${splitIndex + idx + 1}`, true)]);
+      });
+
+      diagrams.push({
+        id: nextDiagramId++,
+        nodes: treeNodes,
+        edges: treeEdges,
+        channels: ["S", "T", "U"],
+        loop_order: "Tree",
+        symmetry_factor: 1,
+        is_connected: true,
+        is_one_particle_irreducible: false,
+      });
+
+      // Effective loop-like topology to expose non-trivial substructure.
+      const loopNodes: FeynmanNode[] = [];
+      const loopEdges: [number, number, FeynmanEdge][] = [];
+      nodeId = 0;
+
+      const loopInIds = initial.map((state, idx) => {
+        const id = nodeId++;
+        loopNodes.push({
+          id,
+          kind: { ExternalIncoming: state.particle },
+          position: [0.0, 1.2 + idx * 2.2] as [number, number],
+        });
+        return id;
+      });
+
+      const vIn = nodeId++;
+      const vTop = nodeId++;
+      const vBottom = nodeId++;
+      const vLoopA = nodeId++;
+      const vLoopB = nodeId++;
+
+      loopNodes.push(
+        {
+          id: vIn,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-loop-in",
+              field_ids: [...initial.map((s) => s.particle.field.id), mediatorField.id],
+              expression: "-ieγ^μ",
+              coupling_value: 0.3028,
+              n_legs: initial.length + 1,
+            },
+          },
+          position: [2.0, 2.2] as [number, number],
+        },
+        {
+          id: vTop,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-loop-top",
+              field_ids: [mediatorField.id, neutralMediatorField.id, final_[0].particle.field.id],
+              expression: "-ig_Zγ",
+              coupling_value: 0.22,
+              n_legs: 3,
+            },
+          },
+          position: [4.0, 1.0] as [number, number],
+        },
+        {
+          id: vBottom,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-loop-bottom",
+              field_ids: [mediatorField.id, scalarMediatorField.id, final_[final_.length - 1].particle.field.id],
+              expression: "-iy",
+              coupling_value: 0.14,
+              n_legs: 3,
+            },
+          },
+          position: [4.0, 3.4] as [number, number],
+        },
+        {
+          id: vLoopA,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-loop-a",
+              field_ids: [neutralMediatorField.id, scalarMediatorField.id, mediatorField.id],
+              expression: "-iλ",
+              coupling_value: 0.11,
+              n_legs: 3,
+            },
+          },
+          position: [5.3, 1.8] as [number, number],
+        },
+        {
+          id: vLoopB,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-loop-b",
+              field_ids: [neutralMediatorField.id, scalarMediatorField.id, mediatorField.id],
+              expression: "-iλ",
+              coupling_value: 0.11,
+              n_legs: 3,
+            },
+          },
+          position: [5.3, 2.6] as [number, number],
+        },
+      );
+
+      loopInIds.forEach((inId, idx) => {
+        loopEdges.push([inId, vIn, edgeFor(initial[idx].particle.field, `p${idx + 1}`, true)]);
+      });
+
+      loopEdges.push(
+        [vIn, vTop, propagatorEdge(mediatorField, "q_t", "-ig_{μν}/q_t²", "MasslessVector")],
+        [vIn, vBottom, propagatorEdge(neutralMediatorField, "q_b", "-ig_{μν}/(q_b²-m_Z²)", "MassiveVector")],
+        [vTop, vLoopA, propagatorEdge(neutralMediatorField, "ℓ_1", "-ig_{μν}/(ℓ_1²-m_Z²)", "MassiveVector")],
+        [vLoopA, vBottom, propagatorEdge(scalarMediatorField, "ℓ_2", "i/(ℓ_2²-m_H²)", "Scalar")],
+        [vBottom, vLoopB, propagatorEdge(neutralMediatorField, "ℓ_3", "-ig_{μν}/(ℓ_3²-m_Z²)", "MassiveVector")],
+        [vLoopB, vTop, propagatorEdge(scalarMediatorField, "ℓ_4", "i/(ℓ_4²-m_H²)", "Scalar")],
+      );
+
+      final_.forEach((state, idx) => {
+        const outId = nodeId++;
+        const attachTop = idx % 2 === 0;
+        loopNodes.push({
+          id: outId,
+          kind: { ExternalOutgoing: state.particle },
+          position: [7.2, 0.4 + idx * 0.95] as [number, number],
+        });
+        loopEdges.push([
+          attachTop ? vTop : vBottom,
+          outId,
+          edgeFor(state.particle.field, `k${idx + 1}`, true),
+        ]);
+      });
+
+      diagrams.push({
+        id: nextDiagramId++,
+        nodes: loopNodes,
+        edges: loopEdges,
+        channels: ["S", "T"],
+        loop_order: "OneLoop",
+        symmetry_factor: 1,
+        is_connected: true,
+        is_one_particle_irreducible: true,
+      });
+    }
+
+    // ── Multiplicity >= 5: dense web/bridge topology (high-complexity mock) ──
+    if (final_.length >= 5) {
+      const webNodes: FeynmanNode[] = [];
+      const webEdges: [number, number, FeynmanEdge][] = [];
+
+      let nodeId = 0;
+      const inIds = initial.map((state, idx) => {
+        const id = nodeId++;
+        webNodes.push({
+          id,
+          kind: { ExternalIncoming: state.particle },
+          position: [0.0, 1.0 + idx * 2.6] as [number, number],
+        });
+        return id;
+      });
+
+      const v0 = nodeId++;
+      const v1 = nodeId++;
+      const v2 = nodeId++;
+      const v3 = nodeId++;
+      const v4 = nodeId++;
+      const v5 = nodeId++;
+
+      webNodes.push(
+        {
+          id: v0,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v0",
+              field_ids: [...initial.map((s) => s.particle.field.id), mediatorField.id],
+              expression: "-ieγ^μ",
+              coupling_value: 0.3028,
+              n_legs: initial.length + 1,
+            },
+          },
+          position: [1.9, 2.2] as [number, number],
+        },
+        {
+          id: v1,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v1",
+              field_ids: [mediatorField.id, neutralMediatorField.id, scalarMediatorField.id],
+              expression: "-ig_{mix}",
+              coupling_value: 0.23,
+              n_legs: 3,
+            },
+          },
+          position: [3.0, 1.1] as [number, number],
+        },
+        {
+          id: v2,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v2",
+              field_ids: [mediatorField.id, neutralMediatorField.id, scalarMediatorField.id],
+              expression: "-ig_{mix}",
+              coupling_value: 0.21,
+              n_legs: 3,
+            },
+          },
+          position: [3.0, 3.3] as [number, number],
+        },
+        {
+          id: v3,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v3",
+              field_ids: [neutralMediatorField.id, scalarMediatorField.id, mediatorField.id],
+              expression: "-iλ_1",
+              coupling_value: 0.12,
+              n_legs: 3,
+            },
+          },
+          position: [4.4, 0.7] as [number, number],
+        },
+        {
+          id: v4,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v4",
+              field_ids: [neutralMediatorField.id, scalarMediatorField.id, mediatorField.id],
+              expression: "-iλ_2",
+              coupling_value: 0.10,
+              n_legs: 3,
+            },
+          },
+          position: [4.4, 2.2] as [number, number],
+        },
+        {
+          id: v5,
+          kind: {
+            InternalVertex: {
+              term_id: "mock-web-v5",
+              field_ids: [neutralMediatorField.id, scalarMediatorField.id, mediatorField.id],
+              expression: "-iλ_3",
+              coupling_value: 0.11,
+              n_legs: 3,
+            },
+          },
+          position: [4.4, 3.7] as [number, number],
+        },
+      );
+
+      inIds.forEach((inId, idx) => {
+        webEdges.push([inId, v0, edgeFor(initial[idx].particle.field, `p${idx + 1}`, true)]);
+      });
+
+      webEdges.push(
+        [v0, v1, propagatorEdge(mediatorField, "q1", "-ig_{μν}/q1²", "MasslessVector")],
+        [v0, v2, propagatorEdge(neutralMediatorField, "q2", "-ig_{μν}/(q2²-m_Z²)", "MassiveVector")],
+        [v1, v3, propagatorEdge(neutralMediatorField, "ℓ1", "-ig_{μν}/(ℓ1²-m_Z²)", "MassiveVector")],
+        [v1, v4, propagatorEdge(scalarMediatorField, "ℓ2", "i/(ℓ2²-m_H²)", "Scalar")],
+        [v2, v4, propagatorEdge(mediatorField, "ℓ3", "-ig_{μν}/ℓ3²", "MasslessVector")],
+        [v2, v5, propagatorEdge(scalarMediatorField, "ℓ4", "i/(ℓ4²-m_H²)", "Scalar")],
+        [v3, v4, propagatorEdge(mediatorField, "b1", "-ig_{μν}/b1²", "MasslessVector")],
+        [v4, v5, propagatorEdge(neutralMediatorField, "b2", "-ig_{μν}/(b2²-m_Z²)", "MassiveVector")],
+        [v3, v5, propagatorEdge(scalarMediatorField, "b3", "i/(b3²-m_H²)", "Scalar")],
+      );
+
+      final_.forEach((state, idx) => {
+        const outId = nodeId++;
+        const y = 0.35 + idx * 0.9;
+        webNodes.push({
+          id: outId,
+          kind: { ExternalOutgoing: state.particle },
+          position: [7.2, y] as [number, number],
+        });
+
+        const attach = idx % 3 === 0 ? v3 : (idx % 3 === 1 ? v4 : v5);
+        webEdges.push([attach, outId, edgeFor(state.particle.field, `k${idx + 1}`, true)]);
+      });
+
+      diagrams.push({
+        id: nextDiagramId++,
+        nodes: webNodes,
+        edges: webEdges,
+        channels: ["S", "T", "U"],
+        loop_order: "OneLoop",
+        symmetry_factor: 1,
+        is_connected: true,
+        is_one_particle_irreducible: true,
       });
     }
 

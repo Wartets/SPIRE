@@ -61,7 +61,6 @@
   let showEdgeLabels = true;
   let showTikzExport = false;
   let tikzStandalone = false;
-  let diagramZoom = 1;
   let viewMode: "editable" | "rendered" | "text" = "editable";
 
   // SVG viewport
@@ -500,8 +499,8 @@
   $: selectedDiagram = diagrams[selectedIdx] ?? null;
   $: renderedSvg = selectedDiagram
     ? renderFeynmanDiagram(selectedDiagram, {
-        width: Math.round(540 * diagramZoom),
-        height: Math.round(340 * diagramZoom),
+        width: 540,
+        height: 340,
       })
     : "";
 
@@ -730,11 +729,6 @@
       </svg>
     {:else if viewMode === "rendered"}
       <div class="rendered-view" aria-label="Rendered diagram preview">
-        <div class="zoom-row">
-          <button class="edit-btn" on:click={() => (diagramZoom = Math.max(0.4, diagramZoom - 0.2))}>−</button>
-          <button class="edit-btn" on:click={() => (diagramZoom = 1)}>{Math.round(diagramZoom * 100)}%</button>
-          <button class="edit-btn" on:click={() => (diagramZoom = Math.min(3, diagramZoom + 0.2))}>+</button>
-        </div>
         <div class="rendered-svg">{@html renderedSvg}</div>
       </div>
     {:else}
@@ -1021,12 +1015,6 @@
     overflow: auto;
     padding: 0.4rem;
     gap: 0.35rem;
-  }
-
-  .zoom-row {
-    display: flex;
-    gap: 0.2rem;
-    align-items: center;
   }
 
   .rendered-svg {

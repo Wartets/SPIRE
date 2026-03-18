@@ -61,11 +61,29 @@
   /** Whether to show the full standalone document. */
   let tikzStandalone = false;
 
-  /** Zoom level for SVG renderers. */
-  let diagramZoom = 1;
-
   /** Track last rendered diagram ID + viewMode to avoid unnecessary re-renders. */
   let lastRenderedKey = "";
+
+  // ── Canvas Pan/Zoom State ──────────────────────────────────────────────
+  let svgElement: SVGElement | null = null;
+  let panX = 0;
+  let panY = 0;
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let manualMoveEnabled = false;
+  let draggedNodeId: number | null = null;
+  let dragNodeOffsetX = 0;
+  let dragNodeOffsetY = 0;
+  let nodePositionOverrides: Record<number, { x: number; y: number }> = {};
+  let detachCanvasHandlers: (() => void) | null = null;
+  let autoReviewEnabled = true;
+  const autoReviewedKeys = new Set<string>();
+  let reviewRunCount = 0;
+  const positionCache = new Map<number, Record<number, { x: number; y: number }>>();
+  const renderCache = new Map<string, string>();
+  let pendingDragUpdate: { id: number; x: number; y: number } | null = null;
+  let dragRafId: number | null = null;
 
   // ── Reactive Data ──────────────────────────────────────────────────────
 
@@ -82,7 +100,7 @@
   // Use a keyed reactive block to render only when diagram or mode changes.
 
   $: renderKey = selectedDiagram
-    ? `${selectedDiagram.id}-${viewMode}-${diagramZoom}`
+    ? `${selectedDiagram.id}-${viewMode}`
     : "";
 
   $: if (renderKey && renderKey !== lastRenderedKey) {
@@ -90,13 +108,452 @@
     scheduleRender();
   }
 
+  // Ensure initial render on mount if a diagram is already selected
+  onMount(() => {
+    if (selectedDiagram && !lastRenderedKey) {
+      scheduleRender();
+    }
+
+    return () => {
+      if (detachCanvasHandlers) {
+        detachCanvasHandlers();
+        detachCanvasHandlers = null;
+      }
+    };
+  });
+
+  function bindCanvasInteraction(container: HTMLDivElement | null): void {
+    if (detachCanvasHandlers) {
+      detachCanvasHandlers();
+      detachCanvasHandlers = null;
+    }
+    if (!container) return;
+
+    const onDown = (e: MouseEvent) => handleCanvasMouseDown(e);
+    const onMove = (e: MouseEvent) => handleCanvasMouseMove(e);
+    const onUp = (e: MouseEvent) => handleCanvasMouseUp(e);
+    const onLeave = (e: MouseEvent) => handleCanvasMouseLeave(e);
+    const onWheel = (e: WheelEvent) => handleCanvasWheel(e);
+
+    container.addEventListener("mousedown", onDown);
+    container.addEventListener("mousemove", onMove);
+    container.addEventListener("mouseup", onUp);
+    container.addEventListener("mouseleave", onLeave);
+    container.addEventListener("wheel", onWheel, { passive: false });
+
+    detachCanvasHandlers = () => {
+      container.removeEventListener("mousedown", onDown);
+      container.removeEventListener("mousemove", onMove);
+      container.removeEventListener("mouseup", onUp);
+      container.removeEventListener("mouseleave", onLeave);
+      container.removeEventListener("wheel", onWheel);
+    };
+  }
+
+  function getNodePosition(nodeId: number): { x: number; y: number } | null {
+    const override = nodePositionOverrides[nodeId];
+    if (override) return override;
+    const nodeEl = renderContainer?.querySelector(`circle.node-anchor[data-node-id=\"${nodeId}\"]`) as SVGCircleElement | null;
+    if (!nodeEl) return null;
+    const x = Number(nodeEl.getAttribute("cx") ?? "0");
+    const y = Number(nodeEl.getAttribute("cy") ?? "0");
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  }
+
+  function applySvgTransform(): void {
+    if (!svgElement) return;
+    svgElement.style.transform = `translate(${panX}px, ${panY}px)`;
+    svgElement.style.transformOrigin = "center center";
+  }
+
+  function overrideSignature(): string {
+    const entries = Object.entries(nodePositionOverrides);
+    if (entries.length === 0) return "no-pos";
+    entries.sort(([a], [b]) => Number(a) - Number(b));
+    let out = "";
+    for (const [id, p] of entries) {
+      out += `${id}:${p.x.toFixed(1)},${p.y.toFixed(1)};`;
+    }
+    return out;
+  }
+
+  function renderCacheKey(mode: ViewMode, diagId: number): string {
+    return `${mode}:${diagId}:${overrideSignature()}`;
+  }
+
+  function savePositionCache(diagId: number): void {
+    positionCache.set(diagId, { ...nodePositionOverrides });
+  }
+
+  function restorePositionCache(diagId: number): void {
+    nodePositionOverrides = positionCache.get(diagId) ? { ...positionCache.get(diagId)! } : {};
+  }
+
+  function clampNodePosition(x: number, y: number): { x: number; y: number } {
+    return {
+      x: Math.max(36, Math.min(564, x)),
+      y: Math.max(24, Math.min(396, y)),
+    };
+  }
+
+  function formatParticleLabel(raw: string): string {
+    let s = (raw ?? "").trim();
+    if (!s) return s;
+    if (s.startsWith("$") && s.endsWith("$")) s = s.slice(1, -1);
+    s = s.replace(/^\\/, "");
+
+    const greek: Record<string, string> = {
+      mu: "μ",
+      nu: "ν",
+      tau: "τ",
+      gamma: "γ",
+      alpha: "α",
+      beta: "β",
+      rho: "ρ",
+      phi: "ϕ",
+      pi: "π",
+      ell: "ℓ",
+    };
+    if (greek[s.toLowerCase()]) return greek[s.toLowerCase()];
+
+    s = s
+      .replace(/\\mu/gi, "μ")
+      .replace(/\\nu/gi, "ν")
+      .replace(/\\tau/gi, "τ")
+      .replace(/\\gamma/gi, "γ")
+      .replace(/\\ell/gi, "ℓ")
+      .replace(/\^\{-\}/g, "⁻")
+      .replace(/\^\{\+\}/g, "⁺")
+      .replace(/\^-/g, "⁻")
+      .replace(/\^\+/g, "⁺")
+      .replace(/([A-Za-zα-ωΑ-Ω])-(?!\w)/g, "$1⁻")
+      .replace(/([A-Za-zα-ωΑ-Ω])\+(?!\w)/g, "$1⁺");
+
+    if (s === "e-") return "e⁻";
+    if (s === "e+") return "e⁺";
+    if (s === "mu-") return "μ⁻";
+    if (s === "mu+") return "μ⁺";
+    return s;
+  }
+
+  function computeLayerTargets(diag: FeynmanDiagram): Map<number, number> {
+    const targets = new Map<number, number>();
+    const outgoing = new Map<number, number[]>();
+    for (const n of diag.nodes) outgoing.set(n.id, []);
+    for (const [s, t] of diag.edges) outgoing.get(s)?.push(t);
+
+    const queue: number[] = [];
+    for (const n of diag.nodes) {
+      if ("ExternalIncoming" in n.kind) {
+        targets.set(n.id, 0);
+        queue.push(n.id);
+      }
+    }
+
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      const l = targets.get(id) ?? 0;
+      for (const t of outgoing.get(id) ?? []) {
+        const cand = l + 1;
+        if ((targets.get(t) ?? -1) < cand) {
+          targets.set(t, cand);
+          queue.push(t);
+        }
+      }
+    }
+
+    let maxLayer = 0;
+    for (const v of targets.values()) maxLayer = Math.max(maxLayer, v);
+    if (maxLayer <= 0) maxLayer = 1;
+
+    for (const n of diag.nodes) {
+      if ("ExternalIncoming" in n.kind) {
+        targets.set(n.id, 0);
+      } else if ("ExternalOutgoing" in n.kind) {
+        targets.set(n.id, 1);
+      } else {
+        const l = targets.get(n.id);
+        targets.set(n.id, l === undefined ? 0.5 : l / maxLayer);
+      }
+    }
+    return targets;
+  }
+
+  function applySmartGrid(positions: Map<number, { x: number; y: number }>, diag: FeynmanDiagram): Map<number, { x: number; y: number }> {
+    const left = 74;
+    const right = 526;
+    const top = 36;
+    const bottom = 388;
+    const gx = 52;
+    const gy = 44;
+
+    const grid: Array<{ x: number; y: number; used: boolean; idx: number }> = [];
+    let idx = 0;
+    for (let y = top; y <= bottom; y += gy) {
+      for (let x = left; x <= right; x += gx) {
+        grid.push({ x, y, used: false, idx: idx++ });
+      }
+    }
+
+    const layerTargets = computeLayerTargets(diag);
+    const nodesSorted = [...diag.nodes].sort((a, b) => {
+      const ar = "ExternalIncoming" in a.kind ? 0 : "InternalVertex" in a.kind ? 1 : 2;
+      const br = "ExternalIncoming" in b.kind ? 0 : "InternalVertex" in b.kind ? 1 : 2;
+      if (ar !== br) return ar - br;
+      return (layerTargets.get(a.id) ?? 0.5) - (layerTargets.get(b.id) ?? 0.5);
+    });
+
+    const placed = new Map<number, { x: number; y: number }>();
+    for (const node of nodesSorted) {
+      const p = positions.get(node.id) ?? { x: 300, y: 210 };
+      let best: { i: number; score: number } | null = null;
+      for (let i = 0; i < grid.length; i++) {
+        if (grid[i].used) continue;
+        const dx = grid[i].x - p.x;
+        const dy = grid[i].y - p.y;
+        let score = dx * dx + dy * dy;
+
+        const targetLayer = layerTargets.get(node.id) ?? 0.5;
+        const desiredX = left + targetLayer * (right - left);
+        score += Math.abs(grid[i].x - desiredX) * 9;
+
+        if ("ExternalIncoming" in node.kind) score += Math.max(0, grid[i].x - 180) * 2.2;
+        if ("ExternalOutgoing" in node.kind) score += Math.max(0, 420 - grid[i].x) * 2.2;
+
+        if (!best || score < best.score) best = { i, score };
+      }
+
+      if (best) {
+        grid[best.i].used = true;
+        placed.set(node.id, { x: grid[best.i].x, y: grid[best.i].y });
+      } else {
+        placed.set(node.id, clampNodePosition(p.x, p.y));
+      }
+    }
+    return placed;
+  }
+
+  function reviewNodeLayout(passes = 1): void {
+    if (!selectedDiagram || (viewMode !== "feynman" && viewMode !== "worldsheet")) return;
+
+    const ids = selectedDiagram.nodes.map((n) => n.id);
+    const edgeList = selectedDiagram.edges;
+    const nodeCount = ids.length;
+    const edgeCount = edgeList.length;
+    const positions = new Map<number, { x: number; y: number }>();
+    for (const id of ids) {
+      const p = getNodePosition(id);
+      if (p) positions.set(id, { ...p });
+    }
+
+    if (positions.size === 0) return;
+
+    const role = new Map<number, "incoming" | "outgoing" | "internal">();
+    for (const n of selectedDiagram.nodes) {
+      if ("ExternalIncoming" in n.kind) role.set(n.id, "incoming");
+      else if ("ExternalOutgoing" in n.kind) role.set(n.id, "outgoing");
+      else role.set(n.id, "internal");
+    }
+
+    const layerTargets = computeLayerTargets(selectedDiagram);
+
+    const runPass = () => {
+      const minSeparation = 56;
+      const targetEdgeLength = 108;
+      const left = 78;
+      const right = 522;
+      const denseScore = nodeCount * nodeCount + edgeCount * 12;
+      const iterCount = denseScore >= 14000 ? 10 : denseScore >= 8000 ? 16 : 36;
+      const pairStride = nodeCount >= 72 ? 4 : nodeCount >= 54 ? 3 : nodeCount >= 38 ? 2 : 1;
+      const edgeStride = edgeCount >= 210 ? 4 : edgeCount >= 140 ? 3 : edgeCount >= 90 ? 2 : 1;
+
+      for (let iter = 0; iter < iterCount; iter++) {
+        for (let i = 0; i < ids.length; i++) {
+          const jStart = i + 1 + ((i + iter) % pairStride);
+          for (let j = jStart; j < ids.length; j += pairStride) {
+            const a = positions.get(ids[i]);
+            const b = positions.get(ids[j]);
+            if (!a || !b) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const d = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+            const ri = role.get(ids[i]) === "internal" ? minSeparation : minSeparation + 8;
+            const rj = role.get(ids[j]) === "internal" ? minSeparation : minSeparation + 8;
+            const minD = (ri + rj) * 0.5;
+            if (d >= minD) continue;
+            const push = (minD - d) * 0.26;
+            const nx = dx / d;
+            const ny = dy / d;
+            a.x -= nx * push;
+            a.y -= ny * push;
+            b.x += nx * push;
+            b.y += ny * push;
+          }
+        }
+
+        const edgeStart = iter % edgeStride;
+        for (let edgeIdx = edgeStart; edgeIdx < edgeList.length; edgeIdx += edgeStride) {
+          const [srcId, tgtId] = edgeList[edgeIdx];
+          const a = positions.get(srcId);
+          const b = positions.get(tgtId);
+          if (!a || !b) continue;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const d = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+          const delta = (d - targetEdgeLength) * 0.05;
+          const nx = dx / d;
+          const ny = dy / d;
+          a.x += nx * delta;
+          a.y += ny * delta;
+          b.x -= nx * delta;
+          b.y -= ny * delta;
+        }
+
+        for (const id of ids) {
+          const p = positions.get(id);
+          if (!p) continue;
+          const r = role.get(id);
+          const targetLayer = layerTargets.get(id) ?? 0.5;
+          const desiredX = left + targetLayer * (right - left);
+          const wx = r === "incoming" || r === "outgoing" ? 0.22 : 0.1;
+          p.x += (desiredX - p.x) * wx;
+
+          if (r === "incoming") p.x = Math.min(p.x, 172);
+          if (r === "outgoing") p.x = Math.max(p.x, 428);
+
+          const c = clampNodePosition(p.x, p.y);
+          p.x = c.x;
+          p.y = c.y;
+        }
+      }
+    };
+
+    const denseDiagram = nodeCount >= 42 || edgeCount >= 86;
+    const maxLoops = denseDiagram ? (nodeCount >= 70 || edgeCount >= 150 ? 2 : 3) : 8;
+    const loops = Math.max(1, Math.min(passes, maxLoops));
+    for (let i = 0; i < loops; i++) {
+      runPass();
+    }
+
+    const snapped = applySmartGrid(positions, selectedDiagram);
+    nodePositionOverrides = Object.fromEntries(Array.from(snapped.entries()));
+    savePositionCache(selectedDiagram.id);
+
+    if (viewMode === "feynman") renderFeynman(selectedDiagram);
+    if (viewMode === "worldsheet") renderWorldsheetView(selectedDiagram);
+  }
+
+  function handleCanvasMouseDown(e: MouseEvent) {
+    // Only pan with left mouse button
+    if (e.button !== 0) return;
+    
+    // If clicking on interactive elements (buttons, links), don't pan
+    if ((e.target as HTMLElement).closest("button, a, input")) return;
+    
+    const target = e.target as HTMLElement;
+    if (manualMoveEnabled && viewMode === "feynman") {
+      const draggable = target.closest("[data-node-id]") as HTMLElement | null;
+      if (draggable) {
+        const nodeId = Number(draggable.getAttribute("data-node-id") ?? "");
+        if (Number.isFinite(nodeId)) {
+          const p = getNodePosition(nodeId);
+          if (p) {
+            draggedNodeId = nodeId;
+            dragNodeOffsetX = e.clientX - p.x;
+            dragNodeOffsetY = e.clientY - p.y;
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+
+    isPanning = true;
+    panStartX = e.clientX - panX;
+    panStartY = e.clientY - panY;
+    e.preventDefault();
+  }
+
+  function handleCanvasMouseMove(e: MouseEvent) {
+    if (draggedNodeId !== null && selectedDiagram && viewMode === "feynman") {
+      const x = e.clientX - dragNodeOffsetX;
+      const y = e.clientY - dragNodeOffsetY;
+      const c = clampNodePosition(x, y);
+      pendingDragUpdate = { id: draggedNodeId, x: c.x, y: c.y };
+      if (dragRafId === null) {
+        dragRafId = requestAnimationFrame(() => {
+          if (!pendingDragUpdate || !selectedDiagram) {
+            dragRafId = null;
+            return;
+          }
+          const upd = pendingDragUpdate;
+          pendingDragUpdate = null;
+          nodePositionOverrides = {
+            ...nodePositionOverrides,
+            [upd.id]: { x: upd.x, y: upd.y },
+          };
+          savePositionCache(selectedDiagram.id);
+          renderFeynman(selectedDiagram);
+          dragRafId = null;
+        });
+      }
+      e.preventDefault();
+      return;
+    }
+
+    if (!isPanning) return;
+
+    panX = e.clientX - panStartX;
+    panY = e.clientY - panStartY;
+    applySvgTransform();
+    e.preventDefault();
+  }
+
+  function handleCanvasMouseUp(e: MouseEvent) {
+    draggedNodeId = null;
+    isPanning = false;
+    pendingDragUpdate = null;
+    if (dragRafId !== null) {
+      cancelAnimationFrame(dragRafId);
+      dragRafId = null;
+    }
+    e.preventDefault();
+  }
+
+  function handleCanvasMouseLeave(e: MouseEvent) {
+    draggedNodeId = null;
+    isPanning = false;
+    pendingDragUpdate = null;
+    if (dragRafId !== null) {
+      cancelAnimationFrame(dragRafId);
+      dragRafId = null;
+    }
+  }
+
+  function handleCanvasWheel(e: WheelEvent) {
+    // Disable default wheel behavior (scrolling)
+    e.preventDefault();
+  }
+
+  function resetCanvasPan() {
+    panX = 0;
+    panY = 0;
+    applySvgTransform();
+  }
+
   async function scheduleRender(): Promise<void> {
     await tick();
     if (!selectedDiagram) return;
 
-    const key = `${selectedDiagram.id}-${viewMode}-${diagramZoom}`;
+    const key = `${selectedDiagram.id}-${viewMode}`;
     if (key === lastRenderedKey) return;
     lastRenderedKey = key;
+
+    // Reset pan when switching diagrams or modes
+    resetCanvasPan();
+    restorePositionCache(selectedDiagram.id);
+    manualMoveEnabled = false;
+    reviewRunCount = 0;
 
     switch (viewMode) {
       case "feynman":
@@ -110,7 +567,17 @@
         break;
       case "text":
         // Text is handled directly in the template
+        svgElement = null;
+        if (detachCanvasHandlers) {
+          detachCanvasHandlers();
+          detachCanvasHandlers = null;
+        }
         break;
+    }
+
+    if (autoReviewEnabled && (viewMode === "feynman" || viewMode === "worldsheet") && !autoReviewedKeys.has(key)) {
+      reviewNodeLayout(1);
+      autoReviewedKeys.add(key);
     }
   }
 
@@ -118,20 +585,45 @@
 
   function renderFeynman(diag: FeynmanDiagram): void {
     if (!renderContainer) return;
-    const svgW = Math.round(520 * diagramZoom);
-    const svgH = Math.round(340 * diagramZoom);
-    const svg = renderFeynmanDiagram(diag, { width: svgW, height: svgH });
+    bindCanvasInteraction(renderContainer);
+    const cacheKey = renderCacheKey("feynman", diag.id);
+    const svg = renderCache.get(cacheKey) ?? renderFeynmanDiagram(diag, {
+      width: 600,
+      height: 420,
+      nodePositionOverrides,
+    });
+    if (!renderCache.has(cacheKey)) renderCache.set(cacheKey, svg);
     renderContainer.innerHTML = svg;
+    svgElement = renderContainer.querySelector("svg");
+    if (svgElement) {
+      svgElement.style.cursor = "grab";
+      svgElement.addEventListener("mousedown", () => {
+        svgElement!.style.cursor = "grabbing";
+      });
+      svgElement.addEventListener("mouseup", () => {
+        svgElement!.style.cursor = "grab";
+      });
+      svgElement.addEventListener("mouseleave", () => {
+        svgElement!.style.cursor = "grab";
+      });
+      applySvgTransform();
+    }
   }
 
   // ── Worldsheet Renderer ──────────────────────────────────────────────
 
   function renderWorldsheetView(diag: FeynmanDiagram): void {
     if (!renderContainer) return;
-    const svgW = Math.round(520 * diagramZoom);
-    const svgH = Math.round(340 * diagramZoom);
-    const svg = renderWorldsheet(diag, { width: svgW, height: svgH });
+    bindCanvasInteraction(renderContainer);
+    const cacheKey = renderCacheKey("worldsheet", diag.id);
+    const svg = renderCache.get(cacheKey) ?? renderWorldsheet(diag, { width: 600, height: 420, nodePositionOverrides });
+    if (!renderCache.has(cacheKey)) renderCache.set(cacheKey, svg);
     renderContainer.innerHTML = svg;
+    svgElement = renderContainer.querySelector("svg");
+    if (svgElement) {
+      svgElement.style.cursor = "grab";
+      applySvgTransform();
+    }
   }
 
   // ── Mermaid Renderer (legacy) ─────────────────────────────────────────
@@ -175,16 +667,16 @@
       const id = `N${node.id}`;
       const kind = node.kind;
       if ("ExternalIncoming" in kind) {
-        lines.push(`    ${id}(["${esc(kind.ExternalIncoming.field.symbol)} →"]):::incoming`);
+        lines.push(`    ${id}(["${esc(formatParticleLabel(kind.ExternalIncoming.field.symbol))} →"]):::incoming`);
       } else if ("ExternalOutgoing" in kind) {
-        lines.push(`    ${id}(["→ ${esc(kind.ExternalOutgoing.field.symbol)}"]):::outgoing`);
+        lines.push(`    ${id}(["→ ${esc(formatParticleLabel(kind.ExternalOutgoing.field.symbol))}"]):::outgoing`);
       } else if ("InternalVertex" in kind) {
         lines.push(`    ${id}(("V")):::vertex`);
       }
     }
 
     for (const [src, tgt, edge] of diag.edges) {
-      const particle = esc(edge.field.symbol);
+      const particle = esc(formatParticleLabel(edge.field.symbol));
       const mom = esc(edge.momentum_label);
       const label = mom ? `${particle} [${mom}]` : particle;
       if (edge.is_external) {
@@ -204,12 +696,40 @@
   async function renderMermaidView(diag: FeynmanDiagram): Promise<void> {
     if (!mermaidContainer || !mermaidReady) return;
     try {
+      bindCanvasInteraction(mermaidContainer);
+      const cacheKey = renderCacheKey("mermaid", diag.id);
+      if (renderCache.has(cacheKey)) {
+        mermaidContainer.innerHTML = renderCache.get(cacheKey)!;
+        svgElement = mermaidContainer.querySelector("svg");
+        if (svgElement) {
+          svgElement.style.cursor = "grab";
+          applySvgTransform();
+        }
+        return;
+      }
       const mermaid = (await import("mermaid")).default;
       const definition = graphToMermaid(diag);
       const uniqueId = `spire-diagram-${diag.id}-${Date.now()}`;
       mermaidContainer.innerHTML = "";
       const { svg } = await mermaid.render(uniqueId, definition);
       mermaidContainer.innerHTML = svg;
+      renderCache.set(cacheKey, svg);
+      
+      // Setup panning for mermaid SVG
+      svgElement = mermaidContainer.querySelector("svg");
+      if (svgElement) {
+        svgElement.style.cursor = "grab";
+        svgElement.addEventListener("mousedown", () => {
+          svgElement!.style.cursor = "grabbing";
+        });
+        svgElement.addEventListener("mouseup", () => {
+          svgElement!.style.cursor = "grab";
+        });
+        svgElement.addEventListener("mouseleave", () => {
+          svgElement!.style.cursor = "grab";
+        });
+        applySvgTransform();
+      }
     } catch (e) {
       console.warn("Mermaid render error:", e);
       if (mermaidContainer) {
@@ -221,8 +741,8 @@
   // ── Text Renderer ─────────────────────────────────────────────────────
 
   function nodeLabel(kind: NodeKind): string {
-    if ("ExternalIncoming" in kind) return `→ ${kind.ExternalIncoming.field.symbol} (in)`;
-    if ("ExternalOutgoing" in kind) return `${kind.ExternalOutgoing.field.symbol} → (out)`;
+    if ("ExternalIncoming" in kind) return `→ ${formatParticleLabel(kind.ExternalIncoming.field.symbol)} (in)`;
+    if ("ExternalOutgoing" in kind) return `${formatParticleLabel(kind.ExternalOutgoing.field.symbol)} → (out)`;
     if ("InternalVertex" in kind) return `vertex [${kind.InternalVertex.field_ids.join(", ")}]`;
     return "?";
   }
@@ -291,17 +811,6 @@
     URL.revokeObjectURL(url);
   }
 
-  function zoomIn(): void { diagramZoom = Math.min(3, diagramZoom + 0.2); }
-  function zoomOut(): void { diagramZoom = Math.max(0.4, diagramZoom - 0.2); }
-  function zoomReset(): void { diagramZoom = 1; }
-
-  /** Handle wheel events on the SVG viewport for smooth zoom. */
-  function handleSvgWheel(event: WheelEvent): void {
-    event.preventDefault();
-    event.stopPropagation();
-    const step = event.deltaY > 0 ? -0.1 : 0.1;
-    diagramZoom = Math.min(3, Math.max(0.4, diagramZoom + step));
-  }
 
   $: if (selectedDiagram) {
     publishWidgetInterop("diagram", {
@@ -319,13 +828,6 @@
   <!-- Header -->
   <div class="dv-header">
     <h3>Feynman Diagrams</h3>
-    {#if diagrams.length > 0}
-      <div class="dv-zoom">
-        <button class="icon-btn" on:click={zoomOut} use:tooltip={{ text: "Zoom Out" }}>−</button>
-        <button class="icon-btn zoom-label" on:click={zoomReset} use:tooltip={{ text: "Reset Zoom" }}>{Math.round(diagramZoom * 100)}%</button>
-        <button class="icon-btn" on:click={zoomIn} use:tooltip={{ text: "Zoom In" }}>+</button>
-      </div>
-    {/if}
   </div>
 
   {#if diagrams.length === 0}
@@ -351,6 +853,31 @@
         <button class="export-btn" on:click={() => { showTikzExport = !showTikzExport; }} use:tooltip={{ text: "LaTeX TikZ Export" }}>
           TikZ
         </button>
+        {#if viewMode === "feynman"}
+          <button
+            class="export-btn"
+            class:active-toggle={manualMoveEnabled}
+            on:click={() => {
+              manualMoveEnabled = !manualMoveEnabled;
+            }}
+            use:tooltip={{ text: "Enable manual node movement" }}
+          >
+            Move Nodes {manualMoveEnabled ? "ON" : "OFF"}
+          </button>
+        {/if}
+        {#if viewMode === "feynman" || viewMode === "worldsheet"}
+          <button
+            class="export-btn"
+            on:click={() => {
+              reviewRunCount += 1;
+              const loopPasses = Math.min(8, 2 + reviewRunCount);
+              reviewNodeLayout(loopPasses);
+            }}
+            use:tooltip={{ text: "Weighted smart-grid spacing (re-click to iterate more)" }}
+          >
+            Review Positions ×{Math.min(8, 2 + reviewRunCount)}
+          </button>
+        {/if}
         {#if viewMode === "feynman" || viewMode === "worldsheet"}
           <button class="export-btn" on:click={exportSvg} use:tooltip={{ text: "Download SVG" }}>
             SVG ↓
@@ -428,7 +955,7 @@
           </div>
         {:else}
           <!-- Feynman / Worldsheet SVG -->
-          <div class="svg-container" bind:this={renderContainer} on:wheel={handleSvgWheel} data-wheel-capture></div>
+          <div class="svg-container" bind:this={renderContainer}></div>
         {/if}
       </div>
 
@@ -477,34 +1004,6 @@
     margin: 0;
     font-size: 0.85rem;
     color: var(--fg-accent);
-  }
-
-  .dv-zoom {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .icon-btn {
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
-    color: var(--fg-primary);
-    width: 22px;
-    height: 22px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    font-family: var(--font-mono);
-  }
-  .icon-btn:hover { border-color: var(--border-focus); }
-  .zoom-label {
-    width: auto;
-    padding: 0 0.3rem;
-    font-size: 0.65rem;
-    color: var(--fg-secondary);
   }
 
   /* ── Hint ── */
@@ -577,6 +1076,12 @@
   .export-btn:hover {
     color: var(--hl-value);
     border-color: var(--hl-value);
+  }
+
+  .export-btn.active-toggle {
+    color: var(--hl-success);
+    border-color: var(--hl-success);
+    background: color-mix(in srgb, var(--bg-surface) 75%, var(--hl-success) 25%);
   }
 
   /* ── Diagram Tabs ── */
@@ -698,8 +1203,10 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    overflow: hidden;
     min-height: 120px;
+    max-height: 500px;
+    position: relative;
   }
 
   .svg-container {
@@ -709,14 +1216,20 @@
     justify-content: center;
     background: var(--bg-inset);
     border: 1px solid var(--border);
-    overflow: auto;
-    min-height: 160px;
-    padding: 0.5rem;
+    overflow: hidden;
+    min-height: 200px;
+    max-height: 500px;
+    position: relative;
+    cursor: grab;
   }
 
   .svg-container :global(svg) {
-    max-width: 100%;
-    height: auto;
+    width: 600px;
+    height: 420px;
+    flex-shrink: 0;
+    transition: transform 0.05s linear;
+    user-select: none;
+    pointer-events: auto;
   }
 
   .diagram-text {
@@ -737,13 +1250,20 @@
     border: 1px solid var(--border);
     padding: 0.75rem;
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 160px;
   }
-  .mermaid-container :global(svg) { max-width: 100%; height: auto; }
+  .mermaid-container :global(svg) {
+    width: 600px;
+    height: 420px;
+    flex-shrink: 0;
+    transition: transform 0.05s linear;
+    user-select: none;
+    pointer-events: auto;
+  }
   .mermaid-container :global(.edgeLabel) {
     background-color: var(--bg-inset) !important;
     color: var(--hl-value) !important;
