@@ -27,7 +27,13 @@
       "category": "Education",
       "identifier": "org.spire.hep",
       "targets": "all",
-      "icon": ["icons/icon.ico"],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
       "resources": ["../../../data/*"],
       "shortDescription": "High-energy physics scattering engine",
       "longDescription": "SPIRE (Structured Particle Interaction & Reaction Engine) is a computational environment for studying fundamental interactions via Feynman diagram generation, symbolic amplitude computation, and Monte Carlo integration.",

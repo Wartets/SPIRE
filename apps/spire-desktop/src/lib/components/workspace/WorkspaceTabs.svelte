@@ -188,9 +188,9 @@
       },
       { type: "submenu", id: "ctx-ws-color", label: "Accent Color", icon: "●", children: colorSubmenuItems },
       { type: "separator", id: "sep-ws-1" },
-      { type: "action", id: "ctx-ws-save", label: "Save Workspace Snapshot", icon: "💾", action: () => downloadWorkspace(get(workspaces).find((w) => w.id === wsId)?.name ?? "workspace") },
-      { type: "action", id: "ctx-ws-duplicate", label: "Duplicate Workspace", action: () => duplicateWorkspace(wsId) },
-      { type: "action", id: "ctx-ws-new", label: "New Workspace", shortcut: "+", action: () => addWorkspace() },
+      { type: "action", id: "ctx-ws-save", label: "Save Workspace Snapshot", icon: "download", action: () => downloadWorkspace(get(workspaces).find((w) => w.id === wsId)?.name ?? "workspace") },
+      { type: "action", id: "ctx-ws-duplicate", label: "Duplicate Workspace", icon: "copy", action: () => duplicateWorkspace(wsId) },
+      { type: "action", id: "ctx-ws-new", label: "New Workspace", icon: "plus", shortcut: "+", action: () => addWorkspace() },
       { type: "action", id: "ctx-ws-reset", label: "Reset Workspace Data", icon: "↺", action: () => resetWorkspaceById(wsId) },
       ...(($workspaces.length > 1)
         ? [

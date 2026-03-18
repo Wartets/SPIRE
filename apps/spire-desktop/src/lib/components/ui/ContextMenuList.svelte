@@ -311,10 +311,20 @@
   }
 
   .ctx-icon {
-    width: 1.2em;
+    min-width: 1.35em;
     text-align: center;
     font-size: 0.82rem;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.05rem;
+  }
+
+  .ctx-icon :global(.spire-icon-fallback) {
+    font-size: 0.66rem;
+    letter-spacing: 0.03em;
+    font-weight: 700;
   }
 
   .ctx-label {
