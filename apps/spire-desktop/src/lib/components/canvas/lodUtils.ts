@@ -6,9 +6,9 @@
  * The LOD architecture renders each widget at one of three detail tiers
  * depending on the current canvas zoom level:
  *
- *   • full    (zoom ≥ 0.6)  — Standard interactive component
- *   • summary (0.3 ≤ zoom < 0.6) — Simplified card with title + key readouts
- *   • minimal (zoom < 0.3)  — Dense title-only rectangle
+ *   • full    (zoom UI ≥ 45%)  — Standard interactive component
+ *   • summary (25% ≤ zoom UI < 45%) — Simplified card with title + key readouts
+ *   • minimal (zoom UI < 25%)  — Dense title-only rectangle
  *
  * Additionally, widgets that fall entirely outside the visible viewport
  * (plus a configurable overscan margin) are not mounted at all, replaced
@@ -23,14 +23,31 @@ import type { WidgetType } from "$lib/stores/notebookStore";
 
 export type LodLevel = "full" | "summary" | "minimal";
 
-/** Zoom thresholds for LOD transitions (lower bound, inclusive). */
-export const LOD_THRESHOLD_FULL    = 0.4;
-export const LOD_THRESHOLD_SUMMARY = 0.2;
+/**
+ * Zoom thresholds for LOD transitions, expressed in the SAME unit as UI zoom
+ * indicator (percent, lower bound inclusive).
+ */
+export const LOD_THRESHOLD_FULL_UI_PERCENT = 25;
+export const LOD_THRESHOLD_SUMMARY_UI_PERCENT = 45;
+
+/** Internal zoom-factor thresholds derived from UI percent values. */
+export const LOD_THRESHOLD_FULL = LOD_THRESHOLD_FULL_UI_PERCENT / 100;
+export const LOD_THRESHOLD_SUMMARY = LOD_THRESHOLD_SUMMARY_UI_PERCENT / 100;
+
+/** Convert zoom factor to the exact UI value shown to users (percent). */
+export function zoomToUiPercent(zoom: number): number {
+  return Math.round(zoom * 100);
+}
 
 /** Derive the current LOD level from the canvas zoom factor. */
 export function zoomToLod(zoom: number): LodLevel {
-  if (zoom >= LOD_THRESHOLD_FULL)    return "full";
-  if (zoom >= LOD_THRESHOLD_SUMMARY) return "summary";
+  const uiPercent = zoomToUiPercent(zoom);
+  // Keep transitions robust even when thresholds are edited in reverse order.
+  const fullThreshold = Math.max(LOD_THRESHOLD_FULL_UI_PERCENT, LOD_THRESHOLD_SUMMARY_UI_PERCENT);
+  const summaryThreshold = Math.min(LOD_THRESHOLD_FULL_UI_PERCENT, LOD_THRESHOLD_SUMMARY_UI_PERCENT);
+
+  if (uiPercent >= fullThreshold) return "full";
+  if (uiPercent >= summaryThreshold) return "summary";
   return "minimal";
 }
 

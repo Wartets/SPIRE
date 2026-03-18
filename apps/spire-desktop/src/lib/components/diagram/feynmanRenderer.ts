@@ -76,19 +76,47 @@ const DEFAULT_OPTIONS: FeynmanRenderOptions = {
 
 type LineStyle = "fermion" | "antifermion" | "photon" | "gluon" | "scalar" | "higgs" | "graviton" | "massive_vector";
 
-function classifyLineStyle(edge: FeynmanEdge): LineStyle {
+function isLikelyAntiParticleField(edge: FeynmanEdge): boolean {
+  const id = edge.field.id?.toLowerCase() ?? "";
+  const name = edge.field.name?.toLowerCase() ?? "";
+  const symbol = edge.field.symbol ?? "";
+  return (
+    id.includes("_bar") ||
+    id.includes("bar") ||
+    id.endsWith("+") ||
+    name.includes("anti") ||
+    symbol.includes("+") ||
+    symbol.includes("̄")
+  );
+}
+
+function classifyLineStyle(
+  edge: FeynmanEdge,
+  srcKind?: NodeKind,
+  tgtKind?: NodeKind,
+): LineStyle {
   const form = edge.propagator?.form;
   const spin = edge.field.quantum_numbers?.spin ?? edge.propagator?.spin ?? 0;
   const mass = edge.field.mass ?? edge.propagator?.mass ?? 0;
+  const anti = isLikelyAntiParticleField(edge);
+
+  const externalIncoming = Boolean(srcKind && "ExternalIncoming" in srcKind);
+  const externalOutgoing = Boolean(tgtKind && "ExternalOutgoing" in tgtKind);
+  const inferFermionStyle = (): LineStyle => {
+    if (externalIncoming || externalOutgoing) {
+      return anti ? "antifermion" : "fermion";
+    }
+    return anti ? "antifermion" : "fermion";
+  };
 
   // Propagator form takes priority
   if (form) {
     switch (form) {
-      case "DiracFermion": return "fermion";
+      case "DiracFermion": return inferFermionStyle();
       case "MasslessVector": return "photon";
       case "MassiveVector": return "massive_vector";
       case "Scalar": return mass > 100 ? "higgs" : "scalar";
-      case "RaritaSchwinger": return "fermion";
+      case "RaritaSchwinger": return inferFermionStyle();
       case "MasslessSpin2":
       case "MassiveSpin2": return "graviton";
       default: break;
@@ -96,7 +124,7 @@ function classifyLineStyle(edge: FeynmanEdge): LineStyle {
   }
 
   // Fall back to spin
-  if (spin === 1) return "fermion"; // spin-½ (twice_spin = 1)
+  if (spin === 1) return inferFermionStyle(); // spin-½ (twice_spin = 1)
   if (spin === 2 && mass === 0) return "photon"; // spin-1 massless
   if (spin === 2 && mass > 0) return "massive_vector"; // spin-1 massive
   if (spin === 0) return "scalar";
@@ -287,9 +315,13 @@ function layoutDiagram(
   );
 
   // Build positioned edges
+  const nodeKindById = new Map<number, NodeKind>(diag.nodes.map((n) => [n.id, n.kind]));
+
   const pEdges: PositionedEdge[] = diag.edges.map(([src, tgt, edge]) => {
     const srcPos = centeredPosMap.get(src) ?? { x: 0, y: 0 };
     const tgtPos = centeredPosMap.get(tgt) ?? { x: 0, y: 0 };
+    const srcKind = nodeKindById.get(src);
+    const tgtKind = nodeKindById.get(tgt);
     return {
       srcId: src,
       tgtId: tgt,
@@ -298,7 +330,7 @@ function layoutDiagram(
       tgtX: tgtPos.x,
       tgtY: tgtPos.y,
       edge,
-      style: classifyLineStyle(edge),
+      style: classifyLineStyle(edge, srcKind, tgtKind),
     };
   });
 

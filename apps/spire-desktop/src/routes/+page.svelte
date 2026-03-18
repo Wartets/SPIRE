@@ -113,6 +113,11 @@
   let placementClientY = 0;
   let placementActive = false;
   let suppressToolboxClickForType: WidgetType | null = null;
+  let workspaceInfoOpen = false;
+  let workspaceInfoButtonEl: HTMLButtonElement | null = null;
+  let workspaceInfoMenuEl: HTMLDivElement | null = null;
+  let activeWorkspaceDescription = "Untitled workspace";
+  let activeWorkspaceColor = "#5eb8ff";
 
   type DockPreviewZone = "left" | "right" | "top" | "bottom" | "center";
   let dockPlacementPreview:
@@ -566,6 +571,12 @@
     if (!inCustomizer) {
       customizerOpen = false;
     }
+
+    const inWorkspaceInfo =
+      workspaceInfoMenuEl?.contains(target) || workspaceInfoButtonEl?.contains(target);
+    if (!inWorkspaceInfo) {
+      workspaceInfoOpen = false;
+    }
   }
 
   function handleToolboxItemPointerDown(event: PointerEvent, type: WidgetType): void {
@@ -590,6 +601,7 @@
     if (event.key === "Escape") {
       toolboxOpen = false;
       customizerOpen = false;
+      workspaceInfoOpen = false;
     }
   }
 
@@ -905,8 +917,13 @@
     refreshActiveWorkspaceIdentity();
   }
 
-  $: activeWorkspaceName =
-    $workspaces.find((item) => item.id === $activeWorkspaceId)?.name ?? "Workspace";
+  $: {
+    const activeWorkspaceData =
+      $workspaces.find((item) => item.id === $activeWorkspaceId) ?? null;
+    activeWorkspaceName = activeWorkspaceData?.name ?? "Workspace";
+    activeWorkspaceDescription = activeWorkspaceData?.description ?? "Untitled workspace";
+    activeWorkspaceColor = activeWorkspaceData?.color ?? "#5eb8ff";
+  }
 
   $: if (typeof document !== "undefined") {
     document.title = `SPIRE - ${activeWorkspaceName}`;
@@ -942,6 +959,7 @@
     "spire.canvas.zoom_in",
     "spire.canvas.zoom_out",
     "spire.canvas.reset_zoom",
+    "spire.canvas.toggle_automation",
     "spire.canvas.delete_selected",
     "spire.canvas.duplicate",
     "spire.canvas.select_all",
@@ -1174,6 +1192,14 @@
       },
     });
     registerCommand({
+      id: "spire.canvas.toggle_automation",
+      title: "Toggle Canvas Automation",
+      category: "Canvas",
+      execute: () => {
+        window.dispatchEvent(new CustomEvent("spire:canvas:toggle-automation"));
+      },
+    });
+    registerCommand({
       id: "spire.canvas.delete_selected",
       title: "Delete Selected Widget",
       category: "Canvas",
@@ -1392,8 +1418,44 @@
 
   <!-- ─── Toolbox Bar ─── -->
   <div class="toolbox-bar" class:toolbox-compact={compactToolbar} use:toolbarContextMenu role="toolbar" tabindex="-1" aria-label="Workbench toolbar">
-    <div class="toolbar-group toolbar-identity">
-      <span class="toolbar-title">{activeWorkspaceName}</span>
+    <div class="toolbar-group toolbar-workspace-info">
+      <div class="toolbar-menu-anchor">
+        <button
+          class="toolbar-info-btn"
+          bind:this={workspaceInfoButtonEl}
+          on:click={() => {
+            workspaceInfoOpen = !workspaceInfoOpen;
+            if (workspaceInfoOpen) {
+              toolboxOpen = false;
+              customizerOpen = false;
+            }
+          }}
+          use:tooltip={{ text: "Workspace info" }}
+          aria-expanded={workspaceInfoOpen}
+          aria-label="Workspace information"
+        >
+          {compactToolbar ? "ⓘ" : "Info"}
+        </button>
+
+        {#if workspaceInfoOpen}
+          <div class="workspace-info-menu" bind:this={workspaceInfoMenuEl}>
+            <div class="workspace-info-row">
+              <span class="workspace-info-label">Name</span>
+              <strong>{activeWorkspaceName}</strong>
+            </div>
+            <div class="workspace-info-row">
+              <span class="workspace-info-label">Description</span>
+              <span>{activeWorkspaceDescription}</span>
+            </div>
+            <div class="workspace-info-row">
+              <span class="workspace-info-label">Color</span>
+              <span class="workspace-info-color" style={`--ws-color: ${activeWorkspaceColor};`}>
+                {activeWorkspaceColor}
+              </span>
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
 
     <div class="toolbar-group toolbar-launchers">
@@ -1685,13 +1747,10 @@
     gap: 0.18rem;
     padding: 0.12rem 0.24rem;
   }
-  .toolbox-bar.toolbox-compact .toolbar-title {
-    font-size: 0.64rem;
-    max-width: 11rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.88;
+  .toolbox-bar.toolbox-compact .toolbar-info-btn {
+    font-size: 0.62rem;
+    line-height: 1;
+    padding: 0.14rem 0.34rem;
   }
   .toolbox-bar.toolbox-compact .toolbar-group {
     gap: 0.2rem;
@@ -1716,19 +1775,67 @@
     gap: 0.35rem;
     min-width: 0;
   }
-  .toolbar-identity {
-    gap: 0.25rem;
-    padding-right: 0.35rem;
+  .toolbar-workspace-info {
+    padding-right: 0.3rem;
     border-right: 1px solid var(--border);
-    margin-right: 0.1rem;
+    margin-right: 0.15rem;
   }
-  .toolbar-title {
-    font-size: 0.75rem;
-    color: var(--fg-primary);
+  .toolbar-info-btn {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.2rem 0.55rem;
+    font-size: 0.68rem;
+    cursor: pointer;
     font-family: var(--font-mono);
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .toolbar-info-btn:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
+  .workspace-info-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 0.35rem;
+    min-width: 14rem;
+    max-width: min(22rem, calc(100vw - 1rem));
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    z-index: 102;
+    padding: 0.45rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .workspace-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    font-size: 0.72rem;
+    color: var(--fg-primary);
+  }
+  .workspace-info-label {
+    font-size: 0.58rem;
     text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-secondary);
+  }
+  .workspace-info-color {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+  }
+  .workspace-info-color::before {
+    content: "";
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--ws-color);
+    border: 1px solid color-mix(in srgb, var(--ws-color) 75%, #fff 25%);
   }
   .toolbar-launchers,
   .toolbar-shortcuts {

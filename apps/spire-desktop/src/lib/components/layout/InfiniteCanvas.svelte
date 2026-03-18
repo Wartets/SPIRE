@@ -60,8 +60,8 @@
   import CanvasLODWrapper from "$lib/components/canvas/CanvasLODWrapper.svelte";
   import {
     type LodLevel,
-    type ViewportRect,
     zoomToLod,
+    zoomToUiPercent,
     computeViewport,
     expandByOverscan,
     isVisible,
@@ -70,6 +70,7 @@
   } from "$lib/components/canvas/lodUtils";
 
   let canvasEl: HTMLDivElement;
+  let minimapEl: HTMLDivElement;
   let repaintKickHandle: number | null = null;
 
   // ── Viewport ──
@@ -97,13 +98,69 @@
     });
   }
 
+  function clampPanToBounds(nextPanX: number, nextPanY: number, nextZoom: number): { panX: number; panY: number } {
+    if (!boundsEnabled) return { panX: nextPanX, panY: nextPanY };
+
+    const z = Math.max(nextZoom, 1e-6);
+    const halfW = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfWidth, BOUNDS_MAX_HALF_SIZE));
+    const halfH = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfHeight, BOUNDS_MAX_HALF_SIZE));
+
+    let minPanX = screenW - halfW * z;
+    let maxPanX = halfW * z;
+    let minPanY = screenH - halfH * z;
+    let maxPanY = halfH * z;
+
+    if (minPanX > maxPanX) {
+      const center = (minPanX + maxPanX) / 2;
+      minPanX = center;
+      maxPanX = center;
+    }
+    if (minPanY > maxPanY) {
+      const center = (minPanY + maxPanY) / 2;
+      minPanY = center;
+      maxPanY = center;
+    }
+
+    return {
+      panX: Math.min(maxPanX, Math.max(minPanX, nextPanX)),
+      panY: Math.min(maxPanY, Math.max(minPanY, nextPanY)),
+    };
+  }
+
   function commitViewport(): void {
+    const clamped = clampPanToBounds(panX, panY, zoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
     canvasViewport.set({ panX, panY, zoom });
   }
 
   // ── Multi-Level Dot Grid ──
   const MINOR_GRID = 20;
   const MAJOR_GRID = 100;
+
+  // ── Finite Bounds & Minimap ──
+  const BOUNDS_MIN_HALF_SIZE = 800;
+  const BOUNDS_MAX_HALF_SIZE = 20000;
+  let boundsEnabled = true;
+  let boundsHalfWidth = 4200;
+  let boundsHalfHeight = 3200;
+  let minimapVisible = true;
+  let minimapInteractive = true;
+  let minimapSettingsOpen = false;
+
+  interface MinimapViewportDragState {
+    active: boolean;
+    pointerId: number;
+    grabDx: number;
+    grabDy: number;
+  }
+
+  let minimapViewportDrag: MinimapViewportDragState = {
+    active: false,
+    pointerId: -1,
+    grabDx: 0,
+    grabDy: 0,
+  };
 
   $: minorSize    = MINOR_GRID * zoom;
   $: majorSize    = MAJOR_GRID * zoom;
@@ -144,6 +201,24 @@
   const MIN_WIDGET_HEIGHT = 200;
 
   interface SnapResult { x: number; y: number; }
+
+  function clampWidgetToBounds(x: number, y: number, w: number, h: number): { x: number; y: number; width: number; height: number } {
+    if (!boundsEnabled) return { x, y, width: w, height: h };
+
+    const halfW = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfWidth, BOUNDS_MAX_HALF_SIZE));
+    const halfH = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfHeight, BOUNDS_MAX_HALF_SIZE));
+    const maxWidth = Math.max(MIN_WIDGET_WIDTH, halfW * 2);
+    const maxHeight = Math.max(MIN_WIDGET_HEIGHT, halfH * 2);
+    const width = Math.max(MIN_WIDGET_WIDTH, Math.min(w, maxWidth));
+    const height = Math.max(MIN_WIDGET_HEIGHT, Math.min(h, maxHeight));
+
+    return {
+      x: Math.min(halfW - width, Math.max(-halfW, x)),
+      y: Math.min(halfH - height, Math.max(-halfH, y)),
+      width,
+      height,
+    };
+  }
 
   function snapToEdges(dragId: string, x: number, y: number, w: number, h: number): SnapResult {
     let sx = x, sy = y;
@@ -325,6 +400,12 @@
     // Allow widgets tagged data-pointer-passthrough (e.g. Three.js canvas in
     // EventDisplay) to receive pointer events natively so OrbitControls works.
     const hitTarget = event.target as HTMLElement | null;
+
+    // Minimap interactions must never be captured as canvas gestures.
+    if (hitTarget?.closest(".minimap-shell") || hitTarget?.closest(".minimap-restore")) {
+      return;
+    }
+
     if (hitTarget?.closest("[data-pointer-passthrough]")) {
       const widgetEl = hitTarget.closest("[data-canvas-item-id]") as HTMLElement | null;
       if (widgetEl?.dataset.canvasItemId) bringToFrontById(widgetEl.dataset.canvasItemId);
@@ -407,28 +488,36 @@
     event.preventDefault();
 
     if (gesture.mode === "pan") {
-      panX = gesture.spx + (event.clientX - gesture.sx);
-      panY = gesture.spy + (event.clientY - gesture.sy);
+      const nextPanX = gesture.spx + (event.clientX - gesture.sx);
+      const nextPanY = gesture.spy + (event.clientY - gesture.sy);
+      const clamped = clampPanToBounds(nextPanX, nextPanY, zoom);
+      panX = clamped.panX;
+      panY = clamped.panY;
       return;
     }
 
+    const activeGesture = gesture;
     const safeZoom = Math.max(zoom, 1e-6);
-    const dx = (event.clientX - gesture.sx) / safeZoom;
-    const dy = (event.clientY - gesture.sy) / safeZoom;
+    const dx = (event.clientX - activeGesture.sx) / safeZoom;
+    const dy = (event.clientY - activeGesture.sy) / safeZoom;
 
-    if (gesture.mode === "drag") {
-      queueDragPatch(gesture.wid, gesture.ox + dx, gesture.oy + dy);
+    if (activeGesture.mode === "drag" && "wid" in activeGesture) {
+      const existing = get(canvasItems).find((item) => item.id === activeGesture.wid);
+      if (!existing) return;
+      const bounded = clampWidgetToBounds(activeGesture.ox + dx, activeGesture.oy + dy, existing.width, existing.height);
+      queueDragPatch(activeGesture.wid, bounded.x, bounded.y);
       return;
     }
 
-    if (gesture.mode === "resize") {
-      const { ox, oy, ow, oh, dir } = gesture;
+    if (activeGesture.mode === "resize" && "wid" in activeGesture) {
+      const { ox, oy, ow, oh, dir } = activeGesture;
       let nx = ox, ny = oy, nw = ow, nh = oh;
       if (dir.includes("e")) nw = Math.max(MIN_WIDGET_WIDTH,  ow + dx);
       if (dir.includes("s")) nh = Math.max(MIN_WIDGET_HEIGHT, oh + dy);
       if (dir.includes("w")) { nw = Math.max(MIN_WIDGET_WIDTH,  ow - dx); nx = ox + (ow - nw); }
       if (dir.includes("n")) { nh = Math.max(MIN_WIDGET_HEIGHT, oh - dy); ny = oy + (oh - nh); }
-      queueResizePatch(gesture.wid, { x: nx, y: ny, width: nw, height: nh });
+      const bounded = clampWidgetToBounds(nx, ny, nw, nh);
+      queueResizePatch(activeGesture.wid, bounded);
     }
   }
 
@@ -449,7 +538,8 @@
       const current = get(canvasItems).find(i => i.id === wid);
       if (current) {
         const snapped = snapToEdges(current.id, current.x, current.y, current.width, current.height);
-        updateCanvasItem(current.id, { x: snapped.x, y: snapped.y });
+        const bounded = clampWidgetToBounds(snapped.x, snapped.y, current.width, current.height);
+        updateCanvasItem(current.id, { x: bounded.x, y: bounded.y });
       }
     } else if (gesture.mode === "resize") {
       if (_rafPending) flushCanvasUpdates();
@@ -542,8 +632,11 @@
     const mouseY  = event.clientY - rect.top;
     const worldX  = (mouseX - panX) / zoom;
     const worldY  = (mouseY - panY) / zoom;
-    panX = mouseX - worldX * newZoom;
-    panY = mouseY - worldY * newZoom;
+    const unclampedPanX = mouseX - worldX * newZoom;
+    const unclampedPanY = mouseY - worldY * newZoom;
+    const clamped = clampPanToBounds(unclampedPanX, unclampedPanY, newZoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
     zoom = newZoom;
     commitViewport();
   }
@@ -599,13 +692,13 @@
 
   function connectButtonTitle(item: CanvasItem): string {
     const ports = WIDGET_AUTOMATION_PORTS[item.widgetType];
-    if (!ports?.source && !ports?.sink)  return "No automation ports";
-    if (!automationEnabled)              return "Enable automation first";
+    if (!ports?.source && !ports?.sink) return "No automation ports on this widget";
+    if (!automationEnabled) return "Enable automation to link widgets";
     if (connectSourceWidgetId === item.id) return "Cancel source selection";
     if (!connectSourceWidgetId) {
-      return ports?.source ? "Select as connection source" : "This widget only accepts input";
+      return ports?.source ? "Mark as source" : "This widget accepts input only";
     }
-    return "Connect selected source to this widget";
+    return "Create link from selected source";
   }
 
   function handleConnectClick(item: CanvasItem): void {
@@ -624,6 +717,161 @@
   function toggleAutomation(): void {
     automationEnabled = !automationEnabled;
     if (!automationEnabled) connectSourceWidgetId = null;
+  }
+
+  function setBoundsHalfWidth(value: number): void {
+    boundsHalfWidth = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(BOUNDS_MAX_HALF_SIZE, Number.isFinite(value) ? value : BOUNDS_MIN_HALF_SIZE));
+  }
+
+  function setBoundsHalfHeight(value: number): void {
+    boundsHalfHeight = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(BOUNDS_MAX_HALF_SIZE, Number.isFinite(value) ? value : BOUNDS_MIN_HALF_SIZE));
+  }
+
+  const MINIMAP_WIDTH = 190;
+  const MINIMAP_HEIGHT = 120;
+
+  function minimapDomain(): { minX: number; maxX: number; minY: number; maxY: number } {
+    const halfW = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfWidth, BOUNDS_MAX_HALF_SIZE));
+    const halfH = Math.max(BOUNDS_MIN_HALF_SIZE, Math.min(boundsHalfHeight, BOUNDS_MAX_HALF_SIZE));
+
+    if (boundsEnabled) {
+      return { minX: -halfW, maxX: halfW, minY: -halfH, maxY: halfH };
+    }
+
+    const items = get(canvasItems);
+    const viewport = computeViewport(panX, panY, zoom, screenW, screenH);
+    const viewportWidth = viewport.right - viewport.left;
+    const viewportHeight = viewport.bottom - viewport.top;
+    if (items.length === 0) {
+      return {
+        minX: viewport.left - viewportWidth,
+        maxX: viewport.right + viewportWidth,
+        minY: viewport.top - viewportHeight,
+        maxY: viewport.bottom + viewportHeight,
+      };
+    }
+
+    const minX = Math.min(viewport.left, ...items.map((i) => i.x));
+    const maxX = Math.max(viewport.right, ...items.map((i) => i.x + i.width));
+    const minY = Math.min(viewport.top, ...items.map((i) => i.y));
+    const maxY = Math.max(viewport.bottom, ...items.map((i) => i.y + i.height));
+    const padX = Math.max(120, (maxX - minX) * 0.1);
+    const padY = Math.max(120, (maxY - minY) * 0.1);
+    return { minX: minX - padX, maxX: maxX + padX, minY: minY - padY, maxY: maxY + padY };
+  }
+
+  $: miniDomain = minimapDomain();
+  $: miniSpanX = Math.max(1, miniDomain.maxX - miniDomain.minX);
+  $: miniSpanY = Math.max(1, miniDomain.maxY - miniDomain.minY);
+
+  function miniX(worldX: number): number {
+    return ((worldX - miniDomain.minX) / miniSpanX) * MINIMAP_WIDTH;
+  }
+
+  function miniY(worldY: number): number {
+    return ((worldY - miniDomain.minY) / miniSpanY) * MINIMAP_HEIGHT;
+  }
+
+  $: viewportWorld = computeViewport(panX, panY, zoom, screenW, screenH);
+  $: minimapViewportRect = {
+    left: miniX(viewportWorld.left),
+    top: miniY(viewportWorld.top),
+    width: Math.max(8, ((viewportWorld.right - viewportWorld.left) / miniSpanX) * MINIMAP_WIDTH),
+    height: Math.max(8, ((viewportWorld.bottom - viewportWorld.top) / miniSpanY) * MINIMAP_HEIGHT),
+  };
+
+  function updateViewportFromMinimap(clientX: number, clientY: number, grabDx: number, grabDy: number): void {
+    if (!minimapEl || !minimapInteractive) return;
+
+    const rect = minimapEl.getBoundingClientRect();
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+
+    const maxLeft = Math.max(0, MINIMAP_WIDTH - minimapViewportRect.width);
+    const maxTop = Math.max(0, MINIMAP_HEIGHT - minimapViewportRect.height);
+    const nextLeft = Math.max(0, Math.min(maxLeft, localX - grabDx));
+    const nextTop = Math.max(0, Math.min(maxTop, localY - grabDy));
+
+    const worldLeft = miniDomain.minX + (nextLeft / MINIMAP_WIDTH) * miniSpanX;
+    const worldTop = miniDomain.minY + (nextTop / MINIMAP_HEIGHT) * miniSpanY;
+
+    const clamped = clampPanToBounds(-worldLeft * zoom, -worldTop * zoom, zoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+    commitViewport();
+  }
+
+  function handleMinimapViewportPointerDown(event: PointerEvent): void {
+    if (!minimapInteractive) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!minimapEl) return;
+    const rect = minimapEl.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+
+    minimapViewportDrag = {
+      active: true,
+      pointerId: event.pointerId,
+      grabDx: localX - Math.max(0, minimapViewportRect.left),
+      grabDy: localY - Math.max(0, minimapViewportRect.top),
+    };
+
+    const target = event.currentTarget as HTMLElement | null;
+    target?.setPointerCapture?.(event.pointerId);
+
+    window.addEventListener("pointermove", handleMinimapViewportPointerMove, { passive: false });
+    window.addEventListener("pointerup", handleMinimapViewportPointerEnd, true);
+    window.addEventListener("pointercancel", handleMinimapViewportPointerEnd, true);
+  }
+
+  function handleMinimapViewportPointerMove(event: PointerEvent): void {
+    if (!minimapViewportDrag.active || event.pointerId !== minimapViewportDrag.pointerId) return;
+    event.preventDefault();
+    updateViewportFromMinimap(event.clientX, event.clientY, minimapViewportDrag.grabDx, minimapViewportDrag.grabDy);
+  }
+
+  function handleMinimapViewportPointerEnd(event: PointerEvent): void {
+    if (!minimapViewportDrag.active || event.pointerId !== minimapViewportDrag.pointerId) return;
+    event.stopPropagation();
+
+    const target = event.target as HTMLElement | null;
+    target?.releasePointerCapture?.(event.pointerId);
+
+    minimapViewportDrag = {
+      active: false,
+      pointerId: -1,
+      grabDx: 0,
+      grabDy: 0,
+    };
+
+    window.removeEventListener("pointermove", handleMinimapViewportPointerMove);
+    window.removeEventListener("pointerup", handleMinimapViewportPointerEnd, true);
+    window.removeEventListener("pointercancel", handleMinimapViewportPointerEnd, true);
+  }
+
+  function handleMinimapViewportKeydown(event: KeyboardEvent): void {
+    if (!minimapInteractive) return;
+
+    const stepX = Math.max(24, (viewportWorld.right - viewportWorld.left) * 0.12);
+    const stepY = Math.max(24, (viewportWorld.bottom - viewportWorld.top) * 0.12);
+
+    let dx = 0;
+    let dy = 0;
+
+    if (event.key === "ArrowLeft") dx = -stepX;
+    else if (event.key === "ArrowRight") dx = stepX;
+    else if (event.key === "ArrowUp") dy = -stepY;
+    else if (event.key === "ArrowDown") dy = stepY;
+    else return;
+
+    event.preventDefault();
+    const clamped = clampPanToBounds(panX - dx * zoom, panY - dy * zoom, zoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+    commitViewport();
   }
 
   function selectWidget(item: CanvasItem): void { bringToFrontById(item.id); }
@@ -673,7 +921,13 @@
     _previousCanvasIds = ids;
   });
 
-  function resetZoom(): void { zoom = 1; commitViewport(); }
+  function resetZoom(): void {
+    zoom = 1;
+    const clamped = clampPanToBounds(panX, panY, zoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+    commitViewport();
+  }
 
   function duplicateCanvasWidget(item: CanvasItem): void {
     addCanvasItem(item.widgetType, item.x + 36, item.y + 36);
@@ -697,6 +951,24 @@
     const menuItems: import("$lib/types/menu").ContextMenuItem[] = [
       ...widgetItems,
       ...(widgetItems.length > 0 ? [{ type: "separator" as const, id: "sep-cw" }] : []),
+      {
+        type: "action" as const,
+        id: "cw-toggle-automation",
+        label: automationEnabled ? "Disable Automation" : "Enable Automation",
+        icon: "auto",
+        action: () => toggleAutomation(),
+      },
+      {
+        type: "action" as const,
+        id: "cw-clear-automation-selection",
+        label: "Clear Automation Source",
+        icon: "x",
+        disabled: !connectSourceWidgetId,
+        action: () => {
+          connectSourceWidgetId = null;
+        },
+      },
+      { type: "separator" as const, id: "sep-cw-automation" },
       { type: "action" as const, id: "cw-front",      label: "Bring to Front",    icon: "⇡", action: () => selectWidget(item) },
       { type: "action" as const, id: "cw-duplicate",  label: "Duplicate Widget",  icon: "⧉", action: () => duplicateCanvasWidget(item) },
       { type: "action" as const, id: "cw-reset-size", label: "Reset Widget Size", icon: "□", action: () => resetCanvasWidgetSize(item) },
@@ -751,6 +1023,38 @@
     showContextMenu(clientX, clientY, [
       { type: "submenu", id: "ctx-add-widget", label: "Add Widget", icon: "+", children: widgetSubItems },
       { type: "separator", id: "sep-canvas" },
+      {
+        type: "action",
+        id: "ctx-toggle-automation",
+        label: automationEnabled ? "Disable Automation" : "Enable Automation",
+        icon: "auto",
+        action: () => toggleAutomation(),
+      },
+      {
+        type: "action",
+        id: "ctx-canvas-toggle-minimap",
+        label: minimapVisible ? "Hide Minimap" : "Show Minimap",
+        icon: "map",
+        action: () => {
+          minimapVisible = !minimapVisible;
+          if (minimapVisible) minimapSettingsOpen = false;
+        },
+      },
+      {
+        type: "toggle",
+        id: "ctx-canvas-toggle-bounds",
+        label: "Finite Bounds",
+        checked: boundsEnabled,
+        action: (checked) => {
+          boundsEnabled = checked;
+          if (checked) {
+            setBoundsHalfWidth(boundsHalfWidth);
+            setBoundsHalfHeight(boundsHalfHeight);
+          }
+          commitViewport();
+        },
+      },
+      { type: "separator", id: "sep-canvas-view" },
       { type: "action", id: "ctx-reset-zoom",  label: "Reset Zoom",   shortcut: "Click %", action: () => resetZoom() },
       { type: "action", id: "ctx-center-view", label: "Center View",  action: () => { panX = 0; panY = 0; commitViewport(); } },
     ]);
@@ -784,6 +1088,19 @@
     if (items.length > 0) selectedWidgetId = items[0].id;
   }
 
+  function handleCanvasAutomationToggleEvent(): void {
+    toggleAutomation();
+  }
+
+  $: {
+    const clamped = clampPanToBounds(panX, panY, zoom);
+    if (clamped.panX !== panX || clamped.panY !== panY) {
+      panX = clamped.panX;
+      panY = clamped.panY;
+      commitViewport();
+    }
+  }
+
   // ── Lifecycle ──
 
   let resizeObserver: ResizeObserver | null = null;
@@ -795,6 +1112,7 @@
     window.addEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
     window.addEventListener("spire:canvas:select-all",         handleSelectAll         as EventListener);
     window.addEventListener("spire:canvas:focus-widget",       handleCanvasFocusRequest as EventListener);
+    window.addEventListener("spire:canvas:toggle-automation",  handleCanvasAutomationToggleEvent as EventListener);
 
     if (canvasEl) {
       screenW = canvasEl.clientWidth;
@@ -824,6 +1142,10 @@
     window.removeEventListener("spire:canvas:duplicate-selected", handleDuplicateSelected as EventListener);
     window.removeEventListener("spire:canvas:select-all",         handleSelectAll         as EventListener);
     window.removeEventListener("spire:canvas:focus-widget",       handleCanvasFocusRequest as EventListener);
+    window.removeEventListener("spire:canvas:toggle-automation",  handleCanvasAutomationToggleEvent as EventListener);
+    window.removeEventListener("pointermove", handleMinimapViewportPointerMove);
+    window.removeEventListener("pointerup", handleMinimapViewportPointerEnd, true);
+    window.removeEventListener("pointercancel", handleMinimapViewportPointerEnd, true);
   });
 </script>
 
@@ -918,11 +1240,12 @@
                 class="cw-link"
                 class:active={connectSourceWidgetId === item.id}
                 disabled={!automationEnabled || !canAutomate(item)}
+                aria-label="Automation link"
                 on:click|stopPropagation={() => handleConnectClick(item)}
                 on:pointerdown|stopPropagation
                 on:mousedown|stopPropagation
                 use:tooltip={{ text: connectButtonTitle(item) }}
-              >↔</button>
+              >L</button>
               <button
                 class="cw-close"
                 on:click={() => handleClose(item)}
@@ -952,12 +1275,12 @@
               </div>
 
               <!-- SUMMARY LOD: simplified card -->
-              <div slot="summary">
+              <div slot="summary" class="cw-summary-content">
                 {@const SummaryComponent = getWidgetSummaryComponent(item.widgetType)}
                 {#if SummaryComponent}
                   <svelte:component this={SummaryComponent} />
                 {:else if WIDGET_LABELS[item.widgetType]}
-                  <span style="color: var(--fg-secondary); font-size: 0.68rem; font-style: italic;">
+                  <span style="color: var(--fg-secondary); font-size: 2.9rem; font-style: italic;">
                     {getWidgetLabel(item.widgetType)}
                   </span>
                 {:else}
@@ -995,20 +1318,113 @@
 
   <!-- Zoom indicator -->
   <button class="zoom-indicator" on:click={resetZoom} use:tooltip={{ text: "Reset zoom to 100%" }}>
-    {Math.round(zoom * 100)}%
+    {zoomToUiPercent(zoom)}%
     {#if lodLevel !== "full"}
       <span class="lod-badge">{lodLevel === "summary" ? "SUM" : "MIN"}</span>
     {/if}
   </button>
 
-  <button
-    class="automation-toggle"
-    class:active={automationEnabled}
-    on:click={toggleAutomation}
-    use:tooltip={{ text: automationEnabled ? "Disable widget automation controls" : "Enable widget automation controls" }}
-  >
-    {automationEnabled ? "Automation: On" : "Automation: Off"}
-  </button>
+  <div class="minimap-shell" class:minimap-hidden={!minimapVisible}>
+    <div class="minimap-header">
+      <span>Minimap</span>
+      <div class="minimap-actions">
+        <button
+          class="minimap-action"
+          on:click={() => {
+            minimapInteractive = !minimapInteractive;
+          }}
+          use:tooltip={{ text: minimapInteractive ? "Lock minimap pointer interactions" : "Enable minimap pointer interactions" }}
+          aria-label={minimapInteractive ? "Lock minimap interactions" : "Enable minimap interactions"}
+        >
+          <span class="minimap-action-icon">{minimapInteractive ? "⊙" : "⊘"}</span>
+        </button>
+        <button
+          class="minimap-action"
+          on:click={() => (minimapSettingsOpen = !minimapSettingsOpen)}
+          use:tooltip={{ text: minimapSettingsOpen ? "Hide minimap settings" : "Show minimap settings" }}
+          aria-label={minimapSettingsOpen ? "Hide minimap settings" : "Show minimap settings"}
+        ><span class="minimap-action-icon">⚙</span></button>
+        <button class="minimap-action" on:click={() => (minimapVisible = false)} use:tooltip={{ text: "Minimize minimap" }}><span class="minimap-action-icon">−</span></button>
+      </div>
+    </div>
+    {#if minimapSettingsOpen}
+      <div class="minimap-settings">
+        <label class="bounds-toggle">
+          <input
+            type="checkbox"
+            checked={boundsEnabled}
+            on:change={(event) => {
+              boundsEnabled = (event.currentTarget as HTMLInputElement).checked;
+              commitViewport();
+            }}
+          />
+          <span>Finite bounds</span>
+        </label>
+        {#if boundsEnabled}
+          <div class="bounds-inputs">
+            <label>
+              Width
+              <input
+                type="number"
+                min={BOUNDS_MIN_HALF_SIZE}
+                max={BOUNDS_MAX_HALF_SIZE}
+                step="100"
+                value={boundsHalfWidth}
+                on:change={(event) => setBoundsHalfWidth((event.currentTarget as HTMLInputElement).valueAsNumber)}
+              />
+            </label>
+            <label>
+              Height
+              <input
+                type="number"
+                min={BOUNDS_MIN_HALF_SIZE}
+                max={BOUNDS_MAX_HALF_SIZE}
+                step="100"
+                value={boundsHalfHeight}
+                on:change={(event) => setBoundsHalfHeight((event.currentTarget as HTMLInputElement).valueAsNumber)}
+              />
+            </label>
+          </div>
+        {/if}
+      </div>
+    {/if}
+    <div class="minimap" bind:this={minimapEl} aria-hidden={!minimapVisible}>
+      {#if boundsEnabled}
+        <div class="minimap-boundary"></div>
+      {/if}
+      {#each $canvasItems as miniItem (miniItem.id)}
+        <button
+          class="minimap-item"
+          class:selected={miniItem.id === selectedWidgetId}
+          style="left: {miniX(miniItem.x)}px; top: {miniY(miniItem.y)}px; width: {Math.max(3, (miniItem.width / miniSpanX) * MINIMAP_WIDTH)}px; height: {Math.max(3, (miniItem.height / miniSpanY) * MINIMAP_HEIGHT)}px;"
+          tabindex={minimapInteractive ? 0 : -1}
+          on:pointerdown|stopPropagation={() => minimapInteractive && bringToFrontById(miniItem.id)}
+          on:keydown={(event) => {
+            if (!minimapInteractive) return;
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              bringToFrontById(miniItem.id);
+            }
+          }}
+          aria-label="Focus widget on minimap"
+        ></button>
+      {/each}
+      <div
+        role="button"
+        tabindex={minimapInteractive ? 0 : -1}
+        aria-label="Move viewport"
+        class="minimap-viewport"
+        class:dragging={minimapViewportDrag.active}
+        on:pointerdown|stopPropagation={handleMinimapViewportPointerDown}
+        on:keydown={handleMinimapViewportKeydown}
+        style="left: {Math.max(0, minimapViewportRect.left)}px; top: {Math.max(0, minimapViewportRect.top)}px; width: {Math.max(2, Math.min(MINIMAP_WIDTH - Math.max(0, minimapViewportRect.left), minimapViewportRect.width))}px; height: {Math.max(2, Math.min(MINIMAP_HEIGHT - Math.max(0, minimapViewportRect.top), minimapViewportRect.height))}px;"
+      ></div>
+    </div>
+  </div>
+
+  {#if !minimapVisible}
+    <button class="minimap-restore" on:click={() => (minimapVisible = true)} aria-label="Restore minimap">MINIMAP</button>
+  {/if}
 </div>
 
 <style>
@@ -1171,7 +1587,40 @@
   .cw-lod-summary { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
   .cw-lod-minimal { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); border-width: 1px; }
 
-  .zoom-adaptive-text { width: 100%; height: 100%; }
+  .canvas-widget.cw-lod-summary .cw-header {
+    min-height: 2.2rem;
+    padding: 0.32rem 0.62rem;
+  }
+
+  .canvas-widget.cw-lod-summary .cw-title {
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+  }
+
+  .canvas-widget.cw-lod-summary .cw-body {
+    font-size: 3.7rem;
+    line-height: 1.22;
+  }
+
+  .canvas-widget.cw-lod-minimal .cw-body {
+    font-size: 5.3rem;
+    line-height: 1.16;
+  }
+
+  .canvas-widget.cw-lod-minimal .cw-body,
+  .canvas-widget.cw-lod-summary .cw-summary-content {
+    font-weight: 600;
+  }
+
+  .cw-summary-content {
+    width: 100%;
+    height: 100%;
+  }
+
+  .zoom-adaptive-text {
+    width: 100%;
+    height: 100%;
+  }
 
   .cw-resize-layer {
     position: absolute;
@@ -1282,21 +1731,186 @@
     letter-spacing: 0.04em;
   }
 
-  .automation-toggle {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    padding: 0.15rem 0.4rem;
-    background: var(--bg-inset);
-    border: 1px solid var(--border);
+  .bounds-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.58rem;
     color: var(--fg-secondary);
-    font-size: 0.62rem;
-    font-family: var(--font-mono);
-    cursor: pointer;
-    z-index: 10;
-    transition: border-color 0.15s, color 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  .automation-toggle:hover  { border-color: var(--hl-symbol); color: var(--fg-primary); }
-  .automation-toggle.active { border-color: var(--hl-symbol); color: var(--hl-symbol); background: rgba(var(--color-accent-rgb), 0.1); }
+  .bounds-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+  }
+
+  .bounds-inputs label {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.14rem;
+    font-size: 0.56rem;
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .bounds-inputs input[type="number"] {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    padding: 0.12rem 0.18rem;
+  }
+
+  .minimap-shell {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 11;
+    width: calc(190px + 0.45rem);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-inset) 90%, transparent);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.22rem;
+  }
+
+  .minimap-settings {
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.28rem;
+  }
+
+  .minimap-shell.minimap-hidden {
+    display: none;
+  }
+
+  .minimap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.58rem;
+    color: var(--fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0 0.05rem;
+  }
+
+  .minimap-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .minimap-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.24rem;
+    height: 1.24rem;
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    font-size: 0.72rem;
+    padding: 0;
+    line-height: 1;
+  }
+
+  .minimap-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+    transform: translateY(-0.02em);
+    pointer-events: none;
+  }
+
+  .minimap-action:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
+
+  .minimap {
+    position: relative;
+    width: 190px;
+    height: 120px;
+    border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+    background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+    overflow: hidden;
+  }
+
+  .minimap-boundary {
+    position: absolute;
+    inset: 0;
+    border: 1px dashed color-mix(in srgb, var(--hl-symbol) 60%, transparent);
+    pointer-events: none;
+  }
+
+  .minimap-item {
+    position: absolute;
+    z-index: 1;
+    border: 1px solid color-mix(in srgb, var(--fg-secondary) 70%, transparent);
+    background: color-mix(in srgb, var(--bg-surface) 78%, transparent);
+    min-width: 2px;
+    min-height: 2px;
+    padding: 0;
+    margin: 0;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .minimap-item.selected {
+    border-color: var(--hl-symbol);
+    background: color-mix(in srgb, var(--hl-symbol) 24%, transparent);
+  }
+
+  .minimap-viewport {
+    position: absolute;
+    z-index: 2;
+    border: 1px solid color-mix(in srgb, var(--hl-success, #3ddc97) 72%, white 28%);
+    background: color-mix(in srgb, var(--hl-success, #3ddc97) 10%, transparent);
+    pointer-events: auto;
+    cursor: grab;
+  }
+
+  .minimap-viewport.dragging {
+    cursor: grabbing;
+  }
+
+  .minimap-restore {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    z-index: 11;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    font-size: 0.5rem;
+    font-family: var(--font-mono);
+    padding: 0.09rem 0.3rem;
+    min-width: 4.2rem;
+    min-height: 1.05rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .minimap-restore:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
 </style>

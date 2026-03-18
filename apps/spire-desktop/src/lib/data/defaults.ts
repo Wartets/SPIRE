@@ -616,7 +616,7 @@ export const PARTICLE_LABELS: Record<string, string> = {
   "H":         "H   Higgs Boson",
 };
 
-/** Default reaction: e⁻e⁺ → μ⁻μ⁺ at √s = 10 GeV. */
+/** Default reaction: e⁻e⁺ → μ⁻μ⁺γγ at √s = 250 GeV (richer starter topology). */
 export const DEFAULT_INITIAL_IDS = ["e-", "e+"];
-export const DEFAULT_FINAL_IDS = ["mu-", "mu+"];
-export const DEFAULT_CMS_ENERGY = 10.0;
+export const DEFAULT_FINAL_IDS = ["mu-", "mu+", "photon", "photon"];
+export const DEFAULT_CMS_ENERGY = 250.0;

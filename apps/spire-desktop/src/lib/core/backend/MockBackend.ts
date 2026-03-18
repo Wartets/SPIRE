@@ -217,10 +217,6 @@ export class MockBackend implements SpireBackend {
   ): Promise<TopologySet> {
     await simulateLatency();
 
-    // Build physically plausible mock Feynman diagrams from the reaction.
-    // For any 2→2 process we generate an s-channel diagram; for others
-    // we generate a single contact-like topology so the UI is never empty.
-
     const initial = reaction.initial.states;
     const final_ = reaction.final_state.states;
 
@@ -238,16 +234,35 @@ export class MockBackend implements SpireBackend {
     const mediatorField = makeField("gamma", "γ", 0, 2);
 
     const diagrams: FeynmanDiagram[] = [];
+    let nextDiagramId = 0;
 
-    // ── S-channel diagram ──
+    const isAntiParticle = (fieldId: string): boolean => {
+      const norm = fieldId.toLowerCase();
+      return norm.includes("_bar") || norm.endsWith("+") || norm.includes("anti") || norm.includes("bar");
+    };
+
+    const edgeFor = (field: FeynmanEdge["field"], momentumLabel: string, isExternal: boolean): FeynmanEdge => {
+      const normalizedId = isAntiParticle(field.id) && !field.id.toLowerCase().includes("_bar")
+        ? `${field.id}_bar`
+        : field.id;
+      return {
+        field: {
+          ...field,
+          id: normalizedId,
+        },
+        propagator: null,
+        momentum_label: momentumLabel,
+        is_external: isExternal,
+      };
+    };
+
+    // ── S-channel backbone (works for any 2→N) ──
     const sNodes: FeynmanNode[] = [
-      // Incoming
       ...initial.map((s, i) => ({
         id: i,
         kind: { ExternalIncoming: s.particle },
         position: [0, i * 2] as [number, number],
       })),
-      // Internal vertex (production)
       {
         id: initial.length,
         kind: { InternalVertex: {
@@ -259,7 +274,6 @@ export class MockBackend implements SpireBackend {
         }},
         position: [2, 1] as [number, number],
       },
-      // Internal vertex (decay)
       {
         id: initial.length + 1,
         kind: { InternalVertex: {
@@ -271,7 +285,6 @@ export class MockBackend implements SpireBackend {
         }},
         position: [4, 1] as [number, number],
       },
-      // Outgoing
       ...final_.map((s, i) => ({
         id: initial.length + 2 + i,
         kind: { ExternalOutgoing: s.particle },
@@ -279,36 +292,42 @@ export class MockBackend implements SpireBackend {
       })),
     ];
 
-    const vProd = initial.length;       // production vertex id
-    const vDec  = initial.length + 1;   // decay vertex id
+    const vProd = initial.length;
+    const vDec = initial.length + 1;
 
     const sEdges: [number, number, FeynmanEdge][] = [
-      // Incoming legs
       ...initial.map((s, i) => [
-        i, vProd,
-        { field: s.particle.field, propagator: null, momentum_label: `p${i + 1}`, is_external: true },
+        i,
+        vProd,
+        edgeFor(s.particle.field, `p${i + 1}`, true),
       ] as [number, number, FeynmanEdge]),
-      // Internal propagator
       [
-        vProd, vDec,
+        vProd,
+        vDec,
         {
           field: mediatorField,
           propagator: {
-            field_id: mediatorField.id, spin: 2, mass: 0, width: 0,
-            expression: "-ig_{μν}/q²", gauge_parameter: null, form: "MasslessVector" as const,
+            field_id: mediatorField.id,
+            spin: 2,
+            mass: 0,
+            width: 0,
+            expression: "-ig_{μν}/q²",
+            gauge_parameter: null,
+            form: "MasslessVector" as const,
           },
-          momentum_label: "q", is_external: false,
+          momentum_label: "q",
+          is_external: false,
         },
       ],
-      // Outgoing legs
       ...final_.map((s, i) => [
-        vDec, initial.length + 2 + i,
-        { field: s.particle.field, propagator: null, momentum_label: `k${i + 1}`, is_external: true },
+        vDec,
+        initial.length + 2 + i,
+        edgeFor(s.particle.field, `k${i + 1}`, true),
       ] as [number, number, FeynmanEdge]),
     ];
 
     diagrams.push({
-      id: 0,
+      id: nextDiagramId++,
       nodes: sNodes,
       edges: sEdges,
       channels: ["S"],
@@ -318,44 +337,183 @@ export class MockBackend implements SpireBackend {
       is_one_particle_irreducible: true,
     });
 
-    // ── T-channel diagram (for 2→2 processes) ──
+    // ── Richer 2→2 set: add T and U channels ──
     if (initial.length === 2 && final_.length === 2) {
-      const tNodes: FeynmanNode[] = [
-        { id: 0, kind: { ExternalIncoming: initial[0].particle }, position: [0, 0] as [number, number] },
-        { id: 1, kind: { ExternalIncoming: initial[1].particle }, position: [0, 4] as [number, number] },
-        { id: 2, kind: { InternalVertex: {
-          term_id: "mock-t-v1", field_ids: [initial[0].particle.field.id, final_[0].particle.field.id, mediatorField.id],
-          expression: "-ieγ^μ", coupling_value: 0.3028, n_legs: 3,
-        }}, position: [3, 0] as [number, number] },
-        { id: 3, kind: { InternalVertex: {
-          term_id: "mock-t-v2", field_ids: [initial[1].particle.field.id, final_[1].particle.field.id, mediatorField.id],
-          expression: "-ieγ^μ", coupling_value: 0.3028, n_legs: 3,
-        }}, position: [3, 4] as [number, number] },
-        { id: 4, kind: { ExternalOutgoing: final_[0].particle }, position: [6, 0] as [number, number] },
-        { id: 5, kind: { ExternalOutgoing: final_[1].particle }, position: [6, 4] as [number, number] },
-      ];
+      const [i1, i2] = initial;
+      const [f1, f2] = final_;
 
-      const tEdges: [number, number, FeynmanEdge][] = [
-        [0, 2, { field: initial[0].particle.field, propagator: null, momentum_label: "p1", is_external: true }],
-        [1, 3, { field: initial[1].particle.field, propagator: null, momentum_label: "p2", is_external: true }],
-        [2, 3, {
-          field: mediatorField,
-          propagator: { field_id: mediatorField.id, spin: 2, mass: 0, width: 0, expression: "-ig_{μν}/t", gauge_parameter: null, form: "MasslessVector" as const },
-          momentum_label: "t", is_external: false,
-        }],
-        [2, 4, { field: final_[0].particle.field, propagator: null, momentum_label: "k1", is_external: true }],
-        [3, 5, { field: final_[1].particle.field, propagator: null, momentum_label: "k2", is_external: true }],
-      ];
+      const buildTwoByTwoChannel = (
+        idBase: string,
+        channels: Array<"T" | "U">,
+        outgoingOrder: [typeof f1, typeof f2],
+      ): FeynmanDiagram => {
+        const nodes: FeynmanNode[] = [
+          { id: 0, kind: { ExternalIncoming: i1.particle }, position: [0, 0] as [number, number] },
+          { id: 1, kind: { ExternalIncoming: i2.particle }, position: [0, 4] as [number, number] },
+          {
+            id: 2,
+            kind: {
+              InternalVertex: {
+                term_id: `${idBase}-v1`,
+                field_ids: [i1.particle.field.id, outgoingOrder[0].particle.field.id, mediatorField.id],
+                expression: "-ieγ^μ",
+                coupling_value: 0.3028,
+                n_legs: 3,
+              },
+            },
+            position: [3, 0] as [number, number],
+          },
+          {
+            id: 3,
+            kind: {
+              InternalVertex: {
+                term_id: `${idBase}-v2`,
+                field_ids: [i2.particle.field.id, outgoingOrder[1].particle.field.id, mediatorField.id],
+                expression: "-ieγ^μ",
+                coupling_value: 0.3028,
+                n_legs: 3,
+              },
+            },
+            position: [3, 4] as [number, number],
+          },
+          { id: 4, kind: { ExternalOutgoing: outgoingOrder[0].particle }, position: [6, 0] as [number, number] },
+          { id: 5, kind: { ExternalOutgoing: outgoingOrder[1].particle }, position: [6, 4] as [number, number] },
+        ];
+
+        const exchange = channels[0] === "T" ? "t" : "u";
+        const edges: [number, number, FeynmanEdge][] = [
+          [0, 2, edgeFor(i1.particle.field, "p1", true)],
+          [1, 3, edgeFor(i2.particle.field, "p2", true)],
+          [2, 3, {
+            field: mediatorField,
+            propagator: {
+              field_id: mediatorField.id,
+              spin: 2,
+              mass: 0,
+              width: 0,
+              expression: `-ig_{μν}/${exchange}`,
+              gauge_parameter: null,
+              form: "MasslessVector" as const,
+            },
+            momentum_label: exchange,
+            is_external: false,
+          }],
+          [2, 4, edgeFor(outgoingOrder[0].particle.field, "k1", true)],
+          [3, 5, edgeFor(outgoingOrder[1].particle.field, "k2", true)],
+        ];
+
+        return {
+          id: nextDiagramId++,
+          nodes,
+          edges,
+          channels,
+          loop_order: "Tree",
+          symmetry_factor: 1,
+          is_connected: true,
+          is_one_particle_irreducible: true,
+        };
+      };
+
+      diagrams.push(buildTwoByTwoChannel("mock-t", ["T"], [f1, f2]));
+      diagrams.push(buildTwoByTwoChannel("mock-u", ["U"], [f2, f1]));
+    }
+
+    // ── For larger multiplicity, add a ladder-like multi-peripheral topology ──
+    if (final_.length >= 3) {
+      const ladderNodes: FeynmanNode[] = [];
+      const ladderEdges: [number, number, FeynmanEdge][] = [];
+
+      let nodeId = 0;
+      const inNodeIds = initial.map((s, idx) => {
+        const id = nodeId++;
+        ladderNodes.push({
+          id,
+          kind: { ExternalIncoming: s.particle },
+          position: [0, idx * 3] as [number, number],
+        });
+        return id;
+      });
+
+      const firstVertexId = nodeId++;
+      ladderNodes.push({
+        id: firstVertexId,
+        kind: {
+          InternalVertex: {
+            term_id: "mock-ladder-v0",
+            field_ids: [...initial.map((s) => s.particle.field.id), mediatorField.id],
+            expression: "-ieγ^μ",
+            coupling_value: 0.3028,
+            n_legs: initial.length + 1,
+          },
+        },
+        position: [2.2, 1.5] as [number, number],
+      });
+
+      inNodeIds.forEach((inId, idx) => {
+        ladderEdges.push([inId, firstVertexId, edgeFor(initial[idx].particle.field, `p${idx + 1}`, true)]);
+      });
+
+      let prevVertexId = firstVertexId;
+
+      final_.forEach((state, idx) => {
+        const outNodeId = nodeId++;
+        ladderNodes.push({
+          id: outNodeId,
+          kind: { ExternalOutgoing: state.particle },
+          position: [7.2, idx * 2.2] as [number, number],
+        });
+
+        if (idx < final_.length - 1) {
+          const nextVertexId = nodeId++;
+          ladderNodes.push({
+            id: nextVertexId,
+            kind: {
+              InternalVertex: {
+                term_id: `mock-ladder-v${idx + 1}`,
+                field_ids: [state.particle.field.id, mediatorField.id, final_[idx + 1].particle.field.id],
+                expression: "-ieγ^μ",
+                coupling_value: 0.3028,
+                n_legs: 3,
+              },
+            },
+            position: [3.4 + idx * 1.1, 1.1 + idx * 0.7] as [number, number],
+          });
+
+          ladderEdges.push([prevVertexId, outNodeId, edgeFor(state.particle.field, `k${idx + 1}`, true)]);
+          ladderEdges.push([
+            prevVertexId,
+            nextVertexId,
+            {
+              field: mediatorField,
+              propagator: {
+                field_id: mediatorField.id,
+                spin: 2,
+                mass: 0,
+                width: 0,
+                expression: `-ig_{μν}/q_${idx + 1}²`,
+                gauge_parameter: null,
+                form: "MasslessVector" as const,
+              },
+              momentum_label: `q${idx + 1}`,
+              is_external: false,
+            },
+          ]);
+
+          prevVertexId = nextVertexId;
+        } else {
+          ladderEdges.push([prevVertexId, outNodeId, edgeFor(state.particle.field, `k${idx + 1}`, true)]);
+        }
+      });
 
       diagrams.push({
-        id: 1,
-        nodes: tNodes,
-        edges: tEdges,
-        channels: ["T"],
+        id: nextDiagramId++,
+        nodes: ladderNodes,
+        edges: ladderEdges,
+        channels: ["S", "T"],
         loop_order: "Tree",
         symmetry_factor: 1,
         is_connected: true,
-        is_one_particle_irreducible: true,
+        is_one_particle_irreducible: false,
       });
     }
 
