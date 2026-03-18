@@ -971,12 +971,6 @@ export function renderFeynmanDiagram(
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="background:${colors.background}" role="img" aria-label="Feynman diagram">
   <defs>
     ${markers.join("\n    ")}
-    <style>
-      .feynman-edges { mix-blend-mode: darken; }
-      .feynman-labels { mix-blend-mode: normal; }
-      .feynman-nodes { mix-blend-mode: lighten; }
-      .feynman-metadata { mix-blend-mode: normal; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
-    </style>
   </defs>
   <g class="feynman-edges">
     ${edgeSvg.join("\n    ")}

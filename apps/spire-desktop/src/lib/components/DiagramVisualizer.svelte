@@ -82,6 +82,7 @@
   let reviewRunCount = 0;
   const positionCache = new Map<number, Record<number, { x: number; y: number }>>();
   const renderCache = new Map<string, string>();
+  const MAX_RENDER_CACHE_ENTRIES = 24;
   let pendingDragUpdate: { id: number; x: number; y: number } | null = null;
   let dragRafId: number | null = null;
 
@@ -179,6 +180,32 @@
 
   function renderCacheKey(mode: ViewMode, diagId: number): string {
     return `${mode}:${diagId}:${overrideSignature()}`;
+  }
+
+  function canReuseRenderCache(): boolean {
+    return Object.keys(nodePositionOverrides).length === 0;
+  }
+
+  function getCachedRender(key: string): string | undefined {
+    const cached = renderCache.get(key);
+    if (cached !== undefined) {
+      renderCache.delete(key);
+      renderCache.set(key, cached);
+    }
+    return cached;
+  }
+
+  function setCachedRender(key: string, value: string): void {
+    renderCache.set(key, value);
+    while (renderCache.size > MAX_RENDER_CACHE_ENTRIES) {
+      const oldestKey = renderCache.keys().next().value;
+      if (!oldestKey) break;
+      renderCache.delete(oldestKey);
+    }
+  }
+
+  function shouldAutoReview(diag: FeynmanDiagram): boolean {
+    return diag.loop_order === "Tree" && diag.nodes.length <= 24 && diag.edges.length <= 32;
   }
 
   function savePositionCache(diagId: number): void {
@@ -588,7 +615,12 @@
         break;
     }
 
-    if (autoReviewEnabled && (viewMode === "feynman" || viewMode === "worldsheet") && !autoReviewedKeys.has(key)) {
+    if (
+      autoReviewEnabled &&
+      (viewMode === "feynman" || viewMode === "worldsheet") &&
+      shouldAutoReview(selectedDiagram) &&
+      !autoReviewedKeys.has(key)
+    ) {
       reviewNodeLayout(1);
       autoReviewedKeys.add(key);
     }
@@ -600,12 +632,14 @@
     if (!renderContainer) return;
     bindCanvasInteraction(renderContainer);
     const cacheKey = renderCacheKey("feynman", diag.id);
-    const svg = renderCache.get(cacheKey) ?? renderFeynmanDiagram(diag, {
+    const useCache = canReuseRenderCache();
+    const cached = useCache ? getCachedRender(cacheKey) : undefined;
+    const svg = cached ?? renderFeynmanDiagram(diag, {
       width: 600,
       height: 420,
       nodePositionOverrides,
     });
-    if (!renderCache.has(cacheKey)) renderCache.set(cacheKey, svg);
+    if (useCache && cached === undefined) setCachedRender(cacheKey, svg);
     renderContainer.innerHTML = svg;
     svgElement = renderContainer.querySelector("svg");
     if (svgElement) {
@@ -629,8 +663,10 @@
     if (!renderContainer) return;
     bindCanvasInteraction(renderContainer);
     const cacheKey = renderCacheKey("worldsheet", diag.id);
-    const svg = renderCache.get(cacheKey) ?? renderWorldsheet(diag, { width: 600, height: 420, nodePositionOverrides });
-    if (!renderCache.has(cacheKey)) renderCache.set(cacheKey, svg);
+    const useCache = canReuseRenderCache();
+    const cached = useCache ? getCachedRender(cacheKey) : undefined;
+    const svg = cached ?? renderWorldsheet(diag, { width: 600, height: 420, nodePositionOverrides });
+    if (useCache && cached === undefined) setCachedRender(cacheKey, svg);
     renderContainer.innerHTML = svg;
     svgElement = renderContainer.querySelector("svg");
     if (svgElement) {
@@ -711,8 +747,10 @@
     try {
       bindCanvasInteraction(mermaidContainer);
       const cacheKey = renderCacheKey("mermaid", diag.id);
-      if (renderCache.has(cacheKey)) {
-        mermaidContainer.innerHTML = renderCache.get(cacheKey)!;
+      const useCache = canReuseRenderCache();
+      const cached = useCache ? getCachedRender(cacheKey) : undefined;
+      if (cached !== undefined) {
+        mermaidContainer.innerHTML = cached;
         svgElement = mermaidContainer.querySelector("svg");
         if (svgElement) {
           svgElement.style.cursor = "grab";
@@ -726,7 +764,7 @@
       mermaidContainer.innerHTML = "";
       const { svg } = await mermaid.render(uniqueId, definition);
       mermaidContainer.innerHTML = svg;
-      renderCache.set(cacheKey, svg);
+      if (useCache) setCachedRender(cacheKey, svg);
       
       // Setup panning for mermaid SVG
       svgElement = mermaidContainer.querySelector("svg");
@@ -801,7 +839,7 @@
   }
 
   $: diagramText = selectedDiagram ? renderDiagramText(selectedDiagram) : "";
-  $: tikzCode = selectedDiagram
+  $: tikzCode = showTikzExport && selectedDiagram
     ? (tikzStandalone ? generateTikZDocument(selectedDiagram) : generateTikZ(selectedDiagram))
     : "";
 

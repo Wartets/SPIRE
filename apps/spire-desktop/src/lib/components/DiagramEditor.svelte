@@ -514,7 +514,7 @@
       ].join("\n")
     : "";
 
-  $: tikzCode = selectedDiagram
+  $: tikzCode = showTikzExport && selectedDiagram
     ? (tikzStandalone ? generateTikZDocument(selectedDiagram) : generateTikZ(selectedDiagram))
     : "";
 
