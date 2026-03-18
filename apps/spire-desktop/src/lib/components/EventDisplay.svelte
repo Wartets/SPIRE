@@ -32,6 +32,10 @@
   import * as THREE from "three";
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+  const logEventDisplay = (message: string): void => {
+    appendLog(message, { category: "EventDisplay" });
+  };
+
   // ---------------------------------------------------------------------------
   // Configuration State
   // ---------------------------------------------------------------------------
@@ -318,7 +322,7 @@
     const finalMasses = Array(nFinal).fill(0.0);
 
     try {
-      appendLog(
+      logEventDisplay(
         `Generating ${batchSize} events: √s = ${cmsEnergy} GeV, ${nFinal}-body, ${detectorPreset}`,
       );
 
@@ -335,10 +339,10 @@
         updateTimeOfFlight(0);
       }
 
-      appendLog(`Batch ready: ${batch.length} events buffered for playback`);
+      logEventDisplay(`Batch ready: ${batch.length} events buffered for playback`);
     } catch (err) {
       errorMsg = String(err);
-      appendLog(`Batch generation error: ${errorMsg}`);
+      logEventDisplay(`Batch generation error: ${errorMsg}`);
     } finally {
       loading = false;
     }

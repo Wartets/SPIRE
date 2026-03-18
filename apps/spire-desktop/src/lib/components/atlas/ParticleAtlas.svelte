@@ -22,6 +22,10 @@
   import { listCompositeReferenceLibrary, type CompositeQuarkContent } from "$lib/core/physics/composites";
   import { listAtlasReferenceParticles } from "$lib/core/physics/atlasReferenceParticles";
 
+  const logAtlas = (message: string): void => {
+    appendLog(message, { category: "Atlas" });
+  };
+
   type AtlasMode = "taxonomy" | "periodic";
 
   let mode: AtlasMode = "taxonomy";
@@ -208,14 +212,14 @@
   function handleParticleSelect(field: Field): void {
     if ($atlasSelectionRequest.pending && $atlasSelectionRequest.target) {
       submitAtlasSelection($atlasSelectionRequest.target, field.id);
-      appendLog(`Atlas picker selected ${field.id} for ${$atlasSelectionRequest.target} state.`);
+      logAtlas(`Atlas picker selected ${field.id} for ${$atlasSelectionRequest.target} state.`);
       return;
     }
     selectedParticle = field;
     selectedReferenceComposite = null;
     broadcastSelection({ type: "PARTICLE_SELECTED", data: field });
     triggerFlash(field.id);
-    appendLog(`Atlas particle inspected: ${field.id}`);
+    logAtlas(`Atlas particle inspected: ${field.id}`);
   }
 
   function handleReferenceParticleSelect(field: Field): void {
@@ -223,13 +227,13 @@
     selectedReferenceComposite = null;
     broadcastSelection({ type: "PARTICLE_SELECTED", data: field });
     triggerFlash(field.id);
-    appendLog(`Atlas reference particle inspected: ${field.id}`);
+    logAtlas(`Atlas reference particle inspected: ${field.id}`);
   }
 
   function handleReferenceCompositeSelect(entry: CompositeQuarkContent): void {
     selectedParticle = null;
     selectedReferenceComposite = entry;
-    appendLog(`Atlas reference composite inspected: ${entry.label}`);
+    logAtlas(`Atlas reference composite inspected: ${entry.label}`);
   }
 
   function handleDecaySelect(
@@ -238,7 +242,7 @@
     const detail = event.detail;
     initialIdsInput.set([detail.parentId]);
     finalIdsInput.set([...detail.finalStateIds]);
-    appendLog(`Decay branch loaded into Reaction Workspace: ${detail.label}`);
+    logAtlas(`Decay branch loaded into Reaction Workspace: ${detail.label}`);
   }
 
   function handleSynthesisIsotopeSelect(
@@ -271,14 +275,14 @@
         isotope: d.isotopeData,
       },
     });
-    appendLog(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
+    logAtlas(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
   }
 
   function handleElementSelect(event: CustomEvent<ElementData>): void {
     selectedElementForViewer = event.detail;
     selectedIsotopeForViewer = null;
     pushRecentElement(event.detail);
-    appendLog(`Element details opened: ${event.detail.name} (Z=${event.detail.Z})`);
+    logAtlas(`Element details opened: ${event.detail.name} (Z=${event.detail.Z})`);
   }
 
   function openRecentElement(element: ElementData): void {

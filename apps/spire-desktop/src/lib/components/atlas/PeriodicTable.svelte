@@ -13,6 +13,10 @@
   import { broadcastSelection } from "$lib/stores/selectionBus";
   import { appendLog } from "$lib/stores/physicsStore";
 
+  const logAtlas = (message: string): void => {
+    appendLog(message, { category: "Atlas" });
+  };
+
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
@@ -117,7 +121,7 @@
     }
 
     broadcastSelection({ type: "ELEMENT_SELECTED", data: el });
-    appendLog(`Periodic table: selected ${el.name} (Z=${el.Z})`);
+    logAtlas(`Periodic table: selected ${el.name} (Z=${el.Z})`);
     triggerFlash(el.Z);
   }
 
@@ -135,7 +139,7 @@
     const d = event.detail;
     selectedIsotopeData = d.isotope;
     broadcastSelection({ type: "ISOTOPE_SELECTED", data: d });
-    appendLog(`Isotope selected: ${d.symbol}-${d.A} (Z=${d.Z})`);
+    logAtlas(`Isotope selected: ${d.symbol}-${d.A} (Z=${d.Z})`);
     triggerFlash(d.Z);
   }
 

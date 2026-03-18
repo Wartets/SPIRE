@@ -30,6 +30,10 @@
     ExternalField,
   } from "$lib/types/spire";
 
+  const logExternalModels = (message: string): void => {
+    appendLog(message, { category: "ExternalModels" });
+  };
+
   // ---------------------------------------------------------------------------
   // Tab State
   // ---------------------------------------------------------------------------
@@ -89,11 +93,11 @@
       slhaDoc = await importSlhaString(slhaText);
       const nBlocks = Object.keys(slhaDoc.blocks).length;
       const nDecays = Object.keys(slhaDoc.decays).length;
-      appendLog(`SLHA imported: ${nBlocks} blocks, ${nDecays} decay tables`);
+      logExternalModels(`SLHA imported: ${nBlocks} blocks, ${nDecays} decay tables`);
     } catch (e: unknown) {
       slhaError = e instanceof Error ? e.message : String(e);
       slhaErrorHints = buildImportErrorHints(slhaError, "slha");
-      appendLog(`SLHA import error: ${slhaError}`);
+      logExternalModels(`SLHA import error: ${slhaError}`);
     } finally {
       slhaLoading = false;
     }
@@ -178,13 +182,13 @@
       ufoModel = model;
       ufoTheoreticalModel = theoretical;
       addCitations(["degrande2012"]);
-      appendLog(
+      logExternalModels(
         `UFO imported: ${model.particles.length} particles, ${model.vertices.length} vertices`,
       );
     } catch (e: unknown) {
       ufoError = e instanceof Error ? e.message : String(e);
       ufoErrorHints = buildImportErrorHints(ufoError, "ufo");
-      appendLog(`UFO import error: ${ufoError}`);
+      logExternalModels(`UFO import error: ${ufoError}`);
     } finally {
       ufoLoading = false;
     }
@@ -193,7 +197,7 @@
   function applyUfoModel(): void {
     if (ufoTheoreticalModel) {
       theoreticalModel.set(ufoTheoreticalModel);
-      appendLog(`Applied UFO model "${ufoModelName}" as active theoretical model`);
+      logExternalModels(`Applied UFO model "${ufoModelName}" as active theoretical model`);
     }
   }
 
@@ -260,13 +264,13 @@
       }
       nloResult = await deriveCounterterms(nloInput, knownFields, nloExternalFields);
       addCitations(["kennedy1982", "bardin1999"]);
-      appendLog(
+      logExternalModels(
         `NLO counterterms: ${nloResult.counterterms.length} terms, ` +
           `${nloResult.renorm_constants.length} constants`,
       );
     } catch (e: unknown) {
       nloError = e instanceof Error ? e.message : String(e);
-      appendLog(`NLO error: ${nloError}`);
+      logExternalModels(`NLO error: ${nloError}`);
     } finally {
       nloLoading = false;
     }

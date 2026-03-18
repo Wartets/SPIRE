@@ -23,6 +23,7 @@ import {
   logs,
   appendLog,
 } from "$lib/stores/physicsStore";
+import type { LogCategory } from "$lib/stores/physicsStore";
 import {
   cmsEnergyInput,
   initialIdsInput,
@@ -58,6 +59,40 @@ const WIDGET_DOCS: Record<WidgetType, string> = {
   global_fit_dashboard: "https://github.com/Wartets/SPIRE/blob/main/docs/source/theory/formalism.md",
 };
 
+const WIDGET_LOG_CATEGORIES: Record<WidgetType, LogCategory> = {
+  model: "Model",
+  reaction: "Reaction",
+  diagram: "Diagram",
+  amplitude: "Amplitude",
+  kinematics: "Kinematics",
+  dalitz: "Dalitz",
+  analysis: "Analysis",
+  event_display: "EventDisplay",
+  particle_atlas: "Atlas",
+  diagram_editor: "Diagram",
+  lagrangian_workbench: "Lagrangian",
+  external_models: "ExternalModels",
+  compute_grid: "ComputeGrid",
+  references: "General",
+  telemetry: "Telemetry",
+  log: "General",
+  notebook: "Notebook",
+  parameter_scanner: "Scanner",
+  decay_calculator: "Decay",
+  cosmology: "Cosmology",
+  flavor_workbench: "Flavor",
+  plugin_manager: "Plugin",
+  global_fit_dashboard: "GlobalFit",
+};
+
+function logForWidget(widgetType: WidgetType, message: string): void {
+  appendLog(message, { category: WIDGET_LOG_CATEGORIES[widgetType] });
+}
+
+function logPipeline(message: string): void {
+  appendLog(message, { category: "Pipeline" });
+}
+
 function openWidgetDocs(widgetType: WidgetType): void {
   const url = WIDGET_DOCS[widgetType];
   window.open(url, "_blank", "noopener,noreferrer");
@@ -85,7 +120,7 @@ function buildInteropActions(widgetType: WidgetType): ContextMenuItem[] {
             cmsEnergy: reactionInterop.cmsEnergy,
             nFinalState: reactionInterop.nFinalState ?? null,
           });
-          appendLog(`${widgetType}: synced settings from Reaction context menu.`);
+          logPipeline(`${widgetType}: synced settings from Reaction context menu.`);
         },
         { icon: "<->" },
       ),
@@ -98,7 +133,7 @@ function buildInteropActions(widgetType: WidgetType): ContextMenuItem[] {
       publishWidgetInterop(widgetType, {
         action: "manual-snapshot",
       });
-      appendLog(`${widgetType}: snapshot published to widget bus.`);
+      logPipeline(`${widgetType}: snapshot published to widget bus.`);
     }, { icon: "PUB" }),
   ];
 }
@@ -149,7 +184,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
     case "diagram":
       return withGlobalWidgetActions(widgetType, [
         menuAction("diag-count", `Diagrams: ${get(generatedDiagrams)?.diagrams?.length ?? 0}`, () => {}, { disabled: true }),
-        menuAction("diag-proof", "Generate Proof Outline", () => appendLog("Diagram: proof outline requested"), { icon: "∴" }),
+        menuAction("diag-proof", "Generate Proof Outline", () => logForWidget(widgetType, "Diagram: proof outline requested"), { icon: "∴" }),
       ]);
 
     case "amplitude":
@@ -158,7 +193,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
           const expr = get(activeAmplitude);
           if (expr) navigator.clipboard.writeText(expr);
         }, { disabled: !get(activeAmplitude) }),
-        menuAction("amp-log", "Log Active Amplitude", () => appendLog("Amplitude: active expression logged"), { icon: "ℳ" }),
+        menuAction("amp-log", "Log Active Amplitude", () => logForWidget(widgetType, "Amplitude: active expression logged"), { icon: "ℳ" }),
       ]);
 
     case "kinematics":
@@ -175,7 +210,7 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
       return withGlobalWidgetActions(widgetType, [
         menuAction("ana-obs-count", `Observables: ${get(observableScripts).length}`, () => {}, { disabled: true }),
         menuAction("ana-cut-count", `Cuts: ${get(cutScripts).length}`, () => {}, { disabled: true }),
-        menuAction("ana-run-all", "Run Full Analysis Pipeline", () => appendLog("Analysis: run requested from context menu"), { icon: "RUN" }),
+        menuAction("ana-run-all", "Run Full Analysis Pipeline", () => logForWidget(widgetType, "Analysis: run requested from context menu"), { icon: "RUN" }),
       ]);
 
     case "event_display":
@@ -194,19 +229,19 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
           initialIdsInput.set(["p", "p"]);
           finalIdsInput.set(["t", "t_bar"]);
         }, { icon: "↺" }),
-        menuAction("atlas-open", "Open Atlas Selection Context", () => appendLog("Particle Atlas: context shortcut triggered"), { icon: "⌕" }),
+        menuAction("atlas-open", "Open Atlas Selection Context", () => logForWidget(widgetType, "Particle Atlas: context shortcut triggered"), { icon: "⌕" }),
       ]);
 
     case "diagram_editor":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("de-new", "New Diagram Draft", () => appendLog("Diagram Editor: new draft"), { icon: "✎" }),
-        menuAction("de-orth", "Auto-Orthogonalize", () => appendLog("Diagram Editor: auto-orthogonalize"), { icon: "⤢" }),
+        menuAction("de-new", "New Diagram Draft", () => logForWidget(widgetType, "Diagram Editor: new draft"), { icon: "✎" }),
+        menuAction("de-orth", "Auto-Orthogonalize", () => logForWidget(widgetType, "Diagram Editor: auto-orthogonalize"), { icon: "⤢" }),
       ]);
 
     case "lagrangian_workbench":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("lag-expand", "Expand Lagrangian Terms", () => appendLog("Lagrangian: expand terms"), { icon: "Σ" }),
-        menuAction("lag-check", "Run Gauge-Invariance Check", () => appendLog("Lagrangian: gauge invariance check queued"), { icon: "✓" }),
+        menuAction("lag-expand", "Expand Lagrangian Terms", () => logForWidget(widgetType, "Lagrangian: expand terms"), { icon: "Σ" }),
+        menuAction("lag-check", "Run Gauge-Invariance Check", () => logForWidget(widgetType, "Lagrangian: gauge invariance check queued"), { icon: "✓" }),
       ]);
 
     case "external_models":
@@ -218,10 +253,10 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "compute_grid":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("cg-1k", "1,000 events", () => appendLog("Set n_events = 1,000")),
-        menuAction("cg-10k", "10,000 events", () => appendLog("Set n_events = 10,000")),
-        menuAction("cg-100k", "100,000 events", () => appendLog("Set n_events = 100,000")),
-        menuAction("cg-queue", "Queue Distributed Run", () => appendLog("Compute Grid: distributed run queued"), { icon: "⇢" }),
+        menuAction("cg-1k", "1,000 events", () => logForWidget(widgetType, "Set n_events = 1,000")),
+        menuAction("cg-10k", "10,000 events", () => logForWidget(widgetType, "Set n_events = 10,000")),
+        menuAction("cg-100k", "100,000 events", () => logForWidget(widgetType, "Set n_events = 100,000")),
+        menuAction("cg-queue", "Queue Distributed Run", () => logForWidget(widgetType, "Compute Grid: distributed run queued"), { icon: "⇢" }),
       ]);
 
     case "log":
@@ -236,14 +271,14 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
     case "notebook":
       return withGlobalWidgetActions(widgetType, [
         menuAction("nb-run-all", "Run All Cells", () => executeAllCells(), { icon: "RUN" }),
-        menuAction("nb-new-cell", "Insert New Cell", () => appendLog("Notebook: insert new cell requested"), { icon: "+" }),
+        menuAction("nb-new-cell", "Insert New Cell", () => logForWidget(widgetType, "Notebook: insert new cell requested"), { icon: "+" }),
         menuAction("nb-info", "Notebook (Rhai scripting)", () => {}, { disabled: true }),
       ]);
 
     case "parameter_scanner":
       return withGlobalWidgetActions(widgetType, [
         menuAction("scan-info", "Parameter Scanner", () => {}, { disabled: true }),
-        menuAction("scan-run", "Run Benchmark Scan", () => appendLog("Parameter Scanner: benchmark scan queued"), { icon: "◴" }),
+        menuAction("scan-run", "Run Benchmark Scan", () => logForWidget(widgetType, "Parameter Scanner: benchmark scan queued"), { icon: "◴" }),
       ]);
 
     case "references":
@@ -254,8 +289,8 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "telemetry":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("telem-snap", "Capture Perf Snapshot", () => appendLog("Telemetry: captured performance snapshot"), { icon: "◉" }),
-        menuAction("telem-export", "Export Session Metrics", () => appendLog("Telemetry: export requested"), { icon: "⇩" }),
+        menuAction("telem-snap", "Capture Perf Snapshot", () => logForWidget(widgetType, "Telemetry: captured performance snapshot"), { icon: "◉" }),
+        menuAction("telem-export", "Export Session Metrics", () => logForWidget(widgetType, "Telemetry: export requested"), { icon: "⇩" }),
         menuAction("telem-info", "Performance Profiling", () => {}, { disabled: true }),
       ]);
 
@@ -273,28 +308,28 @@ export function getWidgetContextItems(widgetType: WidgetType): ContextMenuItem[]
 
     case "cosmology":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("cosmo-rd", "Preset: Radiation dominated", () => appendLog("Cosmology: radiation-dominated benchmark"), { icon: "SOL" }),
-        menuAction("cosmo-lcdm", "Preset: ΛCDM baseline", () => appendLog("Cosmology: ΛCDM baseline loaded"), { icon: "Λ" }),
+        menuAction("cosmo-rd", "Preset: Radiation dominated", () => logForWidget(widgetType, "Cosmology: radiation-dominated benchmark"), { icon: "SOL" }),
+        menuAction("cosmo-lcdm", "Preset: ΛCDM baseline", () => logForWidget(widgetType, "Cosmology: ΛCDM baseline loaded"), { icon: "Λ" }),
       ]);
 
     case "flavor_workbench":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("flv-bmix", "Load B-mixing benchmark", () => appendLog("Flavor: B-mixing benchmark loaded"), { icon: "B" }),
-        menuAction("flv-rk", "Load R_K / R_K* benchmark", () => appendLog("Flavor: R_K benchmark loaded"), { icon: "K" }),
+        menuAction("flv-bmix", "Load B-mixing benchmark", () => logForWidget(widgetType, "Flavor: B-mixing benchmark loaded"), { icon: "B" }),
+        menuAction("flv-rk", "Load R_K / R_K* benchmark", () => logForWidget(widgetType, "Flavor: R_K benchmark loaded"), { icon: "K" }),
       ]);
 
     case "plugin_manager":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("plug-refresh", "Refresh Plugin Index", () => appendLog("Plugin Manager: refreshing index"), { icon: "↻" }),
-        menuAction("plug-scan", "Rescan Local Plugins", () => appendLog("Plugin Manager: local plugin scan"), { icon: "⌕" }),
-        menuAction("plug-enable-all", "Enable All Compatible Plugins", () => appendLog("Plugin Manager: enable-all requested"), { icon: "✓" }),
+        menuAction("plug-refresh", "Refresh Plugin Index", () => logForWidget(widgetType, "Plugin Manager: refreshing index"), { icon: "↻" }),
+        menuAction("plug-scan", "Rescan Local Plugins", () => logForWidget(widgetType, "Plugin Manager: local plugin scan"), { icon: "⌕" }),
+        menuAction("plug-enable-all", "Enable All Compatible Plugins", () => logForWidget(widgetType, "Plugin Manager: enable-all requested"), { icon: "✓" }),
       ]);
 
     case "global_fit_dashboard":
       return withGlobalWidgetActions(widgetType, [
-        menuAction("fit-start", "Start Quick Fit", () => appendLog("Global Fit: quick fit started"), { icon: "RUN" }),
-        menuAction("fit-reset", "Reset Fit Session", () => appendLog("Global Fit: session reset"), { icon: "↺" }),
-        menuAction("fit-snapshot", "Capture Fit Snapshot", () => appendLog("Global Fit: snapshot captured"), { icon: "◉" }),
+        menuAction("fit-start", "Start Quick Fit", () => logForWidget(widgetType, "Global Fit: quick fit started"), { icon: "RUN" }),
+        menuAction("fit-reset", "Reset Fit Session", () => logForWidget(widgetType, "Global Fit: session reset"), { icon: "↺" }),
+        menuAction("fit-snapshot", "Capture Fit Snapshot", () => logForWidget(widgetType, "Global Fit: snapshot captured"), { icon: "◉" }),
       ]);
 
     default:

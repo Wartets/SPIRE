@@ -3,6 +3,10 @@
   import type { ColorRepresentation, Field, InteractionType } from "$lib/types/spire";
   import { upsertModelField, appendLog } from "$lib/stores/physicsStore";
 
+  const logAtlas = (message: string): void => {
+    appendLog(message, { category: "Atlas" });
+  };
+
   export let open = false;
 
   const dispatch = createEventDispatcher<{ close: void; created: Field }>();
@@ -93,7 +97,7 @@
     };
 
     upsertModelField(field);
-    appendLog(`Custom particle upserted: ${field.id} (${field.symbol})`);
+    logAtlas(`Custom particle upserted: ${field.id} (${field.symbol})`);
     dispatch("created", field);
     close();
   }

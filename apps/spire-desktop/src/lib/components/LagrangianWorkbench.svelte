@@ -51,6 +51,10 @@
     Legend,
   } from "chart.js";
 
+  const logLagrangian = (message: string): void => {
+    appendLog(message, { category: "Lagrangian" });
+  };
+
   Chart.register(
     LineController,
     LineElement,
@@ -154,20 +158,20 @@
 
     try {
       parsedExpr = await parseLagrangianTerm(termInput, fields);
-      appendLog(`✓ Parsed: ${termInput}`);
+      logLagrangian(`✓ Parsed: ${termInput}`);
     } catch (e: unknown) {
       parseError = e instanceof Error ? e.message : String(e);
-      appendLog(`✗ Parse error: ${parseError}`);
+      logLagrangian(`✗ Parse error: ${parseError}`);
       return;
     }
 
     try {
       validation = await validateLagrangianTerm(termInput, fields);
-      appendLog(
+      logLagrangian(
         `Validation: Lorentz=${validation.is_lorentz_scalar} Gauge=${validation.is_gauge_singlet} Hermitian=${validation.is_hermitian} Dim=${validation.mass_dimension}`,
       );
     } catch (e: unknown) {
-      appendLog(`✗ Validation error: ${e instanceof Error ? e.message : String(e)}`);
+      logLagrangian(`✗ Validation error: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 
@@ -188,10 +192,10 @@
 
     try {
       derivedRule = await deriveVertexRuleFromAst(termInput, fields, externals);
-      appendLog(`✓ Derived vertex: ${derivedRule.latex}`);
+      logLagrangian(`✓ Derived vertex: ${derivedRule.latex}`);
     } catch (e: unknown) {
       deriveError = e instanceof Error ? e.message : String(e);
-      appendLog(`✗ Derivation error: ${deriveError}`);
+      logLagrangian(`✗ Derivation error: ${deriveError}`);
     }
   }
 
@@ -227,11 +231,11 @@
     try {
       rgeResult = await runRgeFlow(config);
       addCitations(["machacek1984", "gross1973"]);
-      appendLog(`✓ RGE flow computed: ${rgeResult.coupling_name}, ${rgeResult.mu_values.length} points`);
+      logLagrangian(`✓ RGE flow computed: ${rgeResult.coupling_name}, ${rgeResult.mu_values.length} points`);
       plotRge();
     } catch (e: unknown) {
       rgeError = e instanceof Error ? e.message : String(e);
-      appendLog(`✗ RGE error: ${rgeError}`);
+      logLagrangian(`✗ RGE error: ${rgeError}`);
     }
   }
 

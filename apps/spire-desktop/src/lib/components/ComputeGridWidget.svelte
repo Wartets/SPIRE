@@ -38,6 +38,10 @@
     Filler,
   } from "chart.js";
 
+  const logComputeGrid = (message: string): void => {
+    appendLog(message, { category: "ComputeGrid" });
+  };
+
   // Register Chart.js components.
   Chart.register(
     LineController,
@@ -124,7 +128,7 @@
       return;
     }
 
-    appendLog(
+    logComputeGrid(
       `Compute Grid: launching ${numEvents.toLocaleString()} events across ≤${maxWorkers} workers ` +
         `at √s = ${cmsEnergy} GeV`,
     );
@@ -154,20 +158,20 @@
 
       const xsecPb = result.cross_section * 0.3894e9;
       const errPb = result.cross_section_error * 0.3894e9;
-      appendLog(
+      logComputeGrid(
         `Compute Grid: COMPLETE - σ ≈ ${xsecPb.toExponential(4)} ± ${errPb.toExponential(2)} pb ` +
           `(${result.events_generated.toLocaleString()} events, ` +
           `${result.events_passed.toLocaleString()} passed)`,
       );
     } catch (err) {
       errorMsg = err instanceof Error ? err.message : String(err);
-      appendLog(`Compute Grid: ERROR - ${errorMsg}`);
+      logComputeGrid(`Compute Grid: ERROR - ${errorMsg}`);
     }
   }
 
   function handleCancel(): void {
     gridManager.cancel();
-    appendLog("Compute Grid: job cancelled by user.");
+    logComputeGrid("Compute Grid: job cancelled by user.");
   }
 
   // ---------------------------------------------------------------------------

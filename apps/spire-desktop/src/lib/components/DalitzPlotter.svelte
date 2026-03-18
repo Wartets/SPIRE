@@ -24,6 +24,10 @@
     Title,
   } from "chart.js";
 
+  const logDalitz = (message: string): void => {
+    appendLog(message, { category: "Dalitz" });
+  };
+
   // Register only the Chart.js components we need (tree-shakeable).
   Chart.register(ScatterController, LinearScale, PointElement, Tooltip, Title);
 
@@ -69,7 +73,7 @@
     mA = preset.mA;
     mB = preset.mB;
     mC = preset.mC;
-    appendLog(`Dalitz preset: ${preset.label}`);
+    logDalitz(`Dalitz preset: ${preset.label}`);
   }
 
   // ---------------------------------------------------------------------------
@@ -93,14 +97,14 @@
 
     try {
       plotData = await computeDalitzData(motherMass, mA, mB, mC, nPoints);
-      appendLog(
+      logDalitz(
         `Dalitz plot: ${plotData.points.length} points generated ` +
         `(M=${motherMass}, grid=${plotData.n_grid})`
       );
       renderChart();
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`Dalitz error: ${errorMsg}`);
+      logDalitz(`Dalitz error: ${errorMsg}`);
     } finally {
       loading = false;
     }
@@ -231,7 +235,7 @@
     a.download = `dalitz_M${motherMass.toFixed(3)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    appendLog(`[Dalitz] CSV exported: dalitz_M${motherMass.toFixed(3)}.csv`);
+    logDalitz(`[Dalitz] CSV exported: dalitz_M${motherMass.toFixed(3)}.csv`);
   }
 
   // ---------------------------------------------------------------------------

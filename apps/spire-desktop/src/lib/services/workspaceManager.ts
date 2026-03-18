@@ -46,6 +46,10 @@ import type {
 } from "$lib/types/workspace";
 import { WORKSPACE_SCHEMA_VERSION } from "$lib/types/workspace";
 
+const logWorkspace = (message: string): void => {
+  appendLog(message, { category: "Workspace" });
+};
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -302,13 +306,13 @@ export function importWorkspace(data: unknown): boolean {
 
   if (!validation.valid) {
     for (const err of validation.errors) {
-      appendLog(`IMPORT ERROR: ${err}`);
+      logWorkspace(`IMPORT ERROR: ${err}`);
     }
     return false;
   }
 
   for (const warn of validation.warnings) {
-    appendLog(`IMPORT WARNING: ${warn}`);
+    logWorkspace(`IMPORT WARNING: ${warn}`);
   }
 
   const workspace = data as SpireWorkspace;
@@ -333,7 +337,7 @@ export function importWorkspace(data: unknown): boolean {
     setLayoutRoot(tree);
     clearCanvas();
     viewMode.set("docking");
-    appendLog(
+    logWorkspace(
       `Workspace "${workspace.metadata.name}" imported (v1.0 → v2.0 migration) - ` +
         `framework: ${workspace.physics.framework}`,
     );
@@ -351,7 +355,7 @@ export function importWorkspace(data: unknown): boolean {
       clearPipelineGraph();
     }
     viewMode.set(workspace.layout.mode ?? "docking");
-    appendLog(
+    logWorkspace(
       `Workspace "${workspace.metadata.name}" imported - ` +
         `framework: ${workspace.physics.framework}`,
     );
@@ -370,7 +374,7 @@ export function importWorkspaceJson(json: string): boolean {
   try {
     parsed = JSON.parse(json);
   } catch {
-    appendLog("IMPORT ERROR: Invalid JSON.");
+    logWorkspace("IMPORT ERROR: Invalid JSON.");
     return false;
   }
   return importWorkspace(parsed);
@@ -442,7 +446,7 @@ export function downloadWorkspace(name?: string): void {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  appendLog(`Workspace "${name ?? "workspace"}" exported to file.`);
+  logWorkspace(`Workspace "${name ?? "workspace"}" exported to file.`);
 }
 
 /**
@@ -455,7 +459,7 @@ export async function importFromFile(file: File): Promise<boolean> {
     const text = await file.text();
     return importWorkspaceJson(text);
   } catch {
-    appendLog("IMPORT ERROR: Could not read file.");
+    logWorkspace("IMPORT ERROR: Could not read file.");
     return false;
   }
 }
@@ -477,7 +481,7 @@ export function resetWorkspace(): void {
   clearPipelineGraph();
   activeFramework.set("StandardModel");
   clearAutoSave();
-  appendLog("Workspace reset to defaults.");
+  logWorkspace("Workspace reset to defaults.");
 }
 
 // ---------------------------------------------------------------------------

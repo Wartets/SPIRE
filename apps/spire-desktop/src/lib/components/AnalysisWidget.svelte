@@ -36,6 +36,10 @@
     Legend,
   } from "chart.js";
 
+  const logAnalysis = (message: string): void => {
+    appendLog(message, { category: "Analysis" });
+  };
+
   // Register only the Chart.js components we need (tree-shakeable).
   Chart.register(
     BarController,
@@ -299,7 +303,7 @@
     histMin = preset.min;
     histMax = preset.max;
     nBins = preset.nBins;
-    appendLog(`Analysis preset: ${preset.label}`);
+    logAnalysis(`Analysis preset: ${preset.label}`);
   }
 
   interface Observable2DPreset {
@@ -325,7 +329,7 @@
     xMax2D = preset.xMax;
     yMin2D = preset.yMin;
     yMax2D = preset.yMax;
-    appendLog(`2D preset: ${preset.label}`);
+    logAnalysis(`2D preset: ${preset.label}`);
   }
 
   // ---------------------------------------------------------------------------
@@ -429,7 +433,7 @@
 
     try {
       const modeLabel = analysisMode === '1d' ? plotName : plot2DName;
-      appendLog(
+      logAnalysis(
         `Running ${analysisMode.toUpperCase()} analysis: ${modeLabel}, ${numEvents} events at √s = ${cmsEnergy} GeV`,
       );
 
@@ -442,7 +446,7 @@
           y_max: 1.0,
           alpha: nloAlpha,
         });
-        appendLog(`NLO corrections enabled - scheme: ${nloScheme}, α = ${nloAlpha}`);
+        logAnalysis(`NLO corrections enabled - scheme: ${nloScheme}, α = ${nloAlpha}`);
       }
 
       // Send shower configuration if enabled (Phase 46).
@@ -456,7 +460,7 @@
           mpi: showerMPI,
           seed: 42,
         });
-        appendLog(`Parton shower enabled - provider: ${showerProvider}`);
+        logAnalysis(`Parton shower enabled - provider: ${showerProvider}`);
       }
 
       const analysisResult = await runAnalysis({
@@ -492,13 +496,13 @@
       const xsecPb = analysisResult.cross_section * 0.3894e9;
       const errPb = analysisResult.cross_section_error * 0.3894e9;
       addCitations(["kleiss1986", "james1980", "peskin1995"]);
-      appendLog(
+      logAnalysis(
         `Analysis complete: ${analysisResult.events_passed}/${analysisResult.events_generated} events passed` +
           ` | σ ≈ ${xsecPb.toExponential(3)} ± ${errPb.toExponential(2)} pb`,
       );
     } catch (err) {
       errorMsg = String(err);
-      appendLog(`Analysis error: ${errorMsg}`);
+      logAnalysis(`Analysis error: ${errorMsg}`);
     } finally {
       loading = false;
     }

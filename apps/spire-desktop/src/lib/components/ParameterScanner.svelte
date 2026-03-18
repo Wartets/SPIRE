@@ -34,6 +34,10 @@
     Filler,
   } from "chart.js";
 
+  const logScanner = (message: string): void => {
+    appendLog(message, { category: "Scanner" });
+  };
+
   // Register Chart.js components (tree-shakeable).
   Chart.register(
     LineController,
@@ -181,7 +185,7 @@
     result = null;
 
     try {
-      appendLog(`[Scanner] Starting 1D scan: ${target} ∈ [${scanMin}, ${scanMax}], ${scanSteps} points, ${eventsPerPoint} events/pt`);
+      logScanner(`[Scanner] Starting 1D scan: ${target} ∈ [${scanMin}, ${scanMax}], ${scanSteps} points, ${eventsPerPoint} events/pt`);
 
       const scanResult = await runParameterScan1D({
         variable: {
@@ -198,12 +202,12 @@
       });
 
       result = scanResult;
-      appendLog(`[Scanner] Scan complete: ${scanResult.x_values.length} points evaluated.`);
+      logScanner(`[Scanner] Scan complete: ${scanResult.x_values.length} points evaluated.`);
       renderChart();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       scanError = msg;
-      appendLog(`[Scanner] Error: ${msg}`);
+      logScanner(`[Scanner] Error: ${msg}`);
     } finally {
       scanning = false;
     }
@@ -402,7 +406,7 @@
     a.download = "spire_scan.csv";
     a.click();
     URL.revokeObjectURL(url);
-    appendLog("[Scanner] CSV exported: spire_scan.csv");
+    logScanner("[Scanner] CSV exported: spire_scan.csv");
   }
 
   // ---------------------------------------------------------------------------

@@ -30,6 +30,10 @@
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { TheoreticalFramework } from "$lib/types/spire";
 
+  const logModel = (message: string): void => {
+    appendLog(message, { category: "Model" });
+  };
+
   // ---------------------------------------------------------------------------
   // LocalStorage keys
   // ---------------------------------------------------------------------------
@@ -129,11 +133,11 @@
     if (value === "Custom") {
       activeFramework.set("Custom");
       activateCustomMode();
-      appendLog("Switched to Custom model mode");
+      logModel("Switched to Custom model mode");
     } else {
       activeFramework.set(value);
       deactivateCustomMode();
-      appendLog(`Framework set to ${value}`);
+      logModel(`Framework set to ${value}`);
     }
   }
 
@@ -148,7 +152,7 @@
       $particlesTomlInput = storedParticles;
       $verticesTomlInput = storedVertices || "";
       $modelNameInput = storedName || "Custom Model";
-      appendLog("Restored custom model from LocalStorage");
+      logModel("Restored custom model from LocalStorage");
     } else {
       $particlesTomlInput = CUSTOM_TEMPLATE_PARTICLES;
       $verticesTomlInput = CUSTOM_TEMPLATE_VERTICES;
@@ -172,7 +176,7 @@
     localStorage.setItem(LS_KEY_VERTICES, $verticesTomlInput);
     localStorage.setItem(LS_KEY_MODEL_NAME, $modelNameInput);
     savedIndicator = "Saved";
-    appendLog("Custom model saved to LocalStorage");
+    logModel("Custom model saved to LocalStorage");
     setTimeout(() => { savedIndicator = ""; }, 2000);
   }
 
@@ -183,7 +187,7 @@
     $particlesTomlInput = CUSTOM_TEMPLATE_PARTICLES;
     $verticesTomlInput = CUSTOM_TEMPLATE_VERTICES;
     $modelNameInput = "Custom Model";
-    appendLog("Custom model data cleared from LocalStorage");
+    logModel("Custom model data cleared from LocalStorage");
   }
 
   // ---------------------------------------------------------------------------
@@ -228,7 +232,7 @@
         `${model.terms.length}t`,
       ].join(" • ");
       addCitations(["pdg2024", "weinberg1967", "glashow1961"]);
-      appendLog(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
+      logModel(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errorMsg = msg;
@@ -241,7 +245,7 @@
         msgLc.includes("unknown field") ? "Unknown field detected: cross-check particle IDs and case sensitivity." : "",
         "Use the Custom template scaffold to validate required fields incrementally.",
       ].filter((line) => line.length > 0);
-      appendLog(`ERROR loading model: ${msg}`);
+      logModel(`ERROR loading model: ${msg}`);
     } finally {
       loading = false;
     }
@@ -309,10 +313,10 @@
         .join("\n\n");
       ufoExportContent = sections;
       showUfoModal = true;
-      appendLog(`UFO export generated - ${Object.keys(files).length} files`);
+      logModel(`UFO export generated - ${Object.keys(files).length} files`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR exporting UFO: ${msg}`);
+      logModel(`ERROR exporting UFO: ${msg}`);
     } finally {
       ufoExporting = false;
     }
@@ -321,7 +325,7 @@
   /** Copy the UFO export content to clipboard. */
   async function copyUfoToClipboard(): Promise<void> {
     await navigator.clipboard.writeText(ufoExportContent);
-    appendLog("UFO export copied to clipboard");
+    logModel("UFO export copied to clipboard");
   }
 
   // ---------------------------------------------------------------------------

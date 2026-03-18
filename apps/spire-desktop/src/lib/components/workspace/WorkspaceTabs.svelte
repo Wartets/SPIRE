@@ -23,6 +23,10 @@
   import { appendLog } from "$lib/stores/physicsStore";
   import { openPopup } from "$lib/stores/popupStore";
 
+  const logWorkspace = (message: string): void => {
+    appendLog(message, { category: "Workspace" });
+  };
+
   let dragTabId: string | null = null;
   let dropTargetTabId: string | null = null;
 
@@ -154,11 +158,11 @@
     if (action === "save-close") {
       saveCurrentWorkspaceState();
       downloadWorkspace(target.name);
-      appendLog(`Workspace saved before close: ${target.name}`);
+      logWorkspace(`Workspace saved before close: ${target.name}`);
     }
 
     removeWorkspace(wsId);
-    appendLog(`Workspace closed: ${target.name}`);
+    logWorkspace(`Workspace closed: ${target.name}`);
   }
 
   function buildWorkspaceContextItems(wsId: string): import("$lib/types/menu").ContextMenuItem[] {

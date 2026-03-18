@@ -28,6 +28,10 @@
     Legend,
   } from "chart.js";
 
+  const logDecay = (message: string): void => {
+    appendLog(message, { category: "Decay" });
+  };
+
   // Register Chart.js components (tree-shakeable).
   Chart.register(DoughnutController, ArcElement, Tooltip, Title, Legend);
 
@@ -113,10 +117,10 @@
     decayTable = null;
 
     try {
-      appendLog(`[DecayCalc] Computing decay table for ${target.name} (${target.id})…`);
+      logDecay(`[DecayCalc] Computing decay table for ${target.name} (${target.id})…`);
       const table = await calculateDecayTable(m, target.id);
       decayTable = table;
-      appendLog(
+      logDecay(
         `[DecayCalc] ${target.name}: Γ_total = ${table.total_width.toExponential(4)} GeV, ` +
         `${table.channels.length} channel(s), τ = ${table.lifetime_seconds.toExponential(3)} s`,
       );
@@ -127,7 +131,7 @@
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errorMsg = msg;
-      appendLog(`[DecayCalc] Error: ${msg}`);
+      logDecay(`[DecayCalc] Error: ${msg}`);
     } finally {
       computing = false;
     }
@@ -211,10 +215,10 @@
     try {
       const slha = await exportDecaySlha(m, target.id, target.pdgCode);
       await navigator.clipboard.writeText(slha);
-      appendLog("[DecayCalc] SLHA DECAY block copied to clipboard.");
+      logDecay("[DecayCalc] SLHA DECAY block copied to clipboard.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`[DecayCalc] SLHA copy failed: ${msg}`);
+      logDecay(`[DecayCalc] SLHA copy failed: ${msg}`);
     }
   }
 
@@ -233,10 +237,10 @@
       a.download = `${target.id}_decay.slha`;
       a.click();
       URL.revokeObjectURL(url);
-      appendLog(`[DecayCalc] SLHA file downloaded: ${target.id}_decay.slha`);
+      logDecay(`[DecayCalc] SLHA file downloaded: ${target.id}_decay.slha`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`[DecayCalc] SLHA download failed: ${msg}`);
+      logDecay(`[DecayCalc] SLHA download failed: ${msg}`);
     }
   }
 
@@ -408,7 +412,7 @@
                       action: () => {
                         const val = (ch.branching_ratio * 100).toFixed(4);
                         navigator.clipboard.writeText(val);
-                        appendLog(`[DecayCalc] Copied BR ${val}% for ${ch.final_state_names.join("+")} to clipboard.`);
+                        logDecay(`[DecayCalc] Copied BR ${val}% for ${ch.final_state_names.join("+")} to clipboard.`);
                       }},
                     { type: "action", id: "copy-slha-line", label: "Copy as SLHA line", icon: "SL",
                       action: () => {

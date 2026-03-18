@@ -60,6 +60,10 @@
   import { selectionBus, clearSelectionBus } from "$lib/stores/selectionBus";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
+  const logReaction = (message: string): void => {
+    appendLog(message, { category: "Reaction" });
+  };
+
   // --- Command Registration ---
   const REACTION_CMD_IDS = [
     "spire.reaction.run_pipeline",
@@ -112,7 +116,7 @@
         finalIdsInput.update((prev) => [...prev, sel.particleId]);
       }
       pulseAtlasSelection(sel.target, sel.particleId);
-      appendLog(`Reaction Workspace accepted atlas particle: ${sel.particleId} → ${sel.target}`);
+      logReaction(`Reaction Workspace accepted atlas particle: ${sel.particleId} → ${sel.target}`);
       clearAtlasSelectionResult();
     });
   });
@@ -149,7 +153,7 @@
           );
         }
         pulseAtlasSelection(listenTarget, payload.data.id);
-        appendLog(`Listen mode: appended ${payload.data.id} to ${listenTarget} state.`);
+        logReaction(`Listen mode: appended ${payload.data.id} to ${listenTarget} state.`);
         clearSelectionBus();
       }
     });
@@ -186,7 +190,7 @@
 
   function addInitialFromAtlas(): void {
     requestAtlasSelection("initial");
-    appendLog("Atlas picker requested for initial state.");
+    logReaction("Atlas picker requested for initial state.");
   }
 
   function removeInitial(idx: number): void {
@@ -199,7 +203,7 @@
 
   function addFinalFromAtlas(): void {
     requestAtlasSelection("final");
-    appendLog("Atlas picker requested for final state.");
+    logReaction("Atlas picker requested for final state.");
   }
 
   function removeFinal(idx: number): void {
@@ -217,7 +221,7 @@
     if (!$theoreticalModel) return;
     if ($initialIdsInput.length === 0 || $finalIdsInput.length === 0) {
       errorMsg = "Initial and final states must each contain at least one particle.";
-      appendLog(`ERROR constructing reaction: ${errorMsg}`);
+      logReaction(`ERROR constructing reaction: ${errorMsg}`);
       return;
     }
 
@@ -239,13 +243,13 @@
       );
       activeReaction.set(reaction);
       addCitations(["peskin1995", "pdg2024"]);
-      appendLog(
+      logReaction(
         `Reaction constructed: ${$initialIdsInput.join(" ")} → ${$finalIdsInput.join(" ")} @ √s = ${$cmsEnergyInput} GeV` +
           (reaction.is_valid ? " [valid]" : ` [violated: ${reaction.violation_diagnostics.join("; ")}]`),
       );
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR constructing reaction: ${errorMsg}`);
+      logReaction(`ERROR constructing reaction: ${errorMsg}`);
     } finally {
       busy = false;
     }
@@ -262,10 +266,10 @@
         $theoreticalModel,
       );
       reconstructedStates.set(states);
-      appendLog(`Reconstructed ${states.length} possible final states`);
+      logReaction(`Reconstructed ${states.length} possible final states`);
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR reconstructing: ${errorMsg}`);
+      logReaction(`ERROR reconstructing: ${errorMsg}`);
     } finally {
       busy = false;
     }
@@ -290,10 +294,10 @@
       generatedDiagrams.set(topoSet);
       extractAndPushProfile(topoSet, `Diagrams: ${topoSet.diagrams.length} topology(ies)`);
       addCitations(["hahn2001", "peskin1995"]);
-      appendLog(`Generated ${topoSet.diagrams.length} Feynman diagram(s)`);
+      logReaction(`Generated ${topoSet.diagrams.length} Feynman diagram(s)`);
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR generating diagrams: ${errorMsg}`);
+      logReaction(`ERROR generating diagrams: ${errorMsg}`);
     } finally {
       busy = false;
     }
@@ -303,7 +307,7 @@
     if (!$generatedDiagrams || $generatedDiagrams.diagrams.length === 0) {
       amplitudeResults.set([]);
       activeAmplitude.set("");
-      appendLog("No diagrams available for amplitude derivation.");
+      logReaction("No diagrams available for amplitude derivation.");
       return;
     }
 
@@ -321,10 +325,10 @@
         extractAndPushProfile(results[0], `Amplitude: ${results.length} expression(s)`);
       }
       addCitations(["peskin1995", "kennedy1982"]);
-      appendLog(`Derived ${results.length} amplitude expression(s)`);
+      logReaction(`Derived ${results.length} amplitude expression(s)`);
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR deriving amplitudes: ${errorMsg}`);
+      logReaction(`ERROR deriving amplitudes: ${errorMsg}`);
     } finally {
       busy = false;
     }
@@ -341,13 +345,13 @@
       const report = await computeKinematics(masses, $cmsEnergyInput);
       kinematics.set(report);
       addCitations(["peskin1995"]);
-      appendLog(
+      logReaction(
         `Kinematics: threshold = ${report.threshold.threshold_energy.toFixed(4)} GeV, ` +
           `allowed = ${report.is_allowed}`,
       );
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
-      appendLog(`ERROR computing kinematics: ${errorMsg}`);
+      logReaction(`ERROR computing kinematics: ${errorMsg}`);
     } finally {
       busy = false;
     }
@@ -426,13 +430,13 @@
           testResult,
         },
       ]);
-      appendLog(`Added observable "${newObsName || "Observable"}": test = ${testResult.toFixed(6)}`);
+      logReaction(`Added observable "${newObsName || "Observable"}": test = ${testResult.toFixed(6)}`);
       newObsName = "";
       newObsScript = "";
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       scriptError = msg;
-      appendLog(`Script error: ${msg}`);
+      logReaction(`Script error: ${msg}`);
     }
   }
 
@@ -451,13 +455,13 @@
           testResult,
         },
       ]);
-      appendLog(`Added cut "${newCutName || "Cut"}": test event ${testResult ? "passed" : "failed"}`);
+      logReaction(`Added cut "${newCutName || "Cut"}": test event ${testResult ? "passed" : "failed"}`);
       newCutName = "";
       newCutScript = "";
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       scriptError = msg;
-      appendLog(`Script error: ${msg}`);
+      logReaction(`Script error: ${msg}`);
     }
   }
 
