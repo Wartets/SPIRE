@@ -55,8 +55,8 @@
       ...(widgetItems.length > 0
         ? [{ type: "separator" as const, id: "sep-header-widget" }]
         : []),
-      { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
-      { type: "action", id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
+      { type: "action", id: "split-h", label: "Split Horizontal", icon: "column", action: handleSplitH },
+      { type: "action", id: "split-v", label: "Split Vertical", icon: "row", action: handleSplitV },
       { type: "action", id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
       { type: "separator", id: "sep-1" },
       { type: "action", id: "close", label: "Close Widget", icon: "✕", action: handleClose },
@@ -134,8 +134,8 @@
     ];
 
     const layoutItems: import("$lib/types/menu").ContextMenuItem[] = [
-      { type: "action", id: "split-h", label: "Split Horizontal", icon: "⬌", action: handleSplitH },
-      { type: "action", id: "split-v", label: "Split Vertical", icon: "⬍", action: handleSplitV },
+      { type: "action", id: "split-h", label: "Split Horizontal", icon: "column", action: handleSplitH },
+      { type: "action", id: "split-v", label: "Split Vertical", icon: "row", action: handleSplitV },
       { type: "action", id: "tear-off", label: "Tear Off to Window", icon: "⧉", action: handleTearOff },
       { type: "action", id: "close", label: "Close Widget", icon: "✕", action: handleClose },
     ];
@@ -252,13 +252,13 @@
         on:click={handleSplitH}
         use:tooltip={{ text: "Split Horizontal" }}
         aria-label="Split Horizontal"
-      ><Icon name="row" size={13} /></button>
+      ><Icon name="column" size={13} /></button>
       <button
         class="wc-btn"
         on:click={handleSplitV}
         use:tooltip={{ text: "Split Vertical" }}
         aria-label="Split Vertical"
-      ><Icon name="column" size={13} /></button>
+      ><Icon name="row" size={13} /></button>
       <button
         class="wc-btn"
         on:click={handleTearOff}
