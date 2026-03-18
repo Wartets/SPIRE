@@ -3470,7 +3470,10 @@ impl FourMomentum {
     ///
     /// $$p \cdot q = p^0 q^0 - p^1 q^1 - p^2 q^2 - p^3 q^3$$
     pub fn dot(&self, other: &FourMomentum) -> f64 {
-        self.e * other.e - self.px * other.px - self.py * other.py - self.pz * other.pz
+        let spatial = self
+            .px
+            .mul_add(other.px, self.py.mul_add(other.py, self.pz * other.pz));
+        self.e.mul_add(other.e, -spatial)
     }
 
     /// Compute the **invariant mass squared** $p^2 = p^\mu p_\mu$:

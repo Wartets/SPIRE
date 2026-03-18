@@ -606,23 +606,35 @@ pub fn apply_lorentz_boost(
     boost: &LorentzBoost,
 ) -> SpireResult<FourMomentum> {
     let [bx, by, bz] = boost.beta;
-    let gamma = boost.gamma;
-
-    let beta_sq = bx * bx + by * by + bz * bz;
+    let beta_sq = bx.mul_add(bx, by.mul_add(by, bz * bz));
 
     // If no boost, return unchanged.
     if beta_sq < 1e-30 {
         return Ok(*momentum);
     }
 
-    let beta_dot_p = bx * momentum.px + by * momentum.py + bz * momentum.pz;
+    if !beta_sq.is_finite() || beta_sq >= 1.0 {
+        return Err(crate::SpireError::KinematicsForbidden(format!(
+            "Invalid Lorentz boost: β² = {:.16} (must satisfy 0 ≤ β² < 1)",
+            beta_sq
+        )));
+    }
+
+    // Recompute γ from β to enforce internal consistency and reduce drift
+    // when callers provide a rounded/inconsistent gamma value.
+    let gamma = 1.0 / (1.0 - beta_sq).sqrt();
+
+    let beta_dot_p = bx.mul_add(momentum.px, by.mul_add(momentum.py, bz * momentum.pz));
 
     let e_prime = gamma * (momentum.e - beta_dot_p);
 
-    let factor = (gamma - 1.0) * beta_dot_p / beta_sq - gamma * momentum.e;
-    let px_prime = momentum.px + factor * bx;
-    let py_prime = momentum.py + factor * by;
-    let pz_prime = momentum.pz + factor * bz;
+    // Use (γ - 1) / β² = γ² / (γ + 1) to avoid subtractive cancellation for small boosts.
+    let parallel_coeff = (gamma * gamma / (gamma + 1.0)) * beta_dot_p;
+    let factor = parallel_coeff - gamma * momentum.e;
+
+    let px_prime = bx.mul_add(factor, momentum.px);
+    let py_prime = by.mul_add(factor, momentum.py);
+    let pz_prime = bz.mul_add(factor, momentum.pz);
 
     Ok(FourMomentum::new(e_prime, px_prime, py_prime, pz_prime))
 }
@@ -1826,6 +1838,37 @@ mod tests {
             "p² changed: {:.6} → {:.6}",
             m_sq_original,
             m_sq_boosted
+        );
+    }
+
+    #[test]
+    fn lorentz_boost_preserves_small_invariant_under_near_collinear_cancellation() {
+        // Regression-style stress case: tiny invariant mass with large energy/momentum.
+        // This is numerically delicate because E² and |p|² are both O(1e6) while
+        // their difference is O(1e-6).
+        let m_sq: f64 = 1.0e-6;
+        let pz: f64 = 1_000.0;
+        let e = (pz * pz + m_sq).sqrt();
+        let p = FourMomentum::new(e, 0.2, -0.15, pz);
+
+        let beta: [f64; 3] = [0.31, -0.28, 0.44];
+        let beta_sq = beta[0] * beta[0] + beta[1] * beta[1] + beta[2] * beta[2];
+        let gamma = 1.0 / (1.0 - beta_sq).sqrt();
+        let boost = LorentzBoost { beta, gamma };
+
+        let p_sq = p.invariant_mass_sq();
+        let boosted = apply_lorentz_boost(&p, &boost).unwrap();
+        let boosted_sq = boosted.invariant_mass_sq();
+
+        let scale = p_sq.abs().max(boosted_sq.abs()).max(1.0);
+        let diff = (boosted_sq - p_sq).abs();
+
+        assert!(
+            diff < 1e-9 * scale,
+            "small-invariant Lorentz drift: p²={:.12e}, p'²={:.12e}, diff={:.3e}",
+            p_sq,
+            boosted_sq,
+            diff
         );
     }
 
