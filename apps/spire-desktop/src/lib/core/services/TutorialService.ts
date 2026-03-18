@@ -70,10 +70,10 @@ const DOCKING_TUTORIAL: TutorialStep[] = [
     placement: "bottom",
   },
   {
-    targetId: "palette-launcher",
+    targetId: "command-palette",
     title: "Step 4 - Command Palette",
     content:
-      "Open the Command Palette for keyboard-driven navigation, presets, shortcuts, and global actions. It is the quickest route to advanced workspace controls when you do not want to hunt through menus.",
+      "The tutorial opens the Command Palette automatically. Use it for keyboard-driven navigation, presets, shortcuts, and global actions. It is the quickest route to advanced workspace controls when you do not want to hunt through menus.",
     placement: "bottom",
   },
   {
@@ -157,10 +157,10 @@ const CANVAS_TUTORIAL: TutorialStep[] = [
     placement: "bottom",
   },
   {
-    targetId: "palette-launcher",
+    targetId: "command-palette",
     title: "Step 6 - Reach Everything via the Palette",
     content:
-      "The command palette is your universal switchboard for commands, presets, shortcuts, and help. When in doubt, summon it and type what you want instead of navigating through chrome.",
+      "The tutorial opens the Command Palette automatically. It is your universal switchboard for commands, presets, shortcuts, and help. When in doubt, type what you want instead of navigating through chrome.",
     placement: "bottom",
   },
   {

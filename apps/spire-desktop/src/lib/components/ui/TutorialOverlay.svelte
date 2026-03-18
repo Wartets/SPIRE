@@ -12,6 +12,7 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
+  import { closePalette, openPalette } from "$lib/core/services/CommandRegistry";
   import {
     tutorialActive,
     currentStep,
@@ -38,9 +39,45 @@
     computeSpotlight($currentStep.targetId);
   }
 
+  async function waitFrame(): Promise<void> {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+
+  async function ensureTutorialSurface(targetId: string): Promise<void> {
+    if (targetId !== "command-palette") {
+      closePalette();
+    }
+
+    if (targetId === "command-palette") {
+      openPalette();
+      await tick();
+      await waitFrame();
+      return;
+    }
+
+    if (targetId === "analysis-widget") {
+      window.dispatchEvent(new CustomEvent("spire:tutorial:ensure-analysis-widget"));
+      await tick();
+      await waitFrame();
+      await waitFrame();
+    }
+  }
+
+  async function resolveTargetElement(targetId: string): Promise<Element | null> {
+    const maxAttempts = 8;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const el = document.querySelector(`[data-tour-id="${targetId}"]`);
+      if (el) return el;
+      await tick();
+      await waitFrame();
+    }
+    return null;
+  }
+
   async function computeSpotlight(targetId: string): Promise<void> {
+    await ensureTutorialSurface(targetId);
     await tick();
-    const el = document.querySelector(`[data-tour-id="${targetId}"]`);
+    const el = await resolveTargetElement(targetId);
     if (!el) {
       highlightedCanvasWidgetId = null;
       // Element not found - use a centered fallback

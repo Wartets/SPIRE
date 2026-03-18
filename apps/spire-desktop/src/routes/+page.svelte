@@ -7,7 +7,7 @@
   between view modes.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import {
     WIDGET_DEFINITIONS,
   } from "$lib/stores/notebookStore";
@@ -103,6 +103,7 @@
   let toolboxMenuEl: HTMLDivElement | null = null;
   let customizerButtonEl: HTMLButtonElement | null = null;
   let customizerMenuEl: HTMLDivElement | null = null;
+  let customizerMenuStyle = "";
   let placementPointerId: number | null = null;
   let placementWidgetType: WidgetType | null = null;
   let activeWorkspaceName = "Workspace";
@@ -122,6 +123,71 @@
   const CANVAS_AUTO_GAP = 32;
   const CANVAS_SMART_GAP = 24;
   const CANVAS_GRID_SIZE = 24;
+
+  function layoutHasWidgetType(node: LayoutNode, target: WidgetType): boolean {
+    if (node.type === "widget") {
+      return node.widgetType === target;
+    }
+    return node.children.some((child) => layoutHasWidgetType(child, target));
+  }
+
+  function ensureAnalysisWidgetForTutorial(): void {
+    if ($viewMode === "canvas") {
+      const existing = $canvasItems.find((item) => item.widgetType === "analysis");
+      if (!existing) {
+        addCanvasItem("analysis");
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent("spire:canvas:focus-widget", {
+          detail: { widgetId: existing.id },
+        }),
+      );
+      return;
+    }
+
+    const hasAnalysis = layoutHasWidgetType($layoutRoot, "analysis");
+    if (!hasAnalysis) {
+      addWidgetToLayout("analysis", "auto");
+    }
+  }
+
+  function handleTutorialEnsureAnalysisWidget(): void {
+    ensureAnalysisWidgetForTutorial();
+  }
+
+  async function updateCustomizerMenuPosition(): Promise<void> {
+    if (!customizerOpen || !customizerButtonEl || !customizerMenuEl) return;
+
+    const margin = 8;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const buttonRect = customizerButtonEl.getBoundingClientRect();
+
+    const preferredWidth = Math.min(384, vw - margin * 2);
+    customizerMenuStyle = `width: ${preferredWidth}px; max-width: ${vw - margin * 2}px;`;
+    await tick();
+
+    const menuW = Math.min(preferredWidth, customizerMenuEl.offsetWidth || preferredWidth);
+    const menuH = customizerMenuEl.offsetHeight || 320;
+
+    let left = buttonRect.right - menuW;
+    left = Math.max(margin, Math.min(left, vw - menuW - margin));
+
+    const spaceBelow = vh - buttonRect.bottom - margin;
+    const spaceAbove = buttonRect.top - margin;
+    const openAbove = spaceBelow < Math.min(menuH, 360) && spaceAbove > spaceBelow;
+
+    const top = openAbove
+      ? Math.max(margin, buttonRect.top - Math.min(menuH, vh - margin * 2) - 6)
+      : Math.min(vh - margin - 40, buttonRect.bottom + 6);
+
+    const maxHeight = openAbove
+      ? Math.max(220, buttonRect.top - margin - 10)
+      : Math.max(220, vh - top - margin);
+
+    customizerMenuStyle = `left: ${left}px; top: ${top}px; width: ${preferredWidth}px; max-width: ${vw - margin * 2}px; max-height: ${maxHeight}px;`;
+  }
 
   function arrangeCanvasNoOverlapFixedGap(gap = CANVAS_AUTO_GAP): void {
     canvasItems.update((items) => {
@@ -524,6 +590,12 @@
     if (event.key === "Escape") {
       toolboxOpen = false;
       customizerOpen = false;
+    }
+  }
+
+  function handleWindowResizeOrScroll(): void {
+    if (customizerOpen) {
+      void updateCustomizerMenuPosition();
     }
   }
 
@@ -1284,6 +1356,9 @@
     window.addEventListener("pointerup", handleToolboxPlacementEnd, true);
     window.addEventListener("pointercancel", handleToolboxPlacementCancel, true);
     window.addEventListener("keydown", handleWindowEscape, true);
+    window.addEventListener("resize", handleWindowResizeOrScroll);
+    window.addEventListener("scroll", handleWindowResizeOrScroll, true);
+    window.addEventListener("spire:tutorial:ensure-analysis-widget", handleTutorialEnsureAnalysisWidget as EventListener);
 
     unsubIdentityModel = theoreticalModel.subscribe(() => refreshActiveWorkspaceIdentity());
     unsubIdentityFramework = activeFramework.subscribe(() => refreshActiveWorkspaceIdentity());
@@ -1297,9 +1372,16 @@
     window.removeEventListener("pointerup", handleToolboxPlacementEnd, true);
     window.removeEventListener("pointercancel", handleToolboxPlacementCancel, true);
     window.removeEventListener("keydown", handleWindowEscape, true);
+    window.removeEventListener("resize", handleWindowResizeOrScroll);
+    window.removeEventListener("scroll", handleWindowResizeOrScroll, true);
+    window.removeEventListener("spire:tutorial:ensure-analysis-widget", handleTutorialEnsureAnalysisWidget as EventListener);
     unsubIdentityModel?.();
     unsubIdentityFramework?.();
   });
+
+  $: if (customizerOpen) {
+    void tick().then(() => updateCustomizerMenuPosition());
+  }
 </script>
 
 <div class="workbench">
@@ -1326,7 +1408,7 @@
           aria-expanded={toolboxOpen}
           data-tour-id="add-widget-button"
         >
-          + Add Widget
+          {compactToolbar ? "+ Widget" : "+ Add Widget"}
         </button>
 
         {#if toolboxOpen}
@@ -1375,11 +1457,11 @@
           use:tooltip={{ text: "Customize interface" }}
           data-tour-id="customize-interface-button"
         >
-          Customize ▾
+          {compactToolbar ? "⚙" : "Customize ▾"}
         </button>
 
         {#if customizerOpen}
-          <div class="customize-menu" bind:this={customizerMenuEl}>
+          <div class="customize-menu" bind:this={customizerMenuEl} style={customizerMenuStyle}>
             <div class="customize-section">
               <span class="customize-heading">Toolbar Layout</span>
               <label class="customize-toggle">
@@ -1476,7 +1558,7 @@
           use:tooltip={{ text: "Open Command Palette" }}
           data-tour-id="palette-launcher"
         >
-          Palette
+          {compactToolbar ? "Cmd" : "Palette"}
         </button>
       {/if}
 
@@ -1486,7 +1568,7 @@
           on:click={() => startTutorial()}
           use:tooltip={{ text: "Start guided tutorial" }}
         >
-          Tutorial
+          {compactToolbar ? "Guide" : "Tutorial"}
         </button>
       {/if}
     </div>
@@ -1505,7 +1587,9 @@
         use:tooltip={{ text: "Toggle Canvas / Docking (Ctrl+Shift+C)" }}
         data-tour-id="view-mode-toggle"
       >
-        {$viewMode === "docking" ? "⊞ Docking" : "◎ Canvas"}
+        {compactToolbar
+          ? ($viewMode === "docking" ? "⊞ Dock" : "◎ Canvas")
+          : ($viewMode === "docking" ? "⊞ Docking" : "◎ Canvas")}
       </button>
     {/if}
 
@@ -1517,7 +1601,9 @@
 
     {#if showWidgetCount}
       <span class="widget-count"
-        >{$totalWidgetCount} widget{$totalWidgetCount !== 1 ? "s" : ""}</span
+        >{compactToolbar
+          ? `${$totalWidgetCount}`
+          : `${$totalWidgetCount} widget${$totalWidgetCount !== 1 ? "s" : ""}`}</span
       >
     {/if}
 
@@ -1527,7 +1613,7 @@
         on:click={() => { resetDockingLayout(); clearCanvas(); }}
         use:tooltip={{ text: "Reset to default layout" }}
       >
-        Reset Layout
+        {compactToolbar ? "Reset" : "Reset Layout"}
       </button>
     {/if}
   </div>
@@ -1596,8 +1682,33 @@
     min-width: 0;
   }
   .toolbox-bar.toolbox-compact {
-    gap: 0.25rem;
-    padding: 0.18rem 0.32rem;
+    gap: 0.18rem;
+    padding: 0.12rem 0.24rem;
+  }
+  .toolbox-bar.toolbox-compact .toolbar-title {
+    font-size: 0.64rem;
+    max-width: 11rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.88;
+  }
+  .toolbox-bar.toolbox-compact .toolbar-group {
+    gap: 0.2rem;
+  }
+  .toolbox-bar.toolbox-compact .toolbox-toggle,
+  .toolbox-bar.toolbox-compact .toolbox-customize,
+  .toolbox-bar.toolbox-compact .toolbar-chip,
+  .toolbox-bar.toolbox-compact .toolbox-mode-toggle,
+  .toolbox-bar.toolbox-compact .toolbox-reset {
+    font-size: 0.62rem;
+    line-height: 1;
+    padding: 0.14rem 0.34rem;
+    letter-spacing: 0.02em;
+  }
+  .toolbox-bar.toolbox-compact .widget-count {
+    font-size: 0.6rem;
+    opacity: 0.85;
   }
   .toolbar-group {
     display: flex;
@@ -1734,10 +1845,7 @@
     color: var(--fg-primary);
   }
   .customize-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 0.35rem;
+    position: fixed;
     z-index: 101;
     width: min(24rem, calc(100vw - 1rem));
     max-width: calc(100vw - 0.75rem);

@@ -131,7 +131,7 @@
 <div class="palette-backdrop" on:click={handleBackdropClick}>
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="palette-container" on:click|stopPropagation={() => {}}>
+  <div class="palette-container" on:click|stopPropagation={() => {}} data-tour-id="command-palette">
     <!-- Search Input -->
     <div class="palette-input-row">
       <span class="palette-prompt">&gt;</span>
