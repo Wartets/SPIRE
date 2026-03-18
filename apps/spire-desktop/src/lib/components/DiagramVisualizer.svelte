@@ -243,21 +243,34 @@
     for (const [s, t] of diag.edges) outgoing.get(s)?.push(t);
 
     const queue: number[] = [];
+    const queued = new Set<number>();
     for (const n of diag.nodes) {
       if ("ExternalIncoming" in n.kind) {
         targets.set(n.id, 0);
         queue.push(n.id);
+        queued.add(n.id);
       }
     }
 
-    while (queue.length > 0) {
-      const id = queue.shift()!;
+    let qIndex = 0;
+    let safetySteps = 0;
+    const maxSafetySteps = Math.max(64, diag.nodes.length * Math.max(1, diag.edges.length) * 6);
+
+    while (qIndex < queue.length && safetySteps < maxSafetySteps) {
+      const id = queue[qIndex++]!;
+      queued.delete(id);
+      safetySteps += 1;
       const l = targets.get(id) ?? 0;
       for (const t of outgoing.get(id) ?? []) {
         const cand = l + 1;
-        if ((targets.get(t) ?? -1) < cand) {
+        const prev = targets.get(t);
+        // Use shortest-path relaxation so cyclic graphs converge.
+        if (prev === undefined || cand < prev) {
           targets.set(t, cand);
-          queue.push(t);
+          if (!queued.has(t)) {
+            queue.push(t);
+            queued.add(t);
+          }
         }
       }
     }
