@@ -22,6 +22,10 @@
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import MathRenderer from "$lib/components/math/MathRenderer.svelte";
 
+  function toggleLatexViewMode(): void {
+    latexViewMode = latexViewMode === "rendered" ? "raw" : "rendered";
+  }
+
   /** Select an amplitude to view in detail. */
   function selectAmplitude(amp: AmplitudeResult): void {
     activeAmplitude.set(amp.expression);
@@ -183,6 +187,9 @@
     e.stopPropagation();
     const expr = selected ?? "";
     showContextMenu(e.clientX, e.clientY, [
+      { type: "action", id: "toggle-view", label: latexViewMode === "rendered" ? "Switch to Raw LaTeX" : "Switch to Rendered Math", icon: "TEX",
+        action: () => toggleLatexViewMode() },
+      { type: "separator", id: "sep-v" },
       { type: "action", id: "copy-expr",  label: "Copy expression",  icon: "CP",
         action: () => navigator.clipboard.writeText(expr) },
       { type: "action", id: "copy-latex", label: "Copy LaTeX",       icon: "TEX",
@@ -195,7 +202,17 @@
 </script>
 
 <div class="amplitude-panel" use:isolateEvents>
-  <h3>Invariant Amplitudes</h3>
+  <div class="panel-head">
+    <h3>Invariant Amplitudes</h3>
+    <button
+      class="mode-toggle"
+      on:click={toggleLatexViewMode}
+      use:tooltip={{ text: "Switch between formatted math rendering and raw LaTeX source" }}
+      aria-label="Toggle amplitude math view mode"
+    >
+      {latexViewMode === "rendered" ? "Rendered" : "Raw"}
+    </button>
+  </div>
 
   {#if results.length === 0}
     <p class="hint">No amplitudes computed yet. Generate diagrams and derive amplitudes first.</p>
@@ -214,7 +231,7 @@
           </button>
           <button
             class="latex-btn"
-            on:click={() => { latexViewMode = latexViewMode === "rendered" ? "raw" : "rendered"; }}
+            on:click={toggleLatexViewMode}
             use:tooltip={{ text: "Toggle between rendered math and raw LaTeX" }}
           >
             {latexViewMode === "rendered" ? "Raw LaTeX" : "Rendered Math"}
@@ -280,7 +297,13 @@
               {amp.couplings.join(", ")}
             </span>
           </div>
-          <div class="amp-expr">{amp.expression}</div>
+          {#if latexViewMode === "rendered"}
+            <div class="amp-math">
+              <MathRenderer latex={amp.expression} mode={latexViewMode} block={false} />
+            </div>
+          {:else}
+            <div class="amp-expr">{amp.expression}</div>
+          {/if}
           <div class="amp-momenta">
             <span use:tooltip={{ text: "4-momentum labels assigned to the external lines of this diagram" }}>
               Momenta: {amp.momenta_labels.join(", ")}
@@ -309,12 +332,36 @@
     overflow-y: auto;
     min-height: 0;
   }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
   h3 {
     margin: 0 0 0.25rem;
     font-size: 0.95rem;
     color: var(--fg-accent);
     border-bottom: 1px solid var(--border);
     padding-bottom: 0.3rem;
+    flex: 1;
+    min-width: 0;
+  }
+  .mode-toggle {
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.45rem;
+    cursor: pointer;
+    margin-bottom: 0.2rem;
+  }
+  .mode-toggle:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
   }
   .hint {
     font-size: 0.8rem;
@@ -401,8 +448,22 @@
     font-size: 0.7rem;
   }
   .amp-expr {
-    font-size: 0.75rem;
+    display: none;
+  }
+  .amp-math {
+    font-size: 0.73rem;
     color: var(--fg-primary);
+    margin-top: 0.05rem;
+    max-height: 2.65rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .amp-math :global(.latex-render),
+  .amp-math :global(.latex-raw) {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

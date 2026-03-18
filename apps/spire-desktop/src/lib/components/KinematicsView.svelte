@@ -16,6 +16,7 @@
 -->
 <script lang="ts">
   import { kinematics, mandelstamVars } from "$lib/stores/physicsStore";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
   import type { KinematicsReport, MandelstamVars } from "$lib/types/spire";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
@@ -211,7 +212,7 @@
             <span class="data-value mono" role="button" tabindex="0"
               on:contextmenu|stopPropagation={(e) =>
                 openValueContext(e, "dΦ", report!.phase_space!.measure_expression)}>
-              {report.phase_space.measure_expression}
+                <MathRenderer latex={report.phase_space.measure_expression} mode="rendered" block={false} />
             </span>
           </div>
         </div>

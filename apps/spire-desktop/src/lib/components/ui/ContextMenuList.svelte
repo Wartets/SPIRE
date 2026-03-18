@@ -35,7 +35,59 @@
 
   // ── Submenu position ──
   let submenuPosMap: Record<string, { x: number; y: number; dir: "right" | "left" }> = {};
+  let submenuPortalEls: Record<string, HTMLDivElement | undefined> = {};
   let listEl: HTMLDivElement | undefined;
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function registerSubmenuPortal(id: string, el: HTMLDivElement | null): void {
+    submenuPortalEls = {
+      ...submenuPortalEls,
+      [id]: el ?? undefined,
+    };
+  }
+
+  function bindSubmenuPortal(node: HTMLDivElement, itemId: string): { destroy: () => void } {
+    registerSubmenuPortal(itemId, node);
+    void refineSubmenuPos(itemId);
+    return {
+      destroy: () => registerSubmenuPortal(itemId, null),
+    };
+  }
+
+  async function refineSubmenuPos(itemId: string): Promise<void> {
+    await tick();
+    if (!listEl) return;
+
+    const pos = submenuPosMap[itemId];
+    const portal = submenuPortalEls[itemId];
+    if (!pos || !portal) return;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 6;
+    const parentRect = listEl.getBoundingClientRect();
+    const portalRect = portal.getBoundingClientRect();
+
+    let { x, y, dir } = pos;
+
+    if (dir === "right" && x + portalRect.width > vw - pad) {
+      dir = "left";
+      x = parentRect.left - portalRect.width - 2;
+    } else if (dir === "left" && x < pad) {
+      dir = "right";
+      x = parentRect.right + 2;
+    }
+
+    x = clamp(x, pad, Math.max(pad, vw - portalRect.width - pad));
+    y = clamp(y, pad, Math.max(pad, vh - portalRect.height - pad));
+
+    if (x !== pos.x || y !== pos.y || dir !== pos.dir) {
+      submenuPosMap = { ...submenuPosMap, [itemId]: { x, y, dir } };
+    }
+  }
 
   $: navigableIndices = items
     .map((item, i) => ({ item, i }))
@@ -73,35 +125,31 @@
     const listRect = listEl.getBoundingClientRect();
     const itemRect = el.getBoundingClientRect();
     const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const subWidth = 220; // estimated submenu width
-    const pad = 4;
+    const pad = 6;
 
     let dir: "right" | "left" = parentDirection;
     let x: number;
-    let y: number = itemRect.top;
+    let y: number = itemRect.top - 2;
 
     if (dir === "right") {
-      x = listRect.right;
-      if (x + subWidth > vw - pad) {
+      x = listRect.right + 2;
+      // Fallback flip if parent already hugs right edge.
+      if (x > vw - pad - 80) {
         dir = "left";
-        x = listRect.left - subWidth;
+        x = listRect.left - 220;
       }
     } else {
-      x = listRect.left - subWidth;
+      x = listRect.left - 220;
       if (x < pad) {
         dir = "right";
-        x = listRect.right;
+        x = listRect.right + 2;
       }
     }
 
-    // Vertical clamp
-    const estimatedHeight = 300;
-    if (y + estimatedHeight > vh - pad) {
-      y = Math.max(pad, vh - estimatedHeight - pad);
-    }
+    y = Math.max(pad, y);
 
     submenuPosMap = { ...submenuPosMap, [itemId]: { x, y, dir } };
+    void refineSubmenuPos(itemId);
   }
 
   function handleItemMouseEnter(item: ContextMenuItem, idx: number, el: HTMLElement): void {
@@ -225,6 +273,7 @@
           {#if pos}
             <div
               class="ctx-submenu-portal"
+              use:bindSubmenuPortal={item.id}
               style="left: {pos.x}px; top: {pos.y}px;"
             >
               <svelte:self

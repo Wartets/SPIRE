@@ -16,7 +16,7 @@
   import { appendLog } from "$lib/stores/physicsStore";
   import { generateDisplayBatch } from "$lib/api";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
-  import { pipelineRunState } from "$lib/stores/pipelineGraphStore";
+  import { pipelineGraph, pipelineRunState } from "$lib/stores/pipelineGraphStore";
   import type {
     EventDisplayData,
     DisplayJet,
@@ -62,6 +62,11 @@
 
   /** Whether to auto-advance to the next event when propagation completes. */
   let autoAdvance: boolean = true;
+  let followPipeline: boolean = true;
+  let sourceMode: "manual" | "pipeline" = "manual";
+  let pipelineSummary: string = "";
+  let pipelineLastLoadedKey: string | null = null;
+  let syncingPipeline: boolean = false;
 
   // ---------------------------------------------------------------------------
   // Three.js State
@@ -76,6 +81,7 @@
 
   let detectorGroup: THREE.Group;
   let eventGroup: THREE.Group;
+  let environmentGroup: THREE.Group;
 
   // Animated object references for time-of-flight updates.
   interface AnimatedTrack {
@@ -95,6 +101,7 @@
   let animatedJets: AnimatedJet[] = [];
   let animatedMET: AnimatedArrow | null = null;
   let interopUnsub: (() => void) | null = null;
+  let interactionScale = 1;
 
   // ---------------------------------------------------------------------------
   // Derived State
@@ -106,6 +113,29 @@
   $: pipelineEdgeCount = Object.keys($pipelineRunState.edgeStates).length;
   $: pipelineCompletedEdges = Object.values($pipelineRunState.edgeStates)
     .filter((state) => state.status === "completed").length;
+  $: pipelinePayloadCount = Object.keys($pipelineRunState.edgePayloads).length;
+
+  interface PipelineReactionLike {
+    initial?: { invariant_mass_sq?: number };
+    final_state?: { states?: unknown[] };
+  }
+
+  interface PipelineDetectorLike {
+    detector_preset?: string;
+    smearing?: boolean;
+    events_generated?: number;
+    events_passed?: number;
+    cross_section?: number;
+  }
+
+  interface PipelineSeed {
+    cmsEnergy: number;
+    nFinal: number;
+    detectorPreset: DetectorPreset;
+    suggestedBatch: number;
+    summary: string;
+    key: string;
+  }
 
   // ---------------------------------------------------------------------------
   // Detector Geometry
@@ -113,8 +143,28 @@
   const DETECTOR_RADIUS = 5;
   const DETECTOR_HALF_LENGTH = 8;
 
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+  }
+
+  function asDetectorPreset(value: unknown, fallback: DetectorPreset = "lhc_like"): DetectorPreset {
+    if (value === "lhc_like" || value === "ilc_like" || value === "perfect") return value;
+    return fallback;
+  }
+
+  function isReactionLike(value: unknown): value is PipelineReactionLike {
+    if (!isRecord(value)) return false;
+    return "initial" in value || "final_state" in value;
+  }
+
+  function isDetectorLike(value: unknown): value is PipelineDetectorLike {
+    if (!isRecord(value)) return false;
+    return "detector_preset" in value || "events_generated" in value || "events_passed" in value;
+  }
+
   function buildDetector(): THREE.Group {
     const group = new THREE.Group();
+
     const barrelGeo = new THREE.CylinderGeometry(
       DETECTOR_RADIUS, DETECTOR_RADIUS, DETECTOR_HALF_LENGTH * 2, 32, 1, true,
     );
@@ -168,9 +218,11 @@
     const coneRad = 0.3 + 0.5 * energyScale;
     const dir = etaPhiToDir(jet.eta, jet.phi, coneLen);
 
+    const jetColor = new THREE.Color().setHSL(0.08 - 0.04 * energyScale, 0.95, 0.56);
+
     const geo = new THREE.ConeGeometry(coneRad, coneLen, 16, 1, true);
     const mat = new THREE.MeshBasicMaterial({
-      color: 0xff8800, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+      color: jetColor, transparent: true, opacity: 0.25 + energyScale * 0.2, side: THREE.DoubleSide,
     });
     const cone = new THREE.Mesh(geo, mat);
     cone.position.copy(dir.clone().multiplyScalar(0.5));
@@ -182,13 +234,27 @@
 
     const wireGeo = new THREE.ConeGeometry(coneRad, coneLen, 16, 1, true);
     const wireMat = new THREE.MeshBasicMaterial({
-      color: 0xffaa44, wireframe: true, transparent: true, opacity: 0.5,
+      color: new THREE.Color().setHSL(0.095 - 0.03 * energyScale, 0.88, 0.64),
+      wireframe: true,
+      transparent: true,
+      opacity: 0.45,
     });
     const wire = new THREE.Mesh(wireGeo, wireMat);
     wire.position.copy(cone.position);
     wire.rotation.copy(cone.rotation);
     wire.scale.set(0, 0, 0);
     group.add(wire);
+
+    const axisGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      dir,
+    ]);
+    const axisLine = new THREE.Line(
+      axisGeo,
+      new THREE.LineBasicMaterial({ color: 0xffcc77, transparent: true, opacity: 0.6 }),
+    );
+    axisLine.scale.set(0, 0, 0);
+    group.add(axisLine);
 
     animatedJets.push({ cone, wire, fullScale });
   }
@@ -206,9 +272,20 @@
     // Subdivide into many segments for smooth draw-range animation.
     const segCount = 64;
     const positions: number[] = [];
+    const chargeSign = track.particle_type.includes("-") ? -1 : 1;
+    const perp = new THREE.Vector3(-dir.y, dir.x, 0);
+    if (perp.lengthSq() < 1e-6) perp.set(1, 0, 0);
+    perp.normalize();
+    const curvature = dashed ? 0 : chargeSign * Math.min(0.25, 0.8 / (Math.max(track.pt, 2) + 1));
+
     for (let i = 0; i <= segCount; i++) {
       const t = i / segCount;
-      positions.push(dir.x * t, dir.y * t, dir.z * t);
+      const base = dir.clone().multiplyScalar(t);
+      if (!dashed) {
+        const bend = Math.sin(t * Math.PI * 1.8) * len * curvature * t;
+        base.addScaledVector(perp, bend);
+      }
+      positions.push(base.x, base.y, base.z);
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -236,7 +313,10 @@
   function addMET(group: THREE.Group, met: DisplayMET): void {
     if (met.magnitude < 1) return;
     const scale = Math.min(met.magnitude / 30, DETECTOR_RADIUS * 0.8);
-    const dir = vec3ToThree(met.direction).normalize().multiplyScalar(scale);
+    const dir = vec3ToThree(met.direction);
+    dir.z = 0;
+    if (dir.lengthSq() < 1e-8) return;
+    dir.normalize().multiplyScalar(scale);
     const arrowDir = dir.clone().normalize();
 
     const metGroup = new THREE.Group();
@@ -339,12 +419,130 @@
         updateTimeOfFlight(0);
       }
 
+      sourceMode = "manual";
+      pipelineSummary = "";
+
       logEventDisplay(`Batch ready: ${batch.length} events buffered for playback`);
     } catch (err) {
       errorMsg = String(err);
       logEventDisplay(`Batch generation error: ${errorMsg}`);
     } finally {
       loading = false;
+    }
+  }
+
+  function extractPipelineSeed(): PipelineSeed | null {
+    if ($pipelineRunState.isRunning) return null;
+    if (Object.keys($pipelineRunState.edgePayloads).length === 0) return null;
+
+    let reactionPayload: PipelineReactionLike | null = null;
+    let detectorPayload: PipelineDetectorLike | null = null;
+    let eventStatsPayload: PipelineDetectorLike | null = null;
+
+    for (const [edgeId, payload] of Object.entries($pipelineRunState.edgePayloads)) {
+      const edge = $pipelineGraph.edges[edgeId];
+      const sourceType = edge ? $pipelineGraph.nodes[edge.sourceNodeId]?.type : null;
+
+      if (!reactionPayload && (sourceType === "reaction_builder" || isReactionLike(payload))) {
+        reactionPayload = isReactionLike(payload) ? payload : null;
+      }
+      if (!detectorPayload && (sourceType === "detector_simulation" || isDetectorLike(payload))) {
+        detectorPayload = isDetectorLike(payload) ? payload : null;
+      }
+      if (!eventStatsPayload && sourceType === "monte_carlo_generator" && isDetectorLike(payload)) {
+        eventStatsPayload = payload;
+      }
+    }
+
+    const invariantMassSq = reactionPayload?.initial?.invariant_mass_sq;
+    const inferredCms = Number.isFinite(invariantMassSq) && Number(invariantMassSq) > 0
+      ? Math.sqrt(Number(invariantMassSq))
+      : cmsEnergy;
+
+    const inferredNFinal = Array.isArray(reactionPayload?.final_state?.states)
+      ? reactionPayload?.final_state?.states?.length ?? nFinal
+      : nFinal;
+
+    const inferredPreset = asDetectorPreset(detectorPayload?.detector_preset, detectorPreset);
+
+    const eventsPassed = Number(eventStatsPayload?.events_passed ?? detectorPayload?.events_passed ?? NaN);
+    const eventsGenerated = Number(eventStatsPayload?.events_generated ?? detectorPayload?.events_generated ?? NaN);
+    const suggested = Number.isFinite(eventsPassed)
+      ? Math.max(1, Math.min(100, Math.floor(eventsPassed)))
+      : Number.isFinite(eventsGenerated)
+      ? Math.max(1, Math.min(100, Math.floor(eventsGenerated)))
+      : batchSize;
+
+    const sigma = Number(eventStatsPayload?.cross_section ?? detectorPayload?.cross_section ?? NaN);
+    const summaryBits: string[] = [];
+    if (Number.isFinite(eventsPassed)) summaryBits.push(`${Math.floor(eventsPassed)} passed`);
+    else if (Number.isFinite(eventsGenerated)) summaryBits.push(`${Math.floor(eventsGenerated)} generated`);
+    if (Number.isFinite(sigma)) summaryBits.push(`σ=${sigma.toExponential(2)}`);
+    summaryBits.push(`${inferredPreset}`);
+
+    return {
+      cmsEnergy: Math.max(10, inferredCms),
+      nFinal: Math.max(2, Math.min(8, Math.floor(inferredNFinal))),
+      detectorPreset: inferredPreset,
+      suggestedBatch: suggested,
+      summary: summaryBits.join(" · "),
+      key: [
+        $pipelineRunState.runId,
+        inferredPreset,
+        Math.round(inferredCms * 100) / 100,
+        Math.max(2, Math.min(8, Math.floor(inferredNFinal))),
+        suggested,
+      ].join("|"),
+    };
+  }
+
+  async function loadEventsFromPipeline(force: boolean = false): Promise<void> {
+    if (syncingPipeline || loading || $pipelineRunState.isRunning) return;
+    const seed = extractPipelineSeed();
+    if (!seed) return;
+    if (!force && pipelineLastLoadedKey === seed.key) return;
+
+    syncingPipeline = true;
+    loading = true;
+    errorMsg = "";
+
+    try {
+      cmsEnergy = seed.cmsEnergy;
+      nFinal = seed.nFinal;
+      detectorPreset = seed.detectorPreset;
+
+      const finalMasses = Array(seed.nFinal).fill(0.0);
+      const requestBatch = Math.max(1, Math.min(100, Math.floor(seed.suggestedBatch || batchSize)));
+      const batch = await generateDisplayBatch(
+        seed.cmsEnergy,
+        finalMasses,
+        seed.detectorPreset,
+        requestBatch,
+      );
+
+      eventBatch = batch;
+      currentEventIdx = 0;
+      simTime = 0;
+      playbackState = "idle";
+
+      if (batch.length > 0) {
+        buildEventObjects(batch[0]);
+        updateTimeOfFlight(0);
+      } else {
+        clearEventObjects();
+      }
+
+      sourceMode = "pipeline";
+      pipelineSummary = seed.summary;
+      pipelineLastLoadedKey = seed.key;
+
+      logEventDisplay(`Pipeline-linked event batch ready: ${batch.length} events (${seed.summary})`);
+    } catch (err) {
+      errorMsg = String(err);
+      logEventDisplay(`Pipeline batch sync error: ${errorMsg}`);
+    } finally {
+      loading = false;
+      syncingPipeline = false;
     }
   }
 
@@ -407,11 +605,46 @@
     controls.dampingFactor = 0.08;
     controls.minDistance = 3;
     controls.maxDistance = 30;
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+
+    function syncControlsToCanvasScale(): void {
+      if (!renderer || !controls) return;
+      const el = renderer.domElement;
+      const rect = el.getBoundingClientRect();
+      const sx = rect.width / Math.max(1, el.clientWidth);
+      const sy = rect.height / Math.max(1, el.clientHeight);
+      const scale = Number.isFinite(sx) && Number.isFinite(sy) ? Math.max(0.2, (sx + sy) * 0.5) : 1;
+      if (Math.abs(scale - interactionScale) < 0.015) return;
+      interactionScale = scale;
+      const inv = 1 / interactionScale;
+      controls.rotateSpeed = inv;
+      controls.panSpeed = inv;
+      controls.zoomSpeed = inv;
+    }
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
+
+    scene.fog = new THREE.Fog(0x111118, 18, 44);
+
+    const starCount = 220;
+    const stars = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 18 + Math.random() * 22;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      stars[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+      stars[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      stars[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const starGeom = new THREE.BufferGeometry();
+    starGeom.setAttribute("position", new THREE.BufferAttribute(stars, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0x99b8ff, size: 0.08, transparent: true, opacity: 0.55 });
+    environmentGroup = new THREE.Group();
+    environmentGroup.add(new THREE.Points(starGeom, starMat));
+    scene.add(environmentGroup);
 
     detectorGroup = buildDetector();
     scene.add(detectorGroup);
@@ -422,6 +655,7 @@
 
     function animate(now: number): void {
       animFrameId = requestAnimationFrame(animate);
+      syncControlsToCanvasScale();
       controls?.update();
 
       if (playbackState === "playing" && eventBatch.length > 0) {
@@ -511,7 +745,12 @@
     currentEventIdx,
     bufferedEvents: eventBatch.length,
     simTime,
+    sourceMode,
   });
+
+  $: if (followPipeline && pipelinePayloadCount > 0 && !$pipelineRunState.isRunning) {
+    void loadEventsFromPipeline(false);
+  }
 </script>
 
 <!-- ======================================================================= -->
@@ -563,6 +802,23 @@
         Pipeline {$pipelineRunState.isRunning ? "running" : "idle"}
       </span>
       <span class="pipeline-chip">Edges {pipelineCompletedEdges}/{pipelineEdgeCount}</span>
+      <span class="pipeline-chip">Source {sourceMode === "pipeline" ? "pipeline" : "manual"}</span>
+      {#if pipelineSummary}
+        <span class="pipeline-chip">{pipelineSummary}</span>
+      {/if}
+      {#if pipelinePayloadCount > 0}
+        <button
+          class="pipeline-sync-btn"
+          on:click={() => loadEventsFromPipeline(true)}
+          disabled={$pipelineRunState.isRunning || loading || syncingPipeline}
+        >
+          Use Pipeline Events
+        </button>
+      {/if}
+      <label class="pipeline-follow-toggle">
+        <input type="checkbox" bind:checked={followPipeline} />
+        Auto-sync
+      </label>
     </div>
 
     <!-- Playback Controls -->
@@ -695,6 +951,7 @@
     display: flex;
     gap: 0.35rem;
     flex-wrap: wrap;
+    align-items: center;
   }
 
   .pipeline-chip {
@@ -711,6 +968,36 @@
   .pipeline-chip.running {
     border-color: color-mix(in srgb, var(--color-accent) 70%, transparent);
     color: var(--color-accent);
+  }
+
+  .pipeline-sync-btn {
+    border: 1px solid color-mix(in srgb, var(--color-accent) 70%, var(--color-border));
+    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+    color: var(--color-text-primary);
+    font-size: 0.68rem;
+    padding: 0.12rem 0.42rem;
+    cursor: pointer;
+  }
+
+  .pipeline-sync-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  }
+
+  .pipeline-sync-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .pipeline-follow-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+
+  .pipeline-follow-toggle input {
+    accent-color: var(--color-accent);
   }
 
   /* --- Playback Controls --- */

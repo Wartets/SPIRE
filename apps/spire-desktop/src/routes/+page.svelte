@@ -14,6 +14,7 @@
   import type { WidgetType } from "$lib/stores/notebookStore";
   import {
     layoutRoot,
+    setLayoutRoot,
     viewMode,
     totalWidgetCount,
     addWidgetToLayout,
@@ -38,6 +39,7 @@
     WORKSPACE_COLORS,
     setWorkspaceDescription,
   } from "$lib/stores/layoutStore";
+  import type { LayoutNode } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { activeFramework, theoreticalModel } from "$lib/stores/physicsStore";
   import {
@@ -90,9 +92,9 @@
   let widgetSortMode: "workflow" | "alpha" = "workflow";
   let showWidgetCount = true;
   let compactToolbar = true;
-  let showQuickToolbar = true;
+  let showQuickToolbar = false;
   let showWorkspaceActions = true;
-  let showPaletteLauncher = true;
+  let showPaletteLauncher = false;
   let showTutorialLauncher = true;
   let showViewModeToggle = true;
   let showResetButton = true;
@@ -116,15 +118,117 @@
     | { left: number; top: number; width: number; height: number; zone: DockPreviewZone }
     | null = null;
   const PLACEMENT_DRAG_THRESHOLD = 8;
-  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v3";
+  const TOOLBOX_PREFS_KEY = "spire.toolbox.prefs.v4";
+  const CANVAS_AUTO_GAP = 32;
+  const CANVAS_SMART_GAP = 24;
+  const CANVAS_GRID_SIZE = 24;
+
+  function arrangeCanvasNoOverlapFixedGap(gap = CANVAS_AUTO_GAP): void {
+    canvasItems.update((items) => {
+      if (items.length <= 1) return items;
+
+      const ordered = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+      const maxWidth = Math.max(...ordered.map((item) => Math.max(1, item.width)));
+      const maxHeight = Math.max(...ordered.map((item) => Math.max(1, item.height)));
+      const columns = Math.max(1, Math.ceil(Math.sqrt(ordered.length)));
+      const startX = Math.min(...ordered.map((item) => item.x));
+      const startY = Math.min(...ordered.map((item) => item.y));
+
+      return ordered.map((item, index) => {
+        const col = index % columns;
+        const row = Math.floor(index / columns);
+        return {
+          ...item,
+          x: startX + col * (maxWidth + gap),
+          y: startY + row * (maxHeight + gap),
+        };
+      });
+    });
+  }
+
+  function snapCanvasWidgetsToGrid(gridSize = CANVAS_GRID_SIZE): void {
+    const step = Math.max(4, Math.floor(gridSize));
+    canvasItems.update((items) =>
+      items.map((item) => ({
+        ...item,
+        x: Math.round(item.x / step) * step,
+        y: Math.round(item.y / step) * step,
+      })),
+    );
+  }
+
+  function arrangeCanvasSmartPack(gap = CANVAS_SMART_GAP): void {
+    canvasItems.update((items) => {
+      if (items.length <= 1) return items;
+
+      const ordered = [...items].sort((a, b) => a.y - b.y || a.x - b.x);
+      const startX = Math.min(...ordered.map((item) => item.x));
+      const startY = Math.min(...ordered.map((item) => item.y));
+      const totalArea = ordered.reduce(
+        (acc, item) => acc + Math.max(1, item.width) * Math.max(1, item.height),
+        0,
+      );
+      const widest = Math.max(...ordered.map((item) => Math.max(1, item.width)));
+      const targetRowWidth = Math.max(widest * 2, Math.sqrt(totalArea) * 1.8);
+
+      let cursorX = 0;
+      let cursorY = 0;
+      let rowHeight = 0;
+
+      return ordered.map((item) => {
+        const width = Math.max(1, item.width);
+        const height = Math.max(1, item.height);
+        const wraps = cursorX > 0 && cursorX + width > targetRowWidth;
+
+        if (wraps) {
+          cursorY += rowHeight + gap;
+          cursorX = 0;
+          rowHeight = 0;
+        }
+
+        const next = {
+          ...item,
+          x: startX + cursorX,
+          y: startY + cursorY,
+        };
+
+        cursorX += width + gap;
+        rowHeight = Math.max(rowHeight, height);
+        return next;
+      });
+    });
+  }
+
+  function equalizeDockingPaneSizesRecursive(node: LayoutNode): LayoutNode {
+    if (node.type === "widget") {
+      return node;
+    }
+
+    if (node.type === "stack") {
+      return {
+        ...node,
+        children: node.children.map((child) => equalizeDockingPaneSizesRecursive(child)),
+      };
+    }
+
+    return {
+      ...node,
+      sizes: node.children.map(() => 1),
+      children: node.children.map((child) => equalizeDockingPaneSizesRecursive(child)),
+    };
+  }
+
+  function equalizeDockingPanes(): void {
+    setLayoutRoot(equalizeDockingPaneSizesRecursive($layoutRoot));
+  }
 
   function resetCustomizationDefaults(): void {
     widgetSortMode = "workflow";
     showWidgetCount = true;
     compactToolbar = true;
-    showQuickToolbar = true;
+    showQuickToolbar = false;
     showWorkspaceActions = true;
-    showPaletteLauncher = true;
+    showPaletteLauncher = false;
     showTutorialLauncher = true;
     showViewModeToggle = true;
     showResetButton = true;
@@ -265,6 +369,47 @@
             action: (checked) => {
               if (checked) dockingInsertPreference.set("col");
             },
+          },
+        ],
+      },
+      {
+        type: "submenu",
+        id: "ctx-toolbar-layout-tools",
+        label: "Layout Tools",
+        icon: "layout",
+        children: [
+          {
+            type: "action",
+            id: "ctx-canvas-arrange-fixed-gap",
+            label: `Canvas: Auto-arrange (gap ${CANVAS_AUTO_GAP}px)`,
+            icon: "column",
+            disabled: $viewMode !== "canvas",
+            action: () => arrangeCanvasNoOverlapFixedGap(CANVAS_AUTO_GAP),
+          },
+          {
+            type: "action",
+            id: "ctx-canvas-arrange-smart",
+            label: `Canvas: Smart pack (gap ${CANVAS_SMART_GAP}px)`,
+            icon: "panels",
+            disabled: $viewMode !== "canvas",
+            action: () => arrangeCanvasSmartPack(CANVAS_SMART_GAP),
+          },
+          {
+            type: "action",
+            id: "ctx-canvas-snap-grid",
+            label: `Canvas: Snap all to ${CANVAS_GRID_SIZE}px grid`,
+            icon: "hash",
+            disabled: $viewMode !== "canvas",
+            action: () => snapCanvasWidgetsToGrid(CANVAS_GRID_SIZE),
+          },
+          { type: "separator", id: "ctx-layout-tools-sep" },
+          {
+            type: "action",
+            id: "ctx-docking-equalize-panes",
+            label: "Docking: Equalize all pane sizes",
+            icon: "row",
+            disabled: $viewMode !== "docking",
+            action: () => equalizeDockingPanes(),
           },
         ],
       },
@@ -1167,11 +1312,6 @@
   <div class="toolbox-bar" class:toolbox-compact={compactToolbar} use:toolbarContextMenu role="toolbar" tabindex="-1" aria-label="Workbench toolbar">
     <div class="toolbar-group toolbar-identity">
       <span class="toolbar-title">{activeWorkspaceName}</span>
-      <button
-        class="toolbar-kbd"
-        on:click={() => openPalette()}
-        use:tooltip={{ text: "Open Command Palette" }}
-      >Ctrl+K</button>
     </div>
 
     <div class="toolbar-group toolbar-launchers">
@@ -1243,54 +1383,45 @@
             <div class="customize-section">
               <span class="customize-heading">Toolbar Layout</span>
               <label class="customize-toggle">
+                <span>Compact toolbar</span>
                 <input type="checkbox" bind:checked={compactToolbar} />
-                Compact toolbar
               </label>
               <label class="customize-toggle">
+                <span>Show widget count</span>
                 <input type="checkbox" bind:checked={showWidgetCount} />
-                Show widget count
               </label>
               <label class="customize-toggle">
+                <span>Show quick toolbar</span>
                 <input type="checkbox" bind:checked={showQuickToolbar} />
-                Show quick toolbar
               </label>
               <label class="customize-toggle">
+                <span>Show workspace controls</span>
                 <input type="checkbox" bind:checked={showWorkspaceActions} />
-                Show workspace controls
               </label>
             </div>
 
             <div class="customize-section">
-              <span class="customize-heading">Helpers</span>
+              <span class="customize-heading">Toolbar Actions</span>
               <label class="customize-toggle">
-                <input type="checkbox" bind:checked={showPaletteLauncher} />
-                Show palette launcher
-              </label>
-              <label class="customize-toggle">
-                <input type="checkbox" bind:checked={showTutorialLauncher} />
-                Show tutorial launcher
-              </label>
-              <label class="customize-toggle">
-                <input type="checkbox" bind:checked={showViewModeToggle} />
-                Show view-mode toggle
-              </label>
-              <label class="customize-toggle">
+                <span>Show helper chips</span>
                 <input type="checkbox" bind:checked={showToolbarShortcuts} />
-                Show palette/tutorial chips
               </label>
               <label class="customize-toggle">
-                <input type="checkbox" bind:checked={showResetButton} />
-                Show reset button
+                <span>Show command palette chip</span>
+                <input type="checkbox" bind:checked={showPaletteLauncher} />
               </label>
-            </div>
-
-            <div class="customize-section customize-block">
-              <span class="customize-heading">Workflow links</span>
-              <div class="customize-links">
-                <button class="customize-link" on:click={() => openPalette()}>Command palette ↗</button>
-                <button class="customize-link" on:click={() => { keybindPanelOpen.set(true); customizerOpen = false; }}>Keyboard shortcuts ↗</button>
-                <button class="customize-link" on:click={() => { startTutorial(); customizerOpen = false; }}>Tutorial ↗</button>
-              </div>
+              <label class="customize-toggle">
+                <span>Show tutorial chip</span>
+                <input type="checkbox" bind:checked={showTutorialLauncher} />
+              </label>
+              <label class="customize-toggle">
+                <span>Show view-mode toggle</span>
+                <input type="checkbox" bind:checked={showViewModeToggle} />
+              </label>
+              <label class="customize-toggle">
+                <span>Show reset button</span>
+                <input type="checkbox" bind:checked={showResetButton} />
+              </label>
             </div>
 
             <div class="customize-section customize-block">
@@ -1312,9 +1443,6 @@
             </div>
 
             <div class="customize-actions">
-              <button class="customize-keybinds" on:click={() => openPalette()}>
-                Open command palette
-              </button>
               <button
                 class="customize-keybinds"
                 on:click={() => {
@@ -1478,7 +1606,7 @@
     min-width: 0;
   }
   .toolbar-identity {
-    gap: 0.45rem;
+    gap: 0.25rem;
     padding-right: 0.35rem;
     border-right: 1px solid var(--border);
     margin-right: 0.1rem;
@@ -1490,19 +1618,6 @@
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-  }
-  .toolbar-kbd {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
-    color: var(--fg-secondary);
-    padding: 0.14rem 0.4rem;
-    font-size: 0.66rem;
-    font-family: var(--font-mono);
-    cursor: pointer;
-  }
-  .toolbar-kbd:hover {
-    border-color: var(--border-focus);
-    color: var(--fg-primary);
   }
   .toolbar-launchers,
   .toolbar-shortcuts {
@@ -1652,9 +1767,47 @@
   .customize-toggle {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    justify-content: space-between;
+    gap: 0.6rem;
     font-size: 0.7rem;
     color: var(--fg-primary);
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+    background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+    padding: 0.24rem 0.42rem;
+  }
+  .customize-toggle > span {
+    min-width: 0;
+  }
+  .customize-toggle input {
+    appearance: none;
+    position: relative;
+    width: 1.9rem;
+    height: 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-primary) 88%, black 12%);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .customize-toggle input::after {
+    content: "";
+    position: absolute;
+    top: 0.08rem;
+    left: 0.1rem;
+    width: 0.72rem;
+    height: 0.72rem;
+    border-radius: 50%;
+    background: var(--fg-secondary);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .customize-toggle input:checked {
+    border-color: color-mix(in srgb, var(--hl-symbol) 60%, var(--border));
+    background: color-mix(in srgb, var(--hl-symbol) 28%, var(--bg-surface));
+  }
+  .customize-toggle input:checked::after {
+    transform: translateX(0.86rem);
+    background: color-mix(in srgb, var(--hl-symbol) 30%, var(--fg-primary));
   }
   .customize-block {
     border-top: 1px solid var(--border);
@@ -1666,8 +1819,7 @@
     flex-wrap: wrap;
   }
   .customize-options button,
-  .customize-keybinds,
-  .customize-link {
+  .customize-keybinds {
     border: 1px solid var(--border);
     background: var(--bg-surface);
     color: var(--fg-secondary);
@@ -1682,14 +1834,6 @@
   }
   .customize-keybinds {
     align-self: stretch;
-    text-align: left;
-  }
-  .customize-links {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-    gap: 0.25rem;
-  }
-  .customize-link {
     text-align: left;
   }
   .customize-actions {

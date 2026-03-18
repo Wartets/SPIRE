@@ -163,6 +163,18 @@
 
   let dropZone: DropPosition | null = null;
 
+  function computeDropZone(rect: DOMRect, clientX: number, clientY: number): Exclude<DropPosition, "center"> {
+    const relX = (clientX - rect.left) / Math.max(1, rect.width);
+    const relY = (clientY - rect.top) / Math.max(1, rect.height);
+    const dx = relX - 0.5;
+    const dy = relY - 0.5;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return dx < 0 ? "left" : "right";
+    }
+    return dy < 0 ? "top" : "bottom";
+  }
+
   function handleDragStart(e: DragEvent): void {
     if (!e.dataTransfer) return;
     e.dataTransfer.setData("text/plain", node.id);
@@ -174,20 +186,20 @@
     if (!e.dataTransfer) return;
     e.dataTransfer.dropEffect = "move";
 
-    // Compute drop zone from cursor position within the container
+    // Compute drop zone from cursor position within the container.
+    // We intentionally avoid an ambiguous "center" zone because the
+    // current docking reducer does not support tab-merge semantics.
+    // This keeps visual target and final drop position consistent.
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const relX = (e.clientX - rect.left) / rect.width;
-    const relY = (e.clientY - rect.top) / rect.height;
-
-    const edgeThreshold = 0.25;
-    if (relX < edgeThreshold) dropZone = "left";
-    else if (relX > 1 - edgeThreshold) dropZone = "right";
-    else if (relY < edgeThreshold) dropZone = "top";
-    else if (relY > 1 - edgeThreshold) dropZone = "bottom";
-    else dropZone = "center";
+    dropZone = computeDropZone(rect, e.clientX, e.clientY);
   }
 
-  function handleDragLeave(): void {
+  function handleDragLeave(e: DragEvent): void {
+    const container = e.currentTarget as HTMLElement | null;
+    const next = e.relatedTarget as Node | null;
+    if (container && next && container.contains(next)) {
+      return;
+    }
     dropZone = null;
   }
 
