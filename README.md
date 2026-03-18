@@ -13,7 +13,7 @@
   <a href="#getting-started">Getting Started</a> 
   <a href="#usage-walkthrough">Usage</a> 
   <a href="#theoretical-formalism">Formalism</a> 
-  <a href="#roadmap--philosophy">Roadmap</a>
+  <a href="#repository-structure">Structure</a>
 </p>
 
 ---
@@ -28,7 +28,7 @@
 
 A single unified data structure carries all three representations simultaneously, ensuring that no information is lost or desynchronised across the derivation chain. SPIRE provides a complete computational pipeline: Lagrangian parsing → vertex rule extraction → Feynman topology enumeration → symbolic amplitude construction → Dirac/Lorentz algebra simplification → Monte Carlo phase-space integration → histogram analysis → detector-level reconstruction — all within a single, memory-safe Rust kernel exposed through an interactive SvelteKit desktop application.
 
-The kernel consists of **25 modules** totalling approximately **37,000 lines** of pure Rust (zero `unsafe`), validated by a comprehensive test suite of **940+ tests** (unit, property-based, fuzz, integration, and doc-tests). The desktop application exposes **37 Tauri IPC commands** driving **19 interactive widget types** on a dockable/infinite-canvas workspace with recursive split panes and multi-workspace tab management.
+The kernel currently exposes **26 core modules** (plus an optional `plugins` module behind feature gating), totalling approximately **40,000+ lines** of pure Rust in `crates/spire-kernel/src` (zero `unsafe`) and validated by a comprehensive mixed test strategy (unit, property-based, fuzz, integration, and doc-tests). The desktop application currently exposes **46 Tauri IPC commands** driving **23 interactive widget types** on a dockable/infinite-canvas workspace with recursive split panes and multi-workspace tab management.
 
 All project source code, documentation, and data files are hosted at [github.com/Wartets/SPIRE](https://github.com/Wartets/SPIRE).
 
@@ -179,23 +179,23 @@ SPIRE follows a strict three-layer architecture that enforces separation of conc
 ```
 +--------------------------------------------------------------+
 |                 SvelteKit Adaptive Workbench                 |
-|         19 widget types . Chart.js . Three.js . WebGL        |
+|         23 widget types . Chart.js . Three.js . WebGL        |
 |    Compute Grid . Workspace Persistence . CommandRegistry    |
 +--------------------------------------------------------------+
 |               Tauri IPC / WASM Boundary Layer                |
-|     37 IPC commands . serde-wasm-bindgen . PyO3 bindings     |
+|     46 IPC commands . serde-wasm-bindgen . PyO3 bindings     |
 +--------------------------------------------------------------+
 |                      Rust Physics Kernel                     |
 |      Ontology . S-Matrix . Graph . Algebra . Kinematics      |
 |       Analysis . PDF . Integration . Theory . Scripting      |
 |    Decay . NLO . Shower . NWA . Scanner . IO . Provenance    |
-|        Math (ODE) . Cosmology (Relic) . Telemetry            |
-|           ~37,000 lines . 940+ tests . zero unsafe           |
+|   Math (ODE) . Cosmology (Relic) . Flavor . Telemetry        |
+|        ~40,000+ src lines . strict lints . zero unsafe       |
 +--------------------------------------------------------------+
 ```
 
 ### The Rust Kernel (`spire-kernel`)
-The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. All 25 modules:
+The headless computational core contains all physics logic. It is a pure Rust library with no runtime dependencies on the UI layer, enabling it to be compiled to WebAssembly, linked into Python via PyO3, or used as a standalone CLI tool. Core modules exposed by `spire-kernel` (with optional `plugins` feature):
 
 | Module | Responsibility |
 |--------|----------------|
@@ -203,6 +203,7 @@ The headless computational core contains all physics logic. It is a pure Rust li
 | `analysis` | Histogram engine, observable scripting, detector simulation, jet clustering |
 | `data_loader` | TOML model ingestion, propagator auto-derivation from spin |
 | `decay` | Automatic partial-width calculation, branching ratios, cascade chains |
+| `flavor` | Flavor-EFT/lattice bridge, Wilson coefficients, meson observables |
 | `graph` | Feynman topology generation, channel classification, symmetry factors |
 | `groups` | Lie algebra engine, gauge symmetry validation, conservation laws |
 | `integration` | Monte Carlo integrator, hadronic cross-section convolution with PDFs |
@@ -222,6 +223,7 @@ The headless computational core contains all physics logic. It is a pure Rust li
 | `shower` | External parton shower bridge (Pythia/Herwig/Sherpa) |
 | `telemetry` | Computation profiling, timing, resource tracking |
 | `theory/` | Lagrangian AST, functional differentiation, validation, RGE solver, SLHA parser, UFO bridge, NLO counterterms |
+| `plugins` | Optional plugin runtime integration (feature-gated) |
 | `math` | Generic ODE solvers: Runge-Kutta 4 (fixed-step), Dormand-Prince 4(5) (adaptive) |
 | `cosmology` | Relic density calculator: Boltzmann freeze-out, thermal cross-sections, $\Omega h^2$ |
 
@@ -232,11 +234,11 @@ Exposes the kernel through stable Foreign Function Interfaces:
 
 ### The Desktop Application (`spire-desktop`)
 A **Tauri** + **SvelteKit** application providing a reactive scientific workbench:
-- **37 Tauri IPC commands** bridging the frontend to the Rust backend via JSON-serialised, stateless function calls.
-- **19 interactive widget types**: Model Loader, Reaction Workspace, Diagram Visualiser, Amplitude Panel, Kinematics View, Dalitz Plotter, Analysis Widget, Event Display, Diagram Editor, Lagrangian Workbench, External Models, Compute Grid Dashboard, Console, References, Telemetry, Particle Table, Decay Table, Notebook, and Cosmology Dashboard.
+- **46 Tauri IPC commands** bridging the frontend to the Rust backend via JSON-serialised, stateless function calls.
+- **23 interactive widget types**: Model Loader, Reaction Workspace, Diagram Visualizer, Amplitude Panel, Kinematics, Dalitz Plot, Analysis, Event Display, Particle Atlas, Unified Diagram Visualizer, Lagrangian Workbench, External Models, Compute Grid, References, Telemetry, Console, Notebook, Parameter Scanner, Decay Calculator, Cosmology, Flavor Workbench, Plugin Manager, and Global Fit Dashboard.
 - **Dual layout modes**: Recursive split-pane docking (with drag-and-drop reorganisation) and infinite-canvas mode (dot-grid, spacebar panning, scroll zoom, magnetic snapping).
 - **Multi-workspace tabs**: Named workspaces with independent layout state, canvas viewports, and widget configurations. Tab bar with add/remove/rename.
-- **Command Registry**: 20+ dot-namespaced commands (`spire.ui.*`, `spire.view.*`, `spire.export.*`, `spire.provenance.*`) accessible via a command palette (Mod+K).
+- **Command Registry**: 40+ dot-namespaced commands (`spire.ui.*`, `spire.view.*`, `spire.export.*`, `spire.provenance.*`) accessible via a command palette (Mod+K).
 - **Context menu system**: Global right-click override with per-widget context menus for export, split, tear-off, close, and pipeline operations.
 - **Pipeline service**: Widget-to-widget pub/sub data flow with typed ports and link management.
 - **Workspace persistence**: Layouts serialisable to JSON with debounced auto-save and LocalStorage restore.
@@ -324,9 +326,12 @@ cd SPIRE
 cd apps/spire-desktop
 npm install
 
-# 3. Run in development mode (with hot-reloading)
+# 3. Run desktop app in development mode (with hot-reloading)
 npm run dev
-# (alternatively: npm run tauri dev)
+# (same as: npm run tauri dev)
+
+# Optional: run browser-only mode
+npm run dev:web
 
 # 4. Build a release-optimised binary
 npm run build
@@ -363,10 +368,13 @@ apps/spire-desktop/src-tauri/target/release/spire-desktop-backend
 ### Running the Test Suite
 
 ```bash
-# Run all kernel tests (940+ tests)
-cargo test --workspace
+# Rust fast checks (kernel + bindings)
+cargo check -p spire-kernel -p spire-bindings
 
-# Run only the physics kernel unit tests
+# Desktop backend compile check
+cargo check -p spire-desktop-backend
+
+# Physics kernel tests
 cargo test -p spire-kernel
 
 # Run benchmarks (Criterion)
@@ -378,8 +386,13 @@ cargo fmt --all -- --check
 # Run linter with all workspace lints
 cargo clippy --workspace
 
-# Run frontend type/lint check
-cd apps/spire-desktop && npx svelte-check
+# Frontend checks/tests
+cd apps/spire-desktop
+npm run check
+npx tsc --noEmit
+npm run test:unit
+# optional (requires browser deps):
+# npm run test:e2e
 ```
 
 ### Building the Web Frontend Only
@@ -504,22 +517,26 @@ const state = await loadProvenanceState(jsonRecordString);
 ```
 SPIRE/
 +-- crates/
-|   +-- spire-kernel/                   Rust physics engine (~37,000 LOC)
+|   +-- spire-kernel/                   Rust physics engine (~40,000+ src LOC)
 |   |   +-- src/
-|   |   |   +-- algebra.rs              CAS engine, Dirac algebra, proof tracking
-|   |   |   +-- analysis.rs             Histogramming, detector sim, jet clustering
+|   |   |   +-- algebra/                CAS engine, Dirac algebra, proof tracking
+|   |   |   +-- analysis/               Histogramming, detector sim, jet clustering
+|   |   |   +-- cosmology/              Relic density and freeze-out solvers
 |   |   |   +-- data_loader.rs          TOML model ingestion, propagator derivation
 |   |   |   +-- decay.rs                Partial widths, branching ratios
+|   |   |   +-- flavor/                 Flavor EFT and lattice-QCD interfaces
 |   |   |   +-- graph.rs                Feynman topology generation
 |   |   |   +-- groups.rs               Lie algebra, gauge symmetries, conservation laws
-|   |   |   +-- integration.rs          Hadronic cross-section convolution
+|   |   |   +-- integration/            Monte Carlo integration and convolution
 |   |   |   +-- interface.rs            External solver communication
 |   |   |   +-- kinematics.rs           Phase space, Mandelstam, Dalitz, RAMBO
 |   |   |   +-- lagrangian.rs           TheoreticalModel, vertex factors, propagators
+|   |   |   +-- math/                   Generic ODE infrastructure
 |   |   |   +-- nlo/                    NLO dipole subtraction framework
 |   |   |   +-- nwa.rs                  Narrow-Width Approximation
 |   |   |   +-- ontology.rs             Quantum fields, particles, state vectors
 |   |   |   +-- pdf.rs                  Parton distribution functions
+|   |   |   +-- plugins.rs              Feature-gated plugin hooks
 |   |   |   +-- reco/                   Detector reconstruction, anti-kt clustering
 |   |   |   +-- s_matrix.rs             Reactions, cross-sections, event generation
 |   |   |   +-- scanner.rs              1D/2D parameter scans
@@ -528,27 +545,20 @@ SPIRE/
 |   |   |   +-- shower/                 Parton shower interface
 |   |   |   +-- telemetry.rs            Computation profiling
 |   |   |   +-- io/
-|   |   |   |   +-- mod.rs              EventWriter trait, common types
-|   |   |   |   +-- lhe.rs              Les Houches Event v3.0 writer
-|   |   |   |   +-- latex.rs            LaTeX proof document compiler
-|   |   |   |   +-- provenance.rs       SHA-256 state hashing, reproducibility
 |   |   |   +-- theory/
-|   |   |       +-- ast.rs              Lagrangian AST (12 node types)
-|   |   |       +-- derivation.rs       Functional differentiation, Leibniz rule
-|   |   |       +-- validation.rs       Lorentz, gauge, Hermiticity checks
-|   |   |       +-- renormalization.rs  NLO counterterm generation
-|   |   |       +-- rge.rs              Renormalisation Group Equations
-|   |   |       +-- slha.rs             SLHA v1 parser
-|   |   |       +-- ufo.rs              UFO model importer
+|   |   |       +-- ...                 AST, validation, RGE, SLHA/UFO, counterterms
 |   |   +-- tests/                      Property-based, fuzz, & integration tests
 |   |   +-- benches/                    Criterion benchmarks
 |   +-- spire-bindings/                 WASM (wasm-bindgen) & Python (PyO3) FFI
+|   +-- spire-python/                   Python packaging crate (maturin/PyO3)
+|   +-- spire-plugin-api/               Plugin ABI/contracts
 +-- apps/
+|   +-- spire-cli/                      Headless CLI execution path
 |   +-- spire-desktop/                  Tauri + SvelteKit desktop application
 |       +-- src/
 |       |   +-- lib/
-|       |   |   +-- api.ts              Typed backend API facade (30+ functions)
-|       |   |   +-- components/         19 interactive widget components
+|       |   |   +-- api.ts              Typed backend API facade (40+ functions)
+|       |   |   +-- components/         Interactive scientific widgets
 |       |   |   +-- core/
 |       |   |   |   +-- backend/        Backend abstraction (Tauri/WASM/Mock)
 |       |   |   |   +-- services/       CommandRegistry, Pipeline, Tutorial, Citation
@@ -558,14 +568,10 @@ SPIRE/
 |       |   |   +-- workers/            Web Worker compute nodes
 |       |   +-- routes/
 |       +-- src-tauri/
-|           +-- src/main.rs             37 Tauri IPC commands
+|           +-- src/main.rs             46 Tauri IPC commands
 +-- data/                               Default SM model files (TOML)
 +-- docs/                               MkDocs documentation source
-+-- agent_notes/                        Development notes and knowledge base
 +-- README.md                           This file
-+-- roadmap.md                          Master development roadmap
-+-- architecture.md                     Technical architecture specification
-+-- description.md                      Theoretical framework description
 +-- Cargo.toml                          Workspace manifest
 ```
 
@@ -616,10 +622,10 @@ Reproducibility is guaranteed by the provenance engine, which computes a SHA-256
 ## Contributing
 
 Contributions are welcome. Please refer to the project's issue tracker for areas of active development. For major changes, please open an issue first to discuss the proposed modification. All submitted code should:
-- Maintain the existing test coverage (currently 940+ tests)
+- Maintain or improve existing test coverage
 - Compile without warnings under `cargo clippy --workspace`
 - Pass `cargo fmt --all -- --check` formatting checks
-- Pass `npx svelte-check` with zero errors in the frontend
+- Pass `npm run check` with zero errors in the frontend
 
 ---
 
