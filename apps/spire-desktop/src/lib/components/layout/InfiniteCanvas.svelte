@@ -7,6 +7,7 @@
   Controls:
   - Left-click + drag on background → Pan the viewport
   - Middle-click + drag             → Pan the viewport
+  - Scroll wheel on background      → Zoom to cursor
   - Left-click on widget header     → Drag widget to reposition
   - Resize handle (8 directions)    → Resize widget
   - Click anywhere on a widget      → Bring to front
@@ -594,6 +595,52 @@
     scheduleCanvasFlush();
   }
 
+  // ── Zoom (scroll wheel) ──
+
+  function elementCapturesWheel(el: HTMLElement | null, boundary: HTMLElement): boolean {
+    let cur = el;
+    while (cur && cur !== boundary) {
+      if (cur.hasAttribute("data-wheel-capture")) return true;
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
+  function canScrollInDirection(el: HTMLElement, deltaY: number): boolean {
+    const tol = 1;
+    if (deltaY < 0) return el.scrollTop > tol;
+    if (deltaY > 0) return el.scrollTop + el.clientHeight < el.scrollHeight - tol;
+    return false;
+  }
+
+  function handleWheel(event: WheelEvent): void {
+    const target = event.target as HTMLElement | null;
+    const cwBody = target?.closest(".cw-body") as HTMLElement | null;
+
+    if (cwBody) {
+      if (target && elementCapturesWheel(target, cwBody)) return;
+      const hasOverflow = cwBody.scrollHeight > cwBody.clientHeight + 1 ||
+                          cwBody.scrollWidth  > cwBody.clientWidth  + 1;
+      if (hasOverflow && canScrollInDirection(cwBody, event.deltaY)) return;
+    }
+
+    event.preventDefault();
+    const factor  = event.deltaY > 0 ? 0.92 : 1.08;
+    const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
+    const rect    = canvasEl.getBoundingClientRect();
+    const mouseX  = event.clientX - rect.left;
+    const mouseY  = event.clientY - rect.top;
+    const worldX  = (mouseX - panX) / zoom;
+    const worldY  = (mouseY - panY) / zoom;
+    const unclampedPanX = mouseX - worldX * newZoom;
+    const unclampedPanY = mouseY - worldY * newZoom;
+    const clamped = clampPanToBounds(unclampedPanX, unclampedPanY, newZoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+    zoom = newZoom;
+    commitViewport();
+  }
+
   // ── Widget Selection & Z-Index ──
 
   const zIndexManager = createZIndexManager();
@@ -1111,6 +1158,7 @@
   style="--canvas-zoom: {zoom};"
   bind:this={canvasEl}
   on:pointerdown|capture={onCanvasPointerDown}
+  on:wheel={handleWheel}
   on:dragover={handleCanvasDragOver}
   on:drop={handleCanvasDrop}
   on:contextmenu={handleCanvasContextMenu}
