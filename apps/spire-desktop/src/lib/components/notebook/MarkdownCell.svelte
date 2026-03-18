@@ -11,6 +11,15 @@
   import { createEventDispatcher } from "svelte";
   import type { CellData } from "$lib/core/domain/notebook";
   import { tooltip } from "$lib/actions/tooltip";
+  import Icon from "$lib/components/ui/Icon.svelte";
+  import "katex/dist/katex.min.css";
+
+  type KatexModule = {
+    renderToString: (expression: string, options?: Record<string, unknown>) => string;
+  };
+
+  let sharedKatexModule: KatexModule | null = null;
+  let sharedKatexPromise: Promise<KatexModule | null> | null = null;
 
   export let cell: CellData;
 
@@ -19,6 +28,9 @@
     delete: void;
     moveUp: void;
     moveDown: void;
+    duplicate: void;
+    insertAbove: string;
+    insertBelow: string;
   }>();
 
   let editing = false;
@@ -51,7 +63,39 @@
   function handleKeydown(e: KeyboardEvent): void {
     if (e.key === "Escape") {
       stopEditing();
+      return;
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      stopEditing();
+      return;
+    }
+    if (e.altKey && e.key === "Enter") {
+      e.preventDefault();
+      dispatch("insertBelow", "markdown");
+      stopEditing();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      dispatch("duplicate");
+      return;
+    }
+  }
+
+  async function ensureKatex(): Promise<KatexModule | null> {
+    if (sharedKatexModule) return sharedKatexModule;
+    if (sharedKatexPromise) return sharedKatexPromise;
+    sharedKatexPromise = (async () => {
+      try {
+        const mod = (await import("katex")) as unknown as KatexModule;
+        sharedKatexModule = mod;
+        return mod;
+      } catch {
+        return null;
+      }
+    })();
+    return sharedKatexPromise;
   }
 
   // ── Lightweight Markdown → HTML ──
@@ -96,7 +140,55 @@
     return `<p>${html}</p>`;
   }
 
-  $: renderedHtml = renderMarkdown(cell.source);
+  async function renderMarkdownWithMath(src: string): Promise<string> {
+    const mathTokens: Array<{ token: string; expr: string; display: boolean }> = [];
+
+    let withTokens = src.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr: string) => {
+      const token = `@@MATH_BLOCK_${mathTokens.length}@@`;
+      mathTokens.push({ token, expr: expr.trim(), display: true });
+      return token;
+    });
+
+    withTokens = withTokens.replace(/\$([^$\n]+?)\$/g, (_, expr: string) => {
+      const token = `@@MATH_INLINE_${mathTokens.length}@@`;
+      mathTokens.push({ token, expr: expr.trim(), display: false });
+      return token;
+    });
+
+    let html = renderMarkdown(withTokens);
+    if (mathTokens.length === 0) return html;
+
+    const katex = await ensureKatex();
+    if (!katex) return html;
+
+    for (const item of mathTokens) {
+      let replacement = item.expr;
+      try {
+        replacement = katex.renderToString(item.expr, {
+          displayMode: item.display,
+          throwOnError: false,
+          strict: "warn",
+          trust: false,
+          output: "html",
+        });
+      } catch {
+        replacement = item.expr;
+      }
+      html = html.replaceAll(item.token, replacement);
+    }
+
+    return html;
+  }
+
+  let renderedHtml = "";
+  let renderSeq = 0;
+
+  $: {
+    const seq = ++renderSeq;
+    void renderMarkdownWithMath(cell.source).then((html) => {
+      if (seq === renderSeq) renderedHtml = html;
+    });
+  }
   $: if (editing && textareaEl) {
     requestAnimationFrame(() => autoSizeEditor());
   }
@@ -106,9 +198,12 @@
   <div class="md-toolbar">
     <span class="md-badge">Markdown</span>
     <div class="md-actions">
-      <button class="md-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}>↑</button>
-      <button class="md-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}>↓</button>
-      <button class="md-btn md-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}>✕</button>
+      <button class="md-btn" on:click={() => dispatch("insertAbove", "markdown")} use:tooltip={{ text: "Insert Markdown Above" }}>+↑</button>
+      <button class="md-btn" on:click={() => dispatch("insertBelow", "markdown")} use:tooltip={{ text: "Insert Markdown Below" }}>+↓</button>
+      <button class="md-btn" on:click={() => dispatch("duplicate")} use:tooltip={{ text: "Duplicate Cell (Ctrl+D)" }}>⎘</button>
+      <button class="md-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}><Icon name="up" size={12} /></button>
+      <button class="md-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}><Icon name="down" size={12} /></button>
+      <button class="md-btn md-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}><Icon name="close" size={12} /></button>
     </div>
   </div>
 
@@ -171,8 +266,12 @@
     color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     cursor: pointer;
-    padding: 0 0.2rem;
+    min-width: 1.35rem;
+    padding: 0.05rem 0.2rem;
     line-height: 1.2;
+    border-radius: 4px;
+    text-align: center;
+    font-family: var(--font-mono, "Fira Code", monospace);
   }
 
   .md-btn:hover {

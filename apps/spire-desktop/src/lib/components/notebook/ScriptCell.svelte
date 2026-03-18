@@ -20,6 +20,9 @@
     delete: void;
     moveUp: void;
     moveDown: void;
+    duplicate: void;
+    insertAbove: string;
+    insertBelow: string;
     advanceFocus: void;
   }>();
 
@@ -42,6 +45,24 @@
       e.preventDefault();
       dispatch("execute");
       dispatch("advanceFocus");
+      return;
+    }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      dispatch("execute");
+      return;
+    }
+    if (e.key === "Enter" && e.altKey) {
+      e.preventDefault();
+      dispatch("execute");
+      dispatch("insertBelow", "script");
+      dispatch("advanceFocus");
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      dispatch("duplicate");
+      return;
     }
     // Tab inserts two spaces
     if (e.key === "Tab") {
@@ -98,6 +119,9 @@
       {/if}
     </button>
     <div class="sc-actions">
+      <button class="sc-btn" on:click={() => dispatch("insertAbove", "script")} use:tooltip={{ text: "Insert Script Above" }}>+↑</button>
+      <button class="sc-btn" on:click={() => dispatch("insertBelow", "script")} use:tooltip={{ text: "Insert Script Below" }}>+↓</button>
+      <button class="sc-btn" on:click={() => dispatch("duplicate")} use:tooltip={{ text: "Duplicate Cell (Ctrl+D)" }}>⎘</button>
       <button class="sc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}><Icon name="up" size={13} /></button>
       <button class="sc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}><Icon name="down" size={13} /></button>
       <button class="sc-btn sc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}><Icon name="close" size={13} /></button>
@@ -202,8 +226,12 @@
     color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     cursor: pointer;
-    padding: 0 0.2rem;
+    min-width: 1.35rem;
+    padding: 0.05rem 0.2rem;
     line-height: 1.2;
+    text-align: center;
+    border-radius: 4px;
+    font-family: var(--font-mono, "Fira Code", monospace);
   }
 
   .sc-btn:hover {

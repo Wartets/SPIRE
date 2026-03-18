@@ -169,6 +169,17 @@ export function moveCell(fromIndex: number, toIndex: number): void {
   });
 }
 
+/** Duplicate an existing cell by ID and insert clone directly below it. */
+export function duplicateCell(id: string): string | null {
+  const doc = get(notebookDocument);
+  const index = doc.cells.findIndex((c) => c.id === id);
+  if (index < 0) return null;
+
+  const source = doc.cells[index].source;
+  const type = doc.cells[index].type;
+  return insertCell(type, index, source);
+}
+
 // ===========================================================================
 // Physics Context Gathering
 // ===========================================================================

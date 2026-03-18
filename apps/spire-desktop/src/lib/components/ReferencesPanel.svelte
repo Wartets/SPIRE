@@ -19,12 +19,14 @@
     activeCitationCount,
     clearCitations,
     formatCitation,
+    getAllCitations,
   } from "$lib/core/services/CitationRegistry";
   import type { Citation } from "$lib/core/services/CitationRegistry";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
 
   let copyMsg = "";
+  const totalReferenceLibrary = getAllCitations().length;
 
   const REF_CMD_IDS = [
     "spire.references.clear",
@@ -170,20 +172,26 @@
     </div>
   </div>
 
+  <p class="ref-library-note">
+    Active bibliography sourced from a curated library of <strong>{totalReferenceLibrary}</strong>
+    particle-theory and collider-phenomenology references.
+  </p>
+
   {#if $activeCitationCount === 0}
     <div class="ref-empty">
       <p>
-        No active references yet. Citations are captured automatically while you run
-        model loading, diagram generation, amplitudes, and analysis steps.
+        No active references yet. This panel auto-collects citations as you run model
+        import, Feynman-diagram generation, amplitude workflows, RGE studies, and event analysis.
       </p>
       <ul class="ref-empty-tips">
-        <li>Run a physics workflow to populate this panel.</li>
-        <li>Use <kbd>Ctrl</kbd>+<kbd>K</kbd> then “Copy References” for quick export.</li>
-        <li>Right-click any citation for arXiv/DOI/INSPIRE actions.</li>
+        <li>Run at least one workflow stage (model load, reaction, amplitude, scanner, or RGE) to populate citations.</li>
+        <li>Use <kbd>Ctrl</kbd>+<kbd>K</kbd> then “Copy References” for one-click export into notes or manuscripts.</li>
+        <li>Right-click any citation for quick arXiv/DOI/INSPIRE actions.</li>
+        <li>Use citation context notes below each entry to justify method choices in reports.</li>
       </ul>
     </div>
   {:else}
-    <p class="ref-hint">Tip: right-click (or long-press) an entry for quick citation actions.</p>
+    <p class="ref-hint">Tip: right-click (or long-press) entries for citation actions and direct paper links.</p>
     <ol class="ref-list">
       {#each $activeCitations as citation, idx}
         <li
@@ -204,13 +212,13 @@
             <span class="ref-authors">{citation.authors.length <= 2 ? citation.authors.join(" and ") : `${citation.authors[0]} et al.`}</span>
             <span class="ref-title">"{citation.title}"</span>
             {#if citation.journal}
-              <span class="ref-journal">{citation.journal}</span>
+              <span class="ref-journal">{citation.journal},</span>
             {/if}
             {#if citation.volume}
-              <span class="ref-volume">{citation.volume}</span>
+              <span class="ref-volume">{citation.volume},</span>
             {/if}
             {#if citation.pages}
-              <span class="ref-pages">{citation.pages}</span>
+              <span class="ref-pages">{citation.pages},</span>
             {/if}
             <span class="ref-year">({citation.year})</span>
           </div>
@@ -257,6 +265,13 @@
     margin: 0;
     font-size: 0.88rem;
     color: var(--fg-accent);
+  }
+
+  .ref-library-note {
+    margin: 0;
+    font-size: 0.68rem;
+    color: var(--fg-secondary);
+    line-height: 1.35;
   }
   .ref-actions {
     display: flex;
@@ -388,9 +403,11 @@
 
   .ref-context {
     margin: 0.2rem 0 0;
-    font-size: 0.65rem;
+    font-size: 0.67rem;
     color: var(--fg-secondary);
-    font-style: italic;
+    font-style: normal;
     line-height: 1.4;
+    padding-left: 0.1rem;
+    border-left: 2px solid color-mix(in srgb, var(--hl-symbol) 40%, transparent);
   }
 </style>

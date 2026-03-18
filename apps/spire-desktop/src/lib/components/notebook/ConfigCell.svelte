@@ -22,6 +22,9 @@
     delete: void;
     moveUp: void;
     moveDown: void;
+    duplicate: void;
+    insertAbove: string;
+    insertBelow: string;
     advanceFocus: void;
   }>();
 
@@ -44,6 +47,24 @@
       e.preventDefault();
       dispatch("execute");
       dispatch("advanceFocus");
+      return;
+    }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      dispatch("execute");
+      return;
+    }
+    if (e.key === "Enter" && e.altKey) {
+      e.preventDefault();
+      dispatch("execute");
+      dispatch("insertBelow", "config");
+      dispatch("advanceFocus");
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      dispatch("duplicate");
+      return;
     }
     if (e.key === "Tab") {
       e.preventDefault();
@@ -95,6 +116,9 @@
       {/if}
     </button>
     <div class="cc-actions">
+      <button class="cc-btn" on:click={() => dispatch("insertAbove", "config")} use:tooltip={{ text: "Insert Config Above" }}>+↑</button>
+      <button class="cc-btn" on:click={() => dispatch("insertBelow", "config")} use:tooltip={{ text: "Insert Config Below" }}>+↓</button>
+      <button class="cc-btn" on:click={() => dispatch("duplicate")} use:tooltip={{ text: "Duplicate Cell (Ctrl+D)" }}>⎘</button>
       <button class="cc-btn" on:click={() => dispatch("moveUp")} use:tooltip={{ text: "Move Up" }}><Icon name="up" size={13} /></button>
       <button class="cc-btn" on:click={() => dispatch("moveDown")} use:tooltip={{ text: "Move Down" }}><Icon name="down" size={13} /></button>
       <button class="cc-btn cc-delete" on:click={() => dispatch("delete")} use:tooltip={{ text: "Delete Cell" }}><Icon name="close" size={13} /></button>
@@ -197,8 +221,12 @@
     color: var(--fg-secondary, var(--color-text-muted));
     font-size: 0.6rem;
     cursor: pointer;
-    padding: 0 0.2rem;
+    min-width: 1.35rem;
+    padding: 0.05rem 0.2rem;
     line-height: 1.2;
+    text-align: center;
+    border-radius: 4px;
+    font-family: var(--font-mono, "Fira Code", monospace);
   }
 
   .cc-btn:hover {

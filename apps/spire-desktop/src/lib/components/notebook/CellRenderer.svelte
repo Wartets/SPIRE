@@ -37,6 +37,8 @@
     runAllAbove: { index: number };
     runAllBelow: { index: number };
     clearOutput: { id: string };
+    duplicate: { id: string };
+    insertAbove: { index: number; type: string };
     insertBelow: { index: number; type: string };
   }>();
 
@@ -64,6 +66,18 @@
 
   function onAdvanceFocus(): void {
     dispatch("advanceFocus", { id: cell.id });
+  }
+
+  function onDuplicate(): void {
+    dispatch("duplicate", { id: cell.id });
+  }
+
+  function onInsertAbove(e: CustomEvent<string>): void {
+    dispatch("insertAbove", { index, type: e.detail });
+  }
+
+  function onInsertBelow(e: CustomEvent<string>): void {
+    dispatch("insertBelow", { index, type: e.detail });
   }
 
   /** Focus the inner editor (used by parent for Shift+Enter advance). */
@@ -106,6 +120,17 @@
 
     // Insert submenu
     items.push(
+      menuAction("ctx-duplicate", "Duplicate Cell", () => dispatch("duplicate", { id: cell.id }), { shortcut: "Ctrl+D" }),
+    );
+
+    items.push(menuSeparator());
+
+    items.push(
+      menuSubmenu("ctx-insert-above", "Insert Cell Above", [
+        menuAction("ctx-insa-script", "Script", () => dispatch("insertAbove", { index, type: "script" })),
+        menuAction("ctx-insa-markdown", "Markdown", () => dispatch("insertAbove", { index, type: "markdown" })),
+        menuAction("ctx-insa-config", "Config", () => dispatch("insertAbove", { index, type: "config" })),
+      ]),
       menuSubmenu("ctx-insert-below", "Insert Cell Below", [
         menuAction("ctx-ins-script", "Script", () => dispatch("insertBelow", { index, type: "script" })),
         menuAction("ctx-ins-markdown", "Markdown", () => dispatch("insertBelow", { index, type: "markdown" })),
@@ -163,6 +188,9 @@
     on:delete={onDelete}
     on:moveUp={onMoveUp}
     on:moveDown={onMoveDown}
+    on:duplicate={onDuplicate}
+    on:insertAbove={onInsertAbove}
+    on:insertBelow={onInsertBelow}
   />
 {:else if cell.type === "script"}
   <ScriptCell
@@ -174,6 +202,9 @@
     on:moveUp={onMoveUp}
     on:moveDown={onMoveDown}
     on:advanceFocus={onAdvanceFocus}
+    on:duplicate={onDuplicate}
+    on:insertAbove={onInsertAbove}
+    on:insertBelow={onInsertBelow}
   />
 {:else if cell.type === "config"}
   <ConfigCell
@@ -185,6 +216,9 @@
     on:moveUp={onMoveUp}
     on:moveDown={onMoveDown}
     on:advanceFocus={onAdvanceFocus}
+    on:duplicate={onDuplicate}
+    on:insertAbove={onInsertAbove}
+    on:insertBelow={onInsertBelow}
   />
 {:else}
   <p style="color: var(--hl-error, #ff5555); padding: 0.5rem;">

@@ -49,6 +49,7 @@
   let slhaDoc: SlhaDocument | null = null;
   let slhaError: string = "";
   let slhaErrorHints: string[] = [];
+  let slhaPreflightHints: string[] = [];
   let slhaLoading: boolean = false;
   let slhaBlockFilter: string = "";
 
@@ -63,6 +64,7 @@
     if (kind === "slha") {
       if (lower.includes("block")) hints.push("Ensure each SLHA block starts with 'BLOCK <NAME>' and uses numeric entries.");
       if (lower.includes("decay")) hints.push("Check DECAY headers and daughter multiplicity columns in each channel row.");
+      if (lower.includes("float") || lower.includes("number")) hints.push("Use scientific notation like 1.23400000E+02 for robust parser compatibility.");
       hints.push("Try loading only MASS and DECAY blocks first to isolate malformed sections.");
     }
 
@@ -81,6 +83,56 @@
     return hints;
   }
 
+  function analyzeSlhaInput(text: string): string[] {
+    const hints: string[] = [];
+    const normalized = text.replace(/\r\n/g, "\n");
+    const lines = normalized.split("\n");
+    const hasMass = /(^|\n)\s*BLOCK\s+MASS\b/i.test(normalized);
+    const hasDecay = /(^|\n)\s*DECAY\s+[-+]?\d+/i.test(normalized);
+    const hasBlock = /(^|\n)\s*BLOCK\s+[A-Z0-9_]+/i.test(normalized);
+
+    if (!hasBlock) hints.push("No BLOCK header detected. Start with lines like: BLOCK MASS.");
+    if (!hasMass) hints.push("No MASS block detected. Add `BLOCK MASS` entries for field masses.");
+    if (!hasDecay) hints.push("No DECAY section found. Add `DECAY <PDG> <WIDTH>` blocks for branching tables.");
+
+    const malformedDecay = lines.find((line) => /^\s*DECAY\s+/i.test(line) && !/^\s*DECAY\s+[-+]?\d+\s+[-+]?\d*\.?\d+(?:[eEdD][-+]?\d+)?/i.test(line));
+    if (malformedDecay) {
+      hints.push(`Potential malformed DECAY header: "${malformedDecay.trim()}".`);
+    }
+
+    const suspiciousTabs = lines.filter((line) => line.includes("\t")).length;
+    if (suspiciousTabs > 0) hints.push("Tab characters detected; replacing tabs with spaces can avoid parser ambiguities.");
+
+    return hints;
+  }
+
+  function analyzeUfoFiles(contents: UfoFileContents): string[] {
+    const hints: string[] = [];
+    const required: (keyof UfoFileContents)[] = ["particles_py", "vertices_py", "couplings_py", "parameters_py", "lorentz_py"];
+
+    const missing = required.filter((key) => !contents[key]);
+    if (missing.length > 0) {
+      hints.push(`Missing recommended files: ${missing.map((k) => k.replace("_py", ".py")).join(", ")}.`);
+    }
+
+    const particles = contents.particles_py ?? "";
+    if (particles && !/\bParticle\s*\(/.test(particles)) {
+      hints.push("`particles.py` loaded but no `Particle(...)` definitions found.");
+    }
+
+    const vertices = contents.vertices_py ?? "";
+    if (vertices && !/\bVertex\s*\(/.test(vertices)) {
+      hints.push("`vertices.py` loaded but no `Vertex(...)` definitions found.");
+    }
+
+    const couplings = contents.couplings_py ?? "";
+    if (couplings && !/\bCoupling\s*\(/.test(couplings)) {
+      hints.push("`couplings.py` loaded but no `Coupling(...)` definitions found.");
+    }
+
+    return hints;
+  }
+
   async function handleSlhaImport(): Promise<void> {
     if (!slhaText.trim()) {
       slhaError = "Paste or upload an SLHA file first.";
@@ -88,6 +140,7 @@
     }
     slhaError = "";
     slhaErrorHints = [];
+    slhaPreflightHints = analyzeSlhaInput(slhaText);
     slhaLoading = true;
     try {
       slhaDoc = await importSlhaString(slhaText);
@@ -147,6 +200,7 @@
   let ufoTheoreticalModel: TheoreticalModel | null = null;
   let ufoError: string = "";
   let ufoErrorHints: string[] = [];
+  let ufoPreflightHints: string[] = [];
   let ufoLoading: boolean = false;
 
   const UFO_FILE_KEYS: { key: keyof UfoFileContents; label: string }[] = [
@@ -176,6 +230,7 @@
     }
     ufoError = "";
     ufoErrorHints = [];
+    ufoPreflightHints = analyzeUfoFiles(ufoFiles);
     ufoLoading = true;
     try {
       const [model, theoretical] = await importUfoModel(ufoFiles, ufoModelName);
@@ -315,6 +370,15 @@
         Upload or paste a SUSY Les Houches Accord (.slha) file to inspect mass spectra,
         decay widths, and mixing matrices.
       </p>
+      <details class="guide-box">
+        <summary>SLHA writing guide (strict parser-friendly)</summary>
+        <ul>
+          <li>Use uppercase section headers, e.g. <code>BLOCK MASS</code>, <code>BLOCK NMIX Q= ...</code>.</li>
+          <li>Prefer explicit scientific notation values like <code>1.25000000E+02</code>.</li>
+          <li>DECAY blocks should follow <code>DECAY PDG WIDTH</code> then rows: <code>BR NDA ID1 ID2 ...</code>.</li>
+          <li>Keep comments after <code>#</code> and avoid tabs for maximum compatibility.</li>
+        </ul>
+      </details>
 
       <!-- Upload zone -->
       <div
@@ -353,6 +417,16 @@
             {/each}
           </ul>
         {/if}
+      {/if}
+      {#if slhaPreflightHints.length > 0}
+        <details class="diag-box">
+          <summary>Input diagnostics ({slhaPreflightHints.length})</summary>
+          <ul class="error-hints">
+            {#each slhaPreflightHints as hint}
+              <li>{hint}</li>
+            {/each}
+          </ul>
+        </details>
       {/if}
 
       <!-- Results -->
@@ -433,6 +507,15 @@
         Upload FeynRules / SARAH UFO output files. Each .py file is optional.
         At minimum, upload particles.py.
       </p>
+      <details class="guide-box">
+        <summary>UFO authoring/import guide</summary>
+        <ul>
+          <li>Recommended core files: <code>particles.py</code>, <code>vertices.py</code>, <code>couplings.py</code>, <code>parameters.py</code>, <code>lorentz.py</code>.</li>
+          <li>Particle names used in vertices must exactly match entries in <code>particles.py</code>.</li>
+          <li>Regenerate UFO from FeynRules/SARAH after model edits to avoid stale cross-file references.</li>
+          <li>When debugging import failures, upload files incrementally starting from <code>particles.py</code>.</li>
+        </ul>
+      </details>
 
       <div class="ufo-fields">
         <label class="ufo-name-label">
@@ -466,6 +549,16 @@
             {/each}
           </ul>
         {/if}
+      {/if}
+      {#if ufoPreflightHints.length > 0}
+        <details class="diag-box">
+          <summary>Input diagnostics ({ufoPreflightHints.length})</summary>
+          <ul class="error-hints">
+            {#each ufoPreflightHints as hint}
+              <li>{hint}</li>
+            {/each}
+          </ul>
+        </details>
       {/if}
 
       {#if ufoModel}
@@ -521,6 +614,14 @@
         SPIRE will perform multiplicative renormalization
         (φ → √Z·φ, g → g + δg) and extract all 𝒪(δ) counterterm vertices.
       </p>
+      <details class="guide-box">
+        <summary>NLO input guidance</summary>
+        <ul>
+          <li>Use explicit multiplication and symbols: <code>e * psi_bar * gamma_mu * psi * A^mu</code>.</li>
+          <li>Ensure external-leg field IDs are present in the known-fields list.</li>
+          <li>Start from minimal 3-point interactions, then add derivatives/tensors incrementally.</li>
+        </ul>
+      </details>
 
       <!-- Known fields -->
       <div class="section">
@@ -819,6 +920,37 @@
     color: var(--text-muted, var(--color-text-muted));
     font-size: 0.74rem;
     line-height: 1.35;
+  }
+
+  .guide-box,
+  .diag-box {
+    border: 1px solid var(--border, #3a3a4f);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg-secondary, #1f2233) 92%, white 8%);
+    margin: 0.45rem 0 0.65rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .guide-box summary,
+  .diag-box summary {
+    cursor: pointer;
+    color: var(--text, #e7ecf5);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .guide-box ul,
+  .diag-box ul {
+    margin: 0.35rem 0 0.2rem;
+    padding-left: 1rem;
+    font-size: 0.74rem;
+    color: var(--text-muted, var(--color-text-muted));
+    line-height: 1.35;
+  }
+
+  .guide-box code {
+    color: var(--hl-accent, #58a6ff);
+    font-family: "Fira Code", "Consolas", monospace;
   }
 
   /* ── Sections & Data ── */

@@ -27,6 +27,7 @@
     removeCell,
     updateCellSource,
     moveCell,
+    duplicateCell,
     executeCell,
     executeAllCells,
     clearAllOutputs,
@@ -110,6 +111,43 @@
 
   function handleInsertBelow(e: CustomEvent<{ index: number; type: string }>): void {
     insertCell(e.detail.type as CellType, e.detail.index);
+  }
+
+  function handleInsertAbove(e: CustomEvent<{ index: number; type: string }>): void {
+    insertCell(e.detail.type as CellType, e.detail.index - 1);
+  }
+
+  function handleDuplicate(e: CustomEvent<{ id: string }>): void {
+    duplicateCell(e.detail.id);
+  }
+
+  let dragFromIndex: number | null = null;
+  let dragOverIndex: number | null = null;
+
+  function handleCellDragStart(index: number, event: DragEvent): void {
+    dragFromIndex = index;
+    event.dataTransfer?.setData("text/plain", String(index));
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleCellDragOver(index: number, event: DragEvent): void {
+    event.preventDefault();
+    dragOverIndex = index;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  }
+
+  function handleCellDrop(index: number, event: DragEvent): void {
+    event.preventDefault();
+    const from = dragFromIndex;
+    dragFromIndex = null;
+    dragOverIndex = null;
+    if (from == null || from === index) return;
+    moveCell(from, index);
+  }
+
+  function clearDragState(): void {
+    dragFromIndex = null;
+    dragOverIndex = null;
   }
 
   // ── UI Snapshot Persistence ──
@@ -198,24 +236,38 @@
   </header>
 
   <!-- Cell List -->
-  <div class="nb-cells" bind:this={cellsScroller} on:scroll={handleCellsScroll}>
+  <div class="nb-cells" role="list" bind:this={cellsScroller} on:scroll={handleCellsScroll}>
     {#each $notebookDocument.cells as cell, idx (cell.id)}
-      <CellRenderer
-        {cell}
-        index={idx}
-        totalCells={$notebookDocument.cells.length}
-        bind:this={cellRefs[cell.id]}
-        on:sourceChange={handleSourceChange}
-        on:execute={handleExecute}
-        on:delete={handleDelete}
-        on:moveUp={handleMoveUp}
-        on:moveDown={handleMoveDown}
-        on:advanceFocus={handleAdvanceFocus}
-        on:runAllAbove={handleRunAllAbove}
-        on:runAllBelow={handleRunAllBelow}
-        on:clearOutput={handleClearOutput}
-        on:insertBelow={handleInsertBelow}
-      />
+      <div
+        class="nb-cell-shell"
+        class:drag-over={dragOverIndex === idx}
+        role="listitem"
+        draggable="true"
+        on:dragstart={(event) => handleCellDragStart(idx, event)}
+        on:dragover={(event) => handleCellDragOver(idx, event)}
+        on:dragleave={() => (dragOverIndex = null)}
+        on:drop={(event) => handleCellDrop(idx, event)}
+        on:dragend={clearDragState}
+      >
+        <CellRenderer
+          {cell}
+          index={idx}
+          totalCells={$notebookDocument.cells.length}
+          bind:this={cellRefs[cell.id]}
+          on:sourceChange={handleSourceChange}
+          on:execute={handleExecute}
+          on:delete={handleDelete}
+          on:moveUp={handleMoveUp}
+          on:moveDown={handleMoveDown}
+          on:advanceFocus={handleAdvanceFocus}
+          on:runAllAbove={handleRunAllAbove}
+          on:runAllBelow={handleRunAllBelow}
+          on:clearOutput={handleClearOutput}
+          on:duplicate={handleDuplicate}
+          on:insertAbove={handleInsertAbove}
+          on:insertBelow={handleInsertBelow}
+        />
+      </div>
     {/each}
 
     {#if $notebookDocument.cells.length === 0}
@@ -332,6 +384,15 @@
     font-style: italic;
     font-size: 0.75rem;
     margin-top: 2rem;
+  }
+
+  .nb-cell-shell {
+    border-radius: 6px;
+  }
+
+  .nb-cell-shell.drag-over {
+    outline: 1px dashed var(--hl-symbol, #4a9eff);
+    outline-offset: 2px;
   }
 
   /* ── Add Cell Bar ── */

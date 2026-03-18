@@ -104,6 +104,19 @@ _register({
   context: "Algorithm for automated generation of Feynman diagram topologies.",
 });
 
+_register({
+  id: "alwall2014",
+  authors: ["Alwall, J.", "Frederix, R.", "Frixione, S.", "et al."],
+  title: "The Automated Computation of Tree-Level and Next-to-Leading Order Differential Cross Sections, and Their Matching to Parton Shower Simulations",
+  year: 2014,
+  journal: "JHEP",
+  volume: "07",
+  pages: "079",
+  arxiv: "1405.0301",
+  doi: "10.1007/JHEP07(2014)079",
+  context: "Core reference for MadGraph5_aMC@NLO style automated perturbative workflows.",
+});
+
 // ── Passarino–Veltman Reduction ──────────────────────────────────────────
 
 _register({
@@ -132,6 +145,18 @@ _register({
   context: "Dirac trace evaluation in dimensional regularisation.",
 });
 
+_register({
+  id: "thooft1972",
+  authors: ["'t Hooft, G.", "Veltman, M."],
+  title: "Regularization and Renormalization of Gauge Fields",
+  year: 1972,
+  journal: "Nucl. Phys. B",
+  volume: "44",
+  pages: "189–213",
+  doi: "10.1016/0550-3213(72)90279-9",
+  context: "Foundational dimensional regularisation and renormalisation framework.",
+});
+
 // ── Phase Space & Monte Carlo Integration ────────────────────────────────
 
 _register({
@@ -156,6 +181,18 @@ _register({
   pages: "1145–1189",
   doi: "10.1088/0034-4885/43/9/002",
   context: "Foundational reference for Monte Carlo integration in particle physics.",
+});
+
+_register({
+  id: "vegas1978",
+  authors: ["Lepage, G.P."],
+  title: "A New Algorithm for Adaptive Multidimensional Integration",
+  year: 1978,
+  journal: "J. Comput. Phys.",
+  volume: "27",
+  pages: "192–203",
+  doi: "10.1016/0021-9991(78)90004-9",
+  context: "Canonical VEGAS adaptive Monte Carlo algorithm for high-dimensional integrals.",
 });
 
 // ── PDG Reference ────────────────────────────────────────────────────────
@@ -212,6 +249,18 @@ _register({
   context: "Discovery of asymptotic freedom in QCD.",
 });
 
+_register({
+  id: "politzer1973",
+  authors: ["Politzer, H.D."],
+  title: "Reliable Perturbative Results for Strong Interactions?",
+  year: 1973,
+  journal: "Phys. Rev. Lett.",
+  volume: "30",
+  pages: "1346–1349",
+  doi: "10.1103/PhysRevLett.30.1346",
+  context: "Independent discovery of asymptotic freedom complementary to Gross-Wilczek.",
+});
+
 // ── Renormalisation Group ────────────────────────────────────────────────
 
 _register({
@@ -224,6 +273,30 @@ _register({
   pages: "221–232",
   doi: "10.1016/0550-3213(84)90533-9",
   context: "General two-loop beta function formulas for gauge-Yukawa theories.",
+});
+
+_register({
+  id: "machacek1983",
+  authors: ["Machacek, M.E.", "Vaughn, M.T."],
+  title: "Two-Loop Renormalization Group Equations in a General Quantum Field Theory (I). Wave Function Renormalization",
+  year: 1983,
+  journal: "Nucl. Phys. B",
+  volume: "222",
+  pages: "83–103",
+  doi: "10.1016/0550-3213(83)90610-7",
+  context: "Companion one-/two-loop RG machinery for general field theories.",
+});
+
+_register({
+  id: "machacek1985",
+  authors: ["Machacek, M.E.", "Vaughn, M.T."],
+  title: "Two-Loop Renormalization Group Equations in a General Quantum Field Theory (III). Scalar Quartic Couplings",
+  year: 1985,
+  journal: "Nucl. Phys. B",
+  volume: "249",
+  pages: "70–92",
+  doi: "10.1016/0550-3213(85)90040-9",
+  context: "Detailed two-loop RG treatment for scalar sectors and quartic operators.",
 });
 
 // ── UFO Model Format ─────────────────────────────────────────────────────
@@ -241,6 +314,19 @@ _register({
   context: "Specification of the UFO model format for BSM physics.",
 });
 
+_register({
+  id: "alloul2014",
+  authors: ["Alloul, A.", "Christensen, N.D.", "Degrande, C.", "Duhr, C.", "Fuks, B."],
+  title: "FeynRules 2.0 — A Complete Toolbox for Tree-Level Phenomenology",
+  year: 2014,
+  journal: "Comput. Phys. Commun.",
+  volume: "185",
+  pages: "2250–2300",
+  arxiv: "1310.1921",
+  doi: "10.1016/j.cpc.2014.04.012",
+  context: "Model implementation and export ecosystem used for UFO generation workflows.",
+});
+
 // ── Cross-Section Formulae ───────────────────────────────────────────────
 
 _register({
@@ -251,6 +337,70 @@ _register({
   journal: "Oxford University Press",
   doi: "10.1093/acprof:oso/9780198502807.001.0001",
   context: "Precision electroweak calculations and cross-section formulas.",
+});
+
+_register({
+  id: "catani1997",
+  authors: ["Catani, S.", "Seymour, M.H."],
+  title: "A General Algorithm for Calculating Jet Cross Sections in NLO QCD",
+  year: 1997,
+  journal: "Nucl. Phys. B",
+  volume: "485",
+  pages: "291–419",
+  arxiv: "hep-ph/9605323",
+  doi: "10.1016/S0550-3213(96)00589-5",
+  context: "Dipole subtraction formalism for infrared-safe NLO predictions.",
+});
+
+_register({
+  id: "buckley2011",
+  authors: ["Buckley, A.", "Butterworth, J.", "Lonnblad, L.", "et al."],
+  title: "General-Purpose Event Generators for LHC Physics",
+  year: 2011,
+  journal: "Phys. Rept.",
+  volume: "504",
+  pages: "145–233",
+  arxiv: "1101.2599",
+  doi: "10.1016/j.physrep.2011.03.005",
+  context: "Survey of event-generator architecture and practical phenomenology workflows.",
+});
+
+_register({
+  id: "sjostrand2015",
+  authors: ["Sjostrand, T.", "Ask, S.", "Christiansen, J.R.", "et al."],
+  title: "An Introduction to PYTHIA 8.2",
+  year: 2015,
+  journal: "Comput. Phys. Commun.",
+  volume: "191",
+  pages: "159–177",
+  arxiv: "1410.3012",
+  doi: "10.1016/j.cpc.2015.01.024",
+  context: "Parton showering, hadronisation, and event-record conventions.",
+});
+
+_register({
+  id: "agostinelli2003",
+  authors: ["Agostinelli, S.", "Allison, J.", "Amako, K.", "et al."],
+  title: "GEANT4 — A Simulation Toolkit",
+  year: 2003,
+  journal: "Nucl. Instrum. Meth. A",
+  volume: "506",
+  pages: "250–303",
+  doi: "10.1016/S0168-9002(03)01368-8",
+  context: "Detector-level simulation reference for event interpretation and response studies.",
+});
+
+_register({
+  id: "ball2022",
+  authors: ["Ball, R.D.", "Bertone, V.", "Carrazza, S.", "et al."],
+  title: "The Path to Proton Structure at 1% Accuracy",
+  year: 2022,
+  journal: "Eur. Phys. J. C",
+  volume: "82",
+  pages: "428",
+  arxiv: "2109.02653",
+  doi: "10.1140/epjc/s10052-022-10328-7",
+  context: "Modern global PDF analyses relevant for hadronic cross-section predictions.",
 });
 
 // ---------------------------------------------------------------------------

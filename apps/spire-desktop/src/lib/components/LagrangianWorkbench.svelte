@@ -247,6 +247,12 @@
     const ctx = rgeCanvas.getContext("2d");
     if (!ctx) return;
 
+    const css = getComputedStyle(document.documentElement);
+    const colorTextPrimary = css.getPropertyValue("--color-text-primary").trim() || "#e8ecf4";
+    const colorTextMuted = css.getPropertyValue("--color-text-muted").trim() || "#a9b4c4";
+    const colorAccent = css.getPropertyValue("--color-accent").trim() || "#4fc3f7";
+    const colorGrid = css.getPropertyValue("--border").trim() || "rgba(255,255,255,0.12)";
+
     rgeChart = new Chart(ctx, {
       type: "line",
       data: {
@@ -255,11 +261,12 @@
           {
             label: rgeResult.coupling_name,
             data: rgeResult.coupling_values,
-            borderColor: "#4fc3f7",
-            backgroundColor: "rgba(79,195,247,0.1)",
-            borderWidth: 2,
+            borderColor: colorAccent,
+            backgroundColor: "rgba(79, 195, 247, 0.18)",
+            borderWidth: 2.25,
             pointRadius: 0,
             fill: true,
+            tension: 0.14,
           },
         ],
       },
@@ -269,26 +276,26 @@
         scales: {
           x: {
             type: "logarithmic",
-            title: { display: true, text: "μ (GeV)", color: "var(--color-text-muted)" },
-            ticks: { color: "var(--color-text-muted)" },
-            grid: { color: "rgba(255,255,255,0.05)" },
+            title: { display: true, text: "μ (GeV)", color: colorTextMuted },
+            ticks: { color: colorTextMuted },
+            grid: { color: colorGrid },
           },
           y: {
             title: {
               display: true,
               text: rgeResult.coupling_name,
-              color: "var(--color-text-muted)",
+              color: colorTextMuted,
             },
-            ticks: { color: "var(--color-text-muted)" },
-            grid: { color: "rgba(255,255,255,0.05)" },
+            ticks: { color: colorTextMuted },
+            grid: { color: colorGrid },
           },
         },
         plugins: {
-          legend: { labels: { color: "var(--color-text-primary)" } },
+          legend: { labels: { color: colorTextPrimary } },
           title: {
             display: true,
             text: `RGE Flow: ${rgeResult.coupling_name}(μ)`,
-            color: "#eee",
+            color: colorTextPrimary,
           },
         },
       },
@@ -835,15 +842,29 @@
     border: 1px solid rgba(76, 175, 80, 0.2);
     border-radius: 6px;
     padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
   }
   .rule-latex-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .rule-latex {
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
   .rule-meta {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     margin-top: 0.3rem;
     font-size: 0.7rem;
@@ -882,12 +903,12 @@
   /* Chart */
   .chart-section {
     flex: 1;
-    min-height: 200px;
+    min-height: 240px;
   }
   .rge-canvas {
     width: 100%;
     height: 100%;
-    min-height: 180px;
+    min-height: 220px;
   }
 
   /* Misc */
