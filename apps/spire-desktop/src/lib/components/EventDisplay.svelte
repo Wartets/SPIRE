@@ -868,7 +868,7 @@
   <div class="viewport" bind:this={containerEl} data-wheel-capture data-pointer-passthrough>
     {#if eventBatch.length === 0 && !loading}
       <div class="placeholder">
-        Click <strong>Generate Batch</strong> to produce events for animated playback.
+        Click <strong style="padding: 0.2rem;">Generate Batch</strong> to produce events for animated playback.
       </div>
     {/if}
   </div>
