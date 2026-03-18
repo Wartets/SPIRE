@@ -7,7 +7,13 @@
   export let selectable = false;
   export let flashing = false;
 
-  const dispatch = createEventDispatcher<{ select: Field }>();
+  const dispatch = createEventDispatcher<{
+    select: Field;
+    quickAdd: {
+      particle: Field;
+      target: "initial" | "final";
+    };
+  }>();
 
   function qnSummary(field: Field): string {
     const qn = field.quantum_numbers;
@@ -53,7 +59,12 @@
     return field.quantum_numbers.color.replace("AntiTriplet", "anti-triplet").replace("Triplet", "triplet").replace("Singlet", "singlet").replace("Octet", "octet");
   }
 
-  function handleClick(): void {
+  function handleClick(event: MouseEvent): void {
+    if (event.shiftKey) {
+      dispatch("quickAdd", { particle, target: "initial" });
+    } else if (event.altKey || event.ctrlKey || event.metaKey) {
+      dispatch("quickAdd", { particle, target: "final" });
+    }
     dispatch("select", particle);
   }
 </script>

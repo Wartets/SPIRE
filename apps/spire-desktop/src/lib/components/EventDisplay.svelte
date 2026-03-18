@@ -165,29 +165,139 @@
   function buildDetector(): THREE.Group {
     const group = new THREE.Group();
 
-    const barrelGeo = new THREE.CylinderGeometry(
-      DETECTOR_RADIUS, DETECTOR_RADIUS, DETECTOR_HALF_LENGTH * 2, 32, 1, true,
+    const presetScale = detectorPreset === "perfect" ? 0.82 : detectorPreset === "ilc_like" ? 0.9 : 1;
+    const tunnelRadius = DETECTOR_RADIUS * (detectorPreset === "ilc_like" ? 1.65 : 1.52);
+    const beamPipeRadius = detectorPreset === "perfect" ? 0.14 : 0.18;
+    const barrelLayers = [
+      { radius: 0.9 * presetScale, opacity: 0.18, color: 0x5fc8ff, label: "beam pipe" },
+      { radius: 1.65 * presetScale, opacity: 0.16, color: 0x8dd8ff, label: "silicon tracker" },
+      { radius: 2.5 * presetScale, opacity: 0.12, color: 0x7affb1, label: "ecal" },
+      { radius: 3.45 * presetScale, opacity: 0.11, color: 0xffcf70, label: "hcal" },
+      { radius: 4.55 * presetScale, opacity: 0.09, color: 0xf19cff, label: "muon system" },
+    ];
+
+    const cavern = new THREE.Mesh(
+      new THREE.CylinderGeometry(tunnelRadius, tunnelRadius, DETECTOR_HALF_LENGTH * 2.6, 48, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0x121b28,
+        transparent: true,
+        opacity: 0.16,
+        side: THREE.BackSide,
+      }),
     );
-    const wireMat = new THREE.MeshBasicMaterial({
-      color: 0x334455, wireframe: true, transparent: true, opacity: 0.15,
-    });
-    const barrel = new THREE.Mesh(barrelGeo, wireMat);
-    barrel.rotation.x = Math.PI / 2;
-    group.add(barrel);
+    cavern.rotation.x = Math.PI / 2;
+    group.add(cavern);
 
-    const endcapGeo = new THREE.RingGeometry(0, DETECTOR_RADIUS, 32);
-    const endcapMat = new THREE.MeshBasicMaterial({
-      color: 0x334455, wireframe: true, transparent: true, opacity: 0.1, side: THREE.DoubleSide,
-    });
-    const front = new THREE.Mesh(endcapGeo, endcapMat);
-    front.position.z = DETECTOR_HALF_LENGTH;
-    group.add(front);
-    const back = new THREE.Mesh(endcapGeo, endcapMat);
-    back.position.z = -DETECTOR_HALF_LENGTH;
-    group.add(back);
+    const beamPipe = new THREE.Mesh(
+      new THREE.CylinderGeometry(beamPipeRadius, beamPipeRadius, DETECTOR_HALF_LENGTH * 2.4, 28),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xb6d7ff,
+        emissive: 0x18324d,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.68,
+        roughness: 0.3,
+        metalness: 0.25,
+      }),
+    );
+    beamPipe.rotation.x = Math.PI / 2;
+    group.add(beamPipe);
 
-    const axes = new THREE.AxesHelper(DETECTOR_RADIUS * 1.3);
-    (axes.material as THREE.Material).opacity = 0.2;
+    const interactionGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 18, 18),
+      new THREE.MeshBasicMaterial({
+        color: 0x80e6ff,
+        transparent: true,
+        opacity: 0.8,
+      }),
+    );
+    group.add(interactionGlow);
+
+    const beamGuide = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, -DETECTOR_HALF_LENGTH * 1.15),
+        new THREE.Vector3(0, 0, DETECTOR_HALF_LENGTH * 1.15),
+      ]),
+      new THREE.LineDashedMaterial({
+        color: 0x79dfff,
+        dashSize: 0.25,
+        gapSize: 0.18,
+        transparent: true,
+        opacity: 0.55,
+      }),
+    );
+    beamGuide.computeLineDistances();
+    group.add(beamGuide);
+
+    for (const layer of barrelLayers) {
+      const barrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(layer.radius, layer.radius, DETECTOR_HALF_LENGTH * 2, 48, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: layer.color,
+          wireframe: true,
+          transparent: true,
+          opacity: layer.opacity,
+        }),
+      );
+      barrel.rotation.x = Math.PI / 2;
+      group.add(barrel);
+
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(layer.radius, layer.radius, DETECTOR_HALF_LENGTH * 2, 48, 1, true),
+        new THREE.MeshBasicMaterial({
+          color: layer.color,
+          transparent: true,
+          opacity: layer.opacity * 0.18,
+          side: THREE.DoubleSide,
+        }),
+      );
+      shell.rotation.x = Math.PI / 2;
+      group.add(shell);
+
+      for (const z of [-DETECTOR_HALF_LENGTH, DETECTOR_HALF_LENGTH]) {
+        const endcap = new THREE.Mesh(
+          new THREE.RingGeometry(Math.max(beamPipeRadius * 1.4, layer.radius * 0.22), layer.radius, 48),
+          new THREE.MeshBasicMaterial({
+            color: layer.color,
+            transparent: true,
+            opacity: layer.opacity * 0.72,
+            side: THREE.DoubleSide,
+          }),
+        );
+        endcap.position.z = z;
+        group.add(endcap);
+      }
+    }
+
+    const serviceToroid = new THREE.Mesh(
+      new THREE.TorusGeometry(DETECTOR_RADIUS * 0.96 * presetScale, 0.16, 18, 120),
+      new THREE.MeshBasicMaterial({
+        color: detectorPreset === "perfect" ? 0x88b7ff : 0xf5aa72,
+        transparent: true,
+        opacity: 0.24,
+      }),
+    );
+    serviceToroid.rotation.x = Math.PI / 2;
+    group.add(serviceToroid);
+
+    for (let i = 0; i < 12; i += 1) {
+      const phi = (i / 12) * Math.PI * 2;
+      const support = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.12, DETECTOR_HALF_LENGTH * 2.1),
+        new THREE.MeshBasicMaterial({
+          color: 0x43627f,
+          transparent: true,
+          opacity: 0.22,
+        }),
+      );
+      support.position.set(Math.cos(phi) * tunnelRadius * 0.92, Math.sin(phi) * tunnelRadius * 0.92, 0);
+      support.lookAt(0, 0, 0);
+      support.rotateX(Math.PI / 2);
+      group.add(support);
+    }
+
+    const axes = new THREE.AxesHelper(DETECTOR_RADIUS * 1.22);
+    (axes.material as THREE.Material).opacity = 0.16;
     (axes.material as THREE.Material).transparent = true;
     group.add(axes);
 
@@ -622,14 +732,17 @@
       controls.zoomSpeed = inv;
     }
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    scene.add(new THREE.AmbientLight(0xc7dbff, 0.52));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.78);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
+    const rimLight = new THREE.PointLight(0x54c6ff, 12, 36, 2);
+    rimLight.position.set(-7, 3, -6);
+    scene.add(rimLight);
 
     scene.fog = new THREE.Fog(0x111118, 18, 44);
 
-    const starCount = 220;
+    const starCount = 420;
     const stars = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
       const r = 18 + Math.random() * 22;
@@ -644,6 +757,21 @@
     const starMat = new THREE.PointsMaterial({ color: 0x99b8ff, size: 0.08, transparent: true, opacity: 0.55 });
     environmentGroup = new THREE.Group();
     environmentGroup.add(new THREE.Points(starGeom, starMat));
+    const tunnelRings = new THREE.Group();
+    for (let i = 0; i < 6; i += 1) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(DETECTOR_RADIUS * 1.62, 0.045, 10, 96),
+        new THREE.MeshBasicMaterial({
+          color: 0x29445c,
+          transparent: true,
+          opacity: 0.18,
+        }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.z = -DETECTOR_HALF_LENGTH + i * ((DETECTOR_HALF_LENGTH * 2) / 5);
+      tunnelRings.add(ring);
+    }
+    environmentGroup.add(tunnelRings);
     scene.add(environmentGroup);
 
     detectorGroup = buildDetector();
@@ -657,6 +785,7 @@
       animFrameId = requestAnimationFrame(animate);
       syncControlsToCanvasScale();
       controls?.update();
+      if (environmentGroup) environmentGroup.rotation.z += 0.00035;
 
       if (playbackState === "playing" && eventBatch.length > 0) {
         const dt = (now - lastFrameTime) / EVENT_DURATION_MS;
@@ -735,6 +864,20 @@
       containerEl.removeChild(renderer.domElement);
     }
   });
+
+  let detectorVisualKey = "";
+
+  $: if (scene) {
+    const nextKey = detectorPreset;
+    if (nextKey !== detectorVisualKey) {
+      detectorVisualKey = nextKey;
+      if (detectorGroup) {
+        scene.remove(detectorGroup);
+      }
+      detectorGroup = buildDetector();
+      scene.add(detectorGroup);
+    }
+  }
 
   $: publishWidgetInterop("event_display", {
     cmsEnergy,

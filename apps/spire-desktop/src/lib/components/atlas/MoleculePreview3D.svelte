@@ -3,6 +3,22 @@
     symbol: string;
     count: number;
     isotopeA?: number | null;
+    atomicNumber?: number | null;
+  }
+
+  interface AtomNode {
+    x: number;
+    y: number;
+    z: number;
+    r: number;
+    color: string;
+    key: string;
+  }
+
+  interface Bond {
+    from: number;
+    to: number;
+    key: string;
   }
 
   export let formula = "";
@@ -10,432 +26,282 @@
   export let highlightSymbol: string | null = null;
   export let subtitle = "";
 
-  let renderMode: "ball-stick" | "spacefill" | "wireframe" = "ball-stick";
-  let cameraRotation = 18;
-  let cameraTilt = 0.62;
+  let viewportEl: HTMLDivElement | null = null;
+  let rotating = false;
+  let activePointerId: number | null = null;
+  let startX = 0;
+  let startY = 0;
+  let startYaw = -0.6;
+  let startPitch = 0.26;
+  let yaw = -0.6;
+  let pitch = 0.26;
 
-  interface AtomNode {
-    x: number;
-    y: number;
-    r: number;
-    depth: number;
-    symbol: string;
-    isotopeA: number | null;
-    key: string;
-  }
+  const CPK_COLORS: Record<string, string> = {
+    H: "#f2f5f7",
+    C: "#8f9aa7",
+    N: "#5e8fd7",
+    O: "#d9645b",
+    F: "#73c989",
+    P: "#d8a24a",
+    S: "#d7c64d",
+    Cl: "#60b070",
+    Br: "#96614d",
+    I: "#7351a6",
+    He: "#85d0e8",
+    Ne: "#7cc7cf",
+    Ar: "#7ab9d8",
+  };
 
-  interface Bond {
-    from: number;
-    to: number;
-    depth: number;
-    key: string;
-  }
-
-  function hashSymbol(symbol: string): number {
-    let h = 0;
-    for (let i = 0; i < symbol.length; i += 1) {
-      h = (h * 31 + symbol.charCodeAt(i)) >>> 0;
-    }
-    return h;
-  }
-
-  function colorFor(symbol: string): string {
-    const hash = hashSymbol(symbol);
-    const hue = hash % 360;
-    const sat = 52 + (hash % 18);
-    const light = symbol === highlightSymbol ? 64 : 54;
+  function fallbackColor(z: number): string {
+    const hue = 200 - Math.min(120, z);
+    const sat = 26 + Math.min(34, z * 0.32);
+    const light = 54 - Math.min(10, z * 0.05);
     return `hsl(${hue} ${sat}% ${light}%)`;
   }
 
+  function colorFor(symbol: string, z: number): string {
+    return CPK_COLORS[symbol] ?? fallbackColor(z);
+  }
+
+  function covalentRadius(symbol: string, z: number): number {
+    const table: Record<string, number> = {
+      H: 0.31,
+      C: 0.76,
+      N: 0.71,
+      O: 0.66,
+      F: 0.57,
+      P: 1.07,
+      S: 1.05,
+      Cl: 1.02,
+      Br: 1.2,
+      I: 1.39,
+    };
+    if (table[symbol]) return table[symbol];
+    if (z <= 2) return 0.35;
+    if (z <= 10) return 0.72;
+    if (z <= 18) return 1.02;
+    if (z <= 36) return 1.18;
+    if (z <= 54) return 1.32;
+    return 1.48;
+  }
+
   function expandAtoms(tokenList: MoleculeTokenView[]): MoleculeTokenView[] {
-    const expanded: string[] = [];
-    const atoms: MoleculeTokenView[] = [];
+    const expanded: MoleculeTokenView[] = [];
     for (const token of tokenList) {
-      const count = Math.max(1, Math.min(token.count, 12));
-      for (let i = 0; i < count; i += 1) {
-        expanded.push(token.symbol);
-        atoms.push({ symbol: token.symbol, count: 1, isotopeA: token.isotopeA ?? null });
-      }
+      const count = Math.max(1, Math.min(token.count, 18));
+      for (let i = 0; i < count; i += 1) expanded.push(token);
     }
-
-    if (expanded.length === 0) {
-      return [];
-    }
-
-    return atoms.sort((a, b) => {
-      if (a.symbol === "H" && b.symbol !== "H") return 1;
-      if (a.symbol !== "H" && b.symbol === "H") return -1;
-      return hashSymbol(b.symbol) - hashSymbol(a.symbol);
-    });
+    return expanded;
   }
 
-  function buildAtoms(tokenList: MoleculeTokenView[]): AtomNode[] {
+  function selectCenterAtom(atomList: MoleculeTokenView[]): number {
+    return atomList
+      .map((atom, index) => ({
+        index,
+        score: (atom.symbol === "H" ? -100 : 0) + (atom.atomicNumber ?? 1) * 6 + atom.count * 4,
+      }))
+      .sort((a, b) => b.score - a.score)[0]?.index ?? 0;
+  }
+
+  function buildScene(tokenList: MoleculeTokenView[]): { atoms: AtomNode[]; bonds: Bond[] } {
     const expanded = expandAtoms(tokenList);
+    if (expanded.length === 0) return { atoms: [], bonds: [] };
 
-    if (expanded.length === 0) {
-      return [];
-    }
+    const centerIndex = selectCenterAtom(expanded);
+    const ordered = [expanded[centerIndex], ...expanded.filter((_, index) => index !== centerIndex)];
+    const atoms: AtomNode[] = [];
 
-    return expanded
-      .map((atom, index) => {
-        if (index === 0) {
-          return {
-            x: 112,
-            y: 84,
-            r: 18,
-            depth: 6,
-            symbol: atom.symbol,
-            isotopeA: atom.isotopeA ?? null,
-            key: `${atom.symbol}-${index}`,
-          } satisfies AtomNode;
-        }
+    ordered.forEach((atom, index) => {
+      const z = Math.max(1, atom.atomicNumber ?? 1);
+      const radius = covalentRadius(atom.symbol, z) * 8 + 2.2;
 
-        const ring = Math.floor((index - 1) / 6);
-        const pos = (index - 1) % 6;
-        const angle = (pos / 6) * Math.PI * 2 + ring * 0.22 + 0.35 + (cameraRotation * Math.PI) / 180;
-        const spread = 34 + ring * 24;
-        const depth = Math.sin(angle) * 24 + ring * 5;
-        const x = 112 + Math.cos(angle) * spread + ring * 3;
-        const y = 84 + Math.sin(angle) * (spread * cameraTilt) - depth * 0.18;
-        const r = Math.max(9.5, 15.5 - ring * 1.1);
-        return {
-          x,
-          y,
-          r,
-          depth,
-          symbol: atom.symbol,
-          isotopeA: atom.isotopeA ?? null,
-          key: `${atom.symbol}-${index}`,
-        } satisfies AtomNode;
-      })
-      .sort((a, b) => a.depth - b.depth);
-  }
-
-  function buildBonds(atomList: AtomNode[]): Bond[] {
-    if (atomList.length <= 1) return [];
-    const centerIndex = atomList.findIndex((node) => node.x === 112 && node.y === 84);
-    const hub = centerIndex >= 0 ? centerIndex : 0;
-    const bonds: Bond[] = [];
-
-    for (let i = 0; i < atomList.length; i += 1) {
-      if (i === hub) continue;
-      const from = hub;
-      const to = i;
-      bonds.push({
-        from,
-        to,
-        depth: (atomList[from].depth + atomList[to].depth) / 2,
-        key: `bond-${from}-${to}`,
-      });
-      if (i > 1 && i % 2 === 0) {
-        bonds.push({
-          from: i - 1,
-          to: i,
-          depth: (atomList[i - 1].depth + atomList[i].depth) / 2,
-          key: `bond-${i - 1}-${i}`,
+      if (index === 0) {
+        atoms.push({
+          x: 0,
+          y: 0,
+          z: 0,
+          r: radius,
+          color: colorFor(atom.symbol, z),
+          key: `atom-${index}`,
         });
+        return;
       }
-    }
 
-    return bonds.sort((a, b) => a.depth - b.depth);
+      const shell = Math.floor((index - 1) / 6);
+      const slot = (index - 1) % 6;
+      const slotsThisShell = Math.min(6, ordered.length - shell * 6 - 1);
+      const angle = (slot / Math.max(1, slotsThisShell)) * Math.PI * 2 + shell * 0.36;
+      const distance = 38 + shell * 26 + radius * 0.9;
+
+      atoms.push({
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance * 0.76,
+        z: Math.sin(angle + 0.5) * distance * 0.42 - shell * 10,
+        r: radius,
+        color: colorFor(atom.symbol, z),
+        key: `atom-${index}`,
+      });
+    });
+
+    const bonds = atoms.slice(1).map((_, index) => ({
+      from: 0,
+      to: index + 1,
+      key: `bond-0-${index + 1}`,
+    }));
+
+    return { atoms, bonds };
   }
 
-  $: atoms = buildAtoms(tokens);
-  $: bonds = buildBonds(atoms);
-  $: atomCount = tokens.reduce((sum, token) => sum + token.count, 0);
+  function rotatePoint(point: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+    const cosY = Math.cos(yaw);
+    const sinY = Math.sin(yaw);
+    const cosX = Math.cos(pitch);
+    const sinX = Math.sin(pitch);
 
-  function renderedRadius(r: number): number {
-    if (renderMode === "spacefill") return r * 1.26;
-    if (renderMode === "wireframe") return Math.max(4, r * 0.42);
-    return r;
+    const x1 = point.x * cosY + point.z * sinY;
+    const z1 = -point.x * sinY + point.z * cosY;
+    const y2 = point.y * cosX - z1 * sinX;
+    const z2 = point.y * sinX + z1 * cosX;
+
+    return { x: x1, y: y2, z: z2 };
   }
+
+  function projectPoint(point: { x: number; y: number; z: number }, perspective = 420): { x: number; y: number; depth: number; scale: number } {
+    const depth = perspective / (perspective - point.z);
+    return {
+      x: 124 + point.x * depth,
+      y: 92 + point.y * depth,
+      depth: point.z,
+      scale: depth,
+    };
+  }
+
+  function beginRotate(event: PointerEvent): void {
+    if (!viewportEl) return;
+    rotating = true;
+    activePointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    startYaw = yaw;
+    startPitch = pitch;
+    viewportEl.setPointerCapture(event.pointerId);
+  }
+
+  function moveRotate(event: PointerEvent): void {
+    if (!rotating || event.pointerId !== activePointerId) return;
+    yaw = startYaw + (event.clientX - startX) * 0.01;
+    pitch = Math.max(-1.1, Math.min(1.1, startPitch + (event.clientY - startY) * 0.008));
+  }
+
+  function endRotate(event: PointerEvent): void {
+    if (!rotating || event.pointerId !== activePointerId) return;
+    if (viewportEl?.hasPointerCapture(event.pointerId)) viewportEl.releasePointerCapture(event.pointerId);
+    rotating = false;
+    activePointerId = null;
+  }
+
+  $: scene = buildScene(tokens);
+  $: sceneLabel = subtitle ? `${formula || "selected molecule"} · ${subtitle}` : `${formula || "selected molecule"}`;
+  $: projectedAtoms = scene.atoms
+    .map((atom) => {
+      const rotated = rotatePoint(atom);
+      const projected = projectPoint(rotated);
+      return { ...atom, ...projected };
+    })
+    .sort((a, b) => a.depth - b.depth);
+  $: projectedBonds = scene.bonds.map((bond) => {
+    const from = projectedAtoms[bond.from];
+    const to = projectedAtoms[bond.to];
+    return { ...bond, from, to, depth: ((from?.depth ?? 0) + (to?.depth ?? 0)) * 0.5 };
+  }).sort((a, b) => a.depth - b.depth);
 </script>
 
 <section class="molecule-preview-card">
-  <div class="header">
-    <div>
-      <h5>3D Molecule Preview</h5>
-      <p>{formula || "No formula selected"}</p>
-      {#if subtitle}
-        <p class="subtitle">{subtitle}</p>
-      {/if}
-    </div>
-    <div class="header-controls">
-      <span class="count">{atomCount} atoms</span>
-      <select bind:value={renderMode} aria-label="Molecule render mode">
-        <option value="ball-stick">Ball-stick</option>
-        <option value="spacefill">Space-fill</option>
-        <option value="wireframe">Wireframe</option>
-      </select>
-    </div>
-  </div>
+  <div
+    class="molecule-viewport-shell"
+    bind:this={viewportEl}
+    role="application"
+    aria-label={sceneLabel}
+    on:pointerdown={beginRotate}
+    on:pointermove={moveRotate}
+    on:pointerup={endRotate}
+    on:pointercancel={endRotate}
+  >
+    {#if projectedAtoms.length === 0}
+      <div class="empty"></div>
+    {:else}
+      <svg class="molecule-viewport" viewBox="0 0 248 188" role="img" aria-label={sceneLabel}>
+        <rect class="viewport" x="10" y="10" width="228" height="168" rx="10" />
 
-  <div class="camera-controls">
-    <label>
-      Camera φ
-      <input type="range" min="-180" max="180" step="1" bind:value={cameraRotation} />
-      <span>{cameraRotation}°</span>
-    </label>
-    <label>
-      Tilt
-      <input type="range" min="0.38" max="0.86" step="0.01" bind:value={cameraTilt} />
-      <span>{cameraTilt.toFixed(2)}</span>
-    </label>
-  </div>
-
-  {#if atoms.length === 0}
-    <div class="empty">Run molecule synthesis to generate the retained molecular preview.</div>
-  {:else}
-    <svg class={`mode-${renderMode}`} viewBox="0 0 240 184" role="img" aria-label={`3D-style molecule preview for ${formula}`}>
-      <defs>
-        <radialGradient id="sphere-shine" cx="32%" cy="28%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.95)" />
-          <stop offset="45%" stop-color="rgba(255,255,255,0.28)" />
-          <stop offset="100%" stop-color="rgba(255,255,255,0)" />
-        </radialGradient>
-        <linearGradient id="bond-shine" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.5)" />
-          <stop offset="100%" stop-color="rgba(255,255,255,0.06)" />
-        </linearGradient>
-      </defs>
-
-      <rect class="bg-grid" x="8" y="8" width="224" height="168" rx="10" />
-
-      {#each bonds as bond (bond.key)}
-        {@const a = atoms[bond.from]}
-        {@const b = atoms[bond.to]}
-        <g>
-          <line class="bond bond-shadow" x1={a.x + 2} y1={a.y + 2} x2={b.x + 2} y2={b.y + 2} />
-          <line class="bond" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-        </g>
-      {/each}
-
-      {#each atoms as atom (atom.key)}
-        <g transform={`translate(${atom.x}, ${atom.y})`}>
-          <ellipse class="shadow" cx="2" cy={atom.r * 0.96} rx={atom.r * 0.84} ry={atom.r * 0.34} />
-          <circle class="halo" r={renderedRadius(atom.r) * 1.14} style={`--atom-color:${colorFor(atom.symbol)}`} />
-          <circle class="atom" r={renderedRadius(atom.r)} style={`--atom-color:${colorFor(atom.symbol)}`} />
-          <circle class="shine" r={renderedRadius(atom.r) * 0.92} />
-          {#if atom.isotopeA}
-            <text class="mass-label" x={-renderedRadius(atom.r) * 0.54} y={-renderedRadius(atom.r) * 0.34}>{atom.isotopeA}</text>
+        {#each projectedBonds as bond (bond.key)}
+          {#if bond.from && bond.to}
+            <line class="bond" x1={bond.from.x} y1={bond.from.y} x2={bond.to.x} y2={bond.to.y} />
           {/if}
-          <text class="label" x="0" y="1">{atom.symbol}</text>
-        </g>
-      {/each}
-    </svg>
+        {/each}
 
-    <div class="legend">
-      {#each tokens as token (`${token.symbol}-${token.count}`)}
-        <span class:highlight={token.symbol === highlightSymbol} style={`--atom-color:${colorFor(token.symbol)}`}>
-          <i></i>{#if token.isotopeA}<sup>{token.isotopeA}</sup>{/if}{token.symbol}<sub>{token.count}</sub>
-        </span>
-      {/each}
-    </div>
-  {/if}
+        {#each projectedAtoms as atom (atom.key)}
+          <circle
+            class="atom"
+            class:atom--highlight={highlightSymbol !== null && atom.key === projectedAtoms[0]?.key}
+            cx={atom.x}
+            cy={atom.y}
+            r={Math.max(3.2, atom.r * atom.scale)}
+            style={`--atom-color:${atom.color}`}
+          />
+        {/each}
+      </svg>
+    {/if}
+  </div>
 </section>
 
 <style>
   .molecule-preview-card {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
-    padding: 0.45rem;
+    padding: 0.35rem;
   }
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-    align-items: baseline;
-    margin-bottom: 0.35rem;
+  .molecule-viewport-shell {
+    cursor: grab;
+    touch-action: none;
   }
 
-  .header-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
+  .molecule-viewport-shell:active {
+    cursor: grabbing;
   }
 
-  .header-controls select,
-  .camera-controls input {
-    accent-color: var(--color-accent, var(--hl-symbol));
-  }
-
-  .header-controls select {
-    background: var(--color-bg-surface, var(--bg-surface));
-    border: 1px solid var(--color-border, var(--border));
-    color: var(--color-text-primary, var(--fg-primary));
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    padding: 0.08rem 0.18rem;
-  }
-
-  .camera-controls {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.25rem 0.45rem;
-    margin-bottom: 0.32rem;
-  }
-
-  .camera-controls label {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.22rem;
-    font-family: var(--font-mono);
-    font-size: 0.55rem;
-    color: var(--color-text-muted, var(--fg-secondary));
-  }
-
-  .camera-controls span {
-    min-width: 2.3rem;
-    text-align: right;
-  }
-
-  .header h5 {
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-text-primary, var(--fg-primary));
-  }
-
-  .header p,
-  .count,
-  .empty,
-  .legend span {
-    font-family: var(--font-mono);
-  }
-
-  .header p {
-    margin: 0.12rem 0 0;
-    font-size: 0.66rem;
-    color: var(--color-text-muted, var(--fg-secondary));
-  }
-
-  .subtitle {
-    color: var(--color-accent, var(--hl-symbol));
-  }
-
-  .count {
-    font-size: 0.62rem;
-    color: var(--color-accent, var(--hl-symbol));
+  .molecule-viewport,
+  .empty {
+    width: 100%;
+    display: block;
+    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.14);
+    background: #09121b;
+    min-height: 15rem;
   }
 
   .empty {
-    font-size: 0.68rem;
-    color: var(--color-text-muted, var(--fg-secondary));
-    border: 1px dashed var(--color-border, var(--border));
-    padding: 0.5rem;
+    min-height: 12rem;
   }
 
-  svg {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.16);
-    background:
-      radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 42%),
-      linear-gradient(180deg, rgba(255,255,255,0.03), transparent 60%);
-  }
-
-  .bg-grid {
-    fill: rgba(255, 255, 255, 0.015);
-    stroke: rgba(255, 255, 255, 0.06);
+  .viewport {
+    fill: rgba(8, 17, 26, 0.96);
+    stroke: rgba(141, 161, 181, 0.12);
   }
 
   .bond {
-    stroke: url(#bond-shine);
-    stroke-width: 4.4;
+    stroke: rgba(202, 214, 228, 0.54);
+    stroke-width: 2.1;
     stroke-linecap: round;
-  }
-
-  svg.mode-spacefill .bond,
-  svg.mode-spacefill .bond-shadow {
-    stroke-width: 2.2;
-    opacity: 0.55;
-  }
-
-  svg.mode-wireframe .bond {
-    stroke: color-mix(in srgb, var(--color-accent, var(--hl-symbol)) 70%, white);
-    stroke-width: 2;
-  }
-
-  svg.mode-wireframe .bond-shadow {
-    stroke-width: 0;
-  }
-
-  .bond-shadow {
-    stroke: rgba(0, 0, 0, 0.22);
-    stroke-width: 5.8;
-    stroke-linecap: round;
-  }
-
-  .shadow {
-    fill: rgba(0, 0, 0, 0.18);
-  }
-
-  .halo {
-    fill: color-mix(in srgb, var(--atom-color) 18%, transparent);
-  }
-
-  svg.mode-wireframe .halo,
-  svg.mode-wireframe .shine {
-    opacity: 0.2;
   }
 
   .atom {
     fill: var(--atom-color);
     stroke: color-mix(in srgb, var(--atom-color) 74%, black);
-    stroke-width: 1;
+    stroke-width: 0.8;
   }
 
-  .shine {
-    fill: url(#sphere-shine);
-  }
-
-  .label {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 700;
-    fill: rgba(10, 10, 16, 0.88);
-    text-anchor: middle;
-    dominant-baseline: central;
-  }
-
-  .mass-label {
-    font-family: var(--font-mono);
-    font-size: 6px;
-    font-weight: 700;
-    fill: rgba(255,255,255,0.88);
-  }
-
-  .legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.45rem;
-    margin-top: 0.35rem;
-  }
-
-  .legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.24rem;
-    font-size: 0.62rem;
-    color: var(--color-text-muted, var(--fg-secondary));
-  }
-
-  .legend span.highlight {
-    color: var(--color-text-primary, var(--fg-primary));
-  }
-
-  .legend i {
-    width: 0.66rem;
-    height: 0.66rem;
-    border-radius: 50%;
-    display: inline-block;
-    background: var(--atom-color);
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+  .atom--highlight {
+    stroke: rgba(240, 244, 248, 0.9);
+    stroke-width: 1.1;
   }
 </style>

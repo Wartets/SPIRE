@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import { onMount, tick } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
+  import ElementFactSheet from "$lib/components/atlas/ElementFactSheet.svelte";
   import IsotopeDrawer from "$lib/components/atlas/IsotopeDrawer.svelte";
   import {
     loadElements,
@@ -377,23 +378,14 @@
 <div class="pt-outer">
   {#if focusElementData}
     <section class="pt-summary-band">
-      <article class="focus-card" style={`--focus-accent:${categoryColor(focusElementData.category)}`}>
-        <div class="focus-title-row">
-          <div>
-            <strong>{focusElementData.symbol}</strong>
-            <span>{focusElementData.name}</span>
-          </div>
-          <span class="focus-z">Z {focusElementData.Z}</span>
-        </div>
-        <div class="focus-grid">
-          <div><span>Atomic mass</span><strong>{focusElementData.atomic_mass.toFixed(4)}</strong></div>
-          <div><span>Period / Group</span><strong>{focusElementData.period} / {focusElementData.group ?? "f"}</strong></div>
-          <div><span>Block / Phase</span><strong>{blockFor(focusElementData)}-block · {phaseFor(focusElementData)}</strong></div>
-          <div><span>Known isotopes</span><strong>{isotopeStats[focusElementData.Z]?.count ?? 0}</strong></div>
-          <div><span>Stable isotopes</span><strong>{isotopeStats[focusElementData.Z]?.stable ?? 0}</strong></div>
-          <div><span>Valence shell</span><strong class="mono">{valenceShell(focusElementData)}</strong></div>
-        </div>
-      </article>
+      <div class="focus-sheet" style={`--focus-accent:${categoryColor(focusElementData.category)}`}>
+        <ElementFactSheet
+          element={focusElementData}
+          isotopeCount={isotopeStats[focusElementData.Z]?.count ?? 0}
+          stableCount={isotopeStats[focusElementData.Z]?.stable ?? 0}
+          title="Selected element"
+        />
+      </div>
 
       <div class="metric-cards">
         <article>
@@ -427,7 +419,7 @@
   {#if focusElementData}
     <section class="element-intel">
       <article>
-        <h5>{focusElementData.symbol} isotope intelligence</h5>
+        <h5>{focusElementData.symbol} isotope window</h5>
         <div class="intel-grid">
           <div><span>Mass span A</span><strong>{focusMassSpan}</strong></div>
           <div><span>Natural anchor</span><strong>{isotopeStats[focusElementData.Z]?.naturalA ?? "n/a"}</strong></div>
@@ -542,11 +534,10 @@
           </div>
           <span class="symbol">{el.symbol}</span>
           <span class="ename">{el.name}</span>
-          <span class="config">{valenceShell(el)}</span>
+          <span class="config">{blockFor(el)}-{phaseFor(el)} · {valenceShell(el)}</span>
           <div class="cell-footline">
-            <span class="cell-chip">{blockFor(el)}-{phaseFor(el)}</span>
             <span class="cell-chip">iso {stats?.count ?? 0}</span>
-            <span class="cell-chip">stable {stats?.stable ?? 0}</span>
+            <span class="cell-chip">stb {stats?.stable ?? 0}</span>
           </div>
         </button>
       {/each}
@@ -665,73 +656,15 @@
     font-style: normal;
   }
 
-  .focus-card,
+  .focus-sheet,
   .metric-cards article {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
   }
 
-  .focus-card {
+  .focus-sheet {
     border-left: 3px solid var(--focus-accent, var(--hl-symbol));
-    padding: 0.4rem 0.5rem;
-  }
-
-  .focus-title-row {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.35rem;
-  }
-
-  .focus-title-row strong {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 1rem;
-    color: var(--color-text-primary, var(--fg-primary));
-  }
-
-  .focus-title-row span,
-  .focus-z,
-  .focus-grid span,
-  .focus-grid strong,
-  .metric-cards span,
-  .metric-cards strong {
-    font-family: var(--font-mono);
-  }
-
-  .focus-title-row > div > span {
-    color: var(--color-text-muted, var(--fg-secondary));
-    font-size: 0.66rem;
-  }
-
-  .focus-z {
-    color: var(--focus-accent, var(--hl-symbol));
-    font-size: 0.7rem;
-  }
-
-  .focus-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.28rem 0.6rem;
-  }
-
-  .focus-grid > div {
-    display: flex;
-    flex-direction: column;
-    gap: 0.08rem;
-  }
-
-  .focus-grid span {
-    font-size: 0.58rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted, var(--fg-secondary));
-  }
-
-  .focus-grid strong {
-    font-size: 0.69rem;
-    color: var(--color-text-primary, var(--fg-primary));
+    padding: 0.12rem;
   }
 
   .metric-cards {
@@ -746,6 +679,11 @@
     justify-content: space-between;
     padding: 0.35rem 0.4rem;
     min-height: 4.2rem;
+  }
+
+  .metric-cards span,
+  .metric-cards strong {
+    font-family: var(--font-mono);
   }
 
   .metric-cards span {
@@ -849,12 +787,12 @@
   .cell {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
-    min-height: 4.75rem;
-    max-height: 4.75rem;
-    padding: 0.18rem 0.24rem;
+    min-height: 3.55rem;
+    max-height: 3.55rem;
+    padding: 0.14rem 0.18rem;
     display: flex;
     flex-direction: column;
-    gap: 0.08rem;
+    gap: 0.04rem;
     border-left: 3px solid var(--accent);
     cursor: pointer;
     text-align: left;
@@ -902,16 +840,16 @@
     flex-wrap: wrap;
     align-content: flex-start;
     overflow: hidden;
-    max-height: 1.2rem;
+    max-height: 0.72rem;
   }
 
   .mass {
-    font-size: 0.5rem;
+    font-size: 0.46rem;
     color: var(--color-text-muted, var(--fg-secondary));
   }
 
   .symbol {
-    font-size: 1.02rem;
+    font-size: 0.8rem;
     font-weight: 700;
     color: var(--color-text-primary, var(--fg-primary));
     line-height: 1.1;
@@ -921,7 +859,7 @@
   }
 
   .ename {
-    font-size: 0.52rem;
+    font-size: 0.42rem;
     color: var(--color-text-muted, var(--fg-secondary));
     white-space: nowrap;
     overflow: hidden;
@@ -930,19 +868,14 @@
   }
 
   .config {
-    font-size: 0.49rem;
-    color: var(--color-accent, var(--hl-symbol));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
+    display: none;
   }
 
   .cell-chip {
-    font-size: 0.46rem;
+    font-size: 0.39rem;
     color: var(--color-text-muted, var(--fg-secondary));
     border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.2);
-    padding: 0.02rem 0.12rem;
+    padding: 0.01rem 0.1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

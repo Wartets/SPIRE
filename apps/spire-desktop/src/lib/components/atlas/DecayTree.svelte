@@ -3,6 +3,7 @@
   import type { DecayChannelPreset } from "$lib/core/physics/composites";
   import type { IsotopeData } from "$lib/core/physics/nuclearDataLoader";
   import { formatHalfLife } from "$lib/core/physics/nuclearDataLoader";
+  import MathRenderer from "$lib/components/math/MathRenderer.svelte";
 
   interface DecaySelectEvent {
     parentId: string;
@@ -143,6 +144,91 @@
   $: isotopeRootY = isotopeRows.length > 0 ? 0.5 * (isotopeRows[0].y + isotopeRows[isotopeRows.length - 1].y) : 52;
   $: isotopeParentLabel = isotopeDecay ? `${isotopeDecay.symbol}-${isotopeDecay.A}` : "";
   $: isotopeHalfLife = isotopeDecay ? formatHalfLife(isotopeDecay.isotope.half_life_s) : "";
+
+  const latexAliases: Record<string, string> = {
+    gamma: "\\gamma",
+    g: "g",
+    "pi+": "\\pi^{+}",
+    "pi-": "\\pi^{-}",
+    pi0: "\\pi^{0}",
+    "k+": "K^{+}",
+    "k-": "K^{-}",
+    k0: "K^{0}",
+    lambda0: "\\Lambda^{0}",
+    "sigma+": "\\Sigma^{+}",
+    sigma0: "\\Sigma^{0}",
+    "sigma-": "\\Sigma^{-}",
+    xi0: "\\Xi^{0}",
+    "xi-": "\\Xi^{-}",
+    "omega-": "\\Omega^{-}",
+    rho0: "\\rho^{0}",
+    phi_meson: "\\phi",
+    j_psi: "J/\\psi",
+    upsilon: "\\Upsilon",
+    "e-": "e^{-}",
+    "e+": "e^{+}",
+    "mu-": "\\mu^{-}",
+    "mu+": "\\mu^{+}",
+    "tau-": "\\tau^{-}",
+    "tau+": "\\tau^{+}",
+    nu_e: "\\nu_{e}",
+    nu_mu: "\\nu_{\\mu}",
+    nu_tau: "\\nu_{\\tau}",
+  };
+
+  function particleLatex(id: string): string {
+    const trimmed = id.trim();
+    if (!trimmed) return "\\varnothing";
+    if (latexAliases[trimmed]) return latexAliases[trimmed];
+    if (trimmed.endsWith("_bar")) return `\\bar{${particleLatex(trimmed.slice(0, -4))}}`;
+    return `\\mathrm{${trimmed.replace(/_/g, "\\,")}}`;
+  }
+
+  function interactionLatex(interaction: DecayChannelPreset["interaction"]): string {
+    switch (interaction) {
+      case "strong":
+        return "\\text{strong}";
+      case "em":
+        return "\\text{EM}";
+      default:
+        return "\\text{weak}";
+    }
+  }
+
+  function hadronChannelLatex(ch: DecayChannelPreset): string {
+    return [
+      `${particleLatex(parentId)} \\to ${ch.finalStateIds.map((id) => particleLatex(id)).join(" + ")}`,
+      `\\mathrm{BR} = ${(ch.branchingRatio * 100).toFixed(2)}\\%`,
+      interactionLatex(ch.interaction),
+    ].join("\\qquad");
+  }
+
+  function decayModeLatex(mode: string): string {
+    switch (mode) {
+      case "beta-minus":
+        return "\\beta^{-}";
+      case "beta-plus":
+        return "\\beta^{+}";
+      case "alpha":
+        return "\\alpha";
+      case "ec":
+        return "\\mathrm{EC}";
+      case "gamma":
+        return "\\gamma";
+      case "sf":
+        return "\\mathrm{SF}";
+      default:
+        return `\\mathrm{${mode}}`;
+    }
+  }
+
+  function isotopeChannelLatex(row: IsotopeRow): string {
+    if (!isotopeDecay) return "";
+    return [
+      `{}^{${isotopeDecay.A}}_{${isotopeDecay.Z}}\\mathrm{${isotopeDecay.symbol}} \\xrightarrow{${decayModeLatex(row.mode)}} \\left(A=${row.daughterA},\\, Z=${row.daughterZ}\\right)`,
+      `\\mathrm{BR} = ${row.brLabel.replace("%", "\\%")}`,
+    ].join("\\qquad");
+  }
 </script>
 
 <div class="decay-tree-wrap">
@@ -154,14 +240,19 @@
       </p>
     {:else}
       <svg viewBox={`0 0 ${width} ${isotopeHeight}`} role="img" aria-label={`Decay tree for ${isotopeParentLabel}`}>
+        <defs>
+          <marker id="decay-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 z" fill="currentColor"></path>
+          </marker>
+        </defs>
         <!-- Half-life label below parent -->
         <text class="root" x={rootX - 4} y={isotopeRootY - 12}>{isotopeParentLabel}</text>
         <text class="hl-label" x={rootX - 4} y={isotopeRootY + 2}>t½={isotopeHalfLife}</text>
-        <line class="trunk" x1={rootX} y1={isotopeRootY} x2={splitX} y2={isotopeRootY} />
+        <line class="trunk" x1={rootX} y1={isotopeRootY} x2={splitX} y2={isotopeRootY} marker-end="url(#decay-arrow)" />
 
         {#each isotopeRows as row, idx (`${row.mode}-${idx}`)}
-          <line class="branch" x1={splitX} y1={isotopeRootY} x2={branchX} y2={row.y} />
-          <line class="leaf" x1={branchX} y1={row.y} x2={finalX} y2={row.y} />
+          <line class="branch" x1={splitX} y1={isotopeRootY} x2={branchX} y2={row.y} marker-end="url(#decay-arrow)" />
+          <line class="leaf" x1={branchX} y1={row.y} x2={finalX} y2={row.y} marker-end="url(#decay-arrow)" />
 
           <text class={`mode-tag ${decayModeClass(row.mode)}`} x={branchX + 6} y={row.y - 5}>
             {row.modeLabel}
@@ -172,6 +263,13 @@
           </text>
         {/each}
       </svg>
+      <div class="channel-math-list">
+        {#each isotopeRows as row, idx (`math-iso-${row.mode}-${idx}`)}
+          <div class="channel-math-item">
+            <MathRenderer latex={isotopeChannelLatex(row)} block={true} />
+          </div>
+        {/each}
+      </div>
     {/if}
 
   {:else}
@@ -180,12 +278,17 @@
       <p class="empty">No decay presets available for this state.</p>
     {:else}
       <svg viewBox={`0 0 ${width} ${hadronHeight}`} role="img" aria-label={`Decay tree for ${parentId}`}>
-        <line class="trunk" x1={rootX} y1={hadronRootY} x2={splitX} y2={hadronRootY} />
+        <defs>
+          <marker id="decay-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6 z" fill="currentColor"></path>
+          </marker>
+        </defs>
+        <line class="trunk" x1={rootX} y1={hadronRootY} x2={splitX} y2={hadronRootY} marker-end="url(#decay-arrow)" />
         <text class="root" x={rootX - 4} y={hadronRootY}>{parentId}</text>
 
         {#each hadronRows as row, idx (`${row.finalLabel}-${idx}`)}
-          <line class="branch" x1={splitX} y1={hadronRootY} x2={branchX} y2={row.y} />
-          <line class="leaf" x1={branchX} y1={row.y} x2={finalX} y2={row.y} />
+          <line class="branch" x1={splitX} y1={hadronRootY} x2={branchX} y2={row.y} marker-end="url(#decay-arrow)" />
+          <line class="leaf" x1={branchX} y1={row.y} x2={finalX} y2={row.y} marker-end="url(#decay-arrow)" />
 
           <text class="final" x={finalX + 8} y={row.y}>{row.finalLabel}</text>
           <text
@@ -210,6 +313,13 @@
           />
         {/each}
       </svg>
+      <div class="channel-math-list">
+        {#each sortedChannels as ch, idx (`math-hadron-${idx}`)}
+          <div class="channel-math-item">
+            <MathRenderer latex={hadronChannelLatex(ch)} block={true} />
+          </div>
+        {/each}
+      </div>
     {/if}
   {/if}
 </div>
@@ -301,5 +411,20 @@
     font-size: 0.75rem;
     font-style: italic;
     font-family: var(--font-mono);
+  }
+
+  .channel-math-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    padding: 0.35rem 0.45rem 0.45rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-border, var(--border)) 80%, transparent);
+    background: rgba(var(--color-accent-rgb), 0.03);
+  }
+
+  .channel-math-item {
+    border: 1px solid color-mix(in srgb, var(--color-accent, var(--hl-symbol)) 14%, var(--color-border, var(--border)));
+    background: rgba(var(--color-surface-rgb, 15, 23, 42), 0.22);
+    padding: 0.18rem 0.28rem;
   }
 </style>

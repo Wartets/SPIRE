@@ -6,6 +6,7 @@
   import CustomParticleModal from "$lib/components/atlas/CustomParticleModal.svelte";
   import PeriodicTable from "$lib/components/atlas/PeriodicTable.svelte";
   import ParticleViewer from "$lib/components/atlas/ParticleViewer.svelte";
+  import TaxonomyGuidePanel from "$lib/components/atlas/TaxonomyGuidePanel.svelte";
   import {
     atlasSelectionRequest,
     submitAtlasSelection,
@@ -38,6 +39,8 @@
   let taxonomySort: "mass" | "alpha" | "charge" = "mass";
   let referenceDomainFilter: "all" | "sm" | "hadron" | "bsm" = "all";
   let referenceInteractionFilter: "all" | "strong" | "weak" | "electromagnetic" | "yukawa" = "all";
+  let taxonomyNavigatorOpen = false;
+  let atlasControlsOpen = true;
   let recentElements: ElementData[] = [];
   let recentIsotopes: {
     Z: number; A: number; symbol: string; name: string;
@@ -96,6 +99,18 @@
     unstable: taxonomyFields.filter((field) => Number.isFinite(field.width) && field.width > 0).length,
     interactionRich: taxonomyFields.filter((field) => field.interactions.length >= 2).length,
   };
+  $: taxonomyFilterLabel = {
+    all: "all fields",
+    charged: "charged fields",
+    neutral: "neutral fields",
+    colored: "colored states",
+    unstable: "unstable states",
+  }[taxonomyFilter];
+  $: taxonomySortLabel = {
+    mass: "mass ladder",
+    alpha: "alphabetical",
+    charge: "charge magnitude",
+  }[taxonomySort];
   $: filteredTaxonomyGroups = taxonomy.groups
     .map((group) => ({
       ...group,
@@ -164,6 +179,11 @@
         });
       }
     }
+    if (payload?.type === "ELEMENT_SELECTED" && payload.data?.Z) {
+      selectedElementForViewer = payload.data;
+      selectedIsotopeForViewer = null;
+      pushRecentElement(payload.data);
+    }
   }
 
   function referenceDomainFor(field: Field): "sm" | "hadron" | "bsm" {
@@ -209,6 +229,20 @@
     setTimeout(() => { if (flashId === id) flashId = null; }, 820);
   }
 
+  function clearTaxonomySelection(): void {
+    selectedParticle = null;
+    selectedReferenceComposite = null;
+  }
+
+  function appendToReaction(target: "initial" | "final", id: string, label: string): void {
+    if (target === "initial") {
+      initialIdsInput.update((prev) => [...prev, id]);
+    } else {
+      finalIdsInput.update((prev) => [...prev, id]);
+    }
+    logAtlas(`${label} appended to Reaction Workspace ${target} state.`);
+  }
+
   function handleParticleSelect(field: Field): void {
     if ($atlasSelectionRequest.pending && $atlasSelectionRequest.target) {
       submitAtlasSelection($atlasSelectionRequest.target, field.id);
@@ -245,6 +279,21 @@
     logAtlas(`Decay branch loaded into Reaction Workspace: ${detail.label}`);
   }
 
+  function handleQuickAdd(
+    event: CustomEvent<{ particle: Field; target: "initial" | "final" }>,
+  ): void {
+    if ($atlasSelectionRequest.pending) return;
+    const { particle, target } = event.detail;
+    appendToReaction(target, particle.id, `${particle.symbol} (${particle.id})`);
+    triggerFlash(particle.id);
+  }
+
+  function handleViewerAddToReaction(
+    event: CustomEvent<{ target: "initial" | "final"; id: string; label: string }>,
+  ): void {
+    appendToReaction(event.detail.target, event.detail.id, event.detail.label);
+  }
+
   function handleSynthesisIsotopeSelect(
     event: CustomEvent<{
       Z: number;
@@ -276,6 +325,14 @@
       },
     });
     logAtlas(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
+  }
+
+  function handleSynthesisElementSelect(event: CustomEvent<ElementData>): void {
+    selectedElementForViewer = event.detail;
+    selectedIsotopeForViewer = null;
+    pushRecentElement(event.detail);
+    broadcastSelection({ type: "ELEMENT_SELECTED", data: event.detail });
+    logAtlas(`Synthesis element selected: ${event.detail.symbol}`);
   }
 
   function handleElementSelect(event: CustomEvent<ElementData>): void {
@@ -389,6 +446,8 @@
           <ParticleViewer
             element={selectedElementForViewer}
             isotope={selectedIsotopeForViewer}
+            on:addToReaction={handleViewerAddToReaction}
+            on:elementSynthesisSelect={handleSynthesisElementSelect}
             on:isotopeSynthesisSelect={handleSynthesisIsotopeSelect}
           />
           {:else}
@@ -398,15 +457,47 @@
       </aside>
     </div>
   {:else}
-    <div class="summary">
-      {#if $theoreticalModel}
-        {taxonomy.total} total fields in active model
-      {:else}
-        No active model loaded. Showing extended reference catalogue and composite atlas content.
-      {/if}
+    <div class="taxonomy-overview-toggles">
+      <button class="taxonomy-overview-toggle" aria-expanded={taxonomyNavigatorOpen} on:click={() => (taxonomyNavigatorOpen = !taxonomyNavigatorOpen)}>
+        <span>Taxonomy Navigator</span>
+        <strong>{taxonomyNavigatorOpen ? "Hide" : "Show"}</strong>
+      </button>
+      <button class="taxonomy-overview-toggle" aria-expanded={atlasControlsOpen} on:click={() => (atlasControlsOpen = !atlasControlsOpen)}>
+        <span>Atlas Controls</span>
+        <strong>{atlasControlsOpen ? "Hide" : "Show"}</strong>
+      </button>
     </div>
 
-    <div class="taxonomy-toolbar">
+    {#if taxonomyNavigatorOpen || atlasControlsOpen}
+    <section class="taxonomy-overview">
+      {#if taxonomyNavigatorOpen}
+      <TaxonomyGuidePanel
+        total={taxonomy.total}
+        charged={taxonomyStats.charged}
+        neutral={taxonomyStats.neutral}
+        colored={taxonomyStats.colored}
+        unstable={taxonomyStats.unstable}
+        interactionRich={taxonomyStats.interactionRich}
+        referenceCount={visibleAtlasReferenceParticles.length}
+        activeFilter={taxonomyFilterLabel}
+        activeSort={taxonomySortLabel}
+      />
+      {/if}
+
+      {#if atlasControlsOpen}
+      <section class="taxonomy-controls-card">
+        <div class="taxonomy-controls-copy">
+          <h4>Atlas Controls</h4>
+          <p>
+            {#if $theoreticalModel}
+              {taxonomy.total} fields are available in the active model, alongside the extended reference catalogue.
+            {:else}
+              No active model is loaded, so the atlas is operating in curated reference mode for comparison and inspection.
+            {/if}
+          </p>
+        </div>
+
+        <div class="taxonomy-toolbar">
       <input
         class="taxonomy-search"
         type="search"
@@ -438,17 +529,17 @@
         <option value="electromagnetic">Reference interaction: electromagnetic</option>
         <option value="yukawa">Reference interaction: Yukawa</option>
       </select>
-    </div>
+        </div>
 
-    <div class="taxonomy-stats">
-      <article><span>Charged</span><strong>{taxonomyStats.charged}</strong></article>
-      <article><span>Neutral</span><strong>{taxonomyStats.neutral}</strong></article>
-      <article><span>Colored</span><strong>{taxonomyStats.colored}</strong></article>
-      <article><span>Unstable</span><strong>{taxonomyStats.unstable}</strong></article>
-      <article><span>Multi-interaction</span><strong>{taxonomyStats.interactionRich}</strong></article>
-      <article><span>Reference particles</span><strong>{visibleAtlasReferenceParticles.length}</strong></article>
-      <article><span>Ref. SM / hadron / BSM</span><strong>{referenceStats.sm}/{referenceStats.hadron}/{referenceStats.bsm}</strong></article>
-    </div>
+        <div class="taxonomy-stats">
+          <article><span>Reference particles</span><strong>{visibleAtlasReferenceParticles.length}</strong></article>
+          <article><span>Ref. SM / hadron / BSM</span><strong>{referenceStats.sm}/{referenceStats.hadron}/{referenceStats.bsm}</strong></article>
+          <article><span>Selection mode</span><strong>{$atlasSelectionRequest.pending ? "picker" : "inspect"}</strong></article>
+        </div>
+      </section>
+      {/if}
+    </section>
+    {/if}
 
     <div class="taxonomy-layout">
       <div class="taxonomy-grid-col">
@@ -469,6 +560,7 @@
                         particle={particle}
                         selectable={$atlasSelectionRequest.pending}
                         flashing={flashId === particle.id}
+                        on:quickAdd={handleQuickAdd}
                         on:select={(e) => handleParticleSelect(e.detail)}
                       />
                     {/each}
@@ -488,6 +580,7 @@
                 particle={particle}
                 selectable={false}
                 flashing={flashId === particle.id}
+                on:quickAdd={handleQuickAdd}
                 on:select={(e) => handleReferenceParticleSelect(e.detail)}
               />
             {/each}
@@ -509,14 +602,40 @@
         </section>
       </div>
 
-      <aside class="viewer-col">
-        {#if selectedParticle}
-          <ParticleViewer particle={selectedParticle} on:decaySelect={handleDecaySelect} />
-        {:else if selectedReferenceComposite}
-          <ParticleViewer referenceComposite={selectedReferenceComposite} on:decaySelect={handleDecaySelect} />
-        {:else}
-          <div class="viewer-empty">Select a particle to open the schematic composition viewer.</div>
-        {/if}
+      <aside class="viewer-col viewer-col--taxonomy">
+        <section class="group taxonomy-console">
+          <h4>Selection Console</h4>
+          <div class="reference-summary">The taxonomy workspace keeps the active selection, workspace actions, and scientific viewer together in one rail.</div>
+          <div class="taxonomy-stats taxonomy-console-stats">
+            <article><span>Selected type</span><strong>{selectedParticle ? "field" : selectedReferenceComposite ? "reference" : "none"}</strong></article>
+            <article><span>Current selection</span><strong>{selectedParticle?.symbol ?? selectedReferenceComposite?.label ?? "â€”"}</strong></article>
+            <article><span>Selection mode</span><strong>{$atlasSelectionRequest.pending ? "picker" : "inspect"}</strong></article>
+          </div>
+          <div class="periodic-actions">
+            <button on:click={clearTaxonomySelection}>Clear active selection</button>
+          </div>
+        </section>
+
+        <section class="group taxonomy-console taxonomy-inspector-window">
+          <h4>Inspector Window</h4>
+          {#if selectedParticle}
+            <ParticleViewer
+              particle={selectedParticle}
+              on:addToReaction={handleViewerAddToReaction}
+              on:decaySelect={handleDecaySelect}
+              on:elementSynthesisSelect={handleSynthesisElementSelect}
+            />
+          {:else if selectedReferenceComposite}
+            <ParticleViewer
+              referenceComposite={selectedReferenceComposite}
+              on:addToReaction={handleViewerAddToReaction}
+              on:decaySelect={handleDecaySelect}
+              on:elementSynthesisSelect={handleSynthesisElementSelect}
+            />
+          {:else}
+            <div class="viewer-empty">Select a particle card to inspect composition, decays, and reaction-workspace actions here.</div>
+          {/if}
+        </section>
       </aside>
     </div>
   {/if}
@@ -602,9 +721,57 @@
     cursor: pointer;
   }
 
-  .summary {
-    font-size: 0.72rem;
+  .taxonomy-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
+    gap: 0.45rem;
+  }
+
+  .taxonomy-overview-toggles {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .taxonomy-overview-toggle {
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-primary);
+    padding: 0.2rem 0.38rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 14rem;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    cursor: pointer;
+  }
+
+  .taxonomy-overview-toggle strong {
     color: var(--fg-secondary);
+    font-weight: 500;
+  }
+
+  .taxonomy-controls-card {
+    border: 1px solid var(--border);
+    background: var(--bg-surface);
+    padding: 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.42rem;
+  }
+
+  .taxonomy-controls-copy h4 {
+    margin: 0 0 0.14rem;
+  }
+
+  .taxonomy-controls-copy p {
+    margin: 0;
+    font-size: 0.66rem;
+    color: var(--fg-secondary);
+    line-height: 1.45;
+    font-family: var(--font-mono);
   }
 
   .taxonomy-toolbar,
@@ -692,6 +859,25 @@
   .viewer-col {
     min-height: 0;
     overflow-y: auto;
+  }
+
+  .viewer-col--taxonomy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .taxonomy-console {
+    background: var(--bg-surface);
+  }
+
+  .taxonomy-console-stats article {
+    min-width: 7.4rem;
+  }
+
+  .taxonomy-inspector-window {
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .periodic-side-col {
@@ -848,6 +1034,18 @@
   }
 
   @media (max-width: 1240px) {
+    .taxonomy-overview-toggles {
+      flex-direction: column;
+    }
+
+    .taxonomy-overview-toggle {
+      min-width: 0;
+    }
+
+    .taxonomy-overview {
+      grid-template-columns: 1fr;
+    }
+
     .taxonomy-layout {
       grid-template-columns: 1fr;
     }
@@ -862,6 +1060,10 @@
 
     .viewer-col {
       max-height: 42%;
+    }
+
+    .viewer-col--taxonomy {
+      overflow-y: auto;
     }
   }
 </style>
