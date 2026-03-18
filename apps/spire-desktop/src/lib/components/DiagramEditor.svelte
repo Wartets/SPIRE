@@ -10,7 +10,10 @@
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
+  import { tooltip } from "$lib/actions/tooltip";
   import { generatedDiagrams } from "$lib/stores/physicsStore";
+  import { renderFeynmanDiagram } from "$lib/components/diagram/feynmanRenderer";
+  import { generateTikZ, generateTikZDocument } from "$lib/components/diagram/tikzExport";
   import type {
     FeynmanDiagram,
     FeynmanNode,
@@ -51,11 +54,23 @@
   let selectedIdx: number = 0;
   let nodes: LayoutNode[] = [];
   let edges: LayoutEdge[] = [];
+  let selectedNodeId: number | null = null;
+  let showGrid = true;
+  let snapToGrid = false;
+  let lockExternals = false;
+  let showEdgeLabels = true;
+  let showTikzExport = false;
+  let tikzStandalone = false;
+  let diagramZoom = 1;
+  let viewMode: "editable" | "rendered" | "text" = "editable";
 
   // SVG viewport
   const SVG_W = 600;
   const SVG_H = 400;
   const NODE_RADIUS = 20;
+  const EXTERNAL_NODE_HALF_W = 28;
+  const EXTERNAL_NODE_HALF_H = 14;
+  const GRID_STEP = 16;
 
   // Force simulation
   let simRunning = false;
@@ -113,6 +128,7 @@
 
   function loadDiagram(d: FeynmanDiagram): void {
     stopSimulation();
+    selectedNodeId = null;
 
     // Build layout nodes with initial random positions.
     nodes = d.nodes.map((n) => ({
@@ -136,7 +152,67 @@
       isExternal: e.is_external,
     }));
 
+    centerGraph();
+
     startSimulation();
+  }
+
+  function centerGraph(): void {
+    if (nodes.length === 0) return;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const node of nodes) {
+      const halfW = isVertex(node.kind) ? 8 : EXTERNAL_NODE_HALF_W;
+      const halfH = isVertex(node.kind) ? 8 : EXTERNAL_NODE_HALF_H;
+      minX = Math.min(minX, node.x - halfW);
+      maxX = Math.max(maxX, node.x + halfW);
+      minY = Math.min(minY, node.y - halfH);
+      maxY = Math.max(maxY, node.y + halfH);
+    }
+
+    const dx = SVG_W / 2 - (minX + maxX) / 2;
+    const dy = SVG_H / 2 - (minY + maxY) / 2;
+
+    nodes = nodes.map((node) => ({
+      ...node,
+      x: Math.max(NODE_RADIUS, Math.min(SVG_W - NODE_RADIUS, node.x + dx)),
+      y: Math.max(NODE_RADIUS, Math.min(SVG_H - NODE_RADIUS, node.y + dy)),
+    }));
+  }
+
+  function nudgeSimulation(): void {
+    for (const node of nodes) {
+      if (node.pinned) continue;
+      node.vx += (Math.random() - 0.5) * 1.5;
+      node.vy += (Math.random() - 0.5) * 1.5;
+    }
+    nodes = nodes;
+    if (!simRunning) startSimulation();
+  }
+
+  function togglePinSelection(): void {
+    if (selectedNodeId === null) return;
+    const node = nodes.find((n) => n.id === selectedNodeId);
+    if (!node) return;
+    node.pinned = !node.pinned;
+    nodes = nodes;
+  }
+
+  function pinExternals(shouldPin: boolean): void {
+    for (const node of nodes) {
+      if (!isVertex(node.kind)) node.pinned = shouldPin;
+    }
+    nodes = nodes;
+  }
+
+  function applyGridSnap(node: LayoutNode): void {
+    if (!snapToGrid) return;
+    node.x = Math.round(node.x / GRID_STEP) * GRID_STEP;
+    node.y = Math.round(node.y / GRID_STEP) * GRID_STEP;
   }
 
   // ---------------------------------------------------------------------------
@@ -209,6 +285,7 @@
     }
 
     simTick++;
+    centerGraph();
     nodes = nodes; // trigger Svelte reactivity
 
     simFrameId = requestAnimationFrame(tickSimulation);
@@ -232,6 +309,12 @@
     e.preventDefault();
     const node = nodes.find((n) => n.id === nodeId);
     if (!node) return;
+    selectedNodeId = nodeId;
+    if (lockExternals && !isVertex(node.kind)) {
+      node.pinned = true;
+      nodes = nodes;
+      return;
+    }
     draggingId = nodeId;
     node.pinned = true;
     const svg = (e.target as SVGElement).closest("svg");
@@ -257,9 +340,47 @@
   function onPointerUp(e: PointerEvent): void {
     if (draggingId !== null) {
       const node = nodes.find((n) => n.id === draggingId);
-      if (node) node.pinned = false;
+      if (node) {
+        applyGridSnap(node);
+        if (!(lockExternals && !isVertex(node.kind))) {
+          node.pinned = false;
+        }
+      }
       draggingId = null;
+      nodes = nodes;
     }
+  }
+
+  function nodeAnchorPoint(
+    node: LayoutNode,
+    towardX: number,
+    towardY: number,
+  ): { x: number; y: number } {
+    const dx = towardX - node.x;
+    const dy = towardY - node.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+
+    if (isVertex(node.kind)) {
+      const r = 8;
+      return { x: node.x + ux * r, y: node.y + uy * r };
+    }
+
+    const tx = Math.abs(ux) > 1e-6 ? EXTERNAL_NODE_HALF_W / Math.abs(ux) : Number.POSITIVE_INFINITY;
+    const ty = Math.abs(uy) > 1e-6 ? EXTERNAL_NODE_HALF_H / Math.abs(uy) : Number.POSITIVE_INFINITY;
+    const t = Math.min(tx, ty);
+    return { x: node.x + ux * t, y: node.y + uy * t };
+  }
+
+  function edgeEndpoints(edge: LayoutEdge): { x1: number; y1: number; x2: number; y2: number } {
+    const a = nodes.find((n) => n.id === edge.source);
+    const b = nodes.find((n) => n.id === edge.target);
+    if (!a || !b) return { x1: 0, y1: 0, x2: 0, y2: 0 };
+
+    const start = nodeAnchorPoint(a, b.x, b.y);
+    const end = nodeAnchorPoint(b, a.x, a.y);
+    return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
   }
 
   // ---------------------------------------------------------------------------
@@ -321,14 +442,18 @@
   }
 
   function edgePath(edge: LayoutEdge): string {
-    const a = nodes.find((n) => n.id === edge.source);
-    const b = nodes.find((n) => n.id === edge.target);
-    if (!a || !b) return "";
+    const { x1, y1, x2, y2 } = edgeEndpoints(edge);
+    if (!(x1 || y1 || x2 || y2)) return "";
     switch (edge.edgeType) {
-      case "boson": return wavyPath(a.x, a.y, b.x, b.y);
-      case "gluon": return curlyPath(a.x, a.y, b.x, b.y);
-      default: return straightPath(a.x, a.y, b.x, b.y);
+      case "boson": return wavyPath(x1, y1, x2, y2);
+      case "gluon": return curlyPath(x1, y1, x2, y2);
+      default: return straightPath(x1, y1, x2, y2);
     }
+  }
+
+  function edgeMidpoint(edge: LayoutEdge): { x: number; y: number } {
+    const { x1, y1, x2, y2 } = edgeEndpoints(edge);
+    return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
   }
 
   // ---------------------------------------------------------------------------
@@ -343,6 +468,11 @@
 
   function isVertex(kind: NodeKind): boolean {
     return "InternalVertex" in kind;
+  }
+
+  function selectedNode(): LayoutNode | null {
+    if (selectedNodeId === null) return null;
+    return nodes.find((n) => n.id === selectedNodeId) ?? null;
   }
 
   function edgeStrokeColor(edgeType: string): string {
@@ -366,6 +496,44 @@
     stopSimulation();
     if (unsubDiagrams) unsubDiagrams();
   });
+
+  $: selectedDiagram = diagrams[selectedIdx] ?? null;
+  $: renderedSvg = selectedDiagram
+    ? renderFeynmanDiagram(selectedDiagram, {
+        width: Math.round(540 * diagramZoom),
+        height: Math.round(340 * diagramZoom),
+      })
+    : "";
+
+  $: diagramText = selectedDiagram
+    ? [
+        `Diagram #${selectedDiagram.id}`,
+        `Loop: ${typeof selectedDiagram.loop_order === "string" ? selectedDiagram.loop_order : JSON.stringify(selectedDiagram.loop_order)}`,
+        `Channels: ${selectedDiagram.channels.join(", ") || "-"}`,
+        `Nodes: ${selectedDiagram.nodes.length}`,
+        `Edges: ${selectedDiagram.edges.length}`,
+      ].join("\n")
+    : "";
+
+  $: tikzCode = selectedDiagram
+    ? (tikzStandalone ? generateTikZDocument(selectedDiagram) : generateTikZ(selectedDiagram))
+    : "";
+
+  function copyTikZ(): void {
+    if (!tikzCode) return;
+    navigator.clipboard.writeText(tikzCode).catch(() => {});
+  }
+
+  function exportRenderedSvg(): void {
+    if (!renderedSvg || !selectedDiagram) return;
+    const blob = new Blob([renderedSvg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `diagram-editor-${selectedDiagram.id}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <!-- ======================================================================= -->
@@ -381,7 +549,7 @@
   {:else}
     <!-- Diagram Selector -->
     <div class="selector-bar">
-      <span class="mode-chip">Editable topology mode</span>
+      <span class="mode-chip">Unified editor mode</span>
       <span class="selector-label">Diagram:</span>
       <div class="selector-buttons">
         {#each diagrams as d, idx}
@@ -397,21 +565,93 @@
       <button class="relayout-btn" on:click={() => loadDiagram(diagrams[selectedIdx])}>
         ⟳ Relayout
       </button>
+      <button class="relayout-btn" on:click={centerGraph} use:tooltip={{ text: "Center graph in viewport" }}>
+        ◎ Center
+      </button>
+      <button class="relayout-btn" on:click={nudgeSimulation} use:tooltip={{ text: "Perturb layout to escape local minima" }}>
+        ✦ Shake
+      </button>
       {#if simRunning}
         <span class="sim-badge">Simulating…</span>
       {/if}
     </div>
-    <p class="editor-hint">For polished rendering/export, open the unified Diagram Visualizer view.</p>
 
-    <!-- SVG Canvas -->
-    <svg
-      class="diagram-svg"
-      viewBox="0 0 {SVG_W} {SVG_H}"
-      on:pointermove={onPointerMove}
-      on:pointerup={onPointerUp}
-      role="application"
-      aria-label="Feynman diagram editor canvas"
-    >
+    <div class="mode-tabs">
+      <button class="mode-btn" class:active={viewMode === "editable"} on:click={() => (viewMode = "editable")}>Edit</button>
+      <button class="mode-btn" class:active={viewMode === "rendered"} on:click={() => (viewMode = "rendered")}>Rendered</button>
+      <button class="mode-btn" class:active={viewMode === "text"} on:click={() => (viewMode = "text")}>Text</button>
+      <div class="mode-spacer"></div>
+      {#if viewMode === "rendered"}
+        <button class="mode-btn" on:click={() => (showTikzExport = !showTikzExport)}>TikZ</button>
+        <button class="mode-btn" on:click={exportRenderedSvg}>SVG ↓</button>
+      {/if}
+    </div>
+
+    <div class="summary-bar">
+      <span>{diagrams.length} diagram{diagrams.length !== 1 ? "s" : ""}</span>
+      {#if selectedDiagram}
+        <span class="sep">·</span>
+        <span>nodes: {selectedDiagram.nodes.length}</span>
+        <span class="sep">·</span>
+        <span>edges: {selectedDiagram.edges.length}</span>
+        <span class="sep">·</span>
+        <span>S = {selectedDiagram.symmetry_factor}</span>
+        <span class="sep">·</span>
+        <span>channels: {selectedDiagram.channels.join("+") || "—"}</span>
+      {/if}
+    </div>
+
+    {#if showTikzExport && selectedDiagram}
+      <div class="tikz-overlay">
+        <div class="tikz-header">
+          <span class="tikz-title">LaTeX TikZ Export</span>
+          <label class="tikz-toggle">
+            <input type="checkbox" bind:checked={tikzStandalone} />
+            Standalone
+          </label>
+          <button class="copy-btn" on:click={copyTikZ}>Copy</button>
+          <button class="close-btn" on:click={() => (showTikzExport = false)}>✕</button>
+        </div>
+        <pre class="tikz-code">{tikzCode}</pre>
+      </div>
+    {/if}
+
+    <p class="editor-hint">Diagram Editor and Diagram Visualizer now share summary/export affordances; use Edit mode for manual node work, Rendered mode for publication view.</p>
+
+    {#if viewMode === "editable"}
+      <div class="edit-toolbar">
+        <button class="edit-btn" on:click={() => (showGrid = !showGrid)} class:active={showGrid}>Grid</button>
+        <button class="edit-btn" on:click={() => (snapToGrid = !snapToGrid)} class:active={snapToGrid}>Snap</button>
+        <button class="edit-btn" on:click={() => (lockExternals = !lockExternals)} class:active={lockExternals}>Lock ext.</button>
+        <button class="edit-btn" on:click={() => (showEdgeLabels = !showEdgeLabels)} class:active={showEdgeLabels}>Labels</button>
+        <button class="edit-btn" on:click={togglePinSelection} disabled={selectedNodeId === null}>
+          {selectedNode()?.pinned ? "Unpin selected" : "Pin selected"}
+        </button>
+        <button class="edit-btn" on:click={() => pinExternals(true)}>Pin externals</button>
+        <button class="edit-btn" on:click={() => pinExternals(false)}>Unpin externals</button>
+      </div>
+    {/if}
+
+    {#if viewMode === "editable"}
+      <!-- SVG Canvas -->
+      <svg
+        class="diagram-svg"
+        viewBox="0 0 {SVG_W} {SVG_H}"
+        on:pointermove={onPointerMove}
+        on:pointerup={onPointerUp}
+        role="application"
+        aria-label="Feynman diagram editor canvas"
+      >
+      {#if showGrid}
+        <g class="grid-layer" aria-hidden="true">
+          {#each Array(Math.floor(SVG_W / GRID_STEP) + 1) as _, i}
+            <line x1={i * GRID_STEP} y1="0" x2={i * GRID_STEP} y2={SVG_H} class="grid-line" />
+          {/each}
+          {#each Array(Math.floor(SVG_H / GRID_STEP) + 1) as _, j}
+            <line x1="0" y1={j * GRID_STEP} x2={SVG_W} y2={j * GRID_STEP} class="grid-line" />
+          {/each}
+        </g>
+      {/if}
       <!-- Arrowhead markers -->
       <defs>
         <marker id="arrow-fermion" viewBox="0 0 10 10" refX="10" refY="5"
@@ -436,13 +676,12 @@
           class="edge-path"
         />
         <!-- Edge label (particle name) -->
-        {#if edge.particleName}
-          {@const a = nodes.find(n => n.id === edge.source)}
-          {@const b = nodes.find(n => n.id === edge.target)}
-          {#if a && b}
+        {#if showEdgeLabels && edge.particleName}
+          {@const m = edgeMidpoint(edge)}
+          {#if m}
             <text
-              x={(a.x + b.x) / 2}
-              y={(a.y + b.y) / 2 - 8}
+              x={m.x}
+              y={m.y - 8}
               class="edge-label"
               fill={edgeStrokeColor(edge.edgeType)}
             >{edge.particleName}</text>
@@ -460,7 +699,7 @@
             r={8}
             fill={nodeColor(node.kind)}
             stroke="#222"
-            stroke-width="1.5"
+            stroke-width={selectedNodeId === node.id ? "2.5" : "1.5"}
             class="node-shape"
             on:pointerdown={(e) => onPointerDown(e, node.id)}
             role="button"
@@ -479,7 +718,7 @@
               ry={6}
               fill="rgba(30, 30, 40, 0.85)"
               stroke={nodeColor(node.kind)}
-              stroke-width="1.5"
+              stroke-width={selectedNodeId === node.id ? "2.5" : "1.5"}
               class="node-shape"
             />
             <text x={node.x} y={node.y + 4} class="node-label" fill={nodeColor(node.kind)}>
@@ -488,7 +727,19 @@
           </g>
         {/if}
       {/each}
-    </svg>
+      </svg>
+    {:else if viewMode === "rendered"}
+      <div class="rendered-view" aria-label="Rendered diagram preview">
+        <div class="zoom-row">
+          <button class="edit-btn" on:click={() => (diagramZoom = Math.max(0.4, diagramZoom - 0.2))}>−</button>
+          <button class="edit-btn" on:click={() => (diagramZoom = 1)}>{Math.round(diagramZoom * 100)}%</button>
+          <button class="edit-btn" on:click={() => (diagramZoom = Math.min(3, diagramZoom + 0.2))}>+</button>
+        </div>
+        <div class="rendered-svg">{@html renderedSvg}</div>
+      </div>
+    {:else}
+      <pre class="diagram-text">{diagramText}</pre>
+    {/if}
 
     <!-- Legend -->
     <div class="legend">
@@ -516,6 +767,132 @@
     height: 100%;
     overflow: hidden;
     font-size: 0.85rem;
+  }
+
+  .mode-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .mode-btn {
+    padding: 0.15rem 0.45rem;
+    font-size: 0.68rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+
+  .mode-btn.active,
+  .mode-btn:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
+
+  .mode-spacer {
+    flex: 1;
+  }
+
+  .summary-bar {
+    font-size: 0.7rem;
+    color: var(--fg-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.1rem 0;
+  }
+
+  .summary-bar .sep {
+    opacity: 0.45;
+  }
+
+  .tikz-overlay {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 200px;
+    overflow: hidden;
+  }
+
+  .tikz-header {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.4rem;
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tikz-title {
+    font-size: 0.72rem;
+    font-weight: bold;
+    color: var(--fg-accent);
+    flex: 1;
+  }
+
+  .tikz-toggle {
+    font-size: 0.65rem;
+    color: var(--fg-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    cursor: pointer;
+  }
+
+  .tikz-code {
+    font-size: 0.68rem;
+    line-height: 1.4;
+    color: var(--fg-primary);
+    overflow: auto;
+    padding: 0.4rem;
+    margin: 0;
+    white-space: pre;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .copy-btn,
+  .close-btn {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--fg-secondary);
+    padding: 0.1rem 0.35rem;
+    font-size: 0.65rem;
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+
+  .edit-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+  }
+
+  .edit-btn {
+    padding: 0.15rem 0.45rem;
+    font-size: 0.66rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    cursor: pointer;
+    font-family: var(--font-mono);
+  }
+
+  .edit-btn.active,
+  .edit-btn:hover {
+    border-color: var(--border-focus);
+    color: var(--fg-primary);
+  }
+
+  .edit-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 
   .empty-state {
@@ -611,6 +988,12 @@
     user-select: none;
   }
 
+  .grid-line {
+    stroke: rgba(255, 255, 255, 0.045);
+    stroke-width: 1;
+    pointer-events: none;
+  }
+
   .edge-path {
     pointer-events: none;
   }
@@ -627,6 +1010,50 @@
   .node-shape:active { cursor: grabbing; }
   .node-group { cursor: grab; }
   .node-group:active { cursor: grabbing; }
+
+  .rendered-view {
+    flex: 1;
+    min-height: 0;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+    padding: 0.4rem;
+    gap: 0.35rem;
+  }
+
+  .zoom-row {
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+  }
+
+  .rendered-svg {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 220px;
+  }
+
+  .rendered-svg :global(svg) {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .diagram-text {
+    flex: 1;
+    min-height: 220px;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--color-bg-base) 75%, transparent);
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.45;
+    padding: 0.45rem;
+    margin: 0;
+    overflow: auto;
+  }
 
   .node-label {
     font-size: 11px;
