@@ -498,6 +498,15 @@
     cursor: pointer;
   }
 
+  .modal :where(button, [role="button"]) {
+    transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast) !important;
+    will-change: auto;
+  }
+
+  .modal :where(button, [role="button"]):not(:disabled):active {
+    transform: none !important;
+  }
+
   .preset-list button.active,
   .pill--active,
   .actions button.primary {
