@@ -91,7 +91,7 @@
   let toolboxQuery = "";
   let widgetSortMode: "workflow" | "alpha" = "workflow";
   let showWidgetCount = true;
-  let compactToolbar = true;
+  let compactToolbar = false;
   let showQuickToolbar = false;
   let showWorkspaceActions = true;
   let showPaletteLauncher = false;
@@ -291,7 +291,7 @@
   function resetCustomizationDefaults(): void {
     widgetSortMode = "workflow";
     showWidgetCount = true;
-    compactToolbar = true;
+    compactToolbar = false;
     showQuickToolbar = false;
     showWorkspaceActions = true;
     showPaletteLauncher = false;

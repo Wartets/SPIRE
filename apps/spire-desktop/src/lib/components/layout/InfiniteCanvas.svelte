@@ -886,6 +886,7 @@
             width: {item.width}px;
             height: {item.height}px;
             z-index: {zIndexById[item.id] ?? 1};
+            --lod-accent: {WIDGET_ACCENT[item.widgetType] ?? '#5eb8ff'};
           "
           data-canvas-item-id={item.id}
           on:focusin={() => selectWidget(item)}
@@ -1062,6 +1063,7 @@
   }
 
   .canvas-widget {
+    --cw-accent-fusion: color-mix(in oklab, var(--lod-accent, var(--color-accent)) 62%, var(--color-accent) 38%);
     position: absolute;
     display: flex;
     flex-direction: column;
@@ -1077,8 +1079,10 @@
   }
 
   .canvas-widget.cw-selected {
-    border-color: var(--hl-symbol);
-    box-shadow: 0 4px 16px color-mix(in oklab, var(--hl-symbol) 76%, var(--border));
+    border-color: color-mix(in oklab, var(--cw-accent-fusion) 56%, var(--border) 44%);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--cw-accent-fusion) 30%, transparent),
+      0 2px 8px color-mix(in oklab, var(--cw-accent-fusion) 18%, #000 82%);
   }
 
   .cw-header {
