@@ -13,6 +13,7 @@
   import { onMount } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import Icon from "$lib/components/ui/Icon.svelte";
+  import { openTextInputPopup } from "$lib/stores/popupStore";
   import { loadPlugin, listActivePlugins, unloadPlugin } from "$lib/api";
   import type { PluginInfo } from "$lib/api";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
@@ -62,8 +63,17 @@
         });
         filePath = typeof result === "string" ? result : null;
       } else {
-        // Fallback for non-Tauri environments: prompt for path
-        filePath = window.prompt("Enter the path to the .wasm plugin file:");
+        // Fallback for non-Tauri environments: popup-managed path input
+        filePath = await openTextInputPopup({
+          title: "Load WASM Plugin",
+          message: "Tauri file picker is unavailable. Enter an absolute .wasm plugin path.",
+          label: "Plugin path",
+          placeholder: "C:\\path\\to\\plugin.wasm",
+          confirmLabel: "Load",
+          cancelLabel: "Cancel",
+          requireNonEmpty: true,
+          maxWidth: 700,
+        });
       }
 
       if (!filePath) {

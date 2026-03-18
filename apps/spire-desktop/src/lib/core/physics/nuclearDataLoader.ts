@@ -73,6 +73,118 @@ export interface IsotopeData {
 let elementsCache: ElementData[] | null = null;
 let isotopesCache: Record<string, IsotopeData[]> | null = null;
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function sortIsotopesByA(isotopes: IsotopeData[]): IsotopeData[] {
+  return [...isotopes].sort((a, b) => a.A - b.A);
+}
+
+function isotopeAnchorA(element: ElementData, isotopes: IsotopeData[]): number {
+  if (isotopes.length === 0) return Math.max(element.Z, Math.round(element.atomic_mass));
+
+  const natural = [...isotopes].sort((a, b) => (b.abundance_percent ?? 0) - (a.abundance_percent ?? 0))[0] ?? null;
+  if (natural && (natural.abundance_percent ?? 0) > 0) return natural.A;
+
+  const stable = isotopes.find((entry) => entry.half_life_s === null) ?? null;
+  if (stable) return stable.A;
+
+  return Math.max(element.Z, Math.round(element.atomic_mass));
+}
+
+function syntheticSpinParity(A: number): string {
+  if (A % 2 === 0) return "0+";
+  if (A % 4 === 1) return "1/2+";
+  return "3/2-";
+}
+
+function syntheticDecayModes(Z: number, A: number, anchorA: number): IsotopeDecay[] {
+  const delta = A - anchorA;
+  if (Math.abs(delta) <= 1) return [];
+
+  if (Z >= 84 && delta >= 3) {
+    const daughterZ = Math.max(1, Z - 2);
+    const daughterA = Math.max(daughterZ, A - 4);
+    return [{ mode: "alpha", fraction: 1, daughter_Z: daughterZ, daughter_A: daughterA }];
+  }
+
+  if (delta > 0) {
+    const daughterZ = Math.min(118, Z + 1);
+    const daughterA = Math.max(daughterZ, A);
+    return [{ mode: "beta-minus", fraction: 1, daughter_Z: daughterZ, daughter_A: daughterA }];
+  }
+
+  const daughterZ = Math.max(1, Z - 1);
+  const daughterA = Math.max(daughterZ, A);
+  const mode: IsotopeDecayMode = Z > 36 ? "ec" : "beta-plus";
+  return [{ mode, fraction: 1, daughter_Z: daughterZ, daughter_A: daughterA }];
+}
+
+function syntheticHalfLifeSeconds(delta: number): number | null {
+  if (delta <= 1) return null;
+  if (delta === 2) return 3.15e7;
+  const log10HalfLife = clamp(8 - delta * 1.3, -5, 6);
+  return 10 ** log10HalfLife;
+}
+
+function buildSyntheticIsotope(
+  element: ElementData,
+  A: number,
+  anchorA: number,
+): IsotopeData {
+  const delta = Math.abs(A - anchorA);
+  const stable = delta <= 1;
+  const abundance = delta === 0
+    ? 100
+    : stable
+      ? Math.max(0, 34 - delta * 12)
+      : Math.max(0, 16 - delta * 2.2);
+
+  return {
+    A,
+    mass_excess_kev: (A - element.atomic_mass) * 930,
+    half_life_s: stable ? null : syntheticHalfLifeSeconds(delta),
+    spin_parity: syntheticSpinParity(A),
+    abundance_percent: abundance,
+    decay_modes: stable ? [] : syntheticDecayModes(element.Z, A, anchorA),
+  };
+}
+
+function enrichIsotopesForElement(element: ElementData, source: IsotopeData[]): IsotopeData[] {
+  const known = sortIsotopesByA(source);
+  const heavyBonus = element.Z >= 84 ? 10 : element.Z >= 56 ? 6 : element.Z >= 28 ? 3 : 0;
+  const targetCount = clamp(Math.round(22 + Math.log2(element.Z + 1) * 8 + heavyBonus), 26, 64);
+  if (known.length >= targetCount) return known;
+
+  const anchorA = isotopeAnchorA(element, known);
+  const asymmetry = Math.max(3, Math.round(element.Z * 0.045));
+  const spread = Math.max(12, Math.ceil(targetCount / 2));
+  const minA = Math.max(element.Z, anchorA - spread + Math.floor(asymmetry * 0.45));
+  const maxA = Math.max(minA, anchorA + spread + asymmetry);
+
+  const byA = new Map<number, IsotopeData>(known.map((entry) => [entry.A, entry]));
+  for (let A = minA; A <= maxA; A += 1) {
+    if (!byA.has(A)) {
+      byA.set(A, buildSyntheticIsotope(element, A, anchorA));
+    }
+  }
+
+  return sortIsotopesByA(Array.from(byA.values()));
+}
+
+function enrichIsotopeRegistry(
+  baseRegistry: Record<string, IsotopeData[]>,
+  elements: ElementData[],
+): Record<string, IsotopeData[]> {
+  return Object.fromEntries(
+    elements.map((element) => {
+      const raw = baseRegistry[String(element.Z)] ?? [];
+      return [String(element.Z), enrichIsotopesForElement(element, raw)];
+    }),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -94,8 +206,12 @@ export async function loadElements(): Promise<ElementData[]> {
  */
 export async function loadAllIsotopes(): Promise<Record<string, IsotopeData[]>> {
   if (isotopesCache) return isotopesCache;
-  const mod = await import("$lib/data/isotopes.json");
-  isotopesCache = mod.default as Record<string, IsotopeData[]>;
+  const [mod, elements] = await Promise.all([
+    import("$lib/data/isotopes.json"),
+    loadElements(),
+  ]);
+  const base = mod.default as Record<string, IsotopeData[]>;
+  isotopesCache = enrichIsotopeRegistry(base, elements);
   return isotopesCache;
 }
 

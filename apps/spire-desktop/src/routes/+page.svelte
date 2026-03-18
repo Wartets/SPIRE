@@ -41,6 +41,7 @@
   } from "$lib/stores/layoutStore";
   import type { LayoutNode } from "$lib/stores/layoutStore";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { openPopup, openTextInputPopup } from "$lib/stores/popupStore";
   import { activeFramework, theoreticalModel } from "$lib/stores/physicsStore";
   import {
     downloadWorkspace,
@@ -862,10 +863,19 @@
     try {
       json = await navigator.clipboard.readText();
     } catch {
-      // Clipboard API may not be available; fall back to prompt.
-      const input = window.prompt(
-        "Paste the SPIRE Provenance Record JSON:",
-      );
+      // Clipboard API may not be available; fall back to popup-managed input.
+      const input = await openTextInputPopup({
+        title: "Load Provenance Record",
+        message: "Paste a valid SPIRE provenance JSON payload.",
+        label: "Provenance JSON",
+        placeholder: "{\n  \"version\": \"...\",\n  \"seed\": 42\n}",
+        multiline: true,
+        rows: 10,
+        confirmLabel: "Load",
+        cancelLabel: "Cancel",
+        requireNonEmpty: true,
+        maxWidth: 760,
+      });
       if (!input) return;
       json = input;
     }
@@ -875,12 +885,26 @@
       console.log("[SPIRE] Provenance state restored:", state);
       // The returned state contains model, reaction, kinematics, seed.
       // Future phases will dispatch these to the appropriate stores.
-      window.alert(
-        `Provenance state loaded successfully.\nSeed: ${(state as Record<string,unknown>).seed ?? "unknown"}\nVersion: ${(state as Record<string,unknown>).version ?? "unknown"}`,
-      );
+      await openPopup({
+        title: "Provenance Loaded",
+        tone: "success",
+        message: "Provenance state restored successfully.",
+        meta: [
+          { label: "Seed", value: `${(state as Record<string, unknown>).seed ?? "unknown"}` },
+          { label: "Version", value: `${(state as Record<string, unknown>).version ?? "unknown"}` },
+        ],
+        actions: [{ id: "ok", label: "OK", variant: "primary", autofocus: true }],
+        closeActionId: "ok",
+      });
     } catch (err) {
       console.error("[SPIRE] Provenance load failed:", err);
-      window.alert(`Failed to load provenance: ${err}`);
+      await openPopup({
+        title: "Provenance Load Failed",
+        tone: "danger",
+        message: `${err}`,
+        actions: [{ id: "ok", label: "OK", variant: "danger", autofocus: true }],
+        closeActionId: "ok",
+      });
     }
   }
 
@@ -1303,10 +1327,19 @@
       id: "spire.layout.save_preset",
       title: "Save Current Layout as Preset",
       category: "Layout",
-      execute: () => {
-        const name = window.prompt("Preset name:", "My Preset");
+      execute: async () => {
+        const name = await openTextInputPopup({
+          title: "Save Layout Preset",
+          message: "Choose a name for the current layout preset.",
+          label: "Preset name",
+          value: "My Preset",
+          confirmLabel: "Save",
+          cancelLabel: "Cancel",
+          requireNonEmpty: true,
+          maxWidth: 560,
+        });
         if (!name) return;
-        saveCurrentLayoutPreset(name);
+        saveCurrentLayoutPreset(name.trim());
         refreshCustomPresetCommands();
       },
     });
@@ -2153,6 +2186,14 @@
     min-height: 0;
     overflow: hidden;
     display: flex;
+  }
+
+  .docking-canvas > :global(*) {
+    flex: 1 1 auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
   }
 
 </style>

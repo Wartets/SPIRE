@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, onMount } from "svelte";
   import type { ElementData, IsotopeData } from "$lib/core/physics/nuclearDataLoader";
 
   export let element: ElementData | null = null;
@@ -18,23 +19,24 @@
     x: number;
     y: number;
     z: number;
-    key: string;
   }
 
-  interface NucleonPoint extends Point3D {
-    type: "proton" | "neutron";
-  }
+  let hostEl: HTMLDivElement | null = null;
+  let canvasEl: HTMLCanvasElement | null = null;
+  let webglReady = false;
+  let webglError = "";
+  let disposed = false;
 
-  const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-  let viewportEl: HTMLDivElement | null = null;
-  let rotating = false;
-  let activePointerId: number | null = null;
-  let startX = 0;
-  let startY = 0;
-  let startYaw = -0.55;
-  let startPitch = 0.34;
-  let yaw = -0.55;
-  let pitch = 0.34;
+  let scene: any = null;
+  let camera: any = null;
+  let renderer: any = null;
+  let controls: any = null;
+  let modelRoot: any = null;
+  let ThreeLib: typeof import("three") | null = null;
+  let frameHandle: number | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+
+  let modelSignature = "";
 
   function activeElement(): ElementData | null {
     return isotope?.element ?? element;
@@ -48,9 +50,9 @@
     return isotope?.A ?? Math.max(1, Math.round(activeElement()?.atomic_mass ?? 1));
   }
 
-  function parseShellOccupancy(config: string | undefined, z: number): number[] {
+  function parseShellOccupancy(configuration: string | undefined, z: number): number[] {
     const shellCounts = new Map<number, number>();
-    const matches = config?.matchAll(/(\d+)([spdf])(\d+)/g) ?? [];
+    const matches = configuration?.matchAll(/(\d+)([spdf])(\d+)/g) ?? [];
     let counted = 0;
 
     for (const match of matches) {
@@ -83,204 +85,326 @@
     const next = [...ordered];
     const caps = [2, 8, 18, 32, 32, 18, 8];
     let remaining = z - total;
-    for (let i = 0; remaining > 0; i += 1) {
-      const cap = caps[i] ?? 2;
-      const current = next[i] ?? 0;
+    for (let index = 0; remaining > 0; index += 1) {
+      const cap = caps[index] ?? 2;
+      const current = next[index] ?? 0;
       const add = Math.min(cap - current, remaining);
       if (add > 0) {
-        next[i] = current + add;
+        next[index] = current + add;
         remaining -= add;
       }
     }
+
     return next;
   }
 
-  function nucleonCloud(protons: number, neutrons: number, radius: number): NucleonPoint[] {
-    const total = Math.max(0, protons) + Math.max(0, neutrons);
-    const sequence: ("proton" | "neutron")[] = [];
-    const points: NucleonPoint[] = [];
+  function hashSeed(input: string): number {
+    let hash = 2166136261;
+    for (let index = 0; index < input.length; index += 1) {
+      hash ^= input.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
 
-    for (let i = 0; i < Math.max(protons, neutrons); i += 1) {
-      if (i < protons) sequence.push("proton");
-      if (i < neutrons) sequence.push("neutron");
+  function seededRandom(seed: number): () => number {
+    let state = seed || 1;
+    return () => {
+      state ^= state << 13;
+      state ^= state >>> 17;
+      state ^= state << 5;
+      return ((state >>> 0) & 0xffffffff) / 0x100000000;
+    };
+  }
+
+  function seededNucleonSequence(protons: number, neutrons: number, seedKey: string): ("proton" | "neutron")[] {
+    const sequence: ("proton" | "neutron")[] = [
+      ...Array.from({ length: protons }, () => "proton" as const),
+      ...Array.from({ length: neutrons }, () => "neutron" as const),
+    ];
+    const random = seededRandom(hashSeed(seedKey));
+    for (let index = sequence.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      const tmp = sequence[index];
+      sequence[index] = sequence[swapIndex];
+      sequence[swapIndex] = tmp;
+    }
+    return sequence;
+  }
+
+  function nucleonRadiusFor(A: number): number {
+    if (A <= 4) return 0.38;
+    if (A <= 12) return 0.32;
+    if (A <= 32) return 0.27;
+    return 0.22;
+  }
+
+  function packedNucleonPoints(total: number, nucleonRadius: number): Point3D[] {
+    if (total <= 0) return [];
+    if (total === 1) return [{ x: 0, y: 0, z: 0 }];
+
+    const contact = nucleonRadius * 2 * 0.98;
+    if (total === 2) {
+      return [
+        { x: -contact * 0.5, y: 0, z: 0 },
+        { x: contact * 0.5, y: 0, z: 0 },
+      ];
+    }
+    if (total === 3) {
+      const r = contact / Math.sqrt(3);
+      return [
+        { x: 0, y: r, z: 0 },
+        { x: -contact * 0.5, y: -r * 0.5, z: 0 },
+        { x: contact * 0.5, y: -r * 0.5, z: 0 },
+      ];
+    }
+    if (total === 4) {
+      const r = contact * 0.58;
+      return [
+        { x: r, y: r, z: r },
+        { x: -r, y: -r, z: r },
+        { x: -r, y: r, z: -r },
+        { x: r, y: -r, z: -r },
+      ];
     }
 
-    for (let index = 0; index < total; index += 1) {
-      const radial = total <= 1 ? 0 : Math.sqrt(index / Math.max(1, total - 1)) * radius * 0.82;
-      const angle = index * GOLDEN_ANGLE;
-      const spiral = ((index / Math.max(1, total - 1)) - 0.5) * radius * 1.2;
-      points.push({
-        x: Math.cos(angle) * radial,
-        y: Math.sin(angle) * radial * 0.88,
-        z: spiral,
-        type: sequence[index] ?? "neutron",
-        key: `nucleon-${index}`,
-      });
+    const diameter = contact;
+    const points: Point3D[] = [{ x: 0, y: 0, z: 0 }];
+    let remaining = total - 1;
+    let shell = 1;
+
+    while (remaining > 0) {
+      const shellCapacity = Math.max(8, Math.round(12 * shell * shell));
+      const count = Math.min(shellCapacity, remaining);
+      const shellRadius = diameter * shell * 0.84;
+
+      for (let index = 0; index < count; index += 1) {
+        const u = (index + 0.5) / count;
+        const theta = index * Math.PI * (3 - Math.sqrt(5));
+        const phi = Math.acos(1 - 2 * u);
+        points.push({
+          x: Math.cos(theta) * Math.sin(phi) * shellRadius,
+          y: Math.sin(theta) * Math.sin(phi) * shellRadius,
+          z: Math.cos(phi) * shellRadius,
+        });
+      }
+
+      remaining -= count;
+      shell += 1;
     }
 
-    return points;
+    return points.slice(0, total);
   }
 
   function electronCloud(shells: number[]): Point3D[] {
     const points: Point3D[] = [];
-
     shells.forEach((count, shellIndex) => {
-      const radius = 46 + shellIndex * 20;
+      const radius = 2.3 + shellIndex * 0.95;
       for (let index = 0; index < count; index += 1) {
-        const angle = ((index + 0.5) / Math.max(1, count)) * Math.PI * 2;
-        const tilt = shellIndex % 2 === 0 ? 0.42 : -0.42;
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius * Math.cos(tilt);
-        const z = Math.sin(angle) * radius * Math.sin(tilt);
+        const angle = (index / Math.max(1, count)) * Math.PI * 2;
         points.push({
-          x,
-          y,
-          z,
-          key: `electron-${shellIndex + 1}-${index}`,
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          z: 0,
         });
       }
     });
-
     return points;
   }
 
-  function orbitCurves(shells: number[]): Point3D[][] {
-    return shells.map((_, shellIndex) => {
-      const radius = 46 + shellIndex * 20;
-      return Array.from({ length: 56 }, (_, index) => {
-        const angle = (index / 56) * Math.PI * 2;
-        const tilt = shellIndex % 2 === 0 ? 0.42 : -0.42;
-        return {
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius * Math.cos(tilt),
-          z: Math.sin(angle) * radius * Math.sin(tilt),
-          key: `orbit-${shellIndex + 1}-${index}`,
-        };
+  function makeRingPoints(radius: number, segments = 160): Point3D[] {
+    const points: Point3D[] = [];
+    for (let index = 0; index <= segments; index += 1) {
+      const angle = (index / segments) * Math.PI * 2;
+      points.push({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius, z: 0 });
+    }
+    return points;
+  }
+
+  function clearModel(): void {
+    if (!modelRoot) return;
+    const children = [...modelRoot.children];
+    for (const child of children) {
+      modelRoot.remove(child);
+      if (child.geometry) child.geometry.dispose?.();
+      if (Array.isArray(child.material)) {
+        child.material.forEach((mat: any) => mat.dispose?.());
+      } else {
+        child.material?.dispose?.();
+      }
+    }
+  }
+
+  function rebuildModel(): void {
+    if (!webglReady || !scene || !modelRoot || !ThreeLib) return;
+
+    const THREE = ThreeLib;
+
+    const z = atomicNumber();
+    const a = massNumber();
+    const n = Math.max(0, a - z);
+    const shells = activeElement() ? parseShellOccupancy(activeElement()?.electron_configuration, z) : [];
+
+    clearModel();
+
+    if (z <= 0 || a <= 0) return;
+
+    const nucleonRadius = nucleonRadiusFor(a);
+    const nucleonPoints = packedNucleonPoints(a, nucleonRadius);
+    const sequence = seededNucleonSequence(z, n, `${activeElement()?.symbol ?? "X"}:${z}:${a}`);
+
+    const protonMaterial = new THREE.MeshStandardMaterial({ color: 0xd85d5d, roughness: 0.35, metalness: 0.12 });
+    const neutronMaterial = new THREE.MeshStandardMaterial({ color: 0xe8edf3, roughness: 0.4, metalness: 0.05 });
+    const nucleonGeometry = new THREE.SphereGeometry(nucleonRadius, 22, 22);
+
+    const protonCount = sequence.filter((entry) => entry === "proton").length;
+    const neutronCount = sequence.length - protonCount;
+    const protonMesh = new THREE.InstancedMesh(nucleonGeometry, protonMaterial, protonCount);
+    const neutronMesh = new THREE.InstancedMesh(nucleonGeometry, neutronMaterial, neutronCount);
+
+    let protonIndex = 0;
+    let neutronIndex = 0;
+    const matrix = new THREE.Matrix4();
+    nucleonPoints.forEach((point, index) => {
+      matrix.makeTranslation(point.x, point.y, point.z);
+      if (sequence[index] === "proton") {
+        protonMesh.setMatrixAt(protonIndex, matrix);
+        protonIndex += 1;
+      } else {
+        neutronMesh.setMatrixAt(neutronIndex, matrix);
+        neutronIndex += 1;
+      }
+    });
+    protonMesh.instanceMatrix.needsUpdate = true;
+    neutronMesh.instanceMatrix.needsUpdate = true;
+    modelRoot.add(protonMesh);
+    modelRoot.add(neutronMesh);
+
+    const electronPoints = electronCloud(shells);
+    if (electronPoints.length > 0) {
+      const electronGeometry = new THREE.SphereGeometry(0.092, 14, 14);
+      const electronMaterial = new THREE.MeshStandardMaterial({ color: 0xb5bec9, roughness: 0.25, metalness: 0.2 });
+      const electronMesh = new THREE.InstancedMesh(electronGeometry, electronMaterial, electronPoints.length);
+
+      electronPoints.forEach((point, index) => {
+        matrix.makeTranslation(point.x, point.y, point.z);
+        electronMesh.setMatrixAt(index, matrix);
       });
+      electronMesh.instanceMatrix.needsUpdate = true;
+      modelRoot.add(electronMesh);
+    }
+
+    const orbitMaterial = new THREE.LineBasicMaterial({
+      color: 0x98a7b8,
+      transparent: true,
+      opacity: 0.42,
+    });
+
+    shells.forEach((_, shellIndex) => {
+      const radius = 2.3 + shellIndex * 0.95;
+      const points = makeRingPoints(radius).map((point) => new THREE.Vector3(point.x, point.y, point.z));
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.LineLoop(geometry, orbitMaterial.clone());
+      modelRoot.add(line);
     });
   }
 
-  function rotatePoint(point: Point3D): Point3D {
-    const cosY = Math.cos(yaw);
-    const sinY = Math.sin(yaw);
-    const cosX = Math.cos(pitch);
-    const sinX = Math.sin(pitch);
-
-    const x1 = point.x * cosY + point.z * sinY;
-    const z1 = -point.x * sinY + point.z * cosY;
-    const y2 = point.y * cosX - z1 * sinX;
-    const z2 = point.y * sinX + z1 * cosX;
-
-    return {
-      x: x1,
-      y: y2,
-      z: z2,
-      key: point.key,
-    };
+  function updateViewportSize(): void {
+    if (!hostEl || !renderer || !camera) return;
+    const width = hostEl.clientWidth;
+    const height = Math.max(220, Math.round(width * 0.62));
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
   }
 
-  function projectPoint(point: Point3D, centerX = 160, centerY = 124, perspective = 420): { x: number; y: number; scale: number; depth: number } {
-    const depth = perspective / (perspective - point.z);
-    return {
-      x: centerX + point.x * depth,
-      y: centerY + point.y * depth,
-      scale: depth,
-      depth: point.z,
-    };
+  function animate(): void {
+    if (disposed || !renderer || !scene || !camera) return;
+    controls?.update?.();
+    renderer.render(scene, camera);
+    frameHandle = requestAnimationFrame(animate);
   }
 
-  function beginRotate(event: PointerEvent): void {
-    if (!viewportEl) return;
-    rotating = true;
-    activePointerId = event.pointerId;
-    startX = event.clientX;
-    startY = event.clientY;
-    startYaw = yaw;
-    startPitch = pitch;
-    viewportEl.setPointerCapture(event.pointerId);
+  function setupResizeObserver(): void {
+    if (!hostEl) return;
+    resizeObserver = new ResizeObserver(() => updateViewportSize());
+    resizeObserver.observe(hostEl);
   }
 
-  function moveRotate(event: PointerEvent): void {
-    if (!rotating || event.pointerId !== activePointerId) return;
-    yaw = startYaw + (event.clientX - startX) * 0.01;
-    pitch = Math.max(-1.2, Math.min(1.2, startPitch + (event.clientY - startY) * 0.008));
-  }
+  onMount(async () => {
+    if (!hostEl || !canvasEl) return;
+    try {
+      const THREE = await import("three");
+      const controlsModule = await import("three/examples/jsm/controls/OrbitControls.js");
+      if (disposed) return;
 
-  function endRotate(event: PointerEvent): void {
-    if (!rotating || event.pointerId !== activePointerId) return;
-    if (viewportEl?.hasPointerCapture(event.pointerId)) viewportEl.releasePointerCapture(event.pointerId);
-    rotating = false;
-    activePointerId = null;
-  }
+      ThreeLib = THREE;
+      const { OrbitControls } = controlsModule;
 
-  $: z = atomicNumber();
-  $: a = massNumber();
-  $: n = Math.max(0, a - z);
-  $: shellCounts = activeElement() ? parseShellOccupancy(activeElement()?.electron_configuration, z) : [];
-  $: nucleusRadius = 12 + Math.cbrt(Math.max(1, a)) * 2.4;
-  $: nucleons = nucleonCloud(z, n, nucleusRadius);
-  $: electrons = electronCloud(shellCounts);
-  $: orbits = orbitCurves(shellCounts);
-  $: projectedNucleons = nucleons
-    .map((point) => {
-      const rotated = rotatePoint(point);
-      const projected = projectPoint(rotated);
-      return { ...point, ...projected };
-    })
-    .sort((aPoint, bPoint) => aPoint.depth - bPoint.depth);
-  $: projectedElectrons = electrons
-    .map((point) => {
-      const rotated = rotatePoint(point);
-      const projected = projectPoint(rotated);
-      return { ...projected, key: point.key };
-    })
-    .sort((aPoint, bPoint) => aPoint.depth - bPoint.depth);
-  $: projectedOrbits = orbits.map((curve, index) => {
-    const rotated = curve.map((point) => {
-      const projected = projectPoint(rotatePoint(point));
-      return `${projected.x},${projected.y}`;
-    });
-    return {
-      key: `orbit-${index + 1}`,
-      points: rotated.join(" "),
-    };
+      scene = new ThreeLib.Scene();
+      camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+      camera.position.set(0, 0, 16.8);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvasEl,
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.8));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+      const ambient = new ThreeLib.AmbientLight(0xffffff, 0.66);
+      const key = new ThreeLib.DirectionalLight(0xffffff, 0.74);
+      key.position.set(8, 9, 10);
+      const fill = new ThreeLib.DirectionalLight(0xffffff, 0.32);
+      fill.position.set(-8, -6, 7);
+      scene.add(ambient, key, fill);
+
+      modelRoot = new ThreeLib.Group();
+      scene.add(modelRoot);
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enablePan = false;
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.minDistance = 6;
+      controls.maxDistance = 28;
+
+      webglReady = true;
+      updateViewportSize();
+      rebuildModel();
+      setupResizeObserver();
+      animate();
+    } catch (error) {
+      webglError = error instanceof Error ? error.message : "WebGL renderer initialization failed";
+      webglReady = false;
+    }
   });
-  $: sceneLabel = subtitle ? `${activeElement()?.name ?? "selected element"} · ${subtitle}` : `${activeElement()?.name ?? "selected element"}`;
+
+  onDestroy(() => {
+    disposed = true;
+    if (frameHandle !== null) cancelAnimationFrame(frameHandle);
+    resizeObserver?.disconnect();
+    clearModel();
+    controls?.dispose?.();
+    renderer?.dispose?.();
+  });
+
+  $: sceneLabel = subtitle
+    ? `${activeElement()?.name ?? "selected element"} | ${subtitle}`
+    : `${activeElement()?.name ?? "selected element"}`;
+  $: modelSignature = `${activeElement()?.symbol ?? "none"}:${atomicNumber()}:${massNumber()}:${activeElement()?.electron_configuration ?? "none"}:${isotope?.isotopeData.spin_parity ?? ""}`;
+  $: if (webglReady && modelSignature) rebuildModel();
 </script>
 
-<section class="atomic-model-card">
-  <div
-    class="atomic-viewport-shell"
-    bind:this={viewportEl}
-    role="application"
-    aria-label={sceneLabel}
-    on:pointerdown={beginRotate}
-    on:pointermove={moveRotate}
-    on:pointerup={endRotate}
-    on:pointercancel={endRotate}
-  >
-    <svg class="atomic-viewport" viewBox="0 0 320 248" role="img" aria-label={sceneLabel}>
-      <rect class="viewport-bg" x="8" y="8" width="304" height="232" rx="12" />
-
-      {#each projectedOrbits as orbit (orbit.key)}
-        <polyline class="orbit" points={orbit.points} />
-      {/each}
-
-      {#each projectedNucleons as dot (dot.key)}
-        <circle
-          class="nucleon"
-          class:nucleon-proton={dot.type === "proton"}
-          class:nucleon-neutron={dot.type === "neutron"}
-          cx={dot.x}
-          cy={dot.y}
-          r={Math.max(1.9, 2.8 * dot.scale)}
-        />
-      {/each}
-
-      {#each projectedElectrons as electron (electron.key)}
-        <circle class="electron" cx={electron.x} cy={electron.y} r={Math.max(1.6, 2.8 * electron.scale)} />
-      {/each}
-    </svg>
+<section class="atomic-model-card" aria-label={sceneLabel}>
+  <div class="atomic-viewport-shell" bind:this={hostEl} role="application">
+    {#if webglError}
+      <div class="atomic-error">3D renderer unavailable: {webglError}</div>
+    {:else}
+      <canvas class="atomic-canvas" bind:this={canvasEl} aria-label={sceneLabel}></canvas>
+    {/if}
   </div>
 </section>
 
@@ -288,54 +412,37 @@
   .atomic-model-card {
     border: 1px solid var(--color-border, var(--border));
     background: var(--color-bg-inset, var(--bg-inset));
-    padding: 0.35rem;
+    padding: 0.28rem;
   }
 
   .atomic-viewport-shell {
-    cursor: grab;
+    width: 100%;
+    min-height: 220px;
+    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.16);
+    background: var(--color-bg-inset, var(--bg-inset));
     touch-action: none;
   }
 
-  .atomic-viewport-shell:active {
+  .atomic-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+  }
+
+  .atomic-canvas:active {
     cursor: grabbing;
   }
 
-  .atomic-viewport {
-    width: 100%;
-    height: auto;
-    display: block;
-    border: 1px solid rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.14);
-    background: #08111a;
-  }
-
-  .viewport-bg {
-    fill: rgba(8, 17, 25, 0.96);
-    stroke: rgba(141, 161, 181, 0.1);
-  }
-
-  .orbit {
-    fill: none;
-    stroke: rgba(145, 179, 212, 0.24);
-    stroke-width: 1;
-  }
-
-  .electron {
-    fill: #79b4ff;
-    stroke: rgba(225, 238, 255, 0.24);
-    stroke-width: 0.5;
-  }
-
-  .nucleon {
-    stroke-width: 0.45;
-  }
-
-  .nucleon-proton {
-    fill: #d75b5b;
-    stroke: rgba(71, 16, 16, 0.48);
-  }
-
-  .nucleon-neutron {
-    fill: #f4f6f8;
-    stroke: rgba(105, 116, 132, 0.42);
+  .atomic-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    padding: 0.4rem;
+    color: var(--color-text-muted, var(--fg-secondary));
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    text-align: center;
   }
 </style>

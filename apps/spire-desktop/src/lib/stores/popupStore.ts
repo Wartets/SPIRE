@@ -1,4 +1,4 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
 
 export type PopupTone = "neutral" | "info" | "warn" | "danger" | "success";
 export type PopupActionVariant = "default" | "primary" | "danger" | "ghost";
@@ -21,8 +21,33 @@ export interface PopupOptions {
   details?: string[];
   meta?: PopupMetaRow[];
   tone?: PopupTone;
+  input?: PopupInput;
   actions: PopupAction[];
   closeActionId?: string;
+  maxWidth?: number;
+}
+
+export interface PopupInput {
+  label: string;
+  placeholder?: string;
+  value?: string;
+  multiline?: boolean;
+  rows?: number;
+}
+
+export interface PopupTextInputOptions {
+  title: string;
+  message?: string;
+  label: string;
+  placeholder?: string;
+  value?: string;
+  multiline?: boolean;
+  rows?: number;
+  tone?: PopupTone;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  confirmVariant?: PopupActionVariant;
+  requireNonEmpty?: boolean;
   maxWidth?: number;
 }
 
@@ -33,6 +58,8 @@ export interface PopupState {
   details: string[];
   meta: PopupMetaRow[];
   tone: PopupTone;
+  input: PopupInput | null;
+  inputValue: string;
   actions: PopupAction[];
   closeActionId: string;
   maxWidth: number;
@@ -45,6 +72,8 @@ const defaultState: PopupState = {
   details: [],
   meta: [],
   tone: "neutral",
+  input: null,
+  inputValue: "",
   actions: [],
   closeActionId: "cancel",
   maxWidth: 520,
@@ -67,6 +96,8 @@ export function openPopup(options: PopupOptions): Promise<string> {
     details: options.details ?? [],
     meta: options.meta ?? [],
     tone: options.tone ?? "neutral",
+    input: options.input ?? null,
+    inputValue: options.input?.value ?? "",
     actions: options.actions,
     closeActionId: options.closeActionId ?? options.actions[options.actions.length - 1]?.id ?? "cancel",
     maxWidth: options.maxWidth ?? 520,
@@ -95,4 +126,51 @@ export function closePopup(): void {
     resolver(closeId);
     resolver = null;
   }
+}
+
+export function setPopupInputValue(value: string): void {
+  popupState.update((current) => ({ ...current, inputValue: value }));
+}
+
+export async function openTextInputPopup(options: PopupTextInputOptions): Promise<string | null> {
+  const confirmId = "confirm";
+  const cancelId = "cancel";
+  const action = await openPopup({
+    title: options.title,
+    message: options.message,
+    tone: options.tone ?? "info",
+    input: {
+      label: options.label,
+      placeholder: options.placeholder,
+      value: options.value ?? "",
+      multiline: options.multiline ?? false,
+      rows: options.rows ?? 5,
+    },
+    actions: [
+      {
+        id: confirmId,
+        label: options.confirmLabel ?? "Confirm",
+        variant: options.confirmVariant ?? "primary",
+        autofocus: true,
+      },
+      {
+        id: cancelId,
+        label: options.cancelLabel ?? "Cancel",
+        variant: "ghost",
+      },
+    ],
+    closeActionId: cancelId,
+    maxWidth: options.maxWidth ?? 640,
+  });
+
+  if (action !== confirmId) {
+    return null;
+  }
+
+  const value = get(popupState).inputValue;
+  const normalized = value;
+  if (options.requireNonEmpty && normalized.trim().length === 0) {
+    return null;
+  }
+  return normalized;
 }

@@ -21,7 +21,7 @@
   import { longpress } from "$lib/actions/longpress";
   import { downloadWorkspace } from "$lib/services/workspaceManager";
   import { appendLog } from "$lib/stores/physicsStore";
-  import { openPopup } from "$lib/stores/popupStore";
+  import { openPopup, openTextInputPopup } from "$lib/stores/popupStore";
 
   const logWorkspace = (message: string): void => {
     appendLog(message, { category: "Workspace" });
@@ -165,6 +165,26 @@
     logWorkspace(`Workspace closed: ${target.name}`);
   }
 
+  async function editWorkspaceDescriptionWithPopup(wsId: string): Promise<void> {
+    const target = get(workspaces).find((w) => w.id === wsId);
+    if (!target) return;
+
+    const value = await openTextInputPopup({
+      title: `Edit Workspace Description`,
+      message: `Update the description for \"${target.name}\".`,
+      label: "Description",
+      value: target.description,
+      multiline: true,
+      rows: 4,
+      confirmLabel: "Apply",
+      cancelLabel: "Cancel",
+      maxWidth: 700,
+    });
+    if (value === null) return;
+
+    setWorkspaceDescription(wsId, value.trim() || "Untitled workspace", false);
+  }
+
   function buildWorkspaceContextItems(wsId: string): import("$lib/types/menu").ContextMenuItem[] {
     const colorSubmenuItems: import("$lib/types/menu").ContextMenuItem[] = WORKSPACE_COLORS.map((c, i) => ({
       type: "action" as const,
@@ -182,13 +202,7 @@
         id: "ctx-ws-description",
         label: "Edit Description",
         icon: "TXT",
-        action: () => {
-          const target = get(workspaces).find((w) => w.id === wsId);
-          if (!target) return;
-          const value = window.prompt("Workspace description:", target.description);
-          if (value === null) return;
-          setWorkspaceDescription(wsId, value.trim() || "Untitled workspace", false);
-        },
+        action: () => { void editWorkspaceDescriptionWithPopup(wsId); },
       },
       { type: "submenu", id: "ctx-ws-color", label: "Accent Color", icon: "●", children: colorSubmenuItems },
       { type: "separator", id: "sep-ws-1" },

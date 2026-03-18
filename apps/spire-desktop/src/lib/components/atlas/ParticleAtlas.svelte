@@ -1,26 +1,32 @@
 <script lang="ts">
-  import { theoreticalModel } from "$lib/stores/physicsStore";
+  import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
   import { categorizeParticles } from "$lib/core/physics/taxonomy";
   import type { Field } from "$lib/types/spire";
   import ParticleCell from "$lib/components/atlas/ParticleCell.svelte";
   import CustomParticleModal from "$lib/components/atlas/CustomParticleModal.svelte";
   import PeriodicTable from "$lib/components/atlas/PeriodicTable.svelte";
   import ParticleViewer from "$lib/components/atlas/ParticleViewer.svelte";
-  import TaxonomyGuidePanel from "$lib/components/atlas/TaxonomyGuidePanel.svelte";
+  import IsotopeDrawer from "$lib/components/atlas/IsotopeDrawer.svelte";
+  import PeriodicInspector from "$lib/components/atlas/PeriodicInspector.svelte";
   import {
     atlasSelectionRequest,
     submitAtlasSelection,
     clearAtlasSelectionRequest,
   } from "$lib/stores/atlasSelectionStore";
-  import { appendLog } from "$lib/stores/physicsStore";
   import { initialIdsInput, finalIdsInput } from "$lib/stores/workspaceInputsStore";
-  import { broadcastSelection, selectionBus } from "$lib/stores/selectionBus";
+  import { broadcastSelection } from "$lib/stores/selectionBus";
   import {
-    getElementByZ,
-    type IsotopeData,
-    type ElementData,
-  } from "$lib/core/physics/nuclearDataLoader";
-  import { listCompositeReferenceLibrary, type CompositeQuarkContent } from "$lib/core/physics/composites";
+    atlasPeriodicState,
+    atlasPeriodicSelectedIsotopes,
+    clearAtlasPeriodicSelection,
+    selectAtlasPeriodicElement,
+    selectAtlasPeriodicIsotope,
+    setAtlasPeriodicSelectionFromIsotope,
+  } from "$lib/stores/atlasPeriodicStore";
+  import {
+    listCompositeReferenceLibrary,
+    type CompositeQuarkContent,
+  } from "$lib/core/physics/composites";
   import { listAtlasReferenceParticles } from "$lib/core/physics/atlasReferenceParticles";
 
   const logAtlas = (message: string): void => {
@@ -39,22 +45,32 @@
   let taxonomySort: "mass" | "alpha" | "charge" = "mass";
   let referenceDomainFilter: "all" | "sm" | "hadron" | "bsm" = "all";
   let referenceInteractionFilter: "all" | "strong" | "weak" | "electromagnetic" | "yukawa" = "all";
-  let taxonomyNavigatorOpen = false;
-  let atlasControlsOpen = true;
-  let recentElements: ElementData[] = [];
-  let recentIsotopes: {
-    Z: number; A: number; symbol: string; name: string;
-    isotopeData: IsotopeData; element: ElementData;
-  }[] = [];
-  let selectedElementForViewer: ElementData | null = null;
-  let selectedIsotopeForViewer: {
-    Z: number; A: number; symbol: string; name: string;
-    isotopeData: IsotopeData; element: ElementData;
-  } | null = null;
 
   $: taxonomy = categorizeParticles($theoreticalModel);
   $: referenceComposites = listCompositeReferenceLibrary();
-  $: atlasReferenceParticles = listAtlasReferenceParticles();
+  $: atlasReferenceSeedParticles = listAtlasReferenceParticles();
+  $: modelReferenceSeedParticles = $theoreticalModel?.fields ?? [];
+  $: atlasReferenceParticles = mergeReferenceParticleLibraries(atlasReferenceSeedParticles, modelReferenceSeedParticles);
+  $: taxonomyFields = taxonomy.groups.flatMap((group) => group.buckets.flatMap((bucket) => bucket.particles));
+  $: periodicSelectionLabel = $atlasPeriodicState.selectedIsotope
+    ? `${$atlasPeriodicState.selectedIsotope.symbol}-${$atlasPeriodicState.selectedIsotope.A}`
+    : $atlasPeriodicState.selectedElement
+      ? `${$atlasPeriodicState.selectedElement.symbol} (${$atlasPeriodicState.selectedElement.name})`
+      : "none";
+  $: periodicSelectedStats = $atlasPeriodicState.selectedElement
+    ? $atlasPeriodicState.isotopeStats[$atlasPeriodicState.selectedElement.Z] ?? null
+    : null;
+  $: periodicSelectedType = $atlasPeriodicState.selectedIsotope
+    ? "isotope"
+    : $atlasPeriodicState.selectedElement
+      ? "element"
+      : "none";
+  $: periodicSelectedNeutrons = $atlasPeriodicState.selectedIsotope
+    ? $atlasPeriodicState.selectedIsotope.A - $atlasPeriodicState.selectedIsotope.Z
+    : null;
+  $: periodicNaturalIsotopeLabel = periodicSelectedStats?.naturalA
+    ? `${$atlasPeriodicState.selectedElement?.symbol ?? ""}-${periodicSelectedStats.naturalA}`
+    : "n/a";
   $: visibleAtlasReferenceParticles = atlasReferenceParticles
     .filter((particle) => {
       const query = taxonomyQuery.trim().toLowerCase();
@@ -81,12 +97,6 @@
       }
       return Math.abs(a.mass) - Math.abs(b.mass) || a.name.localeCompare(b.name);
     });
-  $: taxonomyFields = taxonomy.groups.flatMap((group) => group.buckets.flatMap((bucket) => bucket.particles));
-  $: periodicSelectionLabel = selectedIsotopeForViewer
-    ? `${selectedIsotopeForViewer.symbol}-${selectedIsotopeForViewer.A}`
-    : selectedElementForViewer
-      ? `${selectedElementForViewer.symbol} (${selectedElementForViewer.name})`
-      : "none";
   $: referenceStats = {
     sm: atlasReferenceParticles.filter((particle) => referenceDomainFor(particle) === "sm").length,
     hadron: atlasReferenceParticles.filter((particle) => referenceDomainFor(particle) === "hadron").length,
@@ -122,6 +132,7 @@
               const query = taxonomyQuery.trim().toLowerCase();
               const matchesQuery = !query || [particle.name, particle.id, particle.symbol].some((value) => value.toLowerCase().includes(query));
               if (!matchesQuery) return false;
+
               switch (taxonomyFilter) {
                 case "charged":
                   return Math.abs(particle.quantum_numbers.electric_charge) > 1e-12;
@@ -152,52 +163,60 @@
     }))
     .filter((group) => group.buckets.length > 0);
 
-  // Subscribe to selectionBus to capture isotope selections from PeriodicTable
-  $: {
-    const payload = $selectionBus;
-    if (payload?.type === "ISOTOPE_SELECTED" && payload.data) {
-      const d = payload.data;
-      const el = getElementByZ(d.Z);
-      if (el) {
-        selectedElementForViewer = el;
-        selectedIsotopeForViewer = {
-          Z: d.Z,
-          A: d.A,
-          symbol: d.symbol,
-          name: d.name,
-          isotopeData: d.isotope,
-          element: el,
-        };
-        pushRecentElement(el);
-        pushRecentIsotope({
-          Z: d.Z,
-          A: d.A,
-          symbol: d.symbol,
-          name: d.name,
-          isotopeData: d.isotope,
-          element: el,
-        });
-      }
-    }
-    if (payload?.type === "ELEMENT_SELECTED" && payload.data?.Z) {
-      selectedElementForViewer = payload.data;
-      selectedIsotopeForViewer = null;
-      pushRecentElement(payload.data);
-    }
-  }
-
   function referenceDomainFor(field: Field): "sm" | "hadron" | "bsm" {
     const id = field.id.toLowerCase();
-    if (["gamma", "g", "z", "w+", "w-", "h", "u", "d", "s", "c", "b", "t", "e-", "e+", "mu-", "tau-", "nu_e", "nu_mu", "nu_tau"].includes(id)) {
+    if ([
+      "gamma", "g", "z", "w+", "w-", "h", "u", "d", "s", "c", "b", "t",
+      "e-", "e+", "mu-", "tau-", "nu_e", "nu_mu", "nu_tau",
+    ].includes(id)) {
       return "sm";
     }
-    if (["p", "n", "pi+", "pi0", "k+", "k0", "lambda0", "sigma+", "sigma0", "sigma-", "xi0", "xi-", "omega-", "rho0", "phi_meson", "j_psi", "upsilon", "x3872", "z_c3900", "theta_plus"].includes(id)) {
+    if ([
+      "p", "n", "pi+", "pi0", "k+", "k0", "lambda0", "sigma+", "sigma0", "sigma-",
+      "xi0", "xi-", "omega-", "rho0", "phi_meson", "j_psi", "upsilon", "x3872",
+      "z_c3900", "theta_plus",
+    ].includes(id)) {
       return "hadron";
     }
     return "bsm";
   }
 
-  function referenceInteractionFilterToType(filter: typeof referenceInteractionFilter): Field["interactions"][number] {
+  function mergeReferenceParticleLibraries(primary: Field[], secondary: Field[]): Field[] {
+    const merged = new Map<string, Field>();
+
+    const push = (field: Field): void => {
+      const key = field.id.trim().toLowerCase();
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, {
+          ...field,
+          interactions: [...new Set(field.interactions)],
+        });
+        return;
+      }
+
+      const interactions = Array.from(new Set([...existing.interactions, ...field.interactions]));
+      const preferExistingMass = Number.isFinite(existing.mass) && Math.abs(existing.mass) > 0;
+      const preferExistingWidth = Number.isFinite(existing.width) && existing.width >= 0;
+
+      merged.set(key, {
+        ...field,
+        ...existing,
+        mass: preferExistingMass ? existing.mass : field.mass,
+        width: preferExistingWidth ? existing.width : field.width,
+        interactions,
+      });
+    };
+
+    primary.forEach(push);
+    secondary.forEach(push);
+
+    return [...merged.values()].sort((a, b) => Math.abs(a.mass) - Math.abs(b.mass) || a.name.localeCompare(b.name));
+  }
+
+  function referenceInteractionFilterToType(
+    filter: typeof referenceInteractionFilter,
+  ): Field["interactions"][number] {
     switch (filter) {
       case "strong":
         return "Strong";
@@ -210,23 +229,11 @@
     }
   }
 
-  function pushRecentElement(element: ElementData): void {
-    recentElements = [element, ...recentElements.filter((entry) => entry.Z !== element.Z)].slice(0, 8);
-  }
-
-  function pushRecentIsotope(item: {
-    Z: number; A: number; symbol: string; name: string;
-    isotopeData: IsotopeData; element: ElementData;
-  }): void {
-    recentIsotopes = [
-      item,
-      ...recentIsotopes.filter((entry) => !(entry.Z === item.Z && entry.A === item.A)),
-    ].slice(0, 8);
-  }
-
   function triggerFlash(id: string): void {
     flashId = id;
-    setTimeout(() => { if (flashId === id) flashId = null; }, 820);
+    setTimeout(() => {
+      if (flashId === id) flashId = null;
+    }, 820);
   }
 
   function clearTaxonomySelection(): void {
@@ -236,9 +243,9 @@
 
   function appendToReaction(target: "initial" | "final", id: string, label: string): void {
     if (target === "initial") {
-      initialIdsInput.update((prev) => [...prev, id]);
+      initialIdsInput.update((previous) => [...previous, id]);
     } else {
-      finalIdsInput.update((prev) => [...prev, id]);
+      finalIdsInput.update((previous) => [...previous, id]);
     }
     logAtlas(`${label} appended to Reaction Workspace ${target} state.`);
   }
@@ -249,6 +256,7 @@
       logAtlas(`Atlas picker selected ${field.id} for ${$atlasSelectionRequest.target} state.`);
       return;
     }
+
     selectedParticle = field;
     selectedReferenceComposite = null;
     broadcastSelection({ type: "PARTICLE_SELECTED", data: field });
@@ -283,6 +291,7 @@
     event: CustomEvent<{ particle: Field; target: "initial" | "final" }>,
   ): void {
     if ($atlasSelectionRequest.pending) return;
+
     const { particle, target } = event.detail;
     appendToReaction(target, particle.id, `${particle.symbol} (${particle.id})`);
     triggerFlash(particle.id);
@@ -294,68 +303,16 @@
     appendToReaction(event.detail.target, event.detail.id, event.detail.label);
   }
 
-  function handleSynthesisIsotopeSelect(
-    event: CustomEvent<{
-      Z: number;
-      A: number;
-      symbol: string;
-      name: string;
-      isotopeData: IsotopeData;
-      element: ElementData;
-    }>,
-  ): void {
-    const d = event.detail;
-    selectedElementForViewer = d.element;
-    selectedIsotopeForViewer = {
-      Z: d.Z,
-      A: d.A,
-      symbol: d.symbol,
-      name: d.name,
-      isotopeData: d.isotopeData,
-      element: d.element,
-    };
-    broadcastSelection({
-      type: "ISOTOPE_SELECTED",
-      data: {
-        Z: d.Z,
-        A: d.A,
-        symbol: d.symbol,
-        name: d.name,
-        isotope: d.isotopeData,
-      },
-    });
-    logAtlas(`Synthesis suggestion selected: ${d.symbol}-${d.A}`);
+  function openRecentElement(Z: number): void {
+    const element = $atlasPeriodicState.recentElements.find((entry) => entry.Z === Z) ?? null;
+    if (!element) return;
+    selectAtlasPeriodicElement(element);
   }
 
-  function handleSynthesisElementSelect(event: CustomEvent<ElementData>): void {
-    selectedElementForViewer = event.detail;
-    selectedIsotopeForViewer = null;
-    pushRecentElement(event.detail);
-    broadcastSelection({ type: "ELEMENT_SELECTED", data: event.detail });
-    logAtlas(`Synthesis element selected: ${event.detail.symbol}`);
-  }
-
-  function handleElementSelect(event: CustomEvent<ElementData>): void {
-    selectedElementForViewer = event.detail;
-    selectedIsotopeForViewer = null;
-    pushRecentElement(event.detail);
-    logAtlas(`Element details opened: ${event.detail.name} (Z=${event.detail.Z})`);
-  }
-
-  function openRecentElement(element: ElementData): void {
-    selectedElementForViewer = element;
-    selectedIsotopeForViewer = null;
-    pushRecentElement(element);
-  }
-
-  function openRecentIsotope(item: {
-    Z: number; A: number; symbol: string; name: string;
-    isotopeData: IsotopeData; element: ElementData;
-  }): void {
-    selectedElementForViewer = item.element;
-    selectedIsotopeForViewer = item;
-    pushRecentElement(item.element);
-    pushRecentIsotope(item);
+  function openRecentIsotope(Z: number, A: number): void {
+    const isotope = $atlasPeriodicState.recentIsotopes.find((entry) => entry.Z === Z && entry.A === A) ?? null;
+    if (!isotope) return;
+    setAtlasPeriodicSelectionFromIsotope(isotope);
   }
 </script>
 
@@ -381,199 +338,180 @@
   {#if mode === "periodic"}
     <div class="periodic-layout">
       <div class="periodic-table-col">
-        <PeriodicTable
-          on:elementSelect={handleElementSelect}
-          on:clearInfo={() => {
-            selectedElementForViewer = null;
-            selectedIsotopeForViewer = null;
-          }}
-        />
+        <PeriodicTable />
       </div>
 
       <aside class="viewer-col periodic-side-col">
         <section class="group periodic-console">
           <h4>Selection Console <span>({periodicSelectionLabel})</span></h4>
-          <div class="reference-summary">The periodic workspace keeps inspector and selection controls visible at all times.</div>
-          <div class="taxonomy-stats periodic-stats">
-            <article><span>Selected element</span><strong>{selectedElementForViewer?.symbol ?? "—"}</strong></article>
-            <article><span>Selected isotope</span><strong>{selectedIsotopeForViewer ? `${selectedIsotopeForViewer.symbol}-${selectedIsotopeForViewer.A}` : "—"}</strong></article>
-            <article><span>Recent elements</span><strong>{recentElements.length}</strong></article>
-            <article><span>Recent isotopes</span><strong>{recentIsotopes.length}</strong></article>
+          <div class="reference-summary">
+            The periodic workspace keeps the selection summary, isotope catalogue, and inspector visible in one scientific console.
           </div>
-          <div class="periodic-actions">
-            <button
-              on:click={() => {
-                selectedElementForViewer = null;
-                selectedIsotopeForViewer = null;
-              }}
-            >Clear active selection</button>
+          <div class="taxonomy-stats taxonomy-console-stats periodic-console-status">
+            <article><span>Selected type</span><strong>{periodicSelectedType}</strong></article>
+            <article><span>Current selection</span><strong>{periodicSelectionLabel}</strong></article>
+            <article><span>Selection mode</span><strong>inspect</strong></article>
           </div>
-        </section>
+          <div class="periodic-console-board">
+            <div class="periodic-console-pane">
+              <div class="taxonomy-stats periodic-stats">
+                <article><span>Selected element</span><strong>{$atlasPeriodicState.selectedElement?.symbol ?? "-"}</strong></article>
+                <article><span>Selected isotope</span><strong>{$atlasPeriodicState.selectedIsotope ? `${$atlasPeriodicState.selectedIsotope.symbol}-${$atlasPeriodicState.selectedIsotope.A}` : "-"}</strong></article>
+                <article><span>Recent elements</span><strong>{$atlasPeriodicState.recentElements.length}</strong></article>
+                <article><span>Recent isotopes</span><strong>{$atlasPeriodicState.recentIsotopes.length}</strong></article>
+              </div>
+            </div>
 
-        <section class="group periodic-console">
-          <h4>Quick Selection Windows</h4>
+            <div class="periodic-console-pane periodic-dossier">
+              <div class="bucket-title">Selected dossier</div>
+              <div class="periodic-dossier-grid">
+                <div><span>Natural isotope</span><strong>{periodicNaturalIsotopeLabel}</strong></div>
+                <div><span>Known isotopes</span><strong>{periodicSelectedStats?.count ?? 0}</strong></div>
+                <div><span>Stable isotopes</span><strong>{periodicSelectedStats?.stable ?? 0}</strong></div>
+                <div><span>Neutrons (selected)</span><strong>{periodicSelectedNeutrons ?? "-"}</strong></div>
+              </div>
+            </div>
+          </div>
+
           <div class="selection-grid">
             <div>
               <div class="bucket-title">Recent elements</div>
               <div class="chip-list">
-                {#if recentElements.length === 0}
+                {#if $atlasPeriodicState.recentElements.length === 0}
                   <span class="chip-muted">No element selected yet.</span>
                 {:else}
-                  {#each recentElements as element (`recent-el-${element.Z}`)}
-                    <button class="chip" on:click={() => openRecentElement(element)}>{element.symbol} · Z{element.Z}</button>
+                  {#each $atlasPeriodicState.recentElements as element (`recent-el-${element.Z}`)}
+                    <button class="chip" on:click={() => openRecentElement(element.Z)}>{element.symbol} · Z{element.Z}</button>
                   {/each}
                 {/if}
               </div>
             </div>
+
             <div>
               <div class="bucket-title">Recent isotopes</div>
               <div class="chip-list">
-                {#if recentIsotopes.length === 0}
+                {#if $atlasPeriodicState.recentIsotopes.length === 0}
                   <span class="chip-muted">No isotope selected yet.</span>
                 {:else}
-                  {#each recentIsotopes as isotope (`recent-iso-${isotope.Z}-${isotope.A}`)}
-                    <button class="chip" on:click={() => openRecentIsotope(isotope)}>{isotope.symbol}-{isotope.A}</button>
+                  {#each $atlasPeriodicState.recentIsotopes as isotope (`recent-iso-${isotope.Z}-${isotope.A}`)}
+                    <button class="chip" on:click={() => openRecentIsotope(isotope.Z, isotope.A)}>{isotope.symbol}-{isotope.A}</button>
                   {/each}
                 {/if}
               </div>
             </div>
           </div>
+
+
+          <div class="periodic-inline-catalogue">
+            <div class="bucket-title">Isotope catalogue</div>
+            {#if $atlasPeriodicState.selectedElement}
+              <IsotopeDrawer
+                element={$atlasPeriodicState.selectedElement}
+                isotopes={$atlasPeriodicSelectedIsotopes}
+                selectedIsotope={$atlasPeriodicState.selectedIsotope?.isotopeData ?? null}
+                compact={true}
+                showHeader={false}
+                on:isotopeSelect={(event: CustomEvent<{ isotope: import("$lib/core/physics/nuclearDataLoader").IsotopeData }>) => {
+                  if ($atlasPeriodicState.selectedElement) {
+                    selectAtlasPeriodicIsotope($atlasPeriodicState.selectedElement, event.detail.isotope);
+                  }
+                }}
+                on:close={clearAtlasPeriodicSelection}
+              />
+            {:else}
+              <div class="viewer-empty">Select an element in the table to open its isotope catalogue here.</div>
+            {/if}
+          </div>
         </section>
 
-        <section class="group periodic-console">
+        <section class="group periodic-console periodic-inspector-window">
           <h4>Inspector Window</h4>
-          {#if selectedElementForViewer || selectedIsotopeForViewer}
-          <ParticleViewer
-            element={selectedElementForViewer}
-            isotope={selectedIsotopeForViewer}
-            on:addToReaction={handleViewerAddToReaction}
-            on:elementSynthesisSelect={handleSynthesisElementSelect}
-            on:isotopeSynthesisSelect={handleSynthesisIsotopeSelect}
-          />
+          {#if $atlasPeriodicState.selectedElement || $atlasPeriodicState.selectedIsotope}
+            <PeriodicInspector
+              element={$atlasPeriodicState.selectedElement}
+              isotope={$atlasPeriodicState.selectedIsotope}
+              on:addToReaction={handleViewerAddToReaction}
+            />
           {:else}
-            <div class="viewer-empty">Select an element in the table to open isotopes, molecule isotope synthesis, and advanced inspector controls here.</div>
+            <div class="viewer-empty">Select an element in the table to inspect the atomic model and the full scientific dossier here.</div>
           {/if}
         </section>
       </aside>
     </div>
   {:else}
-    <div class="taxonomy-overview-toggles">
-      <button class="taxonomy-overview-toggle" aria-expanded={taxonomyNavigatorOpen} on:click={() => (taxonomyNavigatorOpen = !taxonomyNavigatorOpen)}>
-        <span>Taxonomy Navigator</span>
-        <strong>{taxonomyNavigatorOpen ? "Hide" : "Show"}</strong>
-      </button>
-      <button class="taxonomy-overview-toggle" aria-expanded={atlasControlsOpen} on:click={() => (atlasControlsOpen = !atlasControlsOpen)}>
-        <span>Atlas Controls</span>
-        <strong>{atlasControlsOpen ? "Hide" : "Show"}</strong>
-      </button>
-    </div>
-
-    {#if taxonomyNavigatorOpen || atlasControlsOpen}
-    <section class="taxonomy-overview">
-      {#if taxonomyNavigatorOpen}
-      <TaxonomyGuidePanel
-        total={taxonomy.total}
-        charged={taxonomyStats.charged}
-        neutral={taxonomyStats.neutral}
-        colored={taxonomyStats.colored}
-        unstable={taxonomyStats.unstable}
-        interactionRich={taxonomyStats.interactionRich}
-        referenceCount={visibleAtlasReferenceParticles.length}
-        activeFilter={taxonomyFilterLabel}
-        activeSort={taxonomySortLabel}
-      />
-      {/if}
-
-      {#if atlasControlsOpen}
-      <section class="taxonomy-controls-card">
-        <div class="taxonomy-controls-copy">
-          <h4>Atlas Controls</h4>
-          <p>
-            {#if $theoreticalModel}
-              {taxonomy.total} fields are available in the active model, alongside the extended reference catalogue.
-            {:else}
-              No active model is loaded, so the atlas is operating in curated reference mode for comparison and inspection.
-            {/if}
-          </p>
-        </div>
-
-        <div class="taxonomy-toolbar">
-      <input
-        class="taxonomy-search"
-        type="search"
-        bind:value={taxonomyQuery}
-        placeholder="Search particles by name, id, or symbol…"
-      />
-      <select class="taxonomy-select" bind:value={taxonomyFilter}>
-        <option value="all">All fields</option>
-        <option value="charged">Charged</option>
-        <option value="neutral">Neutral</option>
-        <option value="colored">Colored</option>
-        <option value="unstable">Unstable</option>
-      </select>
-      <select class="taxonomy-select" bind:value={taxonomySort}>
-        <option value="mass">Sort by mass</option>
-        <option value="alpha">Sort alphabetically</option>
-        <option value="charge">Sort by |charge|</option>
-      </select>
-      <select class="taxonomy-select" bind:value={referenceDomainFilter}>
-        <option value="all">Reference domain: all</option>
-        <option value="sm">Reference domain: SM</option>
-        <option value="hadron">Reference domain: hadronic</option>
-        <option value="bsm">Reference domain: BSM / exotic</option>
-      </select>
-      <select class="taxonomy-select" bind:value={referenceInteractionFilter}>
-        <option value="all">Reference interaction: any</option>
-        <option value="strong">Reference interaction: strong</option>
-        <option value="weak">Reference interaction: weak</option>
-        <option value="electromagnetic">Reference interaction: electromagnetic</option>
-        <option value="yukawa">Reference interaction: Yukawa</option>
-      </select>
-        </div>
-
-        <div class="taxonomy-stats">
-          <article><span>Reference particles</span><strong>{visibleAtlasReferenceParticles.length}</strong></article>
-          <article><span>Ref. SM / hadron / BSM</span><strong>{referenceStats.sm}/{referenceStats.hadron}/{referenceStats.bsm}</strong></article>
-          <article><span>Selection mode</span><strong>{$atlasSelectionRequest.pending ? "picker" : "inspect"}</strong></article>
-        </div>
-      </section>
-      {/if}
-    </section>
-    {/if}
-
-    <div class="taxonomy-layout">
-      <div class="taxonomy-grid-col">
-        {#if filteredTaxonomyGroups.length === 0}
-          <div class="viewer-empty">No particles match the current taxonomy filters.</div>
-        {/if}
-        {#each filteredTaxonomyGroups as group (group.key)}
-          {#if group.count > 0}
-            <section class="group">
-              <h4>{group.label} <span>({group.count})</span></h4>
-
-              {#each group.buckets as bucket (bucket.key)}
-                <div class="bucket">
-                  <div class="bucket-title">{bucket.label}</div>
-                  <div class="grid">
-                    {#each bucket.particles as particle (particle.id)}
-                      <ParticleCell
-                        particle={particle}
-                        selectable={$atlasSelectionRequest.pending}
-                        flashing={flashId === particle.id}
-                        on:quickAdd={handleQuickAdd}
-                        on:select={(e) => handleParticleSelect(e.detail)}
-                      />
-                    {/each}
-                  </div>
-                </div>
-              {/each}
-            </section>
+    <section class="taxonomy-control-band">
+      <div class="taxonomy-controls-copy">
+        <h4>Atlas Controls</h4>
+        <p>
+          {#if $theoreticalModel}
+            {taxonomy.total} fields are available in the active model, alongside the extended reference catalogue.
+          {:else}
+            No active model is loaded, so the atlas is operating in curated reference mode for comparison and inspection.
           {/if}
-        {/each}
+        </p>
+      </div>
 
+      <div class="taxonomy-control-grid">
+        <label class="taxonomy-field taxonomy-field--search">
+          <span>Search</span>
+          <input class="taxonomy-search" type="search" bind:value={taxonomyQuery} placeholder="Search particles by name, id, or symbol..." />
+        </label>
+        <label class="taxonomy-field">
+          <span>Field filter</span>
+          <select class="taxonomy-select" bind:value={taxonomyFilter}>
+            <option value="all">All fields</option>
+            <option value="charged">Charged</option>
+            <option value="neutral">Neutral</option>
+            <option value="colored">Colored</option>
+            <option value="unstable">Unstable</option>
+          </select>
+        </label>
+        <label class="taxonomy-field">
+          <span>Sort</span>
+          <select class="taxonomy-select" bind:value={taxonomySort}>
+            <option value="mass">Mass ladder</option>
+            <option value="alpha">Alphabetical</option>
+            <option value="charge">|Charge|</option>
+          </select>
+        </label>
+        <label class="taxonomy-field">
+          <span>Catalogue domain</span>
+          <select class="taxonomy-select" bind:value={referenceDomainFilter}>
+            <option value="all">All domains</option>
+            <option value="sm">Standard Model</option>
+            <option value="hadron">Hadronic</option>
+            <option value="bsm">BSM / exotic</option>
+          </select>
+        </label>
+        <label class="taxonomy-field">
+          <span>Catalogue interaction</span>
+          <select class="taxonomy-select" bind:value={referenceInteractionFilter}>
+            <option value="all">Any interaction</option>
+            <option value="strong">Strong</option>
+            <option value="weak">Weak</option>
+            <option value="electromagnetic">Electromagnetic</option>
+            <option value="yukawa">Yukawa</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="taxonomy-stats">
+        <article><span>Taxonomy scope</span><strong>{taxonomyFilterLabel}</strong></article>
+        <article><span>Sort mode</span><strong>{taxonomySortLabel}</strong></article>
+        <article><span>Reference particles</span><strong>{visibleAtlasReferenceParticles.length}</strong></article>
+        <article><span>Ref. SM / hadron / BSM</span><strong>{referenceStats.sm}/{referenceStats.hadron}/{referenceStats.bsm}</strong></article>
+        <article><span>Charged / neutral</span><strong>{taxonomyStats.charged}/{taxonomyStats.neutral}</strong></article>
+        <article><span>Colored / unstable</span><strong>{taxonomyStats.colored}/{taxonomyStats.unstable}</strong></article>
+        <article><span>Interaction rich</span><strong>{taxonomyStats.interactionRich}</strong></article>
+        <article><span>Selection mode</span><strong>{$atlasSelectionRequest.pending ? "picker" : "inspect"}</strong></article>
+      </div>
+    </section>
+
+    <div class="taxonomy-layout" class:taxonomy-layout--empty={filteredTaxonomyGroups.length === 0}>
+      <aside class="taxonomy-catalogue-col">
         <section class="group reference-group">
           <h4>Reference Particle Catalogue <span>({visibleAtlasReferenceParticles.length}/{atlasReferenceParticles.length})</span></h4>
-          <div class="reference-summary">Extended atlas particle set (SM + hadrons + BSM templates) for richer schematics and configurable Feynman inspection.</div>
+          <div class="reference-summary">Merged atlas + active-model particle libraries for broader comparison, inspection, and reaction-building access.</div>
           <div class="grid">
             {#each visibleAtlasReferenceParticles as particle (`ref-${particle.id}`)}
               <ParticleCell
@@ -581,7 +519,7 @@
                 selectable={false}
                 flashing={flashId === particle.id}
                 on:quickAdd={handleQuickAdd}
-                on:select={(e) => handleReferenceParticleSelect(e.detail)}
+                on:select={(event) => handleReferenceParticleSelect(event.detail)}
               />
             {/each}
           </div>
@@ -589,7 +527,7 @@
 
         <section class="group reference-group">
           <h4>Composite Reference Library <span>({referenceComposites.length})</span></h4>
-          <div class="reference-summary">Supplemental atlas states with built-in schematic valence content and decay presets.</div>
+          <div class="reference-summary">Supplemental atlas states with built-in valence content and decay presets.</div>
           <div class="reference-grid">
             {#each referenceComposites as entry (`${entry.label}-${entry.kind}`)}
               <button class="reference-card" on:click={() => handleReferenceCompositeSelect(entry)}>
@@ -600,15 +538,46 @@
             {/each}
           </div>
         </section>
-      </div>
+      </aside>
+
+      {#if filteredTaxonomyGroups.length > 0}
+        <div class="taxonomy-grid-col">
+          {#each filteredTaxonomyGroups as group (group.key)}
+            {#if group.count > 0}
+              <section class="group">
+                <h4>{group.label} <span>({group.count})</span></h4>
+                {#each group.buckets as bucket (bucket.key)}
+                  <div class="bucket">
+                    <div class="bucket-title">{bucket.label}</div>
+                    <div class="grid">
+                      {#each bucket.particles as particle (particle.id)}
+                        <ParticleCell
+                          particle={particle}
+                          selectable={$atlasSelectionRequest.pending}
+                          flashing={flashId === particle.id}
+                          on:quickAdd={handleQuickAdd}
+                          on:select={(event) => handleParticleSelect(event.detail)}
+                        />
+                      {/each}
+                    </div>
+                  </div>
+                {/each}
+              </section>
+            {/if}
+          {/each}
+        </div>
+      {/if}
 
       <aside class="viewer-col viewer-col--taxonomy">
         <section class="group taxonomy-console">
           <h4>Selection Console</h4>
-          <div class="reference-summary">The taxonomy workspace keeps the active selection, workspace actions, and scientific viewer together in one rail.</div>
+          <div class="reference-summary">The taxonomy workspace keeps the active selection and the scientific inspector visible in one rail.</div>
+          {#if filteredTaxonomyGroups.length === 0}
+            <div class="viewer-empty taxonomy-empty-hint">No particles match the current taxonomy filters.</div>
+          {/if}
           <div class="taxonomy-stats taxonomy-console-stats">
             <article><span>Selected type</span><strong>{selectedParticle ? "field" : selectedReferenceComposite ? "reference" : "none"}</strong></article>
-            <article><span>Current selection</span><strong>{selectedParticle?.symbol ?? selectedReferenceComposite?.label ?? "â€”"}</strong></article>
+            <article><span>Current selection</span><strong>{selectedParticle?.symbol ?? selectedReferenceComposite?.label ?? "-"}</strong></article>
             <article><span>Selection mode</span><strong>{$atlasSelectionRequest.pending ? "picker" : "inspect"}</strong></article>
           </div>
           <div class="periodic-actions">
@@ -619,19 +588,9 @@
         <section class="group taxonomy-console taxonomy-inspector-window">
           <h4>Inspector Window</h4>
           {#if selectedParticle}
-            <ParticleViewer
-              particle={selectedParticle}
-              on:addToReaction={handleViewerAddToReaction}
-              on:decaySelect={handleDecaySelect}
-              on:elementSynthesisSelect={handleSynthesisElementSelect}
-            />
+            <ParticleViewer particle={selectedParticle} on:addToReaction={handleViewerAddToReaction} on:decaySelect={handleDecaySelect} />
           {:else if selectedReferenceComposite}
-            <ParticleViewer
-              referenceComposite={selectedReferenceComposite}
-              on:addToReaction={handleViewerAddToReaction}
-              on:decaySelect={handleDecaySelect}
-              on:elementSynthesisSelect={handleSynthesisElementSelect}
-            />
+            <ParticleViewer referenceComposite={selectedReferenceComposite} on:addToReaction={handleViewerAddToReaction} on:decaySelect={handleDecaySelect} />
           {:else}
             <div class="viewer-empty">Select a particle card to inspect composition, decays, and reaction-workspace actions here.</div>
           {/if}
@@ -721,64 +680,61 @@
     cursor: pointer;
   }
 
-  .taxonomy-overview {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
-    gap: 0.45rem;
-  }
-
-  .taxonomy-overview-toggles {
-    display: flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
-  }
-
-  .taxonomy-overview-toggle {
-    border: 1px solid var(--border);
-    background: var(--bg-inset);
-    color: var(--fg-primary);
-    padding: 0.2rem 0.38rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    min-width: 14rem;
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    cursor: pointer;
-  }
-
-  .taxonomy-overview-toggle strong {
-    color: var(--fg-secondary);
-    font-weight: 500;
-  }
-
-  .taxonomy-controls-card {
+  .taxonomy-control-band {
     border: 1px solid var(--border);
     background: var(--bg-surface);
-    padding: 0.45rem;
+    padding: 0.38rem 0.42rem;
     display: flex;
     flex-direction: column;
-    gap: 0.42rem;
+    gap: 0.3rem;
   }
 
   .taxonomy-controls-copy h4 {
-    margin: 0 0 0.14rem;
+    margin: 0 0 0.12rem;
+  }
+
+  .taxonomy-controls-copy p,
+  .taxonomy-field span,
+  .taxonomy-search,
+  .taxonomy-select,
+  .taxonomy-stats span,
+  .taxonomy-stats strong,
+  .reference-summary,
+  .reference-card,
+  .chip,
+  .chip-muted,
+  .viewer-empty,
+  .bucket-title,
+  h4,
+  h4 span {
+    font-family: var(--font-mono);
   }
 
   .taxonomy-controls-copy p {
     margin: 0;
-    font-size: 0.66rem;
+    font-size: 0.61rem;
     color: var(--fg-secondary);
-    line-height: 1.45;
-    font-family: var(--font-mono);
+    line-height: 1.35;
   }
 
-  .taxonomy-toolbar,
-  .taxonomy-stats {
+  .taxonomy-control-grid {
+    display: grid;
+    grid-template-columns: minmax(13rem, 1.5fr) repeat(4, minmax(7.2rem, 0.68fr));
+    gap: 0.25rem;
+  }
+
+  .taxonomy-field {
     display: flex;
-    gap: 0.35rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 0.12rem;
+    min-width: 0;
+  }
+
+  .taxonomy-field span {
+    font-size: 0.5rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--fg-secondary);
   }
 
   .taxonomy-search,
@@ -786,117 +742,188 @@
     background: var(--bg-inset);
     border: 1px solid var(--border);
     color: var(--fg-primary);
-    font-size: 0.68rem;
-    padding: 0.22rem 0.35rem;
-    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    padding: 0.16rem 0.26rem;
   }
 
-  .taxonomy-search {
-    flex: 1;
-    min-width: 16rem;
+  .taxonomy-stats {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.24rem;
   }
 
   .taxonomy-stats article {
-    min-width: 8rem;
     border: 1px solid var(--border);
     background: var(--bg-inset);
-    padding: 0.35rem 0.4rem;
+    padding: 0.2rem 0.24rem;
     display: flex;
     flex-direction: column;
-    gap: 0.08rem;
-  }
-
-  .taxonomy-stats span,
-  .taxonomy-stats strong {
-    font-family: var(--font-mono);
+    gap: 0.06rem;
+    min-width: 0;
   }
 
   .taxonomy-stats span {
-    font-size: 0.58rem;
+    font-size: 0.49rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--fg-secondary);
   }
 
   .taxonomy-stats strong {
-    font-size: 0.86rem;
+    font-size: 0.62rem;
     color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .taxonomy-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    gap: 0.45rem;
+    grid-template-columns: minmax(22rem, 1.06fr) minmax(0, 1.16fr) minmax(18rem, 0.56fr);
+    gap: 0.38rem;
     flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
+  }
+
+  .taxonomy-layout.taxonomy-layout--empty {
+    grid-template-columns: minmax(24rem, 1.68fr) minmax(20rem, 0.86fr);
   }
 
   .periodic-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 40%);
-    gap: 0.45rem;
+    grid-template-columns: minmax(0, 1.68fr) minmax(20rem, 0.86fr);
+    gap: 0.35rem;
     flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
   }
 
-  .periodic-table-col {
+  .periodic-table-col,
+  .taxonomy-catalogue-col,
+  .taxonomy-grid-col,
+  .viewer-col--taxonomy,
+  .periodic-side-col {
     min-height: 0;
-    overflow: hidden;
+  }
+
+  .periodic-table-col,
+  .viewer-col--taxonomy,
+  .periodic-side-col {
     display: flex;
     flex-direction: column;
   }
 
-  .taxonomy-grid-col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    min-height: 0;
-    overflow-y: auto;
-  }
-
+  .taxonomy-catalogue-col,
+  .taxonomy-grid-col,
   .viewer-col {
-    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
-  .viewer-col--taxonomy {
+  .taxonomy-catalogue-col,
+  .taxonomy-grid-col,
+  .viewer-col--taxonomy,
+  .periodic-side-col {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.28rem;
   }
 
+  .taxonomy-catalogue-col > .group:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .periodic-console,
   .taxonomy-console {
     background: var(--bg-surface);
   }
 
-  .taxonomy-console-stats article {
-    min-width: 7.4rem;
+  .taxonomy-console-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .taxonomy-inspector-window {
+  .taxonomy-inspector-window,
+  .periodic-inspector-window {
     flex: 1 1 auto;
     min-height: 0;
   }
 
-  .periodic-side-col {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding-right: 0.1rem;
+  .periodic-inline-catalogue {
+    margin-top: 0.1rem;
+    border-top: 1px dashed rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.24);
+    padding-top: 0.22rem;
   }
 
-  .periodic-console {
-    background: var(--bg-surface);
+  .selection-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.22rem;
+    margin-bottom: 0.24rem;
+  }
+
+  .periodic-console-board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.24rem;
+    margin-bottom: 0.24rem;
+  }
+
+  .periodic-console-pane {
+    min-width: 0;
   }
 
   .periodic-stats {
-    margin-bottom: 0.3rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.2rem;
   }
 
-  .periodic-stats article {
-    min-width: 7.2rem;
+  .periodic-console-status {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 0.24rem;
+  }
+
+  .periodic-dossier {
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    padding: 0.24rem;
+  }
+
+  .periodic-dossier-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.2rem 0.34rem;
+  }
+
+  .periodic-dossier-grid div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+    min-width: 0;
+    border-bottom: 1px dashed rgba(var(--color-text-muted-rgb, 136, 136, 136), 0.2);
+    padding-bottom: 0.1rem;
+  }
+
+  .periodic-dossier-grid span,
+  .periodic-dossier-grid strong {
+    font-family: var(--font-mono);
+  }
+
+  .periodic-dossier-grid span {
+    font-size: 0.48rem;
+    color: var(--fg-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .periodic-dossier-grid strong {
+    font-size: 0.62rem;
+    color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .periodic-actions {
@@ -909,22 +936,16 @@
     border: 1px solid var(--border);
     background: var(--bg-inset);
     color: var(--fg-primary);
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    padding: 0.14rem 0.32rem;
+    font-size: 0.56rem;
+    padding: 0.12rem 0.26rem;
     cursor: pointer;
   }
 
   .chip:hover,
-  .periodic-actions button:hover {
+  .periodic-actions button:hover,
+  .reference-card:hover {
     border-color: var(--hl-symbol);
     background: rgba(var(--color-accent-rgb), 0.08);
-  }
-
-  .selection-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem;
   }
 
   .chip-list {
@@ -934,10 +955,9 @@
   }
 
   .chip-muted {
-    font-size: 0.64rem;
+    font-size: 0.58rem;
     color: var(--fg-secondary);
     font-style: italic;
-    font-family: var(--font-mono);
   }
 
   .viewer-empty {
@@ -949,9 +969,13 @@
     padding: 0.45rem;
   }
 
+  .taxonomy-empty-hint {
+    margin-bottom: 0.24rem;
+  }
+
   .group {
     border: 1px solid var(--border);
-    padding: 0.35rem;
+    padding: 0.3rem;
     background: var(--bg-surface);
   }
 
@@ -960,9 +984,10 @@
   }
 
   .reference-summary {
-    font-size: 0.66rem;
+    font-size: 0.58rem;
     color: var(--fg-secondary);
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.22rem;
+    line-height: 1.35;
   }
 
   .reference-grid {
@@ -981,13 +1006,7 @@
     background: var(--bg-inset);
     color: var(--fg-primary);
     padding: 0.35rem 0.4rem;
-    font-family: var(--font-mono);
     cursor: pointer;
-  }
-
-  .reference-card:hover {
-    border-color: var(--hl-symbol);
-    background: rgba(var(--color-accent-rgb), 0.08);
   }
 
   .reference-card strong {
@@ -1002,8 +1021,8 @@
   }
 
   h4 {
-    margin: 0 0 0.25rem;
-    font-size: 0.76rem;
+    margin: 0 0 0.18rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     color: var(--fg-primary);
   }
@@ -1014,7 +1033,7 @@
   }
 
   .bucket {
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.3rem;
   }
 
   .bucket:last-child {
@@ -1022,34 +1041,35 @@
   }
 
   .bucket-title {
-    font-size: 0.69rem;
+    font-size: 0.58rem;
     color: var(--fg-secondary);
-    margin-bottom: 0.2rem;
+    margin-bottom: 0.18rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 0.25rem;
+    gap: 0.2rem;
   }
 
-  @media (max-width: 1240px) {
-    .taxonomy-overview-toggles {
-      flex-direction: column;
+  @media (max-width: 1440px) {
+    .taxonomy-control-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .taxonomy-overview-toggle {
-      min-width: 0;
-    }
-
-    .taxonomy-overview {
-      grid-template-columns: 1fr;
+    .taxonomy-stats {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
     }
 
     .taxonomy-layout {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(18rem, 0.98fr) minmax(0, 1.06fr) minmax(17rem, 0.58fr);
     }
+  }
 
+  @media (max-width: 1240px) {
+    .taxonomy-layout,
     .periodic-layout {
       grid-template-columns: 1fr;
     }
@@ -1058,12 +1078,26 @@
       grid-template-columns: 1fr;
     }
 
-    .viewer-col {
-      max-height: 42%;
+    .periodic-console-board {
+      grid-template-columns: 1fr;
     }
 
-    .viewer-col--taxonomy {
-      overflow-y: auto;
+    .periodic-console-status {
+      grid-template-columns: 1fr;
+    }
+
+    .viewer-col {
+      max-height: 48%;
+    }
+  }
+
+  @media (max-width: 840px) {
+    .taxonomy-control-grid,
+    .taxonomy-stats,
+    .taxonomy-console-stats,
+    .periodic-dossier-grid,
+    .periodic-stats {
+      grid-template-columns: 1fr;
     }
   }
 </style>

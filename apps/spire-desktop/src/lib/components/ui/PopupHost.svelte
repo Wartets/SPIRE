@@ -1,6 +1,11 @@
 <script lang="ts">
   import { onDestroy, tick } from "svelte";
-  import { popupState, closePopup, resolvePopup } from "$lib/stores/popupStore";
+  import {
+    popupState,
+    closePopup,
+    resolvePopup,
+    setPopupInputValue,
+  } from "$lib/stores/popupStore";
 
   let panelEl: HTMLDivElement | null = null;
   let stopKey: (() => void) | null = null;
@@ -91,6 +96,29 @@
         <p class="popup-message">{$popupState.message}</p>
       {/if}
 
+      {#if $popupState.input}
+        <label class="popup-input-wrap">
+          <span class="popup-input-label">{$popupState.input.label}</span>
+          {#if $popupState.input.multiline}
+            <textarea
+              class="popup-input"
+              rows={$popupState.input.rows ?? 5}
+              placeholder={$popupState.input.placeholder ?? ""}
+              value={$popupState.inputValue}
+              on:input={(event) => setPopupInputValue((event.currentTarget as HTMLTextAreaElement).value)}
+            ></textarea>
+          {:else}
+            <input
+              class="popup-input"
+              type="text"
+              placeholder={$popupState.input.placeholder ?? ""}
+              value={$popupState.inputValue}
+              on:input={(event) => setPopupInputValue((event.currentTarget as HTMLInputElement).value)}
+            />
+          {/if}
+        </label>
+      {/if}
+
       {#if $popupState.meta.length > 0}
         <div class="popup-meta">
           {#each $popupState.meta as row}
@@ -179,6 +207,35 @@
     padding: 0.35rem 0.45rem;
     display: grid;
     gap: 0.2rem;
+  }
+
+  .popup-input-wrap {
+    display: grid;
+    gap: 0.18rem;
+  }
+
+  .popup-input-label {
+    color: var(--fg-secondary);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-family: var(--font-mono);
+  }
+
+  .popup-input {
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-primary);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.3rem 0.38rem;
+    resize: vertical;
+    min-height: 2rem;
+  }
+
+  .popup-input:focus {
+    outline: none;
+    border-color: var(--border-focus, var(--hl-symbol));
   }
 
   .meta-row {

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from "svelte";
   import type { Field } from "$lib/types/spire";
   import { tooltip } from "$lib/actions/tooltip";
+  import { formatQuantumFraction } from "$lib/core/physics/fractionFormat";
 
   export let particle: Field;
   export let selectable = false;
@@ -22,15 +23,18 @@
       `symbol: ${field.symbol}`,
       `mass: ${field.mass.toExponential(3)} GeV`,
       `width: ${field.width.toExponential(3)} GeV`,
-      `Q: ${qn.electric_charge}, 2s: ${qn.spin}, color: ${qn.color}`,
-      `T3: ${qn.weak_isospin}, Y: ${qn.hypercharge}, B: ${qn.baryon_number}`,
+      `Q: ${formatQuantumFraction(qn.electric_charge, { signed: true })}, 2s: ${qn.spin}, color: ${qn.color}`,
+      `T3: ${formatQuantumFraction(qn.weak_isospin, { signed: true })}, Y: ${formatQuantumFraction(qn.hypercharge, { signed: true })}, B: ${formatQuantumFraction(qn.baryon_number, { signed: true })}`,
       `Le/Lmu/Ltau: ${qn.lepton_numbers.electron}/${qn.lepton_numbers.muon}/${qn.lepton_numbers.tau}`,
     ].join("\n");
   }
 
   function chargeLabel(q: number): string {
-    if (Math.abs(q) < 1e-12) return "0";
-    return q > 0 ? `+${q}` : `${q}`;
+    return formatQuantumFraction(q, { signed: true });
+  }
+
+  function quantumLabel(value: number): string {
+    return formatQuantumFraction(value, { signed: true });
   }
 
   function familyLabel(field: Field): string {
@@ -88,7 +92,7 @@
     <span class="badge badge-spin">s={particle.quantum_numbers.spin / 2}</span>
     <span class="badge badge-family">{familyLabel(particle)}</span>
     <span class="badge badge-color">{colorLabel(particle)}</span>
-    <span class="badge badge-baryon">B={particle.quantum_numbers.baryon_number}</span>
+    <span class="badge badge-baryon">B={quantumLabel(particle.quantum_numbers.baryon_number)}</span>
   </div>
 </button>
 
