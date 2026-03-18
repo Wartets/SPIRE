@@ -613,15 +613,49 @@
     return false;
   }
 
+  function canScrollInDirectionX(el: HTMLElement, deltaX: number): boolean {
+    const tol = 1;
+    if (deltaX < 0) return el.scrollLeft > tol;
+    if (deltaX > 0) return el.scrollLeft + el.clientWidth < el.scrollWidth - tol;
+    return false;
+  }
+
+  function isScrollableElement(el: HTMLElement): boolean {
+    const style = getComputedStyle(el);
+    const overflowY = style.overflowY;
+    const overflowX = style.overflowX;
+    const scrollableY = (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay")
+      && el.scrollHeight > el.clientHeight + 1;
+    const scrollableX = (overflowX === "auto" || overflowX === "scroll" || overflowX === "overlay")
+      && el.scrollWidth > el.clientWidth + 1;
+    return scrollableX || scrollableY;
+  }
+
+  function canScrollableAncestorConsumeWheel(start: HTMLElement | null, boundary: HTMLElement, deltaX: number, deltaY: number): boolean {
+    let cur = start;
+    while (cur && cur !== boundary) {
+      if (cur.hasAttribute("data-wheel-capture")) {
+        return true;
+      }
+      if (isScrollableElement(cur)) {
+        const consumeY = Math.abs(deltaY) >= Math.abs(deltaX) && canScrollInDirection(cur, deltaY);
+        const consumeX = Math.abs(deltaX) > Math.abs(deltaY) && canScrollInDirectionX(cur, deltaX);
+        if (consumeY || consumeX) {
+          return true;
+        }
+      }
+      cur = cur.parentElement;
+    }
+    return false;
+  }
+
   function handleWheel(event: WheelEvent): void {
     const target = event.target as HTMLElement | null;
     const cwBody = target?.closest(".cw-body") as HTMLElement | null;
 
-    if (cwBody) {
-      if (target && elementCapturesWheel(target, cwBody)) return;
-      const hasOverflow = cwBody.scrollHeight > cwBody.clientHeight + 1 ||
-                          cwBody.scrollWidth  > cwBody.clientWidth  + 1;
-      if (hasOverflow && canScrollInDirection(cwBody, event.deltaY)) return;
+    if (target && cwBody && elementCapturesWheel(target, cwBody)) return;
+    if (target && canvasEl && canScrollableAncestorConsumeWheel(target, canvasEl, event.deltaX, event.deltaY)) {
+      return;
     }
 
     event.preventDefault();
