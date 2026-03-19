@@ -748,10 +748,15 @@ fn parse_couplings_dict(s: &str) -> HashMap<(usize, usize), String> {
 /// Each field holds the string content of the corresponding `.py` file.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct UfoFileContents {
+    /// Raw text of `particles.py`.
     pub particles_py: Option<String>,
+    /// Raw text of `vertices.py`.
     pub vertices_py: Option<String>,
+    /// Raw text of `couplings.py`.
     pub couplings_py: Option<String>,
+    /// Raw text of `parameters.py`.
     pub parameters_py: Option<String>,
+    /// Raw text of `lorentz.py`.
     pub lorentz_py: Option<String>,
 }
 

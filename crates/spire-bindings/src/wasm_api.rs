@@ -36,9 +36,13 @@ use spire_kernel::s_matrix::{self, CrossSectionResult, Reaction, ReconstructedFi
 /// Aggregate kinematics result for the WASM boundary.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KinematicsReport {
+    /// Threshold and fixed-target energy summary.
     pub threshold: ThresholdResult,
+    /// Whether the requested final state is kinematically allowed at $\sqrt{s}$.
     pub is_allowed: bool,
+    /// Phase-space metadata when the process is allowed.
     pub phase_space: Option<PhaseSpace>,
+    /// Optional Mandelstam boundary report for $2\to2$ processes.
     pub mandelstam_boundaries: Option<MandelstamBoundaries>,
 }
 

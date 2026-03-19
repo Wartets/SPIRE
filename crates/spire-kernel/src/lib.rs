@@ -51,6 +51,8 @@
 //!   BCL $z$-expansion form factor parameterization, hadronic decay
 //!   constants, Wilson coefficient registry, $B$-meson mixing ($\Delta M_q$),
 //!   and rare semi-leptonic decay rates ($B \to K \ell^+ \ell^-$).
+#![warn(missing_docs)]
+
 pub mod algebra;
 pub mod analysis;
 pub mod cosmology;

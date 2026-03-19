@@ -102,6 +102,7 @@ pub enum LagrangianExpr {
 
     /// A named coupling constant (e.g., `e`, `g_s`, `λ`, `y_e`).
     CouplingConstant {
+        /// Symbolic coupling name.
         name: String,
         /// Known numerical value (if available).
         value: Option<f64>,
@@ -126,30 +127,46 @@ pub enum LagrangianExpr {
     },
 
     /// A Dirac gamma matrix $\gamma^\mu$.
-    GammaMat { index: IndexSlot },
+    GammaMat {
+        /// Lorentz index carried by the gamma matrix.
+        index: IndexSlot,
+    },
 
     /// The chiral projection matrix $\gamma^5$.
     Gamma5,
 
     /// A partial derivative $\partial_\mu$ (position space) or
     /// $-i p_\mu$ (after Fourier transform to momentum space).
-    Derivative { index: IndexSlot },
+    Derivative {
+        /// Differentiation index.
+        index: IndexSlot,
+    },
 
     /// A covariant derivative $D_\mu = \partial_\mu - i g A_\mu^a T^a$.
     CovariantDerivative {
+        /// Derivative Lorentz index.
         index: IndexSlot,
         /// Optional: the gauge field associated with this covariant derivative.
         gauge_field_id: Option<String>,
     },
 
     /// The Minkowski metric tensor $g^{\mu\nu}$ or $g_{\mu\nu}$.
-    Metric { mu: IndexSlot, nu: IndexSlot },
+    Metric {
+        /// First Lorentz index.
+        mu: IndexSlot,
+        /// Second Lorentz index.
+        nu: IndexSlot,
+    },
 
     /// A field strength tensor $F_{\mu\nu}$ or $G_{\mu\nu}^a$.
     FieldStrength {
+        /// Gauge-field identifier associated with the tensor.
         field_id: String,
+        /// First Lorentz index.
         mu: IndexSlot,
+        /// Second Lorentz index.
         nu: IndexSlot,
+        /// Optional non-Abelian gauge index.
         gauge_index: Option<IndexSlot>,
     },
 
@@ -163,7 +180,9 @@ pub enum LagrangianExpr {
 
     /// A scaled sub-expression: `factor × inner`.
     Scaled {
+        /// Overall multiplicative coefficient.
         factor: f64,
+        /// Nested expression multiplied by `factor`.
         inner: Box<LagrangianExpr>,
     },
 }

@@ -405,6 +405,7 @@ pub struct FlavorObservableReport {
 
 /// Experimental values for comparison.
 pub const EXP_DELTA_M_D: f64 = 0.5065; // ps⁻¹
+/// Experimental world-average value of $\Delta M_s$ in ps$^{-1}$.
 pub const EXP_DELTA_M_S: f64 = 17.765; // ps⁻¹
 
 /// Compute the full flavor observable report.

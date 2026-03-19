@@ -524,8 +524,11 @@ pub struct Histogram2DData {
 /// Serializable 3D vector for frontend rendering.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vec3 {
+    /// Cartesian x-component.
     pub x: f64,
+    /// Cartesian y-component.
     pub y: f64,
+    /// Cartesian z-component.
     pub z: f64,
 }
 

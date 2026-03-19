@@ -10,6 +10,7 @@
 //!
 //! Both modules wrap the same kernel calls, ensuring a consistent API contract
 //! regardless of the host language.
+#![warn(missing_docs)]
 
 // PyO3 0.20 generates non-local impl blocks; allow until pyo3 0.22+ is adopted.
 #![allow(non_local_definitions)]

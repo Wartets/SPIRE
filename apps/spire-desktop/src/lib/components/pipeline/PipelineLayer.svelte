@@ -1,3 +1,15 @@
+<!--
+  @component
+  Pipeline graph interaction layer rendered in canvas world-space coordinates.
+
+  @param {HTMLDivElement} canvasElement Canvas host used for client↔world coordinate transforms.
+  @param {number} panX Current canvas X pan in screen pixels.
+  @param {number} panY Current canvas Y pan in screen pixels.
+  @param {number} zoom Current canvas zoom factor.
+
+  @reads pipelineGraph, pipelineNodes, pipelineEdges, pipelineRunState, pipelineNodeExecutionStates, pipelineEdgeExecutionStates, selectedPipelineNode, selectedPipelineEdgePayload
+  @writes pipelineGraph (via add/move/remove/select/update actions), pipeline runtime state (via run/clear actions), workspace input stores and observableScripts (through syncGraphToPhysicsStores)
+-->
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
   import { get } from "svelte/store";

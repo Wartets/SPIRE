@@ -161,15 +161,25 @@ pub enum ShellCondition {
 /// conservation-law validator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantumNumbers {
+    /// Electric charge in units of $e/3$.
     pub electric_charge: ElectricCharge,
+    /// Weak isospin third component stored as $2T_3$.
     pub weak_isospin: WeakIsospin,
+    /// Hypercharge stored as integer multiples of $1/3$.
     pub hypercharge: Hypercharge,
+    /// Baryon number stored as $3B$.
     pub baryon_number: BaryonNumber,
+    /// Family lepton numbers $(L_e, L_\mu, L_\tau)$.
     pub lepton_numbers: LeptonNumbers,
+    /// Spin stored as $2s$.
     pub spin: Spin,
+    /// Intrinsic parity eigenvalue.
     pub parity: Parity,
+    /// Charge-conjugation eigenvalue when defined.
     pub charge_conjugation: ChargeConjugation,
+    /// Colour representation under $SU(3)_C$.
     pub color: ColorRepresentation,
+    /// Position in the weak-isospin multiplet.
     pub weak_multiplet: WeakMultiplet,
     /// Generalized gauge-group representations (Phase 14).
     ///

@@ -1166,41 +1166,87 @@ pub enum CasExpr {
     ///
     /// Examples: coupling constant `g`, mass `m`, arbitrary symbol `x`.
     Symbol {
+        /// Symbol identifier, e.g. `g_s`, `m_e`, or `C_9`.
         name: String,
+        /// Optional Lorentz index list carried by the symbol.
         indices: Vec<LorentzIndex>,
     },
 
     /// The Minkowski metric tensor $g^{\mu\nu}$.
-    MetricTensor { mu: LorentzIndex, nu: LorentzIndex },
+    MetricTensor {
+        /// First Lorentz index $\mu$.
+        mu: LorentzIndex,
+        /// Second Lorentz index $\nu$.
+        nu: LorentzIndex,
+    },
 
     /// The totally antisymmetric Levi-Civita tensor $\epsilon^{\mu\nu\rho\sigma}$.
     ///
     /// Convention: $\epsilon^{0123} = +1$ (particle physics convention).
-    LeviCivita { indices: [LorentzIndex; 4] },
+    LeviCivita {
+        /// Ordered index tuple $(\mu,\nu,\rho,\sigma)$.
+        indices: [LorentzIndex; 4],
+    },
 
     /// A Dirac gamma matrix $\gamma^\mu$ ($\mu = 0,1,2,3$).
-    GammaMat { index: LorentzIndex },
+    GammaMat {
+        /// Lorentz index $\mu$ carried by $\gamma^\mu$.
+        index: LorentzIndex,
+    },
 
     /// The chiral matrix $\gamma^5 = i\gamma^0\gamma^1\gamma^2\gamma^3$.
     Gamma5,
 
     /// A four-momentum with a Lorentz index: $p^\mu$.
-    Momentum { label: String, index: LorentzIndex },
+    Momentum {
+        /// Momentum label (e.g., `p1`, `k`, `q`).
+        label: String,
+        /// Lorentz index position of the momentum component.
+        index: LorentzIndex,
+    },
 
     /// A slashed momentum $\not{p} = \gamma^\mu p_\mu$.
-    SlashedMomentum { label: String },
+    SlashedMomentum {
+        /// Momentum label being slashed.
+        label: String,
+    },
 
     /// The Minkowski dot product of two four-momenta: $p \cdot q = p^\mu q_\mu$.
-    DotProduct { left: String, right: String },
+    DotProduct {
+        /// Left momentum label.
+        left: String,
+        /// Right momentum label.
+        right: String,
+    },
 
     /// An external $u$-spinor: $u(p)$.
-    SpinorU { label: String, momentum: String },
+    SpinorU {
+        /// Spinor label used in derivation traces.
+        label: String,
+        /// Momentum label bound to the spinor.
+        momentum: String,
+    },
     /// An external $\bar{u}$-spinor: $\bar{u}(p)$.
-    SpinorUBar { label: String, momentum: String },
+    SpinorUBar {
+        /// Spinor label used in derivation traces.
+        label: String,
+        /// Momentum label bound to the spinor.
+        momentum: String,
+    },
     /// An external $v$-spinor: $v(p)$.
-    SpinorV { label: String, momentum: String },
+    SpinorV {
+        /// Spinor label used in derivation traces.
+        label: String,
+        /// Momentum label bound to the spinor.
+        momentum: String,
+    },
     /// An external $\bar{v}$-spinor: $\bar{v}(p)$.
-    SpinorVBar { label: String, momentum: String },
+    SpinorVBar {
+        /// Spinor label used in derivation traces.
+        label: String,
+        /// Momentum label bound to the spinor.
+        momentum: String,
+    },
 
     /// A generalized spacetime tensor (arbitrary spin).
     ///
@@ -1236,7 +1282,9 @@ pub enum CasExpr {
 
     /// A rational fraction: $\frac{\text{numerator}}{\text{denominator}}$.
     Fraction {
+        /// Numerator expression.
         numerator: Box<CasExpr>,
+        /// Denominator expression.
         denominator: Box<CasExpr>,
     },
 
@@ -1252,10 +1300,20 @@ pub enum CasExpr {
     AntiCommutator(Box<CasExpr>, Box<CasExpr>),
 
     /// A Kronecker delta: $\delta^\mu_\nu$.
-    KroneckerDelta { mu: LorentzIndex, nu: LorentzIndex },
+    KroneckerDelta {
+        /// Upper/left index $\mu$.
+        mu: LorentzIndex,
+        /// Lower/right index $\nu$.
+        nu: LorentzIndex,
+    },
 
     /// A propagator denominator: $\frac{1}{p^2 - m^2 + i\epsilon}$.
-    PropagatorDenom { momentum: String, mass_sq: f64 },
+    PropagatorDenom {
+        /// Momentum label flowing through the propagator.
+        momentum: String,
+        /// Mass-squared parameter $m^2$ in GeV$^2$.
+        mass_sq: f64,
+    },
 }
 
 // ---------------------------------------------------------------------------

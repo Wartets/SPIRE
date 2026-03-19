@@ -92,14 +92,32 @@ export const WIDGET_SUMMARY_COMPONENTS: Partial<Record<WidgetType, WidgetCompone
 
 const FALLBACK_LABEL = "Unknown Widget";
 
+/**
+ * Resolve a human-readable label for a widget type.
+ *
+ * @param widgetType - Runtime widget type key.
+ * @returns Display label, or a stable fallback for unknown types.
+ */
 export function getWidgetLabel(widgetType: string): string {
   return (WIDGET_LABELS as Record<string, string>)[widgetType] ?? FALLBACK_LABEL;
 }
 
+/**
+ * Resolve the full-detail Svelte component for a widget type.
+ *
+ * @param widgetType - Runtime widget type key.
+ * @returns Component constructor, or `null` when not registered.
+ */
 export function getWidgetComponent(widgetType: string): WidgetComponent | null {
   return (WIDGET_COMPONENTS as Record<string, WidgetComponent>)[widgetType] ?? null;
 }
 
+/**
+ * Resolve the optional summary component used for medium-zoom canvas LOD.
+ *
+ * @param widgetType - Runtime widget type key.
+ * @returns Summary component constructor, or `null` when unavailable.
+ */
 export function getWidgetSummaryComponent(widgetType: string): WidgetComponent | null {
   return (WIDGET_SUMMARY_COMPONENTS as Record<string, WidgetComponent | undefined>)[widgetType] ?? null;
 }

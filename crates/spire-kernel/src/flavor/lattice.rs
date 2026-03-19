@@ -197,8 +197,11 @@ pub struct BToKFormFactors {
 
 /// Meson masses used in the $B \to K$ system (GeV).
 pub const M_B: f64 = 5.27934;
+/// Charged-kaon mass $m_K$ in GeV.
 pub const M_K: f64 = 0.49368;
+/// Vector-pole mass $m_{B_s^*}$ entering $f_+$ and $f_T$ in GeV.
 pub const M_B_STAR_S: f64 = 5.3252;
+/// Scalar-pole mass $m_{B_{s0}^*}$ entering $f_0$ in GeV.
 pub const M_B_STAR_S0: f64 = 5.711;
 
 impl BToKFormFactors {

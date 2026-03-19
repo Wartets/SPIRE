@@ -31,6 +31,9 @@ nav:
     - Quick Start: guide/quickstart.md
     - Scripting Engine: guide/scripting.md
     - Interoperability & Export: guide/interop.md
+    - Widget Development: guide/widget-development.md
+  - Architecture Decisions:
+    - ADR Index: decisions/index.md
   - API Reference:
     - Overview: api/reference.md
 

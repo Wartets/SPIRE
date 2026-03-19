@@ -4,6 +4,11 @@
   Provides controls to specify initial / final particle states, CMS energy,
   and trigger reaction construction, diagram generation, and amplitude
   derivation through the Tauri IPC bridge.
+
+  @component
+  @reads theoreticalModel, activeReaction, reconstructedStates, generatedDiagrams, amplitudeResults, activeAmplitude, kinematics, isModelLoaded, observableScripts, cutScripts, initialIdsInput, finalIdsInput, cmsEnergyInput, maxLoopOrderInput, atlasSelectionResult, selectionBus
+  @writes activeReaction, reconstructedStates, generatedDiagrams, amplitudeResults, activeAmplitude, kinematics, observableScripts, cutScripts, initialIdsInput, finalIdsInput, cmsEnergyInput, maxLoopOrderInput, atlasSelectionResult, selectionBus
+  @fires none (state transitions are store-driven)
 -->
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";

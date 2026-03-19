@@ -13,6 +13,12 @@
 
   Events:
     close      - Dispatched when the close button is clicked
+
+  @component
+  @param {string} title Header title rendered in the widget chrome.
+  @param {string} widgetId Stable widget instance identifier emitted with `close`.
+  @param {boolean} closable Whether the close affordance is shown.
+  @fires close Emitted with `widgetId` when the close button is clicked.
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";

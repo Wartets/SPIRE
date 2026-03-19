@@ -8,6 +8,23 @@
 
   All cell events are forwarded to the parent NotebookWidget.
   Right-click shows a context-sensitive menu via the global store.
+
+  @component
+  @param {CellData} cell Cell payload being rendered.
+  @param {number} index Zero-based cell index in the notebook.
+  @param {number} totalCells Notebook cell count for boundary-aware actions.
+  @fires sourceChange Forwarded source edit event.
+  @fires execute Forwarded run-cell request.
+  @fires delete Forwarded delete-cell request.
+  @fires moveUp Forwarded move-up request.
+  @fires moveDown Forwarded move-down request.
+  @fires advanceFocus Forwarded focus-advance request.
+  @fires runAllAbove Forwarded run-all-above request.
+  @fires runAllBelow Forwarded run-all-below request.
+  @fires clearOutput Forwarded clear-output request.
+  @fires duplicate Forwarded duplicate-cell request.
+  @fires insertAbove Forwarded insert-above request.
+  @fires insertBelow Forwarded insert-below request.
 -->
 <script lang="ts">
   import { createEventDispatcher } from "svelte";

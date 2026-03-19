@@ -106,8 +106,11 @@ pub struct ShoweredParticle {
     pub status: i32,
     /// Four-momentum components: $(p_x, p_y, p_z, E)$ in GeV.
     pub px: f64,
+    /// Y-component of momentum in GeV.
     pub py: f64,
+    /// Z-component of momentum in GeV.
     pub pz: f64,
+    /// Energy component in GeV.
     pub energy: f64,
     /// Generated mass in GeV.
     pub mass: f64,

@@ -88,11 +88,24 @@ pub enum LieGroup {
     /// Abelian group $U(1)$. The label distinguishes multiple $U(1)$ factors
     /// (e.g., `"Y"` for hypercharge, `"EM"` for electromagnetism, `"'"` for
     /// dark photon).
-    U1 { label: String },
+    U1 {
+        /// Human-readable subgroup label.
+        label: String,
+    },
     /// Special unitary group $SU(N)$. `n` is the rank parameter.
-    SU { n: u8, label: String },
+    SU {
+        /// Group size parameter in $SU(N)$.
+        n: u8,
+        /// Human-readable subgroup label.
+        label: String,
+    },
     /// Special orthogonal group $SO(N)$. `n` is the dimension.
-    SO { n: u8, label: String },
+    SO {
+        /// Group size parameter in $SO(N)$.
+        n: u8,
+        /// Human-readable subgroup label.
+        label: String,
+    },
 }
 
 impl LieGroup {
