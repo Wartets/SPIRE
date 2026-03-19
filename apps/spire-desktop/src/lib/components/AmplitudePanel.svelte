@@ -12,8 +12,10 @@
     amplitudeResults,
     activeAmplitude,
     generatedDiagrams,
+    dimensionalCheck,
+    appendLog,
   } from "$lib/stores/physicsStore";
-  import { exportAmplitudeLatex, deriveAmplitudeSteps, generateMathematicalProof } from "$lib/api";
+  import { exportAmplitudeLatex, deriveAmplitudeSteps, generateMathematicalProof, simplifyExpression } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import type { AmplitudeResult, DerivationStep } from "$lib/types/spire";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
@@ -32,6 +34,35 @@
     selectedDiagramId = amp.diagram_id;
     derivationSteps = [];
     derivationOpen = false;
+    void refreshSimplifiedPreview();
+  }
+
+  async function refreshSimplifiedPreview(): Promise<void> {
+    if (!$generatedDiagrams || selectedDiagramId === null) {
+      simplifiedLatex = "";
+      simplificationRules = [];
+      simplificationError = "";
+      return;
+    }
+    const diagram = $generatedDiagrams.diagrams.find((d) => d.id === selectedDiagramId);
+    if (!diagram) return;
+    simplificationLoading = true;
+    simplificationError = "";
+    try {
+      const result = await simplifyExpression(diagram, { Fixed: 4 }, "Amplitude");
+      simplifiedLatex = result.simplified_latex;
+      simplificationRules = result.applied_rules;
+      dimensionalCheck.set(result.dimension_check);
+      if (!result.dimension_check.is_consistent) {
+        appendLog(`Amplitude dimension mismatch: expected ${result.dimension_check.expected_mass_dimension}, inferred ${result.dimension_check.inferred_mass_dimension}`, { category: "Amplitude", level: "warn" });
+      }
+    } catch (e: unknown) {
+      simplificationError = e instanceof Error ? e.message : String(e);
+      simplifiedLatex = "";
+      simplificationRules = [];
+    } finally {
+      simplificationLoading = false;
+    }
   }
 
   /** Copy the LaTeX representation of the selected amplitude to the clipboard. */
@@ -80,6 +111,10 @@
   let derivationError: string = "";
   let proofStatus: string = "";
   let latexViewMode: "rendered" | "raw" = "rendered";
+  let simplificationLoading = false;
+  let simplificationError = "";
+  let simplifiedLatex = "";
+  let simplificationRules: string[] = [];
 
   /** Generate and download a full LaTeX proof document for the selected diagram. */
   async function exportProof(): Promise<void> {
@@ -120,6 +155,7 @@
     "spire.amplitude.copy_latex",
     "spire.amplitude.show_derivation",
     "spire.amplitude.export_proof",
+    "spire.amplitude.simplify_expression",
   ];
 
   onMount(() => {
@@ -140,6 +176,12 @@
       title: "Export Proof (LaTeX)",
       category: "Amplitude",
       execute: () => exportProof(),
+    });
+    registerCommand({
+      id: "spire.amplitude.simplify_expression",
+      title: "Simplify Expression",
+      category: "Amplitude",
+      execute: () => refreshSimplifiedPreview(),
     });
   });
 
@@ -244,10 +286,31 @@
           >
             {derivationLoading ? "Deriving…" : "Show Derivation"}
           </button>
+          <button
+            class="latex-btn"
+            on:click={refreshSimplifiedPreview}
+            disabled={selectedDiagramId === null || simplificationLoading}
+            use:tooltip={{ text: "Run rewrite-rule simplification and dimensional verification" }}
+          >
+            {simplificationLoading ? "Simplifying…" : "Simplify"}
+          </button>
           {#if latexStatus}
             <span class="latex-status">{latexStatus}</span>
           {/if}
         </div>
+
+        {#if simplificationError}
+          <div class="derivation-error">{simplificationError}</div>
+        {/if}
+        {#if simplifiedLatex}
+          <div class="simplified-preview">
+            <div class="simplified-title">Simplified Preview</div>
+            <MathRenderer latex={simplifiedLatex} mode={latexViewMode} block={true} />
+            {#if simplificationRules.length > 0}
+              <div class="simplified-rules">Rules: {simplificationRules.join(" → ")}</div>
+            {/if}
+          </div>
+        {/if}
 
         <!-- CAS Derivation Steps -->
         {#if derivationError}
@@ -491,6 +554,24 @@
     font-size: 0.75rem;
     color: var(--hl-error);
     margin-top: 0.3rem;
+  }
+  .simplified-preview {
+    margin-top: 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--bg-primary);
+    padding: 0.4rem;
+  }
+  .simplified-title {
+    font-size: 0.74rem;
+    color: var(--hl-success);
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .simplified-rules {
+    margin-top: 0.25rem;
+    font-size: 0.68rem;
+    color: var(--fg-secondary);
   }
   .derivation-panel {
     margin-top: 0.4rem;

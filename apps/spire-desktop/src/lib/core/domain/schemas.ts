@@ -402,6 +402,30 @@ export const DerivationStepSchema = z.object({
   latex: z.string(),
 });
 
+export const ObservableKindSchema = z.enum([
+  "Amplitude",
+  "CrossSection",
+  "DecayWidth",
+  "BranchingRatio",
+]);
+
+export const DimensionalCheckReportSchema = z.object({
+  observable: ObservableKindSchema,
+  expected_mass_dimension: z.number(),
+  inferred_mass_dimension: z.number(),
+  is_consistent: z.boolean(),
+  message: z.string(),
+  diagnostics: z.array(z.string()),
+});
+
+export const SimplifiedExpressionResultSchema = z.object({
+  original_latex: z.string(),
+  simplified_expression: CasExprSchema,
+  simplified_latex: z.string(),
+  applied_rules: z.array(z.string()),
+  dimension_check: DimensionalCheckReportSchema,
+});
+
 // ===========================================================================
 // Kinematics
 // ===========================================================================

@@ -38,6 +38,9 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  ObservableKind,
+  SimplifiedExpressionResult,
+  DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
 } from "./types/spire";
@@ -218,6 +221,28 @@ export async function deriveAmplitudeSteps(
   dim?: SpacetimeDimension,
 ): Promise<DerivationStep[]> {
   return getBackend().deriveAmplitudeSteps(diagram, dim);
+}
+
+/**
+ * Run modular rule-based simplification on a diagram CAS expression.
+ */
+export async function simplifyExpression(
+  diagram: FeynmanDiagram,
+  dim?: SpacetimeDimension,
+  observable?: ObservableKind,
+): Promise<SimplifiedExpressionResult> {
+  return getBackend().simplifyExpression(diagram, dim, observable);
+}
+
+/**
+ * Verify mass-dimension consistency of a diagram-derived expression.
+ */
+export async function verifyDimensions(
+  diagram: FeynmanDiagram,
+  dim?: SpacetimeDimension,
+  observable?: ObservableKind,
+): Promise<DimensionalCheckReport> {
+  return getBackend().verifyDimensions(diagram, dim, observable);
 }
 
 /**

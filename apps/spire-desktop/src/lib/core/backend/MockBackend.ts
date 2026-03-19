@@ -39,6 +39,9 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  ObservableKind,
+  SimplifiedExpressionResult,
+  DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
   EventDisplayData,
@@ -962,6 +965,46 @@ export class MockBackend implements SpireBackend {
         latex: "\\mathcal{M} = 0",
       },
     ];
+  }
+
+  async simplifyExpression(
+    _diagram: FeynmanDiagram,
+    _dim?: SpacetimeDimension,
+    observable: ObservableKind = "Amplitude",
+  ): Promise<SimplifiedExpressionResult> {
+    await simulateLatency();
+    const dimension_check: DimensionalCheckReport = {
+      observable,
+      expected_mass_dimension: observable === "CrossSection" ? -2 : (observable === "DecayWidth" ? 1 : 0),
+      inferred_mass_dimension: 0,
+      is_consistent: observable !== "CrossSection" && observable !== "DecayWidth",
+      message: "Mock dimensional check (simulation mode).",
+      diagnostics: ["No real CAS backend connected; result is illustrative."],
+    };
+    return {
+      original_latex: "\\mathcal{M}_{\\text{mock}}",
+      simplified_expression: { Scalar: 0 },
+      simplified_latex: "0",
+      applied_rules: ["CollectTermsRule"],
+      dimension_check,
+    };
+  }
+
+  async verifyDimensions(
+    _diagram: FeynmanDiagram,
+    _dim?: SpacetimeDimension,
+    observable: ObservableKind = "Amplitude",
+  ): Promise<DimensionalCheckReport> {
+    await simulateLatency();
+    const expected = observable === "CrossSection" ? -2 : (observable === "DecayWidth" ? 1 : 0);
+    return {
+      observable,
+      expected_mass_dimension: expected,
+      inferred_mass_dimension: 0,
+      is_consistent: expected === 0,
+      message: "Mock dimensional check (simulation mode).",
+      diagnostics: ["No real CAS backend connected; result is illustrative."],
+    };
   }
 
   async exportAmplitudeLatex(_diagram: FeynmanDiagram): Promise<string> {

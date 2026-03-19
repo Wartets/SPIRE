@@ -22,6 +22,7 @@ import type {
   WorkspaceState,
   ObservableScript,
   CutScript,
+  DimensionalCheckReport,
 } from "../types/spire";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,9 @@ export const amplitudeResults = writable<AmplitudeResult[]>([]);
 
 /** The symbolic expression for the currently selected amplitude. */
 export const activeAmplitude = writable<string>("");
+
+/** Latest dimensional consistency report from symbolic refinement. */
+export const dimensionalCheck = writable<DimensionalCheckReport | null>(null);
 
 // ---------------------------------------------------------------------------
 // Kinematics

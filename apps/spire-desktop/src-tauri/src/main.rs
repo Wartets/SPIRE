@@ -284,6 +284,34 @@ fn derive_amplitude_steps(
     algebra::derive_amplitude_steps(&diagram, dim).map_err(|e| e.to_string())
 }
 
+/// Simplify a diagram amplitude with the rule-based CAS engine.
+///
+/// Returns the original and simplified LaTeX, applied rewrite rules, and
+/// dimensional consistency diagnostics.
+#[tauri::command]
+fn simplify_expression(
+    diagram: FeynmanGraph,
+    dim: Option<algebra::SpacetimeDimension>,
+    observable: Option<algebra::ObservableKind>,
+) -> Result<algebra::SimplifiedExpressionResult, String> {
+    let dim = dim.unwrap_or(algebra::SpacetimeDimension::Fixed(4));
+    let observable = observable.unwrap_or(algebra::ObservableKind::Amplitude);
+    algebra::simplify_expression(&diagram, dim, observable).map_err(|e| e.to_string())
+}
+
+/// Verify mass-dimension consistency for a diagram-derived CAS expression.
+#[tauri::command]
+fn verify_dimensions(
+    diagram: FeynmanGraph,
+    dim: Option<algebra::SpacetimeDimension>,
+    observable: Option<algebra::ObservableKind>,
+) -> Result<algebra::DimensionalCheckReport, String> {
+    let dim = dim.unwrap_or(algebra::SpacetimeDimension::Fixed(4));
+    let observable = observable.unwrap_or(algebra::ObservableKind::Amplitude);
+    let result = algebra::simplify_expression(&diagram, dim, observable).map_err(|e| e.to_string())?;
+    Ok(result.dimension_check)
+}
+
 // ---------------------------------------------------------------------------
 // Analysis Pipeline Command
 // ---------------------------------------------------------------------------
@@ -1338,6 +1366,8 @@ fn main() {
             export_amplitude_latex,
             export_model_ufo,
             derive_amplitude_steps,
+            simplify_expression,
+            verify_dimensions,
             run_analysis,
             validate_script,
             test_observable_script,

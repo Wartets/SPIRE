@@ -24,6 +24,7 @@
     isModelLoaded,
     observableScripts,
     cutScripts,
+    dimensionalCheck,
   } from "$lib/stores/physicsStore";
   import {
     constructReaction,
@@ -31,6 +32,7 @@
     generateDiagrams,
     deriveAmplitude,
     computeKinematics,
+    verifyDimensions,
     validateScript,
     testObservableScript,
     testCutScript,
@@ -238,6 +240,7 @@
     amplitudeResults.set([]);
     activeAmplitude.set("");
     kinematics.set(null);
+    dimensionalCheck.set(null);
 
     try {
       const reaction = await constructReaction(
@@ -289,6 +292,7 @@
     amplitudeResults.set([]);
     activeAmplitude.set("");
     kinematics.set(null);
+    dimensionalCheck.set(null);
 
     try {
       const topoSet = await generateDiagrams(
@@ -329,6 +333,21 @@
         activeAmplitude.set(results[0].expression);
         extractAndPushProfile(results[0], `Amplitude: ${results.length} expression(s)`);
       }
+
+      if ($generatedDiagrams.diagrams.length > 0) {
+        try {
+          const report = await verifyDimensions($generatedDiagrams.diagrams[0], { Fixed: 4 }, "Amplitude");
+          dimensionalCheck.set(report);
+          if (!report.is_consistent) {
+            logReaction(`Dimensional mismatch: expected ${report.expected_mass_dimension}, inferred ${report.inferred_mass_dimension}`);
+          }
+        } catch (dimErr: unknown) {
+          const msg = dimErr instanceof Error ? dimErr.message : String(dimErr);
+          dimensionalCheck.set(null);
+          logReaction(`Dimension verification failed: ${msg}`);
+        }
+      }
+
       addCitations(["peskin1995", "kennedy1982"]);
       logReaction(`Derived ${results.length} amplitude expression(s)`);
     } catch (e: unknown) {
@@ -674,6 +693,16 @@
       </div>
     {/if}
 
+    {#if $dimensionalCheck && !$dimensionalCheck.is_consistent}
+      <div class="dimension-banner" role="status" aria-live="polite">
+        <strong>Dimensional inconsistency:</strong>
+        expected {$dimensionalCheck.expected_mass_dimension}, inferred {$dimensionalCheck.inferred_mass_dimension}.
+        {#if $dimensionalCheck.diagnostics.length > 0}
+          <div class="dimension-detail">{$dimensionalCheck.diagnostics[0]}</div>
+        {/if}
+      </div>
+    {/if}
+
     <!-- Reconstructed States -->
     {#if $reconstructedStates.length > 0}
       <div class="recon-list">
@@ -994,6 +1023,18 @@
     background: var(--bg-inset);
     color: var(--hl-error);
     border: 1px solid var(--hl-error);
+  }
+  .dimension-banner {
+    background: color-mix(in srgb, var(--hl-error) 10%, var(--bg-inset));
+    border: 1px solid var(--hl-error);
+    color: var(--hl-error);
+    font-size: 0.76rem;
+    padding: 0.35rem 0.5rem;
+  }
+  .dimension-detail {
+    margin-top: 0.2rem;
+    color: var(--fg-secondary);
+    font-size: 0.72rem;
   }
   .recon-list {
     max-height: 10rem;

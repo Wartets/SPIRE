@@ -1580,10 +1580,10 @@ impl CasExpr {
                 }
             }
             CasExpr::MetricTensor { mu, nu } => {
-                format!("g^{{{},{}}}", mu.to_latex(), nu.to_latex())
+                format!("g^{{{}{}}}", mu.to_latex(), nu.to_latex())
             }
             CasExpr::KroneckerDelta { mu, nu } => {
-                format!("\\delta^{{{}}}_{{{}}} ", mu.to_latex(), nu.to_latex())
+                format!("\\delta^{{{}}}_{{{}}}", mu.to_latex(), nu.to_latex())
             }
             CasExpr::LeviCivita { indices } => {
                 let idx_str: Vec<String> = indices.iter().map(|i| i.to_latex()).collect();
@@ -1600,7 +1600,7 @@ impl CasExpr {
                 format!("\\not{{{}}}", latex_momentum(label))
             }
             CasExpr::DotProduct { left, right } => {
-                format!("{} \\cdot {}", latex_momentum(left), latex_momentum(right))
+                format!("{} \\!\\cdot\\! {}", latex_momentum(left), latex_momentum(right))
             }
             CasExpr::SpinorU { momentum, .. } => format!("u({})", latex_momentum(momentum)),
             CasExpr::SpinorUBar { momentum, .. } => {
@@ -1700,9 +1700,12 @@ impl CasExpr {
             CasExpr::PropagatorDenom { momentum, mass_sq } => {
                 let p = latex_momentum(momentum);
                 if *mass_sq > 1e-15 {
-                    format!("\\frac{{1}}{{{p}^2 - {:.4} + i\\epsilon}}", mass_sq)
+                    format!(
+                        "\\frac{{1}}{{\\left({p}^2 - {:.4} + i\\epsilon\\right)}}",
+                        mass_sq
+                    )
                 } else {
-                    format!("\\frac{{1}}{{{p}^2 + i\\epsilon}}")
+                    format!("\\frac{{1}}{{\\left({p}^2 + i\\epsilon\\right)}}")
                 }
             }
         }
@@ -2029,6 +2032,372 @@ pub struct DerivationStep {
     pub latex: String,
 }
 
+/// Observable class whose canonical mass-dimension should be enforced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ObservableKind {
+    /// Invariant matrix element $\mathcal{M}$.
+    Amplitude,
+    /// Differential or total cross-section $\sigma$.
+    CrossSection,
+    /// Decay width $\Gamma$.
+    DecayWidth,
+    /// Branching ratio (dimensionless).
+    BranchingRatio,
+}
+
+impl ObservableKind {
+    /// Expected mass-dimension in natural units ($\hbar=c=1$).
+    pub fn expected_mass_dimension(self) -> f64 {
+        match self {
+            ObservableKind::Amplitude => 0.0,
+            ObservableKind::CrossSection => -2.0,
+            ObservableKind::DecayWidth => 1.0,
+            ObservableKind::BranchingRatio => 0.0,
+        }
+    }
+}
+
+/// Result payload for mass-dimension verification.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DimensionalCheckReport {
+    /// Which observable class was checked.
+    pub observable: ObservableKind,
+    /// Canonical expected mass-dimension.
+    pub expected_mass_dimension: f64,
+    /// Inferred mass-dimension from CAS structure.
+    pub inferred_mass_dimension: f64,
+    /// Whether inferred and expected dimensions agree.
+    pub is_consistent: bool,
+    /// Human-readable summary.
+    pub message: String,
+    /// Detailed diagnostics (mismatch causes, heterogeneous sums, etc.).
+    pub diagnostics: Vec<String>,
+}
+
+/// Simplification output consumed by IPC/frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimplifiedExpressionResult {
+    /// LaTeX for input expression before simplification.
+    pub original_latex: String,
+    /// Final CAS after simplification rules.
+    pub simplified_expression: CasExpr,
+    /// LaTeX for simplified expression.
+    pub simplified_latex: String,
+    /// Ordered names of rewrite rules that changed the expression.
+    pub applied_rules: Vec<String>,
+    /// Dimensional consistency report for the final expression.
+    pub dimension_check: DimensionalCheckReport,
+}
+
+/// Rule contract for modular, composable expression rewrites.
+trait RewriteRule {
+    fn name(&self) -> &'static str;
+    fn apply(&self, expr: &CasExpr, ctx: &RewriteContext) -> Option<CasExpr>;
+}
+
+/// Context shared across rewrite rules.
+struct RewriteContext<'a> {
+    dim: SpacetimeDimension,
+    on_shell_masses: &'a HashMap<String, f64>,
+}
+
+struct CollectTermsRule;
+struct FactorizeRule;
+struct DiracEomRule;
+struct GordonIdentityRule;
+
+impl RewriteRule for CollectTermsRule {
+    fn name(&self) -> &'static str {
+        "CollectTermsRule"
+    }
+
+    fn apply(&self, expr: &CasExpr, ctx: &RewriteContext) -> Option<CasExpr> {
+        let next = expr.simplify(ctx.dim);
+        if next != *expr {
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
+impl RewriteRule for DiracEomRule {
+    fn name(&self) -> &'static str {
+        "DiracEomRule"
+    }
+
+    fn apply(&self, expr: &CasExpr, _ctx: &RewriteContext) -> Option<CasExpr> {
+        let next = expr.apply_dirac_equation(_ctx.on_shell_masses);
+        if next != *expr {
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
+impl RewriteRule for FactorizeRule {
+    fn name(&self) -> &'static str {
+        "FactorizeRule"
+    }
+
+    fn apply(&self, expr: &CasExpr, _ctx: &RewriteContext) -> Option<CasExpr> {
+        let CasExpr::Add(terms) = expr else {
+            return None;
+        };
+        if terms.len() != 2 {
+            return None;
+        }
+        let (CasExpr::Mul(left), CasExpr::Mul(right)) = (&terms[0], &terms[1]) else {
+            return None;
+        };
+        if left.is_empty() || right.is_empty() {
+            return None;
+        }
+
+        if left[0] == right[0] {
+            let common = left[0].clone();
+            let rest_left = if left.len() == 1 {
+                CasExpr::Scalar(1.0)
+            } else {
+                CasExpr::Mul(left[1..].to_vec())
+            };
+            let rest_right = if right.len() == 1 {
+                CasExpr::Scalar(1.0)
+            } else {
+                CasExpr::Mul(right[1..].to_vec())
+            };
+            return Some(CasExpr::Mul(vec![
+                common,
+                CasExpr::Add(vec![rest_left, rest_right]),
+            ]));
+        }
+
+        None
+    }
+}
+
+impl RewriteRule for GordonIdentityRule {
+    fn name(&self) -> &'static str {
+        "GordonIdentityRule"
+    }
+
+    fn apply(&self, expr: &CasExpr, _ctx: &RewriteContext) -> Option<CasExpr> {
+        let CasExpr::Mul(factors) = expr else {
+            return None;
+        };
+        if factors.len() < 3 {
+            return None;
+        }
+
+        let mut out = factors.clone();
+        let mut changed = false;
+
+        for i in 0..(factors.len() - 2) {
+            let (CasExpr::SpinorUBar { momentum: p_out, .. }, CasExpr::GammaMat { index }, CasExpr::SpinorU { momentum: p_in, .. }) = (&factors[i], &factors[i + 1], &factors[i + 2]) else {
+                continue;
+            };
+            out.splice(
+                i..=i + 2,
+                [CasExpr::Symbol {
+                    name: format!("J_{}_{}", p_out, p_in),
+                    indices: vec![index.clone()],
+                }],
+            );
+            changed = true;
+            break;
+        }
+
+        if changed {
+            Some(CasExpr::Mul(out))
+        } else {
+            None
+        }
+    }
+}
+
+fn rewrite_rules() -> Vec<Box<dyn RewriteRule>> {
+    vec![
+        Box::new(CollectTermsRule),
+        Box::new(FactorizeRule),
+        Box::new(DiracEomRule),
+        Box::new(GordonIdentityRule),
+    ]
+}
+
+fn apply_rewrite_engine(
+    expr: &CasExpr,
+    dim: SpacetimeDimension,
+    on_shell_masses: &HashMap<String, f64>,
+) -> (CasExpr, Vec<String>) {
+    let ctx = RewriteContext {
+        dim,
+        on_shell_masses,
+    };
+
+    let mut current = expr.clone();
+    let mut applied = Vec::new();
+
+    for _ in 0..8 {
+        let mut changed_in_round = false;
+        for rule in rewrite_rules() {
+            if let Some(next) = rule.apply(&current, &ctx) {
+                if next != current {
+                    applied.push(rule.name().to_string());
+                    current = next;
+                    changed_in_round = true;
+                }
+            }
+        }
+        if !changed_in_round {
+            break;
+        }
+    }
+
+    (current.simplify(dim), applied)
+}
+
+fn infer_symbol_mass_dimension(name: &str) -> f64 {
+    let n = name.trim().to_lowercase();
+    if ["e", "g", "g_s", "alpha", "alphas", "lambda", "y", "i", "pi"]
+        .iter()
+        .any(|k| *k == n)
+    {
+        return 0.0;
+    }
+    if n.starts_with('m') || n.contains("mass") {
+        return 1.0;
+    }
+    if n.contains("width") || n.starts_with("gamma_") {
+        return 1.0;
+    }
+    if n.starts_with('p') || n.starts_with('k') || n.starts_with('q') {
+        return 1.0;
+    }
+    0.0
+}
+
+fn infer_mass_dimension(expr: &CasExpr) -> Result<f64, String> {
+    match expr {
+        CasExpr::Scalar(_) | CasExpr::ImaginaryUnit => Ok(0.0),
+        CasExpr::Symbol { name, .. } => Ok(infer_symbol_mass_dimension(name)),
+        CasExpr::MetricTensor { .. }
+        | CasExpr::LeviCivita { .. }
+        | CasExpr::KroneckerDelta { .. }
+        | CasExpr::GammaMat { .. }
+        | CasExpr::Gamma5
+        | CasExpr::Tensor { .. } => Ok(0.0),
+        CasExpr::Momentum { .. } | CasExpr::SlashedMomentum { .. } => Ok(1.0),
+        CasExpr::DotProduct { .. } => Ok(2.0),
+        CasExpr::SpinorU { .. }
+        | CasExpr::SpinorUBar { .. }
+        | CasExpr::SpinorV { .. }
+        | CasExpr::SpinorVBar { .. } => Ok(1.5),
+        CasExpr::PropagatorDenom { .. } => Ok(-2.0),
+        CasExpr::Neg(inner) | CasExpr::Trace(inner) => infer_mass_dimension(inner),
+        CasExpr::Fraction {
+            numerator,
+            denominator,
+        } => Ok(infer_mass_dimension(numerator)? - infer_mass_dimension(denominator)?),
+        CasExpr::Mul(factors) => factors
+            .iter()
+            .try_fold(0.0, |acc, f| Ok(acc + infer_mass_dimension(f)?)),
+        CasExpr::Add(terms) => {
+            if terms.is_empty() {
+                return Ok(0.0);
+            }
+            let first = infer_mass_dimension(&terms[0])?;
+            for (idx, t) in terms.iter().enumerate().skip(1) {
+                let d = infer_mass_dimension(t)?;
+                if (d - first).abs() > 1e-9 {
+                    return Err(format!(
+                        "Additive term dimension mismatch at term {idx}: expected {first}, found {d}"
+                    ));
+                }
+            }
+            Ok(first)
+        }
+        CasExpr::Commutator(a, b) | CasExpr::AntiCommutator(a, b) => {
+            let da = infer_mass_dimension(a)?;
+            let db = infer_mass_dimension(b)?;
+            if (da - db).abs() > 1e-9 {
+                return Err(format!(
+                    "Commutator operands have mismatched dimensions: left={da}, right={db}"
+                ));
+            }
+            Ok(da + db)
+        }
+    }
+}
+
+/// Verify CAS mass-dimension consistency for a target observable class.
+pub fn verify_dimensions(expr: &CasExpr, observable: ObservableKind) -> DimensionalCheckReport {
+    let expected = observable.expected_mass_dimension();
+    let mut diagnostics = Vec::new();
+
+    let inferred = match infer_mass_dimension(expr) {
+        Ok(d) => d,
+        Err(err) => {
+            diagnostics.push(err.clone());
+            return DimensionalCheckReport {
+                observable,
+                expected_mass_dimension: expected,
+                inferred_mass_dimension: f64::NAN,
+                is_consistent: false,
+                message: "Could not infer expression mass-dimension consistently.".into(),
+                diagnostics,
+            };
+        }
+    };
+
+    let consistent = (inferred - expected).abs() < 1e-9;
+    if !consistent {
+        diagnostics.push(format!(
+            "Expected dimension {expected}, inferred {inferred}."
+        ));
+    }
+
+    DimensionalCheckReport {
+        observable,
+        expected_mass_dimension: expected,
+        inferred_mass_dimension: inferred,
+        is_consistent: consistent,
+        message: if consistent {
+            "Mass-dimension check passed.".into()
+        } else {
+            "Mass-dimension mismatch detected.".into()
+        },
+        diagnostics,
+    }
+}
+
+/// Build, simplify and dimension-check a diagram expression in one pass.
+pub fn simplify_expression(
+    diagram: &FeynmanGraph,
+    dim: SpacetimeDimension,
+    observable: ObservableKind,
+) -> SpireResult<SimplifiedExpressionResult> {
+    let initial_expr = feynman_graph_to_cas(diagram)?;
+
+    let mut on_shell_masses = HashMap::new();
+    for (_src, _tgt, edge) in &diagram.edges {
+        if edge.is_external {
+            on_shell_masses.insert(edge.momentum_label.clone(), edge.field.mass);
+        }
+    }
+
+    let (simplified, applied_rules) = apply_rewrite_engine(&initial_expr, dim, &on_shell_masses);
+    let dimension_check = verify_dimensions(&simplified, observable);
+
+    Ok(SimplifiedExpressionResult {
+        original_latex: initial_expr.to_cas_latex(),
+        simplified_latex: simplified.to_cas_latex(),
+        simplified_expression: simplified,
+        applied_rules,
+        dimension_check,
+    })
+}
+
 /// Perform a step-by-step amplitude derivation from a `FeynmanGraph`.
 ///
 /// Returns an ordered list of `DerivationStep`s showing each transformation
@@ -2055,47 +2424,29 @@ pub fn derive_amplitude_steps(
         expression: initial_expr.clone(),
     });
 
-    // Step 2: Simplify (flatten, combine scalars)
-    let simplified = initial_expr.simplify(dim);
-    if simplified != initial_expr {
-        steps.push(DerivationStep {
-            label: "Algebraic Simplification".into(),
-            description: "Flatten products, combine scalar constants, eliminate identities.".into(),
-            latex: simplified.to_cas_latex(),
-            expression: simplified.clone(),
-        });
-    }
-
-    // Step 3: Apply metric contractions
-    let contracted = simplified.simplify(dim);
-    if contracted != simplified {
-        steps.push(DerivationStep {
-            label: "Metric Contraction".into(),
-            description: "Contract repeated Lorentz indices with the metric tensor g^{μν}.".into(),
-            latex: contracted.to_cas_latex(),
-            expression: contracted.clone(),
-        });
-    }
-
-    // Step 4: Apply Dirac equation for on-shell external legs
+    // Step 2: Rule-based simplification engine
     let mut on_shell_masses = std::collections::HashMap::new();
     for (_src, _tgt, edge) in &diagram.edges {
         if edge.is_external {
             on_shell_masses.insert(edge.momentum_label.clone(), edge.field.mass);
         }
     }
-    let dirac_simplified = contracted.apply_dirac_equation(&on_shell_masses);
-    if dirac_simplified != contracted {
+    let (simplified, applied_rules) = apply_rewrite_engine(&initial_expr, dim, &on_shell_masses);
+    if simplified != initial_expr || !applied_rules.is_empty() {
         steps.push(DerivationStep {
-            label: "Dirac Equation".into(),
-            description: "Apply the on-shell Dirac equation: \\not{p} u(p) = m u(p).".into(),
-            latex: dirac_simplified.to_cas_latex(),
-            expression: dirac_simplified.clone(),
+            label: "Rule-based Simplification".into(),
+            description: if applied_rules.is_empty() {
+                "No rewrite rule changed the expression; structure preserved.".into()
+            } else {
+                format!("Applied rewrite rules: {}.", applied_rules.join(" → "))
+            },
+            latex: simplified.to_cas_latex(),
+            expression: simplified.clone(),
         });
     }
 
-    // Step 5: Final simplification pass
-    let final_expr = dirac_simplified.simplify(dim);
+    // Step 3: Final simplification pass
+    let final_expr = simplified.simplify(dim);
     steps.push(DerivationStep {
         label: "Final Expression".into(),
         description: "The fully simplified invariant amplitude.".into(),

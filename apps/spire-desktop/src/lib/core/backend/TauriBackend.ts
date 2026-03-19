@@ -27,6 +27,9 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  ObservableKind,
+  SimplifiedExpressionResult,
+  DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
   EventDisplayData,
@@ -70,6 +73,8 @@ import {
   KinematicsReportSchema,
   DalitzPlotDataSchema,
   DerivationStepSchema,
+  SimplifiedExpressionResultSchema,
+  DimensionalCheckReportSchema,
   UfoExportResultSchema,
   AnalysisResultSchema,
   EventDisplayDataSchema,
@@ -227,6 +232,38 @@ export class TauriBackend implements SpireBackend {
       {
         diagram,
         dim: dim ?? { Fixed: 4 },
+      },
+    );
+  }
+
+  async simplifyExpression(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<SimplifiedExpressionResult> {
+    return tauriInvokeValidated(
+      "simplify_expression",
+      SimplifiedExpressionResultSchema,
+      {
+        diagram,
+        dim: dim ?? { Fixed: 4 },
+        observable: observable ?? "Amplitude",
+      },
+    );
+  }
+
+  async verifyDimensions(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<DimensionalCheckReport> {
+    return tauriInvokeValidated(
+      "verify_dimensions",
+      DimensionalCheckReportSchema,
+      {
+        diagram,
+        dim: dim ?? { Fixed: 4 },
+        observable: observable ?? "Amplitude",
       },
     );
   }

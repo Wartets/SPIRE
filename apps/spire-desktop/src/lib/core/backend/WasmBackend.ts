@@ -33,6 +33,9 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  ObservableKind,
+  SimplifiedExpressionResult,
+  DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
   EventDisplayData,
@@ -225,6 +228,30 @@ export class WasmBackend implements SpireBackend {
     return this.call<DerivationStep[]>("derive_amplitude_steps", {
       diagram,
       dim: dim ?? { Fixed: 4 },
+    });
+  }
+
+  async simplifyExpression(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<SimplifiedExpressionResult> {
+    return this.call<SimplifiedExpressionResult>("simplify_expression", {
+      diagram,
+      dim: dim ?? { Fixed: 4 },
+      observable: observable ?? "Amplitude",
+    });
+  }
+
+  async verifyDimensions(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<DimensionalCheckReport> {
+    return this.call<DimensionalCheckReport>("verify_dimensions", {
+      diagram,
+      dim: dim ?? { Fixed: 4 },
+      observable: observable ?? "Amplitude",
     });
   }
 

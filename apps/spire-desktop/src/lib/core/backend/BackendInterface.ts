@@ -30,6 +30,9 @@ import type {
   UfoExportResult,
   DerivationStep,
   SpacetimeDimension,
+  ObservableKind,
+  SimplifiedExpressionResult,
+  DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
   EventDisplayData,
@@ -174,6 +177,18 @@ export interface SpireBackend {
     diagram: FeynmanDiagram,
     dim?: SpacetimeDimension,
   ): Promise<DerivationStep[]>;
+
+  simplifyExpression(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<SimplifiedExpressionResult>;
+
+  verifyDimensions(
+    diagram: FeynmanDiagram,
+    dim?: SpacetimeDimension,
+    observable?: ObservableKind,
+  ): Promise<DimensionalCheckReport>;
 
   exportAmplitudeLatex(diagram: FeynmanDiagram): Promise<string>;
 

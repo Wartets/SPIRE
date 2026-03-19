@@ -501,6 +501,32 @@ export interface DerivationStep {
   latex: string;
 }
 
+/** Observable class used for mass-dimension verification. */
+export type ObservableKind =
+  | "Amplitude"
+  | "CrossSection"
+  | "DecayWidth"
+  | "BranchingRatio";
+
+/** Dimension-consistency report for a symbolic expression. */
+export interface DimensionalCheckReport {
+  observable: ObservableKind;
+  expected_mass_dimension: number;
+  inferred_mass_dimension: number;
+  is_consistent: boolean;
+  message: string;
+  diagnostics: string[];
+}
+
+/** Output payload from the rule-based simplification engine. */
+export interface SimplifiedExpressionResult {
+  original_latex: string;
+  simplified_expression: CasExpr;
+  simplified_latex: string;
+  applied_rules: string[];
+  dimension_check: DimensionalCheckReport;
+}
+
 /** Propagator form classification */
 export type PropagatorForm =
   | "Scalar"
