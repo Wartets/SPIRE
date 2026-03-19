@@ -4,6 +4,7 @@ import {
   runAnalysis,
   testObservableScript,
 } from "$lib/api";
+import { executeWorkerTask } from "$lib/workers/executeWorkerTask";
 import type {
   AnalysisResult,
   Reaction,
@@ -129,6 +130,31 @@ function parseCsvList(value: unknown): string[] {
 function toNumber(value: unknown, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function toLheEventFragments(payload: unknown): string[] {
+  if (!payload) return [];
+
+  if (isRecord(payload) && Array.isArray(payload.lhe_events)) {
+    return payload.lhe_events.map((entry) => String(entry));
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.map((entry) => String(entry));
+  }
+
+  if (isRecord(payload) && Array.isArray(payload.events)) {
+    return payload.events.map((entry) => {
+      if (typeof entry === "string") return entry;
+      return `<event>${JSON.stringify(entry)}</event>`;
+    });
+  }
+
+  return [String(payload)];
 }
 
 function reactionCmsEnergy(reaction: Reaction): number {
@@ -706,6 +732,22 @@ export class PipelineExecutor {
         const format = String(node.parameters.format ?? "json");
         const fileName = String(node.parameters.fileName ?? "spire_output");
 
+        let content: string | null = null;
+        if (format === "lhe") {
+          const fragments = toLheEventFragments(events);
+          content = await executeWorkerTask<
+            { header?: string; init?: string; events: string[]; footer?: string },
+            string
+          >(
+            new URL("$lib/workers/lhe_formatter.worker.ts", import.meta.url),
+            {
+              header: '<LesHouchesEvents version="3.0">',
+              events: fragments,
+              footer: "</LesHouchesEvents>",
+            },
+          );
+        }
+
         return {
           outputs: {
             payload_out: {
@@ -714,6 +756,7 @@ export class PipelineExecutor {
               includeProvenance: Boolean(node.parameters.includeProvenance ?? true),
               histogram,
               events,
+              content,
             },
           },
         };

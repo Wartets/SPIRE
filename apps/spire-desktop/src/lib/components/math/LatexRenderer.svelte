@@ -1,15 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import "katex/dist/katex.min.css";
+  import { executeWorkerTask } from "$lib/workers/executeWorkerTask";
 
-  type KatexModule = {
-    renderToString: (expression: string, options?: Record<string, unknown>) => string;
+  type KatexRenderResponse = {
+    ok: boolean;
+    html?: string;
+    error?: string;
   };
 
   const RENDER_CACHE_LIMIT = 600;
   const renderCache = new Map<string, string>();
-  let sharedKatexModule: KatexModule | null = null;
-  let sharedKatexPromise: Promise<KatexModule | null> | null = null;
   let sharedKatexLoadError = "";
 
   function cacheGet(key: string): string | undefined {
@@ -43,24 +44,6 @@
   let renderError = "";
   let lastRenderKey = "";
   let renderVersion = 0;
-
-  async function ensureKatex(): Promise<KatexModule | null> {
-    if (sharedKatexModule) return sharedKatexModule;
-    if (sharedKatexPromise) return sharedKatexPromise;
-
-    try {
-      sharedKatexPromise = (async () => {
-        const mod = (await import("katex")) as unknown as KatexModule;
-        sharedKatexModule = mod;
-        return mod;
-      })();
-      return await sharedKatexPromise;
-    } catch (error: unknown) {
-      sharedKatexLoadError = error instanceof Error ? error.message : String(error);
-      sharedKatexPromise = null;
-      return null;
-    }
-  }
 
   function setFallbackText(): void {
     if (!host) return;
@@ -105,27 +88,26 @@
 
     const requestVersion = ++renderVersion;
 
-    const katex = await ensureKatex();
-    if (requestVersion !== renderVersion || target !== host) return;
-
-    if (!katex) {
-      renderError = sharedKatexLoadError || "KaTeX is not available";
-      setFallbackText();
-      return;
-    }
-
     try {
-      const html = katex.renderToString(trimmed, {
-        displayMode: block,
-        throwOnError: false,
-        strict: "warn",
-        trust: false,
-        output: "html",
-      });
+      const response = await executeWorkerTask<
+        { expression: string; displayMode: boolean },
+        KatexRenderResponse
+      >(
+        new URL("$lib/workers/katexRender.worker.ts", import.meta.url),
+        { expression: trimmed, displayMode: block },
+      );
+
       if (requestVersion !== renderVersion || target !== host) return;
 
-      cacheSet(cacheKey, html);
-      target.innerHTML = html;
+      if (!response.ok || !response.html) {
+        sharedKatexLoadError = response.error || "KaTeX is not available";
+        renderError = sharedKatexLoadError;
+        setFallbackText();
+        return;
+      }
+
+      cacheSet(cacheKey, response.html);
+      target.innerHTML = response.html;
       fallbackActive = false;
       hasRenderedMath = true;
       renderError = "";

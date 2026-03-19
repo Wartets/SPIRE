@@ -20,7 +20,7 @@
   The canvas state (items, viewport) lives in `layoutStore`.
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
+  import { onMount, onDestroy, tick } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import { longpress } from "$lib/actions/longpress";
   import { get } from "svelte/store";
@@ -35,10 +35,10 @@
   import type { WidgetType } from "$lib/stores/notebookStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
   import {
-    getWidgetComponent,
     getWidgetSummaryComponent,
     getWidgetLabel,
   } from "$lib/core/registry/WidgetRegistry";
+  import AsyncWidgetRenderer from "$lib/components/layout/AsyncWidgetRenderer.svelte";
   import UnknownWidget from "$lib/components/shared/UnknownWidget.svelte";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { WIDGET_DEFINITIONS } from "$lib/stores/notebookStore";
@@ -55,6 +55,7 @@
     type PipelineDataType,
   } from "$lib/core/services/PipelineService";
   import { createZIndexManager } from "$lib/core/layout/zIndexManager";
+  import { getWidgetUiSnapshot, setWidgetUiSnapshot } from "$lib/stores/workspaceStore";
 
   // ── LOD & Frustum Culling ──
   import CanvasLODWrapper from "$lib/components/canvas/CanvasLODWrapper.svelte";
@@ -62,12 +63,16 @@
     type LodLevel,
     zoomToLod,
     zoomToUiPercent,
-    computeViewport,
-    expandByOverscan,
-    isVisible,
     WIDGET_ICONS,
     WIDGET_ACCENT,
   } from "$lib/components/canvas/lodUtils";
+  import {
+    DEFAULT_OVERSCAN_RATIO,
+    expandBounds,
+    getVisibleBounds,
+    isWidgetVisible,
+  } from "$lib/core/layout/virtualization";
+  import { rafThrottle } from "$lib/utils/throttle";
 
   let canvasEl: HTMLDivElement;
   let minimapEl: HTMLDivElement;
@@ -182,7 +187,10 @@
   let screenW = 900;
   let screenH = 600;
 
-  $: worldViewport = expandByOverscan(computeViewport(panX, panY, zoom, screenW, screenH));
+  $: worldViewport = expandBounds(
+    getVisibleBounds(panX, panY, zoom, screenW, screenH),
+    Math.max(1.5, DEFAULT_OVERSCAN_RATIO),
+  );
   $: lodLevel = zoomToLod(zoom);
 
   function itemIsVisible(item: CanvasItem): boolean {
@@ -192,8 +200,142 @@
     // Always show selected or actively transformed widgets.
     if (item.id === selectedWidgetId) return true;
     if ((gesture.mode === "drag" || gesture.mode === "resize") && gesture.wid === item.id) return true;
-    return isVisible(item.x, item.y, item.width, item.height, worldViewport);
+    return isWidgetVisible(
+      { x: item.x, y: item.y, width: item.width, height: item.height },
+      worldViewport,
+    );
   }
+
+  function elementPathKey(el: Element, root: Element): string {
+    if (el.id) return `#${el.id}`;
+    const segments: string[] = [];
+    let current: Element | null = el;
+    while (current && current !== root) {
+      const tag = current.tagName.toLowerCase();
+      const sameTagSiblings = current.parentElement
+        ? Array.from(current.parentElement.children).filter((sib) => sib.tagName === current!.tagName)
+        : [current];
+      const idx = Math.max(1, sameTagSiblings.indexOf(current) + 1);
+      segments.unshift(`${tag}:nth-of-type(${idx})`);
+      current = current.parentElement;
+    }
+    return segments.join(" > ");
+  }
+
+  function captureWidgetDomState(widgetId: string): void {
+    const container = canvasEl?.querySelector(`[data-canvas-item-id="${widgetId}"]`) as HTMLElement | null;
+    if (!container) return;
+
+    const form: Record<string, unknown> = {};
+    for (const node of container.querySelectorAll("input, textarea, select")) {
+      if (!(node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement)) continue;
+      const key = node.id
+        ? `#${node.id}`
+        : node.getAttribute("name")
+          ? `${node.tagName.toLowerCase()}[name="${node.getAttribute("name")}"]`
+          : elementPathKey(node, container);
+
+      if (node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio")) {
+        form[key] = node.checked;
+      } else {
+        form[key] = node.value;
+      }
+    }
+
+    const scroll: Record<string, { top: number; left: number }> = {};
+    const scrollables = [container, ...Array.from(container.querySelectorAll<HTMLElement>("*"))].filter((el) =>
+      el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1,
+    );
+    for (const el of scrollables) {
+      const key = el === container ? "__root__" : elementPathKey(el, container);
+      scroll[key] = { top: el.scrollTop, left: el.scrollLeft };
+    }
+
+    setWidgetUiSnapshot(`canvas-ui:${widgetId}`, {
+      dom: {
+        form,
+        scroll,
+      },
+    });
+  }
+
+  async function restoreWidgetDomState(widgetId: string): Promise<void> {
+    await tick();
+    const snapshot = getWidgetUiSnapshot<{ dom?: { form?: Record<string, unknown>; scroll?: Record<string, { top: number; left: number }> } }>(`canvas-ui:${widgetId}`);
+    const dom = snapshot?.dom;
+    if (!dom) return;
+
+    const container = canvasEl?.querySelector(`[data-canvas-item-id="${widgetId}"]`) as HTMLElement | null;
+    if (!container) return;
+
+    for (const [selector, value] of Object.entries(dom.form ?? {})) {
+      const element = container.querySelector(selector);
+      if (element instanceof HTMLInputElement) {
+        if (element.type === "checkbox" || element.type === "radio") {
+          element.checked = Boolean(value);
+        } else {
+          element.value = String(value ?? "");
+        }
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+      } else if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+        element.value = String(value ?? "");
+        element.dispatchEvent(new Event("input", { bubbles: true }));
+        element.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+
+    for (const [selector, pos] of Object.entries(dom.scroll ?? {})) {
+      const target = selector === "__root__"
+        ? container
+        : (container.querySelector(selector) as HTMLElement | null);
+      if (!target) continue;
+      target.scrollTop = pos.top;
+      target.scrollLeft = pos.left;
+    }
+  }
+
+  let visibilityById: Record<string, boolean> = {};
+
+  $: {
+    const nextVisibility: Record<string, boolean> = {};
+    for (const item of $canvasItems) {
+      const visible = itemIsVisible(item);
+      nextVisibility[item.id] = visible;
+      const previous = visibilityById[item.id];
+      if (previous === true && visible === false) {
+        captureWidgetDomState(item.id);
+      }
+      if (previous === false && visible === true) {
+        void restoreWidgetDomState(item.id);
+      }
+    }
+    visibilityById = nextVisibility;
+  }
+
+  const applyPanMove = rafThrottle((nextPanX: number, nextPanY: number): void => {
+    const clamped = clampPanToBounds(nextPanX, nextPanY, zoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+  });
+
+  const applyWheelZoom = rafThrottle((deltaY: number, clientX: number, clientY: number): void => {
+    if (!canvasEl) return;
+    const factor  = deltaY > 0 ? 0.92 : 1.08;
+    const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
+    const rect    = canvasEl.getBoundingClientRect();
+    const mouseX  = clientX - rect.left;
+    const mouseY  = clientY - rect.top;
+    const worldX  = (mouseX - panX) / zoom;
+    const worldY  = (mouseY - panY) / zoom;
+    const unclampedPanX = mouseX - worldX * newZoom;
+    const unclampedPanY = mouseY - worldY * newZoom;
+    const clamped = clampPanToBounds(unclampedPanX, unclampedPanY, newZoom);
+    panX = clamped.panX;
+    panY = clamped.panY;
+    zoom = newZoom;
+    commitViewport();
+  });
 
   // ── Edge Snapping ──
   const SNAP_THRESHOLD  = 8;
@@ -490,9 +632,7 @@
     if (gesture.mode === "pan") {
       const nextPanX = gesture.spx + (event.clientX - gesture.sx);
       const nextPanY = gesture.spy + (event.clientY - gesture.sy);
-      const clamped = clampPanToBounds(nextPanX, nextPanY, zoom);
-      panX = clamped.panX;
-      panY = clamped.panY;
+      applyPanMove(nextPanX, nextPanY);
       return;
     }
 
@@ -659,20 +799,7 @@
     }
 
     event.preventDefault();
-    const factor  = event.deltaY > 0 ? 0.92 : 1.08;
-    const newZoom = Math.max(0.15, Math.min(5, zoom * factor));
-    const rect    = canvasEl.getBoundingClientRect();
-    const mouseX  = event.clientX - rect.left;
-    const mouseY  = event.clientY - rect.top;
-    const worldX  = (mouseX - panX) / zoom;
-    const worldY  = (mouseY - panY) / zoom;
-    const unclampedPanX = mouseX - worldX * newZoom;
-    const unclampedPanY = mouseY - worldY * newZoom;
-    const clamped = clampPanToBounds(unclampedPanX, unclampedPanY, newZoom);
-    panX = clamped.panX;
-    panY = clamped.panY;
-    zoom = newZoom;
-    commitViewport();
+    applyWheelZoom(event.deltaY, event.clientX, event.clientY);
   }
 
   // ── Widget Selection & Z-Index ──
@@ -773,7 +900,7 @@
     }
 
     const items = get(canvasItems);
-    const viewport = computeViewport(panX, panY, zoom, screenW, screenH);
+    const viewport = getVisibleBounds(panX, panY, zoom, screenW, screenH);
     const viewportWidth = viewport.right - viewport.left;
     const viewportHeight = viewport.bottom - viewport.top;
     if (items.length === 0) {
@@ -806,7 +933,7 @@
     return ((worldY - miniDomain.minY) / miniSpanY) * MINIMAP_HEIGHT;
   }
 
-  $: viewportWorld = computeViewport(panX, panY, zoom, screenW, screenH);
+  $: viewportWorld = getVisibleBounds(panX, panY, zoom, screenW, screenH);
   $: minimapViewportRect = {
     left: miniX(viewportWorld.left),
     top: miniY(viewportWorld.top),
@@ -1138,6 +1265,10 @@
   // ── Lifecycle ──
 
   let resizeObserver: ResizeObserver | null = null;
+  const applyCanvasSize = rafThrottle((width: number, height: number): void => {
+    screenW = width;
+    screenH = height;
+  });
 
   onMount(() => {
     window.addEventListener("keydown",  handleKeyDown);
@@ -1153,8 +1284,7 @@
       screenH = canvasEl.clientHeight;
       resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
-          screenW = entry.contentRect.width;
-          screenH = entry.contentRect.height;
+          applyCanvasSize(entry.contentRect.width, entry.contentRect.height);
         }
       });
       resizeObserver.observe(canvasEl);
@@ -1169,6 +1299,9 @@
     unsubCanvasItems();
     resizeObserver?.disconnect();
     detachGestureWindowListeners();
+    applyPanMove.cancel();
+    applyWheelZoom.cancel();
+    applyCanvasSize.cancel();
     if (repaintKickHandle !== null) cancelAnimationFrame(repaintKickHandle);
     window.removeEventListener("keydown",  handleKeyDown);
     window.removeEventListener("keyup",    handleKeyUp);
@@ -1229,7 +1362,7 @@
     {/if}
 
     {#each $canvasItems as item (item.id)}
-      {#if itemIsVisible(item)}
+      {#if visibilityById[item.id] ?? itemIsVisible(item)}
         <!-- Visible widget — render at current LOD tier -->
         <div
           class="canvas-widget"
@@ -1300,12 +1433,7 @@
             <CanvasLODWrapper widgetType={item.widgetType} {zoom}>
               <!-- FULL LOD: interactive widget component -->
               <div slot="full" class="zoom-adaptive-text">
-                {@const WidgetComponent = getWidgetComponent(item.widgetType)}
-                {#if WidgetComponent}
-                  <svelte:component this={WidgetComponent} />
-                {:else}
-                  <UnknownWidget widgetType={item.widgetType} />
-                {/if}
+                <AsyncWidgetRenderer widgetType={item.widgetType} />
               </div>
 
               <!-- SUMMARY LOD: simplified card -->
@@ -1342,7 +1470,7 @@
       {:else}
         <!-- Off-screen placeholder: maintains layout geometry without DOM cost -->
         <div
-          class="cw-placeholder"
+          class="widget-stub"
           style="left: {item.x}px; top: {item.y}px; width: {item.width}px; height: {item.height}px;"
           aria-hidden="true"
         ></div>
@@ -1613,7 +1741,7 @@
 
   .cw-body-minimal:active { cursor: grabbing; }
 
-  .cw-placeholder {
+  .widget-stub {
     position: absolute;
     pointer-events: none;
   }

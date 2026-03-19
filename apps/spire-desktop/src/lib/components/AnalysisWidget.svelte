@@ -23,34 +23,32 @@
   import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
+  import { executeWorkerTask } from "$lib/workers/executeWorkerTask";
+  import { rafThrottle } from "$lib/utils/throttle";
   import WebglHeatmap from "./WebglHeatmap.svelte";
-  import {
-    Chart,
-    BarController,
-    BarElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
 
   const logAnalysis = (message: string): void => {
     appendLog(message, { category: "Analysis" });
   };
 
-  // Register only the Chart.js components we need (tree-shakeable).
-  Chart.register(
-    BarController,
-    BarElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-  );
+  let chartCtor: (new (item: HTMLCanvasElement, config: unknown) => ChartType) | null = null;
+  let chartLibLoading = false;
+
+  async function ensureChartCtor(): Promise<(new (item: HTMLCanvasElement, config: unknown) => ChartType) | null> {
+    if (chartCtor) return chartCtor;
+    chartLibLoading = true;
+    try {
+      const mod = await import("chart.js/auto");
+      chartCtor = mod.default as unknown as new (item: HTMLCanvasElement, config: unknown) => ChartType;
+      return chartCtor;
+    } catch (error: unknown) {
+      errorMsg = error instanceof Error ? error.message : String(error);
+      return null;
+    } finally {
+      chartLibLoading = false;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Observable Presets
@@ -265,6 +263,7 @@
   $: detectorActive = detectorPreset !== '';
 
   let loading: boolean = false;
+  let binningData = false;
   let errorMsg: string = "";
   let scriptValid: boolean = true;
   let validationMsg: string = "";
@@ -276,7 +275,7 @@
   let activeHistogram2D: Histogram2DData | null = null;
 
   let canvasEl: HTMLCanvasElement;
-  let chart: Chart | null = null;
+  let chart: ChartType | null = null;
 
   // WebGL heatmap reactive props
   let heatmapData: Float32Array = new Float32Array(0);
@@ -337,6 +336,7 @@
   // ---------------------------------------------------------------------------
   let validationTimer: ReturnType<typeof setTimeout> | null = null;
   let interopUnsub: (() => void) | null = null;
+  let cancelInteropThrottle: (() => void) | null = null;
 
   function handleScriptInput(): void {
     if (validationTimer) clearTimeout(validationTimer);
@@ -366,6 +366,7 @@
     result = null;
     activeHistogram = null;
     activeHistogram2D = null;
+    binningData = false;
 
     // Client-side validation.
     if (analysisMode === '1d') {
@@ -478,8 +479,55 @@
       extractAndPushProfile(analysisResult, `Analysis: ${analysisResult.events_generated} events`);
 
       if (analysisMode === '1d' && analysisResult.histograms.length > 0) {
-        activeHistogram = analysisResult.histograms[0];
-        renderChart(activeHistogram);
+        const backendHistogram = analysisResult.histograms[0];
+        const rawValues = (
+          analysisResult as unknown as { raw_observables?: ArrayLike<ArrayLike<number>> | null }
+        ).raw_observables;
+
+        if (rawValues && rawValues[0] && Number(rawValues[0].length) > 0) {
+          binningData = true;
+          const rawArray = Float64Array.from(Array.from(rawValues[0] as ArrayLike<number>));
+          const binned = await executeWorkerTask<
+            { rawData: Float64Array; bins: number; min: number; max: number },
+            { frequencies: number[]; errors: number[]; overflow: number; underflow: number }
+          >(
+            new URL("$lib/workers/histogram.worker.ts", import.meta.url),
+            {
+              rawData: rawArray,
+              bins: nBins,
+              min: histMin,
+              max: histMax,
+            },
+          );
+
+          const width = (histMax - histMin) / Math.max(1, nBins);
+          const edges = Array.from({ length: nBins + 1 }, (_, i) => histMin + i * width);
+          const entries = binned.frequencies.reduce((acc, value) => acc + value, 0);
+          const mean = entries > 0
+            ? binned.frequencies.reduce((acc, count, i) => {
+                const center = (edges[i] + edges[i + 1]) * 0.5;
+                return acc + center * count;
+              }, 0) / entries
+            : 0;
+
+          activeHistogram = {
+            name: backendHistogram.name,
+            bin_edges: edges,
+            bin_contents: binned.frequencies,
+            bin_errors: binned.errors,
+            underflow: binned.underflow,
+            overflow: binned.overflow,
+            entries,
+            mean,
+          };
+          binningData = false;
+        } else {
+          activeHistogram = backendHistogram;
+        }
+
+        if (activeHistogram) {
+          void renderChart(activeHistogram);
+        }
       } else if (analysisMode === '2d' && analysisResult.histograms_2d.length > 0) {
         activeHistogram2D = analysisResult.histograms_2d[0];
         // Feed data to the reactive WebGL heatmap component.
@@ -504,6 +552,7 @@
       errorMsg = String(err);
       logAnalysis(`Analysis error: ${errorMsg}`);
     } finally {
+      binningData = false;
       loading = false;
     }
   }
@@ -511,7 +560,7 @@
   // ---------------------------------------------------------------------------
   // Chart Rendering
   // ---------------------------------------------------------------------------
-  function renderChart(data: HistogramData): void {
+  async function renderChart(data: HistogramData): Promise<void> {
     if (!canvasEl) return;
 
     // Destroy previous chart.
@@ -520,41 +569,36 @@
       chart = null;
     }
 
-    // Build bin-centre labels.
-    const labels: string[] = [];
-    for (let i = 0; i < data.bin_contents.length; i++) {
-      const centre =
-        (data.bin_edges[i] + data.bin_edges[i + 1]) / 2;
-      labels.push(centre.toFixed(2));
-    }
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
 
-    // Colour gradient from cool (low) to warm (high).
-    const maxVal = Math.max(...data.bin_contents, 1e-30);
-    const bgColors = data.bin_contents.map((v) => {
-      const ratio = v / maxVal;
-      const r = Math.round(30 + 200 * ratio);
-      const g = Math.round(100 + 60 * (1 - ratio));
-      const b = Math.round(220 - 150 * ratio);
-      return `rgba(${r}, ${g}, ${b}, 0.85)`;
-    });
-
-    const borderColors = bgColors.map((c) => c.replace("0.85", "1.0"));
+    const prepared = await executeWorkerTask<
+      { task: "prepareHistogram"; binContents: number[]; binEdges: number[] },
+      { labels: string[]; backgroundColor: string[]; borderColor: string[]; maxVal: number }
+    >(
+      new URL("$lib/workers/dataProcessor.worker.ts", import.meta.url),
+      {
+        task: "prepareHistogram",
+        binContents: data.bin_contents,
+        binEdges: data.bin_edges,
+      },
+    );
     const titleColor = cssVar("--color-text-primary", "#e8e8e8");
     const mutedColor = cssVar("--color-text-muted", "#8a8a8a");
     const textPrimaryRgb = cssVar("--color-text-primary-rgb", "232, 232, 232");
     const gridMinor = `rgba(${textPrimaryRgb}, 0.05)`;
     const gridMajor = `rgba(${textPrimaryRgb}, 0.08)`;
 
-    chart = new Chart(canvasEl, {
+    chart = new ChartCtor(canvasEl, {
       type: "bar",
       data: {
-        labels,
+        labels: prepared.labels,
         datasets: [
           {
             label: data.name,
             data: data.bin_contents,
-            backgroundColor: bgColors,
-            borderColor: borderColors,
+            backgroundColor: prepared.backgroundColor,
+            borderColor: prepared.borderColor,
             borderWidth: 1,
           },
         ],
@@ -574,13 +618,13 @@
           },
           tooltip: {
             callbacks: {
-              title: (items) => {
+              title: (items: Array<{ dataIndex: number }>) => {
                 const idx = items[0].dataIndex;
                 const lo = data.bin_edges[idx].toFixed(2);
                 const hi = data.bin_edges[idx + 1].toFixed(2);
                 return `[${lo}, ${hi})`;
               },
-              label: (item) => {
+              label: (item: { raw: unknown; dataIndex: number }) => {
                 const val = (item.raw as number).toExponential(3);
                 const err = data.bin_errors[item.dataIndex].toExponential(2);
                 return `${val} ± ${err}`;
@@ -619,18 +663,18 @@
   function toggleScale(): void {
     logScale = !logScale;
     if (activeHistogram) {
-      renderChart(activeHistogram);
+      void renderChart(activeHistogram);
     }
   }
 
   // ---------------------------------------------------------------------------
   // Export & Context Menus
   // ---------------------------------------------------------------------------
-  function exportHistogramCsv(): void {
+  async function exportHistogramCsv(): Promise<void> {
     if (!activeHistogram) return;
     const h = activeHistogram;
     const nBinsCount = h.bin_edges.length - 1;
-    const rows = ["bin_low,bin_high,contents,error,density"];
+    const rows: string[] = [];
     for (let i = 0; i < nBinsCount; i++) {
       const lo = h.bin_edges[i];
       const hi = h.bin_edges[i + 1];
@@ -640,7 +684,18 @@
       const dens = width > 0 ? n / width : n;
       rows.push(`${lo.toFixed(4)},${hi.toFixed(4)},${n.toFixed(6)},${err.toFixed(6)},${dens.toFixed(6)}`);
     }
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const csv = await executeWorkerTask<
+      { task: "csv"; header: string; rows: string[] },
+      string
+    >(
+      new URL("$lib/workers/textFormatter.worker.ts", import.meta.url),
+      {
+        task: "csv",
+        header: "bin_low,bin_high,contents,error,density",
+        rows,
+      },
+    );
+    const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -740,7 +795,7 @@
 
   onMount(() => {
     handleScriptInput();
-    interopUnsub = widgetInteropState.subscribe((state) => {
+    const throttledInteropUpdate = rafThrottle((state: any) => {
       const reactionPayload = state.reaction?.payload as
         | { cmsEnergy?: number; finalState?: string[] }
         | undefined;
@@ -754,6 +809,14 @@
         nFinalState = reactionPayload.finalState.length;
       }
     });
+
+    interopUnsub = widgetInteropState.subscribe((state) => {
+      throttledInteropUpdate(state);
+    });
+    cancelInteropThrottle = () => {
+      throttledInteropUpdate.flush();
+      throttledInteropUpdate.cancel();
+    };
 
     registerCommand({
       id: "spire.analysis.run_mc",
@@ -769,6 +832,7 @@
   onDestroy(() => {
     for (const id of ANALYSIS_CMD_IDS) unregisterCommand(id);
     interopUnsub?.();
+    cancelInteropThrottle?.();
     if (chart) {
       chart.destroy();
       chart = null;
@@ -1069,10 +1133,12 @@
       <button
         class="run-btn"
         on:click={handleRun}
-        disabled={loading || (analysisMode === '1d' && !scriptValid)}
+        disabled={loading || binningData || (analysisMode === '1d' && !scriptValid)}
       >
         {#if loading}
           ... Running
+        {:else if binningData}
+          ... Binning Data
         {:else}
           > Run Analysis
         {/if}

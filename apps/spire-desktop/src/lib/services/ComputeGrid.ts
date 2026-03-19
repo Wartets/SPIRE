@@ -58,6 +58,7 @@ import type {
   WorkerOutbound,
 } from "$lib/types/compute";
 import type { AnalysisConfig, AnalysisResult, HistogramData } from "$lib/types/spire";
+import { rafThrottle } from "$lib/utils/throttle";
 
 // ---------------------------------------------------------------------------
 // ID Generation
@@ -341,6 +342,9 @@ export class GridManager {
 
   private resolveJob: ((result: AnalysisResult) => void) | null = null;
   private rejectJob: ((error: Error) => void) | null = null;
+  private readonly throttledProgressSnapshot = rafThrottle(() => {
+    this.updateSnapshot();
+  });
 
   // ── Defaults ──
   private static readonly DEFAULT_MAX_WORKERS = Math.max(
@@ -440,6 +444,7 @@ export class GridManager {
    */
   destroy(): void {
     this.cancel();
+    this.throttledProgressSnapshot.cancel();
     for (const node of this.nodes) {
       node.terminate();
     }
@@ -500,7 +505,9 @@ export class GridManager {
 
   private handleProgress(nodeId: NodeId, progress: ComputeProgress): void {
     // Progress updates are reflected in the snapshot via node state.
-    this.updateSnapshot();
+    void nodeId;
+    void progress;
+    this.throttledProgressSnapshot();
   }
 
   private handleError(nodeId: NodeId, taskId: string, message: string): void {
@@ -761,6 +768,7 @@ export class GridManager {
     this.jobStartTime = 0;
     this.resolveJob = null;
     this.rejectJob = null;
+    this.throttledProgressSnapshot.cancel();
   }
 
   private idleSnapshot(): GridJobSnapshot {

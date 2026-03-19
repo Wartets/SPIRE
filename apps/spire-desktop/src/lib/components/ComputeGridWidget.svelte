@@ -24,37 +24,12 @@
   import type { GridJobSnapshot, ConvergencePoint } from "$lib/types/compute";
   import type { AnalysisResult } from "$lib/types/spire";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
-  import {
-    Chart,
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-    Filler,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
+  import { ensureChartCtor } from "$lib/utils/chartLoader";
 
   const logComputeGrid = (message: string): void => {
     appendLog(message, { category: "ComputeGrid" });
   };
-
-  // Register Chart.js components.
-  Chart.register(
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-    Filler,
-  );
 
   // ---------------------------------------------------------------------------
   // State
@@ -73,7 +48,7 @@
 
   let snapshot: GridJobSnapshot;
   let convergenceCanvasEl: HTMLCanvasElement;
-  let convergenceChart: Chart | null = null;
+  let convergenceChart: ChartType | null = null;
 
   let errorMsg: string = "";
   let interopUnsub: (() => void) | null = null;
@@ -88,7 +63,7 @@
   const unsub = gridSnapshot.subscribe((snap) => {
     snapshot = snap;
     if (snap.convergence.length > 0) {
-      updateConvergenceChart(snap.convergence);
+      void updateConvergenceChart(snap.convergence);
     }
   });
 
@@ -178,7 +153,7 @@
   // Convergence Chart
   // ---------------------------------------------------------------------------
 
-  function updateConvergenceChart(points: ConvergencePoint[]): void {
+  async function updateConvergenceChart(points: ConvergencePoint[]): Promise<void> {
     if (!convergenceCanvasEl) return;
 
     const labels = points.map((p) =>
@@ -194,13 +169,16 @@
       return;
     }
 
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
+
     const accent = cssVar("--color-accent", "#5eb8ff");
     const accentRgb = cssVar("--color-accent-rgb", "94, 184, 255");
     const muted = cssVar("--color-text-muted", "#8a8a8a");
     const textPrimary = cssVar("--color-text-primary", "#e8e8e8");
     const textPrimaryRgb = cssVar("--color-text-primary-rgb", "232, 232, 232");
 
-    convergenceChart = new Chart(convergenceCanvasEl, {
+    convergenceChart = new ChartCtor(convergenceCanvasEl, {
       type: "line",
       data: {
         labels,
@@ -231,8 +209,8 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              title: (items) => `√N = ${items[0].label}`,
-              label: (item) => `δσ = ${(item.raw as number).toExponential(3)} pb`,
+              title: (items: Array<{ label: string }>) => `√N = ${items[0].label}`,
+              label: (item: { raw: unknown }) => `δσ = ${(item.raw as number).toExponential(3)} pb`,
             },
           },
         },

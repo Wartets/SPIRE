@@ -29,8 +29,31 @@
   import SpireSlider from "$lib/components/ui/SpireSlider.svelte";
   import Icon from "$lib/components/ui/Icon.svelte";
   import { tooltip } from "$lib/actions/tooltip";
-  import * as THREE from "three";
-  import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+  import type * as ThreeTypes from "three";
+  import type { OrbitControls as OrbitControlsType } from "three/examples/jsm/controls/OrbitControls.js";
+
+  let THREE: typeof import("three");
+  let OrbitControlsCtor: (new (...args: ConstructorParameters<typeof OrbitControlsType>) => OrbitControlsType) | null = null;
+  let threeLibLoading = false;
+
+  async function ensureThreeLibraries(): Promise<boolean> {
+    if (THREE && OrbitControlsCtor) return true;
+    if (threeLibLoading) return false;
+    threeLibLoading = true;
+    try {
+      const threeMod = await import("three");
+      const controlsMod = await import("three/examples/jsm/controls/OrbitControls.js");
+      THREE = threeMod;
+      OrbitControlsCtor = controlsMod.OrbitControls as unknown as new (...args: ConstructorParameters<typeof OrbitControlsType>) => OrbitControlsType;
+      return true;
+    } catch (error: unknown) {
+      errorMsg = error instanceof Error ? error.message : String(error);
+      logEventDisplay(`Three.js load error: ${errorMsg}`);
+      return false;
+    } finally {
+      threeLibLoading = false;
+    }
+  }
 
   const logEventDisplay = (message: string): void => {
     appendLog(message, { category: "EventDisplay" });
@@ -72,29 +95,29 @@
   // Three.js State
   // ---------------------------------------------------------------------------
   let containerEl: HTMLDivElement;
-  let renderer: THREE.WebGLRenderer | null = null;
-  let scene: THREE.Scene | null = null;
-  let camera: THREE.PerspectiveCamera | null = null;
-  let controls: OrbitControls | null = null;
+  let renderer: ThreeTypes.WebGLRenderer | null = null;
+  let scene: ThreeTypes.Scene | null = null;
+  let camera: ThreeTypes.PerspectiveCamera | null = null;
+  let controls: OrbitControlsType | null = null;
   let animFrameId: number = 0;
   let lastFrameTime: number = 0;
 
-  let detectorGroup: THREE.Group;
-  let eventGroup: THREE.Group;
-  let environmentGroup: THREE.Group;
+  let detectorGroup: ThreeTypes.Group;
+  let eventGroup: ThreeTypes.Group;
+  let environmentGroup: ThreeTypes.Group;
 
   // Animated object references for time-of-flight updates.
   interface AnimatedTrack {
-    line: THREE.Line;
+    line: ThreeTypes.Line;
     totalLength: number;
   }
   interface AnimatedJet {
-    cone: THREE.Mesh;
-    wire: THREE.Mesh;
-    fullScale: THREE.Vector3;
+    cone: ThreeTypes.Mesh;
+    wire: ThreeTypes.Mesh;
+    fullScale: ThreeTypes.Vector3;
   }
   interface AnimatedArrow {
-    group: THREE.Group;
+    group: ThreeTypes.Group;
   }
 
   let animatedTracks: AnimatedTrack[] = [];
@@ -162,7 +185,7 @@
     return "detector_preset" in value || "events_generated" in value || "events_passed" in value;
   }
 
-  function buildDetector(): THREE.Group {
+  function buildDetector(): ThreeTypes.Group {
     const group = new THREE.Group();
 
     const presetScale = detectorPreset === "perfect" ? 0.82 : detectorPreset === "ilc_like" ? 0.9 : 1;
@@ -297,8 +320,8 @@
     }
 
     const axes = new THREE.AxesHelper(DETECTOR_RADIUS * 1.22);
-    (axes.material as THREE.Material).opacity = 0.16;
-    (axes.material as THREE.Material).transparent = true;
+    (axes.material as ThreeTypes.Material).opacity = 0.16;
+    (axes.material as ThreeTypes.Material).transparent = true;
     group.add(axes);
 
     return group;
@@ -308,7 +331,7 @@
   // Event Rendering Helpers
   // ---------------------------------------------------------------------------
 
-  function etaPhiToDir(eta: number, phi: number, len: number): THREE.Vector3 {
+  function etaPhiToDir(eta: number, phi: number, len: number): ThreeTypes.Vector3 {
     const theta = 2 * Math.atan(Math.exp(-eta));
     return new THREE.Vector3(
       len * Math.sin(theta) * Math.cos(phi),
@@ -317,12 +340,12 @@
     );
   }
 
-  function vec3ToThree(v: Vec3): THREE.Vector3 {
+  function vec3ToThree(v: Vec3): ThreeTypes.Vector3 {
     return new THREE.Vector3(v.x, v.y, v.z);
   }
 
   /** Add an animated cone for a jet. Starts at scale 0; grows with simTime. */
-  function addJet(group: THREE.Group, jet: DisplayJet): void {
+  function addJet(group: ThreeTypes.Group, jet: DisplayJet): void {
     const energyScale = Math.min(jet.energy / 50, 1);
     const coneLen = 1.5 + 3 * energyScale;
     const coneRad = 0.3 + 0.5 * energyScale;
@@ -371,7 +394,7 @@
 
   /** Add an animated track line. Uses setDrawRange for time-of-flight. */
   function addTrack(
-    group: THREE.Group,
+    group: ThreeTypes.Group,
     track: DisplayTrack,
     color: number,
     dashed: boolean = false,
@@ -401,7 +424,7 @@
     geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geo.setDrawRange(0, 0);
 
-    let mat: THREE.Material;
+    let mat: ThreeTypes.Material;
     if (dashed) {
       mat = new THREE.LineDashedMaterial({
         color, dashSize: 0.15, gapSize: 0.1, transparent: true, opacity: 0.85,
@@ -420,7 +443,7 @@
   }
 
   /** Add an animated MET arrow. Scales from 0 to full with simTime. */
-  function addMET(group: THREE.Group, met: DisplayMET): void {
+  function addMET(group: ThreeTypes.Group, met: DisplayMET): void {
     if (met.magnitude < 1) return;
     const scale = Math.min(met.magnitude / 30, DETECTOR_RADIUS * 0.8);
     const dir = vec3ToThree(met.direction);
@@ -692,7 +715,7 @@
   // Three.js Lifecycle & Animation Loop
   // ---------------------------------------------------------------------------
   function initScene(): void {
-    if (!containerEl) return;
+    if (!containerEl || !THREE || !OrbitControlsCtor) return;
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111118);
@@ -710,7 +733,7 @@
     renderer.domElement.style.touchAction = "none";
     containerEl.appendChild(renderer.domElement);
 
-    controls = new OrbitControls(camera, renderer.domElement);
+    controls = new OrbitControlsCtor(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.minDistance = 3;
@@ -828,7 +851,10 @@
   let resizeObserver: ResizeObserver | null = null;
 
   onMount(() => {
-    initScene();
+    void (async () => {
+      const ready = await ensureThreeLibraries();
+      if (ready) initScene();
+    })();
     interopUnsub = widgetInteropState.subscribe((state) => {
       if (loading || eventBatch.length > 0) return;
       const reactionPayload = state.reaction?.payload as

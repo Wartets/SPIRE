@@ -4,6 +4,7 @@ import {
   type ResizeDirection,
   type ResizeOrigin,
 } from "$lib/core/layout/interactionManager";
+import { rafThrottle } from "$lib/utils/throttle";
 
 interface BaseInteractableOptions {
   itemId: string;
@@ -48,6 +49,14 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
 
   const MOUSE_POINTER_ID = -1;
   const POINTER_MOUSE_DEDUPE_MS = 80;
+  const throttledDragMove = rafThrottle((patch: DragOrigin) => {
+    if (options.mode !== "drag") return;
+    options.onMove(patch);
+  });
+  const throttledResizeMove = rafThrottle((patch: ResizeOrigin) => {
+    if (options.mode !== "resize") return;
+    options.onMove(patch);
+  });
 
   function safeSetCapture(pointerId: number): boolean {
     try {
@@ -200,11 +209,11 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     if (!update) return;
 
     if (update.mode === "drag" && options.mode === "drag") {
-      options.onMove(update.patch);
+      throttledDragMove(update.patch);
     }
 
     if (update.mode === "resize" && options.mode === "resize") {
-      options.onMove(update.patch);
+      throttledResizeMove(update.patch);
     }
 
     event.preventDefault();
@@ -222,11 +231,11 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     if (!update) return;
 
     if (update.mode === "drag" && options.mode === "drag") {
-      options.onMove(update.patch);
+      throttledDragMove(update.patch);
     }
 
     if (update.mode === "resize" && options.mode === "resize") {
-      options.onMove(update.patch);
+      throttledResizeMove(update.patch);
     }
 
     event.preventDefault();
@@ -244,11 +253,13 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     );
 
     if (final?.mode === "drag" && options.mode === "drag") {
+      throttledDragMove.flush();
       options.onMove(final.patch);
       options.onEnd?.(final.patch);
     }
 
     if (final?.mode === "resize" && options.mode === "resize") {
+      throttledResizeMove.flush();
       options.onMove(final.patch);
       options.onEnd?.(final.patch);
     }
@@ -283,11 +294,13 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
     );
 
     if (final?.mode === "drag" && options.mode === "drag") {
+      throttledDragMove.flush();
       options.onMove(final.patch);
       options.onEnd?.(final.patch);
     }
 
     if (final?.mode === "resize" && options.mode === "resize") {
+      throttledResizeMove.flush();
       options.onMove(final.patch);
       options.onEnd?.(final.patch);
     }
@@ -345,6 +358,8 @@ export function interactable(node: HTMLElement, initialOptions: InteractableOpti
       node.removeEventListener("lostpointercapture", handleLostPointerCapture);
       removeWindowFallbackListeners();
       removeWindowMouseFallbackListeners();
+      throttledDragMove.cancel();
+      throttledResizeMove.cancel();
       if (activePointerId !== null) {
         interactionManager.cancel(activePointerId);
         safeReleaseCapture(activePointerId);

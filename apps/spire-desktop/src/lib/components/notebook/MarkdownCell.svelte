@@ -12,14 +12,14 @@
   import type { CellData } from "$lib/core/domain/notebook";
   import { tooltip } from "$lib/actions/tooltip";
   import Icon from "$lib/components/ui/Icon.svelte";
+  import { executeWorkerTask } from "$lib/workers/executeWorkerTask";
   import "katex/dist/katex.min.css";
 
-  type KatexModule = {
-    renderToString: (expression: string, options?: Record<string, unknown>) => string;
+  type KatexRenderResponse = {
+    ok: boolean;
+    html?: string;
+    error?: string;
   };
-
-  let sharedKatexModule: KatexModule | null = null;
-  let sharedKatexPromise: Promise<KatexModule | null> | null = null;
 
   export let cell: CellData;
 
@@ -83,21 +83,6 @@
     }
   }
 
-  async function ensureKatex(): Promise<KatexModule | null> {
-    if (sharedKatexModule) return sharedKatexModule;
-    if (sharedKatexPromise) return sharedKatexPromise;
-    sharedKatexPromise = (async () => {
-      try {
-        const mod = (await import("katex")) as unknown as KatexModule;
-        sharedKatexModule = mod;
-        return mod;
-      } catch {
-        return null;
-      }
-    })();
-    return sharedKatexPromise;
-  }
-
   // ── Lightweight Markdown → HTML ──
 
   /**
@@ -158,19 +143,19 @@
     let html = renderMarkdown(withTokens);
     if (mathTokens.length === 0) return html;
 
-    const katex = await ensureKatex();
-    if (!katex) return html;
-
     for (const item of mathTokens) {
       let replacement = item.expr;
       try {
-        replacement = katex.renderToString(item.expr, {
-          displayMode: item.display,
-          throwOnError: false,
-          strict: "warn",
-          trust: false,
-          output: "html",
-        });
+        const response = await executeWorkerTask<
+          { expression: string; displayMode: boolean },
+          KatexRenderResponse
+        >(
+          new URL("$lib/workers/katexRender.worker.ts", import.meta.url),
+          { expression: item.expr, displayMode: item.display },
+        );
+        if (response.ok && response.html) {
+          replacement = response.html;
+        }
       } catch {
         replacement = item.expr;
       }

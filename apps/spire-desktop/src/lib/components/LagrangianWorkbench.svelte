@@ -38,34 +38,12 @@
     RgeFlowConfig,
     RgeFlowResult,
   } from "$lib/types/spire";
-  import {
-    Chart,
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
+  import { ensureChartCtor } from "$lib/utils/chartLoader";
 
   const logLagrangian = (message: string): void => {
     appendLog(message, { category: "Lagrangian" });
   };
-
-  Chart.register(
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-  );
 
   // ---------------------------------------------------------------------------
   // State
@@ -120,7 +98,7 @@
 
   // Chart reference
   let rgeCanvas: HTMLCanvasElement;
-  let rgeChart: Chart | null = null;
+  let rgeChart: ChartType | null = null;
 
   // ---------------------------------------------------------------------------
   // Field Management
@@ -232,20 +210,20 @@
       rgeResult = await runRgeFlow(config);
       addCitations(["machacek1984", "gross1973"]);
       logLagrangian(`✓ RGE flow computed: ${rgeResult.coupling_name}, ${rgeResult.mu_values.length} points`);
-      plotRge();
+      void plotRge();
     } catch (e: unknown) {
       rgeError = e instanceof Error ? e.message : String(e);
       logLagrangian(`✗ RGE error: ${rgeError}`);
     }
   }
 
-  function plotRge(): void {
+  async function plotRge(): Promise<void> {
     if (!rgeResult || !rgeCanvas) return;
 
     if (rgeChart) rgeChart.destroy();
 
-    const ctx = rgeCanvas.getContext("2d");
-    if (!ctx) return;
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
 
     const css = getComputedStyle(document.documentElement);
     const colorTextPrimary = css.getPropertyValue("--color-text-primary").trim() || "#e8ecf4";
@@ -253,7 +231,7 @@
     const colorAccent = css.getPropertyValue("--color-accent").trim() || "#4fc3f7";
     const colorGrid = css.getPropertyValue("--border").trim() || "rgba(255,255,255,0.12)";
 
-    rgeChart = new Chart(ctx, {
+    rgeChart = new ChartCtor(rgeCanvas, {
       type: "line",
       data: {
         labels: rgeResult.mu_values.map((mu) => mu.toFixed(1)),

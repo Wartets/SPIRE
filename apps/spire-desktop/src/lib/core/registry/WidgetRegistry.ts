@@ -1,30 +1,6 @@
 import type { WidgetType } from "$lib/stores/notebookStore";
 type WidgetComponent = new (...args: any[]) => any;
 
-
-import ModelLoader from "$lib/components/ModelLoader.svelte";
-import ReactionWorkspace from "$lib/components/ReactionWorkspace.svelte";
-import DiagramVisualizer from "$lib/components/DiagramVisualizer.svelte";
-import AmplitudePanel from "$lib/components/AmplitudePanel.svelte";
-import KinematicsView from "$lib/components/KinematicsView.svelte";
-import DalitzPlotter from "$lib/components/DalitzPlotter.svelte";
-import AnalysisWidget from "$lib/components/AnalysisWidget.svelte";
-import EventDisplay from "$lib/components/EventDisplay.svelte";
-import ParticleAtlas from "$lib/components/ParticleAtlas.svelte";
-import LagrangianWorkbench from "$lib/components/LagrangianWorkbench.svelte";
-import ExternalModels from "$lib/components/ExternalModels.svelte";
-import ComputeGridWidget from "$lib/components/ComputeGridWidget.svelte";
-import ReferencesPanel from "$lib/components/ReferencesPanel.svelte";
-import TelemetryPanel from "$lib/components/TelemetryPanel.svelte";
-import LogConsole from "$lib/components/LogConsole.svelte";
-import NotebookWidget from "$lib/components/notebook/NotebookWidget.svelte";
-import ParameterScanner from "$lib/components/ParameterScanner.svelte";
-import DecayCalculator from "$lib/components/DecayCalculator.svelte";
-import CosmologyPanel from "$lib/components/CosmologyPanel.svelte";
-import FlavorWorkbench from "$lib/components/FlavorWorkbench.svelte";
-import PluginManager from "$lib/components/PluginManager.svelte";
-import GlobalFitDashboard from "$lib/components/GlobalFitDashboard.svelte";
-
 import DiagramSummary from "$lib/components/canvas/summaries/DiagramSummary.svelte";
 import AmplitudeSummary from "$lib/components/canvas/summaries/AmplitudeSummary.svelte";
 import AnalysisSummary from "$lib/components/canvas/summaries/AnalysisSummary.svelte";
@@ -56,32 +32,37 @@ export const WIDGET_LABELS: Record<WidgetType, string> = {
   global_fit_dashboard: "Global Fit Dashboard",
 };
 
-/** Dynamic component map for full widget rendering. */
-export const WIDGET_COMPONENTS: Record<WidgetType, WidgetComponent> = {
-  model: ModelLoader,
-  reaction: ReactionWorkspace,
-  diagram: DiagramVisualizer,
-  amplitude: AmplitudePanel,
-  kinematics: KinematicsView,
-  dalitz: DalitzPlotter,
-  analysis: AnalysisWidget,
-  event_display: EventDisplay,
-  particle_atlas: ParticleAtlas,
-  diagram_editor: DiagramVisualizer,
-  lagrangian_workbench: LagrangianWorkbench,
-  external_models: ExternalModels,
-  compute_grid: ComputeGridWidget,
-  references: ReferencesPanel,
-  telemetry: TelemetryPanel,
-  log: LogConsole,
-  notebook: NotebookWidget,
-  parameter_scanner: ParameterScanner,
-  decay_calculator: DecayCalculator,
-  cosmology: CosmologyPanel,
-  flavor_workbench: FlavorWorkbench,
-  plugin_manager: PluginManager,
-  global_fit_dashboard: GlobalFitDashboard,
+type WidgetLoader = () => Promise<{ default: WidgetComponent }>;
+
+/** Lazy component loaders for full widget rendering. */
+export const WIDGET_COMPONENT_LOADERS: Record<WidgetType, WidgetLoader> = {
+  model: () => import("$lib/components/ModelLoader.svelte"),
+  reaction: () => import("$lib/components/ReactionWorkspace.svelte"),
+  diagram: () => import("$lib/components/DiagramVisualizer.svelte"),
+  amplitude: () => import("$lib/components/AmplitudePanel.svelte"),
+  kinematics: () => import("$lib/components/KinematicsView.svelte"),
+  dalitz: () => import("$lib/components/DalitzPlotter.svelte"),
+  analysis: () => import("$lib/components/AnalysisWidget.svelte"),
+  event_display: () => import("$lib/components/EventDisplay.svelte"),
+  particle_atlas: () => import("$lib/components/ParticleAtlas.svelte"),
+  diagram_editor: () => import("$lib/components/DiagramVisualizer.svelte"),
+  lagrangian_workbench: () => import("$lib/components/LagrangianWorkbench.svelte"),
+  external_models: () => import("$lib/components/ExternalModels.svelte"),
+  compute_grid: () => import("$lib/components/ComputeGridWidget.svelte"),
+  references: () => import("$lib/components/ReferencesPanel.svelte"),
+  telemetry: () => import("$lib/components/TelemetryPanel.svelte"),
+  log: () => import("$lib/components/LogConsole.svelte"),
+  notebook: () => import("$lib/components/notebook/NotebookWidget.svelte"),
+  parameter_scanner: () => import("$lib/components/ParameterScanner.svelte"),
+  decay_calculator: () => import("$lib/components/DecayCalculator.svelte"),
+  cosmology: () => import("$lib/components/CosmologyPanel.svelte"),
+  flavor_workbench: () => import("$lib/components/FlavorWorkbench.svelte"),
+  plugin_manager: () => import("$lib/components/PluginManager.svelte"),
+  global_fit_dashboard: () => import("$lib/components/GlobalFitDashboard.svelte"),
 };
+
+const widgetComponentCache = new Map<WidgetType, WidgetComponent>();
+const widgetComponentInflight = new Map<WidgetType, Promise<WidgetComponent | null>>();
 
 /** Optional low-detail summary components for medium zoom LOD in canvas mode. */
 export const WIDGET_SUMMARY_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
@@ -109,7 +90,36 @@ export function getWidgetLabel(widgetType: string): string {
  * @returns Component constructor, or `null` when not registered.
  */
 export function getWidgetComponent(widgetType: string): WidgetComponent | null {
-  return (WIDGET_COMPONENTS as Record<string, WidgetComponent>)[widgetType] ?? null;
+  return widgetComponentCache.get(widgetType as WidgetType) ?? null;
+}
+
+/**
+ * Resolve the full-detail Svelte component asynchronously.
+ */
+export async function loadWidgetComponent(widgetType: string): Promise<WidgetComponent | null> {
+  const typed = widgetType as WidgetType;
+  const cached = widgetComponentCache.get(typed);
+  if (cached) return cached;
+
+  const loader = (WIDGET_COMPONENT_LOADERS as Record<string, WidgetLoader>)[widgetType];
+  if (!loader) return null;
+
+  const inflight = widgetComponentInflight.get(typed);
+  if (inflight) return inflight;
+
+  const next = loader()
+    .then((mod) => {
+      const component = mod.default ?? null;
+      if (component) widgetComponentCache.set(typed, component);
+      return component;
+    })
+    .catch(() => null)
+    .finally(() => {
+      widgetComponentInflight.delete(typed);
+    });
+
+  widgetComponentInflight.set(typed, next);
+  return next;
 }
 
 /**

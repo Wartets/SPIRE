@@ -14,8 +14,7 @@
   import { closeNode, splitNode, moveNode, insertWidgetRelative } from "$lib/stores/layoutStore";
   import type { DropPosition } from "$lib/stores/layoutStore";
   import { WIDGET_LABELS } from "$lib/components/workbench/widgetRegistry";
-  import { getWidgetComponent } from "$lib/core/registry/WidgetRegistry";
-  import UnknownWidget from "$lib/components/shared/UnknownWidget.svelte";
+  import AsyncWidgetRenderer from "$lib/components/layout/AsyncWidgetRenderer.svelte";
   import { tearOffWidget } from "$lib/core/services/WindowManager";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { pipelineLinks } from "$lib/core/services/PipelineService";
@@ -27,7 +26,6 @@
   export let node: WidgetLeaf;
 
   $: label = WIDGET_LABELS[node.widgetType] ?? node.widgetType;
-  $: widgetComponent = getWidgetComponent(node.widgetType);
   $: linked = $pipelineLinks.some(
     (l) => l.source.widgetId === node.id || l.sink.widgetId === node.id,
   );
@@ -297,11 +295,7 @@
     role="region"
     aria-label="Widget content"
   >
-    {#if widgetComponent}
-      <svelte:component this={widgetComponent} />
-    {:else}
-      <UnknownWidget widgetType={node.widgetType} />
-    {/if}
+    <AsyncWidgetRenderer widgetType={node.widgetType} />
   </div>
 </div>
 

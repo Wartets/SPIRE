@@ -54,10 +54,10 @@
   let savedIndicator: string = "";
   let rootScroller: HTMLDivElement | null = null;
 
-  const MODEL_LOADER_UI_KEY = "model-loader";
+  let modelLoaderUiKey = "model-loader";
 
   function persistModelLoaderUi(patch: Record<string, unknown>): void {
-    setWidgetUiSnapshot(MODEL_LOADER_UI_KEY, patch);
+    setWidgetUiSnapshot(modelLoaderUiKey, patch);
   }
 
   $: if ($theoreticalModel) {
@@ -99,8 +99,13 @@
     }
 
     const restoreUi = async (): Promise<void> => {
+      const canvasWidgetId = rootScroller?.closest("[data-canvas-item-id]")?.getAttribute("data-canvas-item-id");
+      if (canvasWidgetId) {
+        modelLoaderUiKey = `model-loader:${canvasWidgetId}`;
+      }
+
       const snapshot = getWidgetUiSnapshot<{ showEditors?: boolean; scrollTop?: number }>(
-        MODEL_LOADER_UI_KEY,
+        modelLoaderUiKey,
       );
       if (!snapshot) return;
 

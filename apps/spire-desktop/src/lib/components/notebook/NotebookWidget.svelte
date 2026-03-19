@@ -41,6 +41,7 @@
   // ── Cell References (for focus management) ──
 
   let cellRefs: Record<string, CellRenderer> = {};
+  let rootEl: HTMLDivElement | null = null;
 
   function bindCellRef(id: string) {
     return (node: CellRenderer) => {
@@ -152,11 +153,11 @@
 
   // ── UI Snapshot Persistence ──
 
-  const NOTEBOOK_UI_KEY = "notebook";
+  let notebookUiKey = "notebook";
   let cellsScroller: HTMLDivElement | null = null;
 
   function persistNotebookUi(patch: Record<string, unknown>): void {
-    setWidgetUiSnapshot(NOTEBOOK_UI_KEY, patch);
+    setWidgetUiSnapshot(notebookUiKey, patch);
   }
 
   let scrollPersistRaf: number | null = null;
@@ -182,8 +183,13 @@
   $: persistNotebookUi({ showAddMenu });
 
   onMount(async () => {
+    const canvasWidgetId = rootEl?.closest("[data-canvas-item-id]")?.getAttribute("data-canvas-item-id");
+    if (canvasWidgetId) {
+      notebookUiKey = `notebook:${canvasWidgetId}`;
+    }
+
     const snapshot = getWidgetUiSnapshot<{ scrollTop?: number; showAddMenu?: boolean }>(
-      NOTEBOOK_UI_KEY,
+      notebookUiKey,
     );
     if (!snapshot) return;
 
@@ -208,7 +214,7 @@
   });
 </script>
 
-<div class="notebook-widget">
+<div class="notebook-widget" bind:this={rootEl}>
   <!-- Toolbar -->
   <header class="nb-toolbar">
     <span class="nb-title">{$notebookDocument.title}</span>

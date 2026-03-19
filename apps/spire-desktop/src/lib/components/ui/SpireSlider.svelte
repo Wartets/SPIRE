@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { rafThrottleAction } from "$lib/actions/rafThrottle";
+
   export let value = 0;
   export let min = 0;
   export let max = 100;
@@ -33,7 +35,7 @@
   {disabled}
   aria-label={ariaLabel}
   style={`--percent:${percent}%;`}
-  on:input={handleInput}
+  use:rafThrottleAction={{ event: "input", handler: handleInput }}
 />
 
 <style>

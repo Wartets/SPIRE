@@ -20,37 +20,12 @@
   import { tooltip } from "$lib/actions/tooltip";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import type { ScanScale, ScanResult1D, TheoreticalModel } from "$lib/types/spire";
-  import {
-    Chart,
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-    Filler,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
+  import { ensureChartCtor } from "$lib/utils/chartLoader";
 
   const logScanner = (message: string): void => {
     appendLog(message, { category: "Scanner" });
   };
-
-  // Register Chart.js components (tree-shakeable).
-  Chart.register(
-    LineController,
-    LineElement,
-    PointElement,
-    CategoryScale,
-    LinearScale,
-    LogarithmicScale,
-    Tooltip,
-    Title,
-    Legend,
-    Filler,
-  );
 
   // -------------------------------------------------------------------------
   // Scan Target Presets
@@ -137,7 +112,7 @@
   let suggestedEventsPerPoint: number | null = null;
 
   let chartCanvas: HTMLCanvasElement;
-  let chartInstance: Chart | null = null;
+  let chartInstance: ChartType | null = null;
   let interopUnsub: (() => void) | null = null;
 
   function applyThresholdWindow(spanMultiplier = 0.2): void {
@@ -243,7 +218,7 @@
 
       result = scanResult;
       logScanner(`[Scanner] Scan complete: ${scanResult.x_values.length} points evaluated.`);
-      renderChart();
+      void renderChart();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       scanError = msg;
@@ -257,7 +232,7 @@
   // Chart Rendering
   // -------------------------------------------------------------------------
 
-  function renderChart() {
+  async function renderChart(): Promise<void> {
     if (!result || !chartCanvas) return;
 
     if (chartInstance) {
@@ -265,8 +240,8 @@
       chartInstance = null;
     }
 
-    const ctx = chartCanvas.getContext("2d");
-    if (!ctx) return;
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
 
     const labels = result.x_values.map((x) =>
       x >= 1000 || x < 0.01 ? x.toExponential(2) : x.toPrecision(4),
@@ -276,7 +251,7 @@
     const upperBand = result.y_values.map((y, i) => y + result!.y_errors[i]);
     const lowerBand = result.y_values.map((y, i) => Math.max(0, y - result!.y_errors[i]));
 
-    chartInstance = new Chart(ctx, {
+    chartInstance = new ChartCtor(chartCanvas, {
       type: "line",
       data: {
         labels,
@@ -329,7 +304,7 @@
           },
           tooltip: {
             callbacks: {
-              label(ctx) {
+              label(ctx: { dataIndex: number; datasetIndex: number }) {
                 const i = ctx.dataIndex;
                 if (ctx.datasetIndex === 0 && result) {
                   const y = result.y_values[i];

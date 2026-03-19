@@ -20,21 +20,12 @@
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import type { TheoreticalModel, CalcDecayTable, CalcDecayChannel } from "$lib/types/spire";
-  import {
-    Chart,
-    DoughnutController,
-    ArcElement,
-    Tooltip,
-    Title,
-    Legend,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
+  import { ensureChartCtor } from "$lib/utils/chartLoader";
 
   const logDecay = (message: string): void => {
     appendLog(message, { category: "Decay" });
   };
-
-  // Register Chart.js components (tree-shakeable).
-  Chart.register(DoughnutController, ArcElement, Tooltip, Title, Legend);
 
   // -------------------------------------------------------------------------
   // Colour palette for pie slices
@@ -65,7 +56,7 @@
   let decayTable: CalcDecayTable | null = null;
 
   let chartCanvas: HTMLCanvasElement;
-  let chartInstance: Chart | null = null;
+  let chartInstance: ChartType | null = null;
   let interopUnsub: (() => void) | null = null;
 
   // -------------------------------------------------------------------------
@@ -192,7 +183,7 @@
 
       // Render chart after DOM update.
       await tick();
-      renderChart(table);
+      void renderChart(table);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errorMsg = msg;
@@ -211,18 +202,21 @@
   // Chart rendering
   // -------------------------------------------------------------------------
 
-  function renderChart(table: CalcDecayTable): void {
+  async function renderChart(table: CalcDecayTable): Promise<void> {
     if (chartInstance) {
       chartInstance.destroy();
       chartInstance = null;
     }
     if (!chartCanvas || table.channels.length === 0) return;
 
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
+
     const labels = table.channels.map((ch) => ch.final_state_names.join(" + "));
     const data = table.channels.map((ch) => ch.branching_ratio * 100);
     const colours = table.channels.map((_, i) => PALETTE[i % PALETTE.length]);
 
-    chartInstance = new Chart(chartCanvas, {
+    chartInstance = new ChartCtor(chartCanvas, {
       type: "doughnut",
       data: {
         labels,
@@ -256,7 +250,7 @@
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
+              label: (ctx: { dataIndex: number }) => {
                 const ch = table.channels[ctx.dataIndex];
                 return ` BR = ${(ch.branching_ratio * 100).toFixed(4)}%  |  Γ = ${ch.partial_width.toExponential(4)} GeV`;
               },

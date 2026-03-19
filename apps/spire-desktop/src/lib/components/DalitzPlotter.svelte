@@ -15,21 +15,12 @@
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
-  import {
-    Chart,
-    ScatterController,
-    LinearScale,
-    PointElement,
-    Tooltip,
-    Title,
-  } from "chart.js";
+  import type { Chart as ChartType } from "chart.js";
+  import { ensureChartCtor } from "$lib/utils/chartLoader";
 
   const logDalitz = (message: string): void => {
     appendLog(message, { category: "Dalitz" });
   };
-
-  // Register only the Chart.js components we need (tree-shakeable).
-  Chart.register(ScatterController, LinearScale, PointElement, Tooltip, Title);
 
   // ---------------------------------------------------------------------------
   // Preset Decays
@@ -63,7 +54,7 @@
   let plotData: DalitzPlotData | null = null;
 
   let canvasEl: HTMLCanvasElement;
-  let chart: Chart | null = null;
+  let chart: ChartType | null = null;
 
   // ---------------------------------------------------------------------------
   // Preset Selection
@@ -101,7 +92,7 @@
         `Dalitz plot: ${plotData.points.length} points generated ` +
         `(M=${motherMass}, grid=${plotData.n_grid})`
       );
-      renderChart();
+      void renderChart();
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : String(e);
       logDalitz(`Dalitz error: ${errorMsg}`);
@@ -113,7 +104,7 @@
   // ---------------------------------------------------------------------------
   // Chart.js Rendering
   // ---------------------------------------------------------------------------
-  function renderChart(): void {
+  async function renderChart(): Promise<void> {
     if (!plotData || !canvasEl) return;
 
     // Destroy previous chart instance if it exists.
@@ -122,9 +113,12 @@
       chart = null;
     }
 
+    const ChartCtor = await ensureChartCtor();
+    if (!ChartCtor) return;
+
     const scatterData = plotData.points.map(([x, y]) => ({ x, y }));
 
-    chart = new Chart(canvasEl, {
+    chart = new ChartCtor(canvasEl, {
       type: "scatter",
       data: {
         datasets: [
@@ -152,7 +146,7 @@
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
+              label: (ctx: { parsed: { x?: number; y?: number } }) => {
                 const x = ctx.parsed.x ?? 0;
                 const y = ctx.parsed.y ?? 0;
                 return `s_ab = ${x.toFixed(4)}, s_bc = ${y.toFixed(4)} GeV²`;
