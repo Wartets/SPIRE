@@ -7,6 +7,8 @@
   "scripts": {
     "desktop:dev": "npm run dev --workspace=spire-desktop",
     "desktop:build": "npm run build --workspace=spire-desktop",
-    "web:build": "npm run build:web --workspace=spire-desktop"
+    "web:build": "npm run build:web --workspace=spire-desktop",
+    "kernel:wasm:build": "wasm-pack build crates/spire-bindings --target web --release --out-dir pkg --out-name spire_kernel",
+    "kernel:wasm:opt": "npm run kernel:wasm:build && wasm-opt -O3 pkg/spire_kernel_bg.wasm -o pkg/spire_kernel_bg.wasm"
   }
 }

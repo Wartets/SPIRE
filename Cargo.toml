@@ -17,7 +17,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Wartets/SPIRE"
 description = "Structured Particle Interaction & Reaction Engine"
 
-# ── Workspace-wide lints (Phase 37) ──────────────────────────────
+# ── Workspace-wide lints ────────────────────────────────────────
 [workspace.lints.rust]
 warnings = "deny"
 
@@ -33,3 +33,13 @@ redundant_closure = "deny"
 no_effect_replace = "deny"
 doc_lazy_continuation = "deny"
 unnecessary_to_owned = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+
+[profile.release.package.spire-bindings]
+opt-level = 3
+codegen-units = 1
+strip = "symbols"

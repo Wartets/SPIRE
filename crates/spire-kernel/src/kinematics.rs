@@ -51,6 +51,7 @@
 //! $\Phi_2 = 1/(16\pi)$ in the CM frame.
 
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use std::f64::consts::PI;
 
 use crate::algebra::{FourMomentum, MetricSignature, SpacetimeVector};
@@ -898,7 +899,8 @@ impl PhaseSpaceGenerator for RamboGenerator {
         }
 
         // Step 1: Generate N massless isotropic 4-momenta.
-        let q: Vec<SpacetimeVector> = (0..n).map(|_| self.generate_massless_isotropic()).collect();
+        let q: SmallVec<[SpacetimeVector; 8]> =
+            (0..n).map(|_| self.generate_massless_isotropic()).collect();
 
         // Step 2: Compute total 4-vector Q = Σq_i.
         let q_total = sum_vectors(&q);
@@ -916,7 +918,7 @@ impl PhaseSpaceGenerator for RamboGenerator {
 
         // Step 3: Boost + scale to the CM frame with total energy = cms_energy.
         let x = cms_energy / m_q;
-        let mut p: Vec<SpacetimeVector> = q
+        let mut p: SmallVec<[SpacetimeVector; 8]> = q
             .iter()
             .map(|qi| rambo_boost_and_scale(qi, &q_total, m_q, x))
             .collect();
@@ -933,7 +935,8 @@ impl PhaseSpaceGenerator for RamboGenerator {
             let xi = rambo_mass_rescale(&p, final_masses, cms_energy)?;
 
             // Apply the rescaling: E_i = sqrt(|p_i|² * ξ² + m_i²), p_i → ξ * p_i_spatial
-            let mut massive_momenta = Vec::with_capacity(n);
+            let mut massive_momenta: SmallVec<[SpacetimeVector; 8]> =
+                SmallVec::with_capacity(n);
             for (i, pi) in p.iter().enumerate() {
                 let p_spatial_sq: f64 = pi.components()[1..].iter().map(|c| c * c).sum();
                 let m_i = final_masses[i];
@@ -953,7 +956,10 @@ impl PhaseSpaceGenerator for RamboGenerator {
             massless_weight * mass_weight
         };
 
-        Ok(PhaseSpacePoint { momenta: p, weight })
+        Ok(PhaseSpacePoint {
+            momenta: p.into_vec(),
+            weight,
+        })
     }
 
     fn name(&self) -> &str {
@@ -1087,7 +1093,7 @@ fn rambo_mass_rescale(
     let mut xi = (1.0 - ratio * ratio).max(1e-10).sqrt();
 
     // Spatial momentum magnitudes squared
-    let p_sq: Vec<f64> = momenta
+    let p_sq: SmallVec<[f64; 8]> = momenta
         .iter()
         .map(|p| p.components()[1..].iter().map(|c| c * c).sum())
         .collect();

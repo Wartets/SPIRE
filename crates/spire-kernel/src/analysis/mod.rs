@@ -2,7 +2,7 @@
 //!
 //! This module provides high-performance histogramming structures and an
 //! analysis pipeline that connects the Monte Carlo integration engine
-//! (Phase 18/24) with the Rhai scripting engine (Phase 25) for real-time
+//! with the Rhai scripting engine for real-time
 //! statistical visualization of kinematic distributions.
 //!
 //! ## Architecture
@@ -1102,40 +1102,66 @@ where
         .map(|plot| Histogram1D::new(plot.n_bins, plot.min, plot.max))
         .collect();
 
+    let chunk_size = {
+        if let Ok(value) = std::env::var("SPIRE_ANALYSIS_CHUNK_SIZE") {
+            if let Ok(parsed) = value.parse::<usize>() {
+                if parsed > 0 {
+                    parsed
+                } else {
+                    let threads = rayon::current_num_threads().max(1);
+                    let target = events.len() / (threads * 8);
+                    target.max(64).min(2048)
+                }
+            } else {
+                let threads = rayon::current_num_threads().max(1);
+                let target = events.len() / (threads * 8);
+                target.max(64).min(2048)
+            }
+        } else {
+            let threads = rayon::current_num_threads().max(1);
+            let target = events.len() / (threads * 8);
+            target.max(64).min(2048)
+        }
+    };
+
     let (sum_fw, sum_fw2, n_passed, merged_hists) = events
-        .par_iter()
-        .fold(
-            || (0.0_f64, 0.0_f64, 0_usize, initial_hists.clone()),
-            |(mut s_fw, mut s_fw2, mut n_p, mut hists), event| {
+        .par_chunks(chunk_size)
+        .map(|chunk| {
+            let mut s_fw = 0.0_f64;
+            let mut s_fw2 = 0.0_f64;
+            let mut n_p = 0_usize;
+            let mut hists = initial_hists.clone();
+
+            for event in chunk {
                 // Apply cuts.
                 let passed = cuts
                     .iter()
                     .all(|cut| crate::scripting::KinematicCut::is_passed(cut, event));
                 if !passed {
-                    return (s_fw, s_fw2, n_p, hists);
+                    continue;
                 }
                 n_p += 1;
 
                 let f_val = integrand(event);
                 if !f_val.is_finite() || !event.weight.is_finite() {
-                    return (s_fw, s_fw2, n_p, hists);
+                    continue;
                 }
 
                 let fw = f_val * event.weight;
                 s_fw += fw;
                 s_fw2 += fw * fw;
 
-                // Fill thread-local histograms.
+                // Fill chunk-local histograms.
                 for (obs, hist) in observables.iter().zip(hists.iter_mut()) {
                     let value = obs.evaluate(event);
                     if value.is_finite() {
                         hist.fill(value, fw);
                     }
                 }
+            }
 
-                (s_fw, s_fw2, n_p, hists)
-            },
-        )
+            (s_fw, s_fw2, n_p, hists)
+        })
         .reduce(
             || (0.0_f64, 0.0_f64, 0_usize, initial_hists.clone()),
             |(a_fw, a_fw2, a_n, mut a_hists), (b_fw, b_fw2, b_n, b_hists)| {

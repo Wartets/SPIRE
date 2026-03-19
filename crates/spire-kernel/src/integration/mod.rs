@@ -75,6 +75,25 @@ use serde::{Deserialize, Serialize};
 use crate::kinematics::{PhaseSpaceGenerator, PhaseSpacePoint};
 use crate::SpireResult;
 
+const MIN_INTEGRATION_CHUNK_SIZE: usize = 64;
+const MAX_INTEGRATION_CHUNK_SIZE: usize = 2048;
+
+fn integration_chunk_size(num_events: usize) -> usize {
+    if let Ok(value) = std::env::var("SPIRE_RAYON_CHUNK_SIZE") {
+        if let Ok(parsed) = value.parse::<usize>() {
+            if parsed > 0 {
+                return parsed;
+            }
+        }
+    }
+
+    let threads = rayon::current_num_threads().max(1);
+    let target = num_events / (threads * 8);
+    target
+        .max(MIN_INTEGRATION_CHUNK_SIZE)
+        .min(MAX_INTEGRATION_CHUNK_SIZE)
+}
+
 // ===========================================================================
 // Integration Result
 // ===========================================================================
@@ -383,16 +402,26 @@ impl UniformIntegrator {
         }
 
         // Phase 2: parallel integrand evaluation & reduction.
+        let chunk_size = integration_chunk_size(events.len());
         let (sum_fw, sum_fw2, n_success) = events
-            .par_iter()
-            .map(|event| {
-                let f_val = integrand(event);
-                if !f_val.is_finite() || !event.weight.is_finite() {
-                    (0.0, 0.0, 0_usize)
-                } else {
+            .par_chunks(chunk_size)
+            .map(|chunk| {
+                let mut local_sum_fw = 0.0;
+                let mut local_sum_fw2 = 0.0;
+                let mut local_n = 0_usize;
+
+                for event in chunk {
+                    let f_val = integrand(event);
+                    if !f_val.is_finite() || !event.weight.is_finite() {
+                        continue;
+                    }
                     let fw = f_val * event.weight;
-                    (fw, fw * fw, 1_usize)
+                    local_sum_fw += fw;
+                    local_sum_fw2 += fw * fw;
+                    local_n += 1;
                 }
+
+                (local_sum_fw, local_sum_fw2, local_n)
             })
             .reduce(
                 || (0.0, 0.0, 0_usize),
@@ -559,20 +588,34 @@ impl UniformIntegrator {
         }
 
         // Phase 2: parallel evaluation with cut filtering.
+        let chunk_size = integration_chunk_size(events.len());
         let (sum_fw, sum_fw2, n_success, n_passed) = events
-            .par_iter()
-            .map(|event| {
-                let passed = cuts.iter().all(|cut| cut.is_passed(event));
-                if !passed {
-                    return (0.0, 0.0, 0_usize, 0_usize);
-                }
-                let f_val = integrand(event);
-                if !f_val.is_finite() || !event.weight.is_finite() {
-                    (0.0, 0.0, 0_usize, 1_usize)
-                } else {
+            .par_chunks(chunk_size)
+            .map(|chunk| {
+                let mut local_sum_fw = 0.0;
+                let mut local_sum_fw2 = 0.0;
+                let mut local_n_success = 0_usize;
+                let mut local_n_passed = 0_usize;
+
+                for event in chunk {
+                    let passed = cuts.iter().all(|cut| cut.is_passed(event));
+                    if !passed {
+                        continue;
+                    }
+                    local_n_passed += 1;
+
+                    let f_val = integrand(event);
+                    if !f_val.is_finite() || !event.weight.is_finite() {
+                        continue;
+                    }
+
                     let fw = f_val * event.weight;
-                    (fw, fw * fw, 1_usize, 1_usize)
+                    local_sum_fw += fw;
+                    local_sum_fw2 += fw * fw;
+                    local_n_success += 1;
                 }
+
+                (local_sum_fw, local_sum_fw2, local_n_success, local_n_passed)
             })
             .reduce(
                 || (0.0, 0.0, 0_usize, 0_usize),
