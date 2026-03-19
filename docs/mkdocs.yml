@@ -36,6 +36,7 @@ nav:
     - ADR Index: decisions/index.md
   - API Reference:
     - Overview: api/reference.md
+    - Rust API (Generated): api/rust-api.md
 
 markdown_extensions:
   - admonition

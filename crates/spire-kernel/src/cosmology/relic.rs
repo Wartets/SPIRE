@@ -40,6 +40,21 @@
 //! For detailed evolution curves, a numerical integration with the adaptive
 //! Dormand-Prince solver is also available starting from $x_f$.
 //!
+//! ## Freeze-Out Criterion (Practical Form)
+//!
+//! The iterative solver effectively enforces
+//! $\Gamma_{\mathrm{ann}}(x_f) \sim H(x_f)$ with
+//! $\Gamma_{\mathrm{ann}} = n_{\mathrm{eq}}\langle\sigma v\rangle$.
+//! For weak-scale masses and thermal cross-sections, this typically yields
+//! $x_f \sim 20\text{--}30$.
+//!
+//! ## Approximation Envelope
+//!
+//! This implementation is designed for single-species thermal freeze-out.
+//! Coannihilation, resonant threshold effects, Sommerfeld enhancement, and
+//! non-standard cosmological histories are not modelled explicitly and should
+//! be treated with dedicated extensions when precision demands it.
+//!
 //! ## Usage
 //!
 //! ```rust

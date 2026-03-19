@@ -33,6 +33,31 @@
 //! 4. **Interaction vertices** → `SymbolicTerm::VertexCoupling`.
 //!
 //! The result is an ordered list of symbolic terms whose product gives $i\mathcal{M}$.
+//!
+//! # CAS Layer and Dirac Algebra
+//!
+//! Beyond term-level assembly, this module contains a Computer Algebra System
+//! (CAS) expression tree used for tensor contraction, trace evaluation, and
+//! symbolic simplification.  Non-commutative structures (gamma matrices,
+//! spinors) preserve order, while scalar/tensor factors are simplified under
+//! commutative rules.
+//!
+//! Canonical identities used throughout include:
+//!
+//! $$\{\gamma^\mu,\gamma^\nu\}=2g^{\mu\nu}\,\mathbf{1},\qquad
+//! \mathrm{Tr}[\gamma^\mu\gamma^\nu]=4g^{\mu\nu}$$
+//!
+//! and, in four dimensions,
+//!
+//! $$\mathrm{Tr}[\gamma^5\gamma^\mu\gamma^\nu\gamma^\rho\gamma^\sigma]
+//! = -4i\,\epsilon^{\mu\nu\rho\sigma}.$$
+//!
+//! # Dimensional Regularization Support
+//!
+//! Many simplification utilities accept [`SpacetimeDimension`] to represent
+//! either fixed integer dimension $d$ or symbolic dimensional regularization
+//! $d = 4 - 2\epsilon$.  This allows one-loop algebra to remain symbolic until
+//! late-stage reduction.
 
 pub mod wgsl_compiler;
 

@@ -37,6 +37,34 @@
 //! $$\delta\sigma = \frac{1}{2s} \sqrt{\frac{\langle f^2 \rangle - \langle f \rangle^2}{N_\text{ev}}}$$
 //!
 //! where $f_i = |\mathcal{M}(p_i)|^2 \cdot w_i$.
+//!
+//! For weighted events, the implementation uses the empirical first and
+//! second moments of $f$:
+//!
+//! $$\hat{\mu} = \frac{1}{N}\sum_i f_i,
+//! \qquad
+//! \widehat{\mathrm{Var}}(f)=\max\!\left(\frac{1}{N}\sum_i f_i^2-\hat{\mu}^2,0\right)$$
+//!
+//! and reports $\delta\hat{\mu}=\sqrt{\widehat{\mathrm{Var}}(f)/N}$.
+//!
+//! ## Relative Error and Convergence
+//!
+//! The reported relative error is
+//! $\delta\hat{\mu}/|\hat{\mu}|$, exhibiting the expected Monte Carlo
+//! scaling $\propto N^{-1/2}$ for finite-variance integrands.  Cut-aware
+//! routines normalise by the total generated event count so acceptance losses
+//! are physically reflected in the estimate.
+//!
+//! ## Hadronic Convolution Layer
+//!
+//! The hadronic helpers implement PDF convolution on top of partonic
+//! integration:
+//!
+//! $$\sigma_{H_1H_2} = \sum_{a,b}\int dx_1 dx_2\;f_a^{H_1}(x_1,Q^2)
+//! f_b^{H_2}(x_2,Q^2)\,\hat{\sigma}_{ab}(\hat{s})$$
+//!
+//! with $\hat{s}=x_1x_2S$.  This keeps matrix-element evaluation and PDF
+//! sampling cleanly separated while sharing the same statistical machinery.
 
 #[cfg(feature = "gpu")]
 pub mod gpu;

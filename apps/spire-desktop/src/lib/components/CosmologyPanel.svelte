@@ -14,6 +14,7 @@
   import { onDestroy } from "svelte";
   import { calculateRelicDensity } from "$lib/api";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import type { RelicConfig, RelicDensityReport, FreezeOutPoint } from "$lib/types/spire";
 
   // ── State ──
@@ -157,7 +158,7 @@
 <div class="cosmo-panel">
   <!-- ── Input Form ── -->
   <section class="cosmo-form">
-    <h3>Dark Matter Candidate</h3>
+    <h3><HoverDef term="relic_density">Dark Matter Candidate</HoverDef></h3>
 
     <div class="form-grid">
       <label for="dm-mass">Mass (GeV)</label>
@@ -193,7 +194,7 @@
     <section class="cosmo-results">
       <div class="result-grid">
         <div class="result-card">
-          <span class="result-label">Ω h²</span>
+          <span class="result-label"><HoverDef term="relic_density">Ω h²</HoverDef></span>
           <span class="result-value" style="color: {classColor(report.classification)}">
             {report.omega_h2.toFixed(4)}
           </span>
@@ -203,7 +204,7 @@
           <span class="result-value">{report.planck_omega_h2.toFixed(4)}</span>
         </div>
         <div class="result-card">
-          <span class="result-label">x_f</span>
+          <span class="result-label"><HoverDef term="freeze_out">x_f</HoverDef></span>
           <span class="result-value">{report.x_freeze_out.toFixed(1)}</span>
         </div>
         <div class="result-card">

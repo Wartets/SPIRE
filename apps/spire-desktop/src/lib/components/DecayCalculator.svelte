@@ -511,7 +511,7 @@
                 Γ<sub>partial</sub> (GeV)
               </th>
               <th use:tooltip={{ text: "Branching ratio BR_i = Γ_i / Γ_total (dimensionless fraction)" }}>
-                BR
+                <HoverDef term="branching_ratio">BR</HoverDef>
               </th>
               <th use:tooltip={{ text: "Interaction vertex identifier from the loaded model" }}>
                 Vertex

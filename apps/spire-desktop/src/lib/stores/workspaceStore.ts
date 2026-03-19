@@ -42,18 +42,42 @@ import {
   type PersistedWorkspaceRecord,
 } from "$lib/core/storage/migrations";
 
+/**
+ * Workspace persistence debounce interval in milliseconds.
+ *
+ * A short debounce prevents excessive write amplification while users type,
+ * drag, or resize rapidly, while still persisting quickly enough to reduce
+ * data-loss risk on navigation/refresh.
+ */
 const AUTO_SAVE_DEBOUNCE_MS = 1000;
 
 let persistenceInitialised = false;
 let stopPersistenceWatches: Array<() => void> = [];
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * True once the persisted state has been loaded (or load attempted).
+ *
+ * UI components can subscribe to gate rendering of hydration-sensitive views.
+ */
 export const workspacePersistenceHydrated = writable<boolean>(false);
 
+/**
+ * Per-workspace, per-widget UI-only snapshots.
+ *
+ * Shape: workspaceId -> widgetId -> arbitrary serializable snapshot object.
+ *
+ * This store is intentionally decoupled from physics/domain state so widgets
+ * can persist ephemeral UI preferences (expanded sections, toggles, sort mode,
+ * etc.) without polluting model-level stores.
+ */
 export const workspaceWidgetData = writable<
   Record<string, Record<string, Record<string, unknown>>>
 >({});
 
+/**
+ * Convenience projection of widget snapshot state for the active workspace.
+ */
 export const activeWorkspaceWidgetData = derived(
   [workspaceWidgetData, activeWorkspaceId],
   ([$data, $activeId]) => $data[$activeId] ?? {},
@@ -135,6 +159,11 @@ function handleWindowPersistenceFlush(): void {
   persistWorkspaceStateNow();
 }
 
+/**
+ * Debounced save scheduler.
+ *
+ * Replaces any pending timer so bursty updates collapse into one write.
+ */
 function schedulePersistedSave(): void {
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
@@ -290,6 +319,11 @@ export function setWidgetUiSnapshot(
   });
 }
 
+/**
+ * Retrieve a typed widget UI snapshot for the active workspace.
+ *
+ * Returns `null` when no snapshot exists for `widgetId`.
+ */
 export function getWidgetUiSnapshot<T extends Record<string, unknown>>(
   widgetId: string,
 ): T | null {
@@ -299,6 +333,15 @@ export function getWidgetUiSnapshot<T extends Record<string, unknown>>(
   return (found as T | undefined) ?? null;
 }
 
+/**
+ * Initialize persistence watchers and perform one-time hydration.
+ *
+ * Idempotent: repeated calls after initialization are no-ops.
+ *
+ * Lifecycle contract:
+ * - Call once during app bootstrap.
+ * - Pair with {@link destroyWorkspacePersistence} on teardown/tests.
+ */
 export function initWorkspacePersistence(): void {
   if (persistenceInitialised) return;
   persistenceInitialised = true;
@@ -337,6 +380,11 @@ export function initWorkspacePersistence(): void {
   schedulePersistedSave();
 }
 
+/**
+ * Stop persistence watchers, flush pending writes, and release listeners.
+ *
+ * Safe to call multiple times.
+ */
 export function destroyWorkspacePersistence(): void {
   for (const stop of stopPersistenceWatches) {
     stop();

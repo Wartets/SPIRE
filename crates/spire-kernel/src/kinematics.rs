@@ -30,6 +30,25 @@
 //!
 //! **Mandelstam sum rule:**
 //! $$s + t + u = m_1^2 + m_2^2 + m_3^2 + m_4^2$$
+//!
+//! # Domain and Numerical Conventions
+//!
+//! - All masses and energies are in GeV, invariants in GeV$^2$.
+//! - Unphysical regions (below threshold, negative Källén argument) are
+//!   mapped to safe outputs (`0.0` or explicit `SpireError`) depending on
+//!   the API contract.
+//! - Threshold comparisons use small floating tolerances to reduce spurious
+//!   floating-point rejections in boundary configurations.
+//!
+//! # Useful Derived Identities
+//!
+//! The two-body momentum can also be written as
+//!
+//! $$p^* = \frac{1}{2\sqrt{s}}
+//! \sqrt{\bigl[s-(m_a+m_b)^2\bigr]\bigl[s-(m_a-m_b)^2\bigr]}$$
+//!
+//! making threshold structure explicit. For massless final states,
+//! $\Phi_2 = 1/(16\pi)$ in the CM frame.
 
 use serde::{Deserialize, Serialize};
 use std::f64::consts::PI;

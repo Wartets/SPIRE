@@ -941,7 +941,7 @@
         <SpireNumberInput inputId="cms-energy" bind:value={cmsEnergy} min={0.1} step={0.1} ariaLabel="CMS energy" />
       </div>
       <div class="field compact">
-        <label for="num-events">Events:</label>
+        <label for="num-events"><HoverDef term="mc_events">Events</HoverDef>:</label>
         <SpireNumberInput inputId="num-events" bind:value={numEvents} min={1} max={1000000} step={100} ariaLabel="Event count" />
       </div>
       <div class="field compact">

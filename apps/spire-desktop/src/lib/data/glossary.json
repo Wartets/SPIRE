@@ -1,0 +1,174 @@
+{
+  "alpha_s": {
+    "term": "Strong Coupling Constant",
+    "definition": "Dimensionless coupling of QCD controlling quark-gluon interaction strength; it runs with scale due to asymptotic freedom.",
+    "formula": "\\alpha_s(M_Z) \\approx 0.1180",
+    "value": "0.1180 ± 0.0009 at M_Z",
+    "pdgRef": "PDG 2024, §9.4 - QCD",
+    "category": "Coupling"
+  },
+  "alpha_em": {
+    "term": "Fine-Structure Constant",
+    "definition": "Dimensionless QED coupling that sets the strength of electromagnetic interactions.",
+    "formula": "\\alpha_{\\text{em}} = \\frac{e^2}{4\\pi} \\approx \\frac{1}{137.036}",
+    "value": "1/137.035999084(21)",
+    "pdgRef": "PDG 2024, §1 - Physical Constants",
+    "category": "Coupling"
+  },
+  "g_fermi": {
+    "term": "Fermi Coupling Constant",
+    "definition": "Effective weak coupling in four-fermion theory; appears in low-energy charged-current processes.",
+    "formula": "G_F = 1.1663788(6) \\times 10^{-5}\\;\\text{GeV}^{-2}",
+    "value": "1.1663788 × 10⁻⁵ GeV⁻²",
+    "pdgRef": "PDG 2024, §10 - Electroweak Model",
+    "category": "Coupling"
+  },
+  "m_z": {
+    "term": "Z Boson Mass",
+    "definition": "Pole mass of the neutral weak gauge boson.",
+    "formula": "M_Z = 91.1876 \\pm 0.0021\\;\\text{GeV}",
+    "value": "91.1876 ± 0.0021 GeV",
+    "pdgRef": "PDG 2024, §10.2 - Z Boson",
+    "category": "Mass"
+  },
+  "m_w": {
+    "term": "W Boson Mass",
+    "definition": "Pole mass of the charged weak gauge boson.",
+    "formula": "M_W = 80.3692 \\pm 0.0133\\;\\text{GeV}",
+    "value": "80.3692 ± 0.0133 GeV",
+    "pdgRef": "PDG 2024, §10.2 - W Boson",
+    "category": "Mass"
+  },
+  "m_h": {
+    "term": "Higgs Boson Mass",
+    "definition": "Pole mass of the Higgs scalar associated with electroweak symmetry breaking.",
+    "formula": "M_H = 125.20 \\pm 0.11\\;\\text{GeV}",
+    "value": "125.20 ± 0.11 GeV",
+    "pdgRef": "PDG 2024, §11.6 - Higgs Boson",
+    "category": "Mass"
+  },
+  "m_top": {
+    "term": "Top Quark Mass",
+    "definition": "Pole mass of the top quark, the heaviest Standard Model fermion.",
+    "formula": "m_t = 172.57 \\pm 0.29\\;\\text{GeV}",
+    "value": "172.57 ± 0.29 GeV",
+    "pdgRef": "PDG 2024, §66 - Top Quark",
+    "category": "Mass"
+  },
+  "gamma_w": {
+    "term": "W Boson Total Width",
+    "definition": "Total decay width of W±; inverse of lifetime in natural units.",
+    "formula": "\\Gamma_W = 2.085 \\pm 0.042\\;\\text{GeV}",
+    "value": "2.085 ± 0.042 GeV",
+    "pdgRef": "PDG 2024, §10.2 - W Boson",
+    "category": "Width"
+  },
+  "gamma_z": {
+    "term": "Z Boson Total Width",
+    "definition": "Total decay width of Z⁰, constraining invisible neutrino channels.",
+    "formula": "\\Gamma_Z = 2.4955 \\pm 0.0023\\;\\text{GeV}",
+    "value": "2.4955 ± 0.0023 GeV",
+    "pdgRef": "PDG 2024, §10.2 - Z Boson",
+    "category": "Width"
+  },
+  "sin2_theta_w": {
+    "term": "Weak Mixing Angle",
+    "definition": "Electroweak mixing parameter controlling W/Z composition from SU(2)L and U(1)Y gauge fields.",
+    "formula": "\\sin^2\\theta_W^{\\text{eff}} = 0.23155 \\pm 0.00004",
+    "value": "0.23155 ± 0.00004",
+    "pdgRef": "PDG 2024, §10 - Electroweak Model",
+    "category": "Parameter"
+  },
+  "ckm_matrix": {
+    "term": "CKM Quark Mixing Matrix",
+    "definition": "Unitary 3×3 matrix relating quark weak eigenstates to mass eigenstates.",
+    "formula": "V_{\\text{CKM}} = \\begin{pmatrix} V_{ud} & V_{us} & V_{ub} \\\\ V_{cd} & V_{cs} & V_{cb} \\\\ V_{td} & V_{ts} & V_{tb} \\end{pmatrix}",
+    "pdgRef": "PDG 2024, §12 - CKM Matrix",
+    "category": "Parameter"
+  },
+  "cross_section": {
+    "term": "Cross Section",
+    "definition": "Probability measure for a scattering process, obtained from amplitude-squared integrated over phase space.",
+    "formula": "\\sigma = \\frac{1}{2s} \\int |\\mathcal{M}|^2 \\, d\\Phi_n",
+    "category": "Concept"
+  },
+  "mandelstam_s": {
+    "term": "Mandelstam Variable s",
+    "definition": "Invariant mass squared of the initial state; equal to centre-of-mass energy squared.",
+    "formula": "s = (p_1 + p_2)^2",
+    "category": "Concept"
+  },
+  "mandelstam_t": {
+    "term": "Mandelstam Variable t",
+    "definition": "Invariant momentum transfer between initial and final legs in 2→2 kinematics.",
+    "formula": "t = (p_1 - p_3)^2",
+    "category": "Concept"
+  },
+  "phase_space": {
+    "term": "Phase Space",
+    "definition": "Kinematically allowed final-state momentum manifold with Lorentz-invariant measure dΦn.",
+    "formula": "d\\Phi_n = \\prod_{i=1}^{n} \\frac{d^3 p_i}{(2\\pi)^3 2E_i} \\, (2\\pi)^4 \\delta^{(4)}\\!\\left(P - \\sum p_i\\right)",
+    "category": "Concept"
+  },
+  "feynman_diagram": {
+    "term": "Feynman Diagram",
+    "definition": "Graphical representation of a perturbative amplitude contribution in quantum field theory.",
+    "category": "Concept"
+  },
+  "su3_color": {
+    "term": "SU(3) Colour Symmetry",
+    "definition": "Non-Abelian QCD gauge symmetry under which quarks are triplets and gluons are octets.",
+    "formula": "SU(3)_C",
+    "pdgRef": "PDG 2024, §9 - QCD",
+    "category": "Symmetry"
+  },
+  "relic_density": {
+    "term": "Relic Density",
+    "definition": "Present-day dark-matter energy density fraction, typically quoted as Ωh².",
+    "formula": "\\Omega h^2 = \\frac{m_\\chi s_0 Y_\\infty}{\\rho_c/h^2}",
+    "category": "Cosmology"
+  },
+  "freeze_out": {
+    "term": "Freeze-Out",
+    "definition": "Epoch when annihilation rate falls below Hubble expansion and comoving DM abundance decouples.",
+    "formula": "\\Gamma_{\\mathrm{ann}} \\sim H(T_f)",
+    "category": "Cosmology"
+  },
+  "branching_ratio": {
+    "term": "Branching Ratio",
+    "definition": "Fraction of decays proceeding through a given channel, BR_i = Γ_i/Γ_total.",
+    "formula": "\\mathrm{BR}_i = \\Gamma_i / \\Gamma_{\\text{total}}",
+    "category": "Decay"
+  },
+  "decay_table": {
+    "term": "Decay Table",
+    "definition": "Structured list of kinematically allowed decay channels with partial widths and branching ratios.",
+    "category": "Decay"
+  },
+  "parent_particle": {
+    "term": "Parent Particle",
+    "definition": "Unstable state whose decay channels are evaluated in the decay calculation workflow.",
+    "category": "Decay"
+  },
+  "parameter_scan": {
+    "term": "Parameter Scan",
+    "definition": "Systematic sweep of model parameters to study observable response, constraints, and preferred regions.",
+    "category": "Analysis"
+  },
+  "scan_target": {
+    "term": "Scan Target",
+    "definition": "Named model quantity or observable chosen as the objective of a parameter sweep.",
+    "category": "Analysis"
+  },
+  "scan_scale": {
+    "term": "Scan Scale",
+    "definition": "Linear or logarithmic spacing policy used to distribute parameter grid points.",
+    "category": "Analysis"
+  },
+  "mc_events": {
+    "term": "Monte Carlo Events",
+    "definition": "Number of generated phase-space samples used to estimate integrals and statistical uncertainties.",
+    "formula": "\\delta \\propto 1/\\sqrt{N}",
+    "category": "Analysis"
+  }
+}

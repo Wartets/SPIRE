@@ -23,6 +23,20 @@
  * Every type in this module is plain JSON - no class instances, no
  * functions, no circular references.  `layoutRoot` can be serialised
  * with `JSON.stringify()` and restored with `JSON.parse()`.
+ *
+ * ## Invariants
+ *
+ * - Every node has a unique `id` within a workspace layout tree.
+ * - `sizes.length === children.length` for `row`/`col` containers.
+ * - `activeIndex` in `stack` containers is always clamped to child bounds.
+ * - Mutations are immutable from the perspective of Svelte subscribers:
+ *   reducers clone/transform and then publish a fresh tree object.
+ *
+ * ## Mutation Safety
+ *
+ * Reducers should be preferred over ad-hoc writes from UI components.
+ * This keeps structural pruning, stack clamping, and serialization guarantees
+ * centralized and testable.
  */
 
 import { writable, derived, get } from "svelte/store";
@@ -400,6 +414,9 @@ function findNode(
 /**
  * Replace a node in the tree by ID.
  * Mutates the tree in-place (call on a clone).
+ *
+ * Returns `true` when replacement succeeded, `false` when `targetId`
+ * was not found.
  */
 function replaceNode(root: LayoutNode, targetId: string, replacement: LayoutNode): boolean {
   if (root.type === "widget") return false;
@@ -419,6 +436,8 @@ function replaceNode(root: LayoutNode, targetId: string, replacement: LayoutNode
  * Remove a node from the tree.  Returns the pruned tree.
  * If a container ends up with a single child, that child replaces
  * the container (structural pruning).
+ *
+ * Returns `null` only when removal eliminates the entire subtree.
  */
 function removeNode(root: LayoutNode, targetId: string): LayoutNode | null {
   // Cannot remove the root itself from this function

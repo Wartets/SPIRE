@@ -13,6 +13,13 @@
  *
  * The bus is write-once-then-consume by convention: after processing a
  * payload, consumers call `clearSelectionBus()` to signal completion.
+ *
+ * ## Delivery semantics
+ *
+ * - This is a best-effort in-memory broadcast channel, not a durable queue.
+ * - The latest payload replaces any previous payload.
+ * - Consumers that care about one-shot semantics should process quickly and
+ *   clear the bus to avoid accidental replay during rerender/subscription.
  */
 
 import { writable } from "svelte/store";
@@ -60,6 +67,8 @@ export const selectionBus = writable<SelectionBusPayload | null>(null);
  * Broadcast a selection payload to all subscribers.
  *
  * @param payload – The typed selection event to dispatch.
+ *
+ * This call overwrites any currently active payload.
  */
 export function broadcastSelection(payload: SelectionBusPayload): void {
   selectionBus.set(payload);
@@ -68,6 +77,8 @@ export function broadcastSelection(payload: SelectionBusPayload): void {
 /**
  * Clear the current broadcast.  Consumers should call this after they have
  * processed the payload to prevent re-processing on re-render.
+ *
+ * Calling this when already empty is a no-op.
  */
 export function clearSelectionBus(): void {
   selectionBus.set(null);
