@@ -71,6 +71,7 @@ import type {
   PdgParticleRecord,
   PdgDecayTable,
   PdgExtractionPolicy,
+  PdgSyncOptions,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -373,6 +374,6 @@ export interface SpireBackend {
   pdgLookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord>;
   pdgGetParticleProperties(mcid: number): Promise<PdgParticleRecord>;
   pdgGetDecayTable(mcid: number, policy: PdgExtractionPolicy): Promise<PdgDecayTable>;
-  pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel>;
+  pdgSyncModel(model: TheoreticalModel, options?: PdgSyncOptions): Promise<TheoreticalModel>;
   pdgSearchIdentifiers(query: string): Promise<PdgParticleRecord[]>;
 }

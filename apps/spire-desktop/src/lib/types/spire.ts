@@ -1786,6 +1786,23 @@ export interface PdgDecayTable {
 /** PDG extraction policy for filtering decay channels. */
 export type PdgExtractionPolicy = "StrictPhysical" | "Catalog";
 
+/** Merge strategy when applying PDG data to an existing model. */
+export type PdgMergeMode = "Replace" | "Patch" | "Overlay";
+
+/** Bootstrap macro preset for PDG model seeding workflows. */
+export type PdgBootstrapPreset =
+  | "SeedCoreSM"
+  | "SeedQuarkSector"
+  | "SeedLeptonSector"
+  | "FullCatalogImport";
+
+/** Optional controls for PDG model synchronization. */
+export interface PdgSyncOptions {
+  merge_mode?: PdgMergeMode;
+  bootstrap_preset?: PdgBootstrapPreset | null;
+  edition_lock?: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Zod Runtime Validation Schemas (Phase 73)
 // ---------------------------------------------------------------------------

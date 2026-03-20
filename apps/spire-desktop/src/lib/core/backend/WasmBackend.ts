@@ -582,7 +582,10 @@ export class WasmBackend implements SpireBackend {
     throw new Error("PDG decay table lookup is not supported in WASM backend mode");
   }
 
-  async pdgSyncModel(_model: import("$lib/types/spire").TheoreticalModel): Promise<import("$lib/types/spire").TheoreticalModel> {
+  async pdgSyncModel(
+    _model: import("$lib/types/spire").TheoreticalModel,
+    _options?: import("$lib/types/spire").PdgSyncOptions,
+  ): Promise<import("$lib/types/spire").TheoreticalModel> {
     throw new Error("PDG model sync is not supported in WASM backend mode");
   }
 

@@ -1628,7 +1628,10 @@ This is a mock proof document for ${processLabel}.
     throw new Error(`Mock: no decay table for MCID ${mcid}`);
   }
 
-  async pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel> {
+  async pdgSyncModel(
+    model: TheoreticalModel,
+    _options?: import("$lib/types/spire").PdgSyncOptions,
+  ): Promise<TheoreticalModel> {
     await simulateLatency();
     return model;
   }

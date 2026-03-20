@@ -1,14 +1,12 @@
 import { writable, derived, type Readable, type Writable } from 'svelte/store';
 import type {
+  PdgMetadata,
   PdgParticleRecord,
   PdgDecayChannel,
-  PdgQuantumNumbers,
-  PdgValue,
-  PdgProvenance,
 } from '$lib/types/spire';
 import {
+  getPdgMetadata,
   searchParticles,
-  getParticleProperties,
 } from '$lib/api';
 
 /**
@@ -18,6 +16,47 @@ import {
  */
 export const pdgCatalogMode: Writable<'core_sm' | 'full_catalog'> =
   writable('core_sm');
+
+export const pdgMetadata: Writable<PdgMetadata | null> = writable(null);
+export const pdgMetadataError: Writable<string | null> = writable(null);
+
+export type PdgSortMode = 'pdg_asc' | 'pdg_desc' | 'alpha' | 'mass_asc' | 'mass_desc' | 'charge_abs';
+
+export const pdgSortMode: Writable<PdgSortMode> = writable('pdg_asc');
+export const pdgEditionFilter: Writable<'latest' | string> = writable('latest');
+export const pdgOnlyWithMeasurements: Writable<boolean> = writable(false);
+export const pdgAvailableEditions: Writable<string[]> = writable([]);
+export const pdgCatalogHistory: Writable<Record<number, PdgParticleRecord[]>> = writable({});
+
+function editionRank(edition: string): number {
+  const yearMatch = edition.match(/(19|20)\d{2}/);
+  if (yearMatch) return Number(yearMatch[0]);
+  return Number.MIN_SAFE_INTEGER;
+}
+
+function rankHistory(history: PdgParticleRecord[]): PdgParticleRecord[] {
+  return [...history].sort((a, b) => {
+    const yearDelta = editionRank(b.provenance.edition) - editionRank(a.provenance.edition);
+    if (yearDelta !== 0) return yearDelta;
+    return a.provenance.source_id.localeCompare(b.provenance.source_id);
+  });
+}
+
+function hasMeasurements(record: PdgParticleRecord): boolean {
+  return Boolean(record.mass || record.width || record.lifetime);
+}
+
+export async function refreshPdgMetadata(): Promise<void> {
+  try {
+    const metadata = await getPdgMetadata();
+    pdgMetadata.set(metadata);
+    pdgMetadataError.set(null);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    pdgMetadataError.set(message);
+    pdgMetadata.set(null);
+  }
+}
 
 /**
  * Core Standard Model particles (bootstrap set)
@@ -260,19 +299,42 @@ const CORE_SM_PARTICLES: PdgParticleRecord[] = [
 /**
  * Current PDG catalog based on mode
  */
+let activeCatalogRequestId = 0;
+
 export const pdgCatalog: Readable<PdgParticleRecord[]> = derived(
   pdgCatalogMode,
   (mode, set) => {
+    const requestId = ++activeCatalogRequestId;
+    let disposed = false;
+
     if (mode === 'core_sm') {
+      const history = CORE_SM_PARTICLES.reduce<Record<number, PdgParticleRecord[]>>((acc, particle) => {
+        acc[particle.pdg_id] = [particle];
+        return acc;
+      }, {});
+      pdgCatalogHistory.set(history);
+      pdgAvailableEditions.set(['PDG2024']);
       set(CORE_SM_PARTICLES);
     } else {
       loadFullCatalog()
-        .then((particles) => set(particles))
+        .then(({ particles, historyByPdgId, editions }) => {
+          if (disposed || requestId !== activeCatalogRequestId) return;
+          pdgCatalogHistory.set(historyByPdgId);
+          pdgAvailableEditions.set(editions);
+          set(particles);
+        })
         .catch((err) => {
+          if (disposed || requestId !== activeCatalogRequestId) return;
           console.error('Failed to load full PDG catalog:', err);
+          pdgCatalogHistory.set({});
+          pdgAvailableEditions.set(['PDG2024']);
           set(CORE_SM_PARTICLES);
         });
     }
+
+    return () => {
+      disposed = true;
+    };
   },
   CORE_SM_PARTICLES
 );
@@ -280,11 +342,46 @@ export const pdgCatalog: Readable<PdgParticleRecord[]> = derived(
 /**
  * Async function to load full PDG catalog from backend
  */
-async function loadFullCatalog(): Promise<PdgParticleRecord[]> {
+async function loadFullCatalog(): Promise<{
+  particles: PdgParticleRecord[];
+  historyByPdgId: Record<number, PdgParticleRecord[]>;
+  editions: string[];
+}> {
   try {
-    const allParticles = [...CORE_SM_PARTICLES];
-    // TODO: Extend with searchParticles('') call
-    return allParticles;
+    const fetched = await searchParticles('');
+    if (!Array.isArray(fetched) || fetched.length === 0) {
+      return {
+        particles: [...CORE_SM_PARTICLES],
+        historyByPdgId: CORE_SM_PARTICLES.reduce<Record<number, PdgParticleRecord[]>>((acc, particle) => {
+          acc[particle.pdg_id] = [particle];
+          return acc;
+        }, {}),
+        editions: ['PDG2024'],
+      };
+    }
+
+    const historyByPdgId = new Map<number, PdgParticleRecord[]>();
+    const editions = new Set<string>();
+
+    for (const particle of [...CORE_SM_PARTICLES, ...fetched]) {
+      editions.add(particle.provenance.edition);
+      const current = historyByPdgId.get(particle.pdg_id) ?? [];
+      current.push(particle);
+      historyByPdgId.set(particle.pdg_id, current);
+    }
+
+    const reducedHistory: Record<number, PdgParticleRecord[]> = {};
+    const latestCatalog = Array.from(historyByPdgId.entries()).map(([pdgId, history]) => {
+      const ranked = rankHistory(history);
+      reducedHistory[pdgId] = ranked;
+      return ranked[0];
+    });
+
+    return {
+      particles: latestCatalog.sort((a, b) => a.pdg_id - b.pdg_id),
+      historyByPdgId: reducedHistory,
+      editions: [...editions].sort((a, b) => editionRank(b) - editionRank(a)),
+    };
   } catch (err) {
     console.error('loadFullCatalog error:', err);
     throw err;
@@ -301,6 +398,28 @@ export const massRange: Writable<{ min: number; max: number }> = writable({
   max: 1000000,
 });
 
+function materializeEditionCatalog(
+  latestCatalog: PdgParticleRecord[],
+  historyByPdgId: Record<number, PdgParticleRecord[]>,
+  editionFilter: 'latest' | string,
+): PdgParticleRecord[] {
+  if (editionFilter === 'latest') {
+    return latestCatalog;
+  }
+
+  return latestCatalog
+    .map((entry) => {
+      const history = historyByPdgId[entry.pdg_id] ?? [entry];
+      return history.find((candidate) => candidate.provenance.edition === editionFilter) ?? entry;
+    });
+}
+
+export const pdgEffectiveCatalog: Readable<PdgParticleRecord[]> = derived(
+  [pdgCatalog, pdgCatalogHistory, pdgEditionFilter],
+  ([$catalog, $history, $editionFilter]) => materializeEditionCatalog($catalog, $history, $editionFilter),
+  CORE_SM_PARTICLES,
+);
+
 /**
  * Apply facet filters to catalog
  */
@@ -308,9 +427,15 @@ function applyFilters(
   particles: PdgParticleRecord[],
   charge: 'all' | number[],
   spin: 'all' | string[],
-  mass: { min: number; max: number }
+  mass: { min: number; max: number },
+  onlyWithMeasurements: boolean,
+  sortMode: PdgSortMode,
 ): PdgParticleRecord[] {
-  return particles.filter((p) => {
+  const filtered = particles.filter((p) => {
+    if (onlyWithMeasurements && !hasMeasurements(p)) {
+      return false;
+    }
+
     if (charge !== 'all' && p.quantum_numbers.charge !== undefined) {
       if (!charge.includes(p.quantum_numbers.charge)) {
         return false;
@@ -332,15 +457,37 @@ function applyFilters(
 
     return true;
   });
+
+  return filtered.sort((a, b) => {
+    const massA = a.mass?.value ?? Number.POSITIVE_INFINITY;
+    const massB = b.mass?.value ?? Number.POSITIVE_INFINITY;
+    const chargeA = Math.abs(a.quantum_numbers.charge ?? 0);
+    const chargeB = Math.abs(b.quantum_numbers.charge ?? 0);
+
+    switch (sortMode) {
+      case 'pdg_desc':
+        return b.pdg_id - a.pdg_id;
+      case 'alpha':
+        return (a.label ?? '').localeCompare(b.label ?? '') || a.pdg_id - b.pdg_id;
+      case 'mass_asc':
+        return massA - massB || a.pdg_id - b.pdg_id;
+      case 'mass_desc':
+        return massB - massA || a.pdg_id - b.pdg_id;
+      case 'charge_abs':
+        return chargeB - chargeA || a.pdg_id - b.pdg_id;
+      default:
+        return a.pdg_id - b.pdg_id;
+    }
+  });
 }
 
 /**
  * Filtered catalog based on all facet filters
  */
 export const filteredCatalog: Readable<PdgParticleRecord[]> = derived(
-  [pdgCatalog, chargeFilter, spinFilter, massRange],
-  ([$catalog, $charge, $spin, $mass]) => {
-    return applyFilters($catalog, $charge, $spin, $mass);
+  [pdgEffectiveCatalog, chargeFilter, spinFilter, massRange, pdgOnlyWithMeasurements, pdgSortMode],
+  ([$catalog, $charge, $spin, $mass, $onlyWithMeasurements, $sortMode]) => {
+    return applyFilters($catalog, $charge, $spin, $mass, $onlyWithMeasurements, $sortMode);
   }
 );
 
@@ -388,6 +535,28 @@ export const pdgSearchResults: Readable<PdgParticleRecord[]> = derived(
  */
 export const selectedPdgParticle: Writable<PdgParticleRecord | null> = writable(null);
 
+let lastSelectedPdgId: number | null = null;
+
+selectedPdgParticle.subscribe((value) => {
+  lastSelectedPdgId = value?.pdg_id ?? null;
+});
+
+pdgSearchResults.subscribe((results) => {
+  if (results.length === 0) {
+    selectedPdgParticle.set(null);
+    return;
+  }
+
+  const current = lastSelectedPdgId;
+  if (current === null) return;
+  const match = results.find((particle) => particle.pdg_id === current);
+  if (match) {
+    selectedPdgParticle.set(match);
+  } else {
+    selectedPdgParticle.set(results[0]);
+  }
+});
+
 /**
  * Selected decay channel for detail inspection
  */
@@ -400,7 +569,7 @@ export const pdgFacetStats: Readable<{
   chargeDistribution: Record<number, number>;
   spinDistribution: Record<string, number>;
   massRange: { min: number; max: number };
-}> = derived(pdgCatalog, ($catalog) => {
+}> = derived(pdgEffectiveCatalog, ($catalog) => {
   const chargeMap: Record<number, number> = {};
   const spinMap: Record<string, number> = {};
   let minMass = Infinity;

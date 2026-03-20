@@ -28,6 +28,8 @@
   } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { ProfileEntry } from "$lib/core/services/TelemetryService";
+  import { pdgIntegrationState } from "$lib/stores/pdgIntegrationStore";
+  import EditionLockBadge from "$lib/components/ui/EditionLockBadge.svelte";
 
   // ── Formatting Helpers ──────────────────────────────────
 
@@ -170,6 +172,21 @@
       <div class="stat">
         <span class="stat-label">Threads</span>
         <span class="stat-value">{$latestProfile.threads_used}</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sub-title">PDG Data Plane</div>
+      <EditionLockBadge edition={$pdgIntegrationState.editionLock} stale={$pdgIntegrationState.stale} mismatch={$pdgIntegrationState.mismatch} />
+      <div class="status-grid">
+        <span>Queries</span>
+        <span>{$pdgIntegrationState.queryStats.queryCount}</span>
+        <span>Cache hit/miss</span>
+        <span>{$pdgIntegrationState.queryStats.cacheHits} / {$pdgIntegrationState.queryStats.cacheMisses}</span>
+        <span>Avg latency</span>
+        <span>{fmtMs($pdgIntegrationState.queryStats.averageLatencyMs)}</span>
+        <span>Last latency</span>
+        <span>{fmtMs($pdgIntegrationState.queryStats.lastLatencyMs)}</span>
       </div>
     </div>
 
@@ -428,6 +445,14 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-family: var(--font-mono);
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.18rem 0.6rem;
+    font-size: 0.68rem;
+    color: var(--fg-secondary);
   }
 
   /* ── Bar Chart ─────────────────────────────────── */

@@ -24,6 +24,8 @@
   import type { Citation } from "$lib/core/services/CitationRegistry";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
+  import { pdgIntegrationState } from "$lib/stores/pdgIntegrationStore";
+  import CitationCard from "$lib/components/ui/CitationCard.svelte";
 
   let copyMsg = "";
   const totalReferenceLibrary = getAllCitations().length;
@@ -71,6 +73,49 @@
       copyMsg = "Copy failed";
       setTimeout(() => (copyMsg = ""), 2000);
     }
+  }
+
+  function toBibtexKey(raw: string): string {
+    return raw.replace(/[^a-zA-Z0-9_:-]/g, "_");
+  }
+
+  $: pdgBibtexBundle = $pdgIntegrationState.citations
+    .map((entry) => {
+      const key = toBibtexKey(entry.key);
+      const year = entry.year || 2025;
+      const doiLine = entry.doi ? `  doi = {${entry.doi}},\n` : "";
+      const noteLine = entry.edition ? `  note = {PDG edition ${entry.edition}},\n` : "";
+      return `@misc{${key},\n  title = {${entry.title}},\n  year = {${year}},\n${doiLine}${noteLine}  howpublished = {Particle Data Group resources}\n}`;
+    })
+    .join("\n\n");
+
+  $: pdgLatexCite = $pdgIntegrationState.citations.length > 0
+    ? `\\cite{${$pdgIntegrationState.citations.map((entry) => toBibtexKey(entry.key)).join(",")}}`
+    : "";
+
+  async function copyPdgBibtex(): Promise<void> {
+    if (!pdgBibtexBundle) return;
+    await navigator.clipboard.writeText(pdgBibtexBundle);
+    copyMsg = "PDG BibTeX copied";
+    setTimeout(() => (copyMsg = ""), 1800);
+  }
+
+  async function copyPdgLatex(): Promise<void> {
+    if (!pdgLatexCite) return;
+    await navigator.clipboard.writeText(pdgLatexCite);
+    copyMsg = "LaTeX cite copied";
+    setTimeout(() => (copyMsg = ""), 1800);
+  }
+
+  function exportPdgBibFile(): void {
+    if (!pdgBibtexBundle) return;
+    const blob = new Blob([pdgBibtexBundle], { type: "text/x-bibtex;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    anchor.download = "spire_pdg_citations.bib";
+    anchor.click();
+    URL.revokeObjectURL(href);
   }
 
   function arxivUrl(c: Citation): string | null {
@@ -143,6 +188,7 @@
   $: publishWidgetInterop("references", {
     count: $activeCitationCount,
     topCitation: $activeCitations[0]?.title ?? null,
+    pdgCitationCount: $pdgIntegrationState.citations.length,
   });
 </script>
 
@@ -176,6 +222,23 @@
     Active bibliography sourced from a curated library of <strong>{totalReferenceLibrary}</strong>
     particle-theory and collider-phenomenology references.
   </p>
+
+  {#if $pdgIntegrationState.citations.length > 0}
+    <div class="pdg-bundle">
+      <div class="pdg-bundle-header">
+        <strong>PDG Citation Bundle</strong>
+        <span>{$pdgIntegrationState.citations.length} entries</span>
+      </div>
+      <div class="ref-actions">
+        <button class="ref-btn" on:click={copyPdgBibtex}>Copy BibTeX</button>
+        <button class="ref-btn" on:click={copyPdgLatex}>Copy LaTeX cite</button>
+        <button class="ref-btn" on:click={exportPdgBibFile}>Export .bib</button>
+      </div>
+      {#each $pdgIntegrationState.citations as entry}
+        <CitationCard title={entry.title} subtitle={entry.key} detail={entry.edition ?? "PDG"} />
+      {/each}
+    </div>
+  {/if}
 
   {#if $activeCitationCount === 0}
     <div class="ref-empty">
@@ -272,6 +335,30 @@
     font-size: 0.68rem;
     color: var(--fg-secondary);
     line-height: 1.35;
+  }
+
+  .pdg-bundle {
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--bg-inset) 92%, transparent);
+    padding: 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .pdg-bundle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--fg-secondary);
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .pdg-bundle-header strong {
+    color: var(--fg-accent);
   }
   .ref-actions {
     display: flex;

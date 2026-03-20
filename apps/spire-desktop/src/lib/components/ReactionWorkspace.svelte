@@ -33,6 +33,7 @@
     deriveAmplitude,
     computeKinematics,
     verifyDimensions,
+    syncModel,
     validateScript,
     testObservableScript,
     testCutScript,
@@ -66,6 +67,7 @@
     import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { selectionBus, clearSelectionBus } from "$lib/stores/selectionBus";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
+  import { particleDropzone, type PdgDragPayload } from "$lib/utils/dnd";
 
   const logReaction = (message: string): void => {
     appendLog(message, { category: "Reaction" });
@@ -186,6 +188,118 @@
   // --- UI state ---
   let busy: boolean = false;
   let errorMsg: string = "";
+  let dropNotice: { tone: "warn" | "error"; message: string } | null = null;
+
+  const PDG_TO_MODEL_IDS: Record<string, string[]> = {
+    11: ["e-", "electron"],
+    "-11": ["e+", "positron"],
+    13: ["mu-", "muon"],
+    "-13": ["mu+", "antimuon"],
+    15: ["tau-", "tau"],
+    "-15": ["tau+", "antitau"],
+    12: ["nu_e", "electronneutrino"],
+    "-12": ["nu_e_bar", "electronantineutrino"],
+    14: ["nu_mu", "muonneutrino"],
+    "-14": ["nu_mu_bar", "muonantineutrino"],
+    16: ["nu_tau", "tauneutrino"],
+    "-16": ["nu_tau_bar", "tauantineutrino"],
+    22: ["photon", "gamma"],
+    23: ["Z0", "z", "zboson"],
+    24: ["W+", "w+", "wplus"],
+    "-24": ["W-", "w-", "wminus"],
+    25: ["H", "higgs", "higgsboson"],
+    21: ["g", "gluon"],
+    1: ["d", "down", "downquark"],
+    "-1": ["d_bar", "antidown"],
+    2: ["u", "up", "upquark"],
+    "-2": ["u_bar", "antiup"],
+    3: ["s", "strange", "strangequark"],
+    "-3": ["s_bar", "antistrange"],
+    4: ["c", "charm", "charmquark"],
+    "-4": ["c_bar", "anticharm"],
+    5: ["b", "bottom", "bottomquark"],
+    "-5": ["b_bar", "antibottom"],
+    6: ["t", "top", "topquark"],
+    "-6": ["t_bar", "antitop"],
+  };
+
+  function normaliseToken(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9+\-]/g, "");
+  }
+
+  function resolveModelParticleId(payload: PdgDragPayload): string | null {
+    const model = $theoreticalModel;
+    if (!model) return null;
+
+    const candidates = new Set<string>([
+      ...(PDG_TO_MODEL_IDS[String(payload.pdgId)] ?? []),
+      payload.label ?? "",
+      String(payload.pdgId),
+    ].map((item) => normaliseToken(item)).filter((item) => item.length > 0));
+
+    for (const field of model.fields) {
+      const idToken = normaliseToken(field.id);
+      const nameToken = normaliseToken(field.name);
+      const symbolToken = normaliseToken(field.symbol);
+
+      if (candidates.has(idToken) || candidates.has(nameToken) || candidates.has(symbolToken)) {
+        return field.id;
+      }
+
+      for (const candidate of candidates) {
+        if (
+          idToken.includes(candidate)
+          || nameToken.includes(candidate)
+          || symbolToken.includes(candidate)
+        ) {
+          return field.id;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function showDropNotice(message: string, tone: "warn" | "error" = "warn"): void {
+    dropNotice = { tone, message };
+  }
+
+  async function handleParticleDrop(target: "initial" | "final", payload: PdgDragPayload): Promise<void> {
+    if (!$theoreticalModel) {
+      showDropNotice("Load a model before dropping particles.", "warn");
+      return;
+    }
+
+    try {
+      const syncedModel = await syncModel($theoreticalModel);
+      theoreticalModel.set(syncedModel);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      showDropNotice(`PDG sync failed: ${message}`, "error");
+      return;
+    }
+
+    const modelParticleId = resolveModelParticleId(payload);
+    if (!modelParticleId) {
+      showDropNotice(`No model field mapping found for PDG ${payload.pdgId}.`, "warn");
+      return;
+    }
+
+    if (target === "initial") {
+      initialIdsInput.update((prev) => (prev.includes(modelParticleId) ? prev : [...prev, modelParticleId]));
+    } else {
+      finalIdsInput.update((prev) => (prev.includes(modelParticleId) ? prev : [...prev, modelParticleId]));
+    }
+
+    pulseAtlasSelection(target, modelParticleId);
+    logReaction(`Dropped PDG ${payload.pdgId} mapped to ${modelParticleId} (${target}).`);
+
+    if (payload.edition && payload.edition !== "PDG2024") {
+      showDropNotice(`Dropped data edition ${payload.edition} may differ from active baseline PDG2024.`, "warn");
+    } else {
+      dropNotice = null;
+    }
+  }
 
   // --- Helpers for multi-select inputs ---
   let newInitialId: string = SM_PARTICLE_IDS[0];
@@ -561,6 +675,15 @@
           </span>
         {/each}
       </div>
+      <div
+        class="atlas-dropzone"
+        use:particleDropzone={{
+          onDrop: (payload) => handleParticleDrop("initial", payload),
+          disabled: !$isModelLoaded || busy,
+        }}
+      >
+        Drop particle from Atlas → initial state
+      </div>
       <div class="add-row">
         <select bind:value={newInitialId}>
           {#each SM_PARTICLE_IDS as pid}
@@ -598,6 +721,15 @@
             <button class="tag-remove" on:click={() => removeFinal(idx)}>&times;</button>
           </span>
         {/each}
+      </div>
+      <div
+        class="atlas-dropzone"
+        use:particleDropzone={{
+          onDrop: (payload) => handleParticleDrop("final", payload),
+          disabled: !$isModelLoaded || busy,
+        }}
+      >
+        Drop particle from Atlas → final state
       </div>
       <div class="add-row">
         <select bind:value={newFinalId}>
@@ -680,6 +812,13 @@
     <!-- Error Display -->
     {#if errorMsg}
       <p class="error-msg">{errorMsg}</p>
+    {/if}
+
+    {#if dropNotice}
+      <div class="drop-notice" class:drop-notice-error={dropNotice.tone === "error"}>
+        <span>{dropNotice.message}</span>
+        <button on:click={() => (dropNotice = null)} aria-label="Dismiss drop notice">dismiss</button>
+      </div>
     {/if}
 
     <!-- Reaction Status -->
@@ -923,6 +1062,22 @@
     gap: 0.3rem;
     align-items: center;
   }
+
+  .atlas-dropzone {
+    border: 1px dashed var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    padding: 0.25rem 0.4rem;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  :global(.atlas-dropzone.drop-hover) {
+    border-color: var(--hl-symbol);
+    color: var(--fg-primary);
+    background: color-mix(in srgb, var(--hl-symbol) 12%, var(--bg-inset));
+  }
   .add-row select {
     flex: 1;
     background: var(--bg-inset);
@@ -1009,6 +1164,34 @@
     color: var(--hl-error);
     font-size: 0.78rem;
     margin: 0;
+  }
+
+  .drop-notice {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--hl-value);
+    color: var(--hl-value);
+    background: color-mix(in srgb, var(--hl-value) 10%, var(--bg-inset));
+    font-size: 0.72rem;
+    padding: 0.28rem 0.45rem;
+  }
+
+  .drop-notice.drop-notice-error {
+    border-color: var(--hl-error);
+    color: var(--hl-error);
+    background: color-mix(in srgb, var(--hl-error) 10%, var(--bg-inset));
+  }
+
+  .drop-notice button {
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    padding: 0.05rem 0.25rem;
+    text-transform: uppercase;
   }
   .status-badge {
     font-size: 0.78rem;

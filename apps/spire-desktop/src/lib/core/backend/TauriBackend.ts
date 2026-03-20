@@ -68,6 +68,7 @@ import type {
   PdgParticleRecord,
   PdgDecayTable,
   PdgExtractionPolicy,
+  PdgSyncOptions,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -630,8 +631,11 @@ export class TauriBackend implements SpireBackend {
     return tauriInvokeValidated("pdg_get_decay_table", PdgDecayTableSchema, { mcid, policy });
   }
 
-  async pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel> {
-    return tauriInvokeValidated("pdg_sync_model", TheoreticalModelSchema, { model });
+  async pdgSyncModel(model: TheoreticalModel, options?: PdgSyncOptions): Promise<TheoreticalModel> {
+    return tauriInvokeValidated("pdg_sync_model", TheoreticalModelSchema, {
+      model,
+      options: options ?? null,
+    });
   }
 
   async pdgSearchIdentifiers(query: string): Promise<PdgParticleRecord[]> {

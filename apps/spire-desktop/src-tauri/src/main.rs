@@ -1255,6 +1255,33 @@ fn stop_mcmc_fit(state: tauri::State<'_, McmcFitState>) -> Result<(), String> {
 // PDG Integration (Phase 73)
 // ---------------------------------------------------------------------------
 
+/// Merge strategy for PDG model synchronization.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+enum PdgMergeMode {
+    Replace,
+    Patch,
+    Overlay,
+}
+
+/// Bootstrap presets for PDG model seeding.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+enum PdgBootstrapPreset {
+    SeedCoreSM,
+    SeedQuarkSector,
+    SeedLeptonSector,
+    FullCatalogImport,
+}
+
+/// Optional synchronization controls passed from the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PdgSyncOptions {
+    merge_mode: Option<PdgMergeMode>,
+    bootstrap_preset: Option<PdgBootstrapPreset>,
+    edition_lock: Option<String>,
+}
+
 /// Get PDG database metadata (edition, version, timestamp).
 #[tauri::command]
 fn pdg_get_metadata() -> Result<PdgMetadata, String> {
@@ -1316,8 +1343,12 @@ fn pdg_get_decay_table(mcid: i32, policy: String) -> Result<PdgDecayTable, Strin
 /// 3. Update the mass and width fields with PDG values.
 /// 4. Track provenance in model metadata.
 #[tauri::command]
-fn pdg_sync_model(model: TheoreticalModel) -> Result<TheoreticalModel, String> {
+fn pdg_sync_model(
+    model: TheoreticalModel,
+    options: Option<PdgSyncOptions>,
+) -> Result<TheoreticalModel, String> {
     let _adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    let _options = options;
 
     // Placeholder: return model unchanged for now.
     // Production implementation would iterate over model.fields and look up PDG data.

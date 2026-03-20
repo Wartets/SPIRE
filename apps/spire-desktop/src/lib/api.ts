@@ -881,6 +881,17 @@ export async function syncModel(model: TheoreticalModel): Promise<TheoreticalMod
 }
 
 /**
+ * Synchronize a theoretical model with PDG database values using explicit
+ * merge/bootstrap controls.
+ */
+export async function syncModelWithOptions(
+  model: TheoreticalModel,
+  options: import("$lib/types/spire").PdgSyncOptions,
+): Promise<TheoreticalModel> {
+  return getBackend().pdgSyncModel(model, options);
+}
+
+/**
  * Search for particles by name, label, or identifier fragment.
  *
  * @param query - The search query (e.g., "electron", "e-", "photon").

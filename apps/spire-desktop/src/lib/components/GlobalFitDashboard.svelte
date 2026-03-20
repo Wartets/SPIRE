@@ -33,6 +33,8 @@
     ObservableFitInput,
     GlobalObservableFitResult,
   } from "$lib/types/spire";
+  import EditionLockBadge from "$lib/components/ui/EditionLockBadge.svelte";
+  import { pdgIntegrationState } from "$lib/stores/pdgIntegrationStore";
 
   // === Reactive state ===
   let parameters: FitParameter[] = [
@@ -458,6 +460,18 @@
 
 <div class="global-fit-dashboard">
   <h2>Global Fit Dashboard</h2>
+
+  <section class="status-section">
+    <h3>PDG Provenance</h3>
+    <EditionLockBadge edition={$pdgIntegrationState.editionLock} stale={$pdgIntegrationState.stale} mismatch={$pdgIntegrationState.mismatch} />
+    <div class="status-grid">
+      <span>Merge mode:</span><span>{$pdgIntegrationState.mergeMode}</span>
+      <span>Bootstrap:</span><span>{$pdgIntegrationState.bootstrapPreset ?? "none"}</span>
+      <span>Source arbitration:</span><span>{$pdgIntegrationState.sourceArbitration}</span>
+      <span>Authority:</span><span>{$pdgIntegrationState.authoritativeSource ?? "unknown"}</span>
+      <span>Last sync:</span><span>{$pdgIntegrationState.lastSyncAt ?? "-"}</span>
+    </div>
+  </section>
 
   <!-- Parameter Table -->
   <section class="params-section">

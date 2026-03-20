@@ -10,31 +10,33 @@
 <style>
   .provenance-badge {
     display: inline-block;
-    font-size: 0.75rem;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 3px;
-    background: var(--surface-variant, #f0f0f0);
-    color: var(--on-surface-variant, #666);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--fg-secondary);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
     white-space: nowrap;
-    transition: opacity 0.2s ease;
   }
 
   .confidence-high {
     opacity: 1;
-    background: var(--success-container, #d4edda);
-    color: var(--on-success-container, #155724);
+    border-color: var(--hl-success);
+    color: var(--hl-success);
   }
 
   .confidence-medium {
-    opacity: 0.8;
-    background: var(--warning-container, #fff3cd);
-    color: var(--on-warning-container, #856404);
+    opacity: 1;
+    border-color: var(--hl-value);
+    color: var(--hl-value);
   }
 
   .confidence-low {
-    opacity: 0.6;
-    background: var(--error-container, #f8d7da);
-    color: var(--on-error-container, #721c24);
+    opacity: 1;
+    border-color: var(--hl-error);
+    color: var(--hl-error);
   }
 </style>

@@ -14,14 +14,24 @@
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
   import { theoreticalModel, appendLog } from "$lib/stores/physicsStore";
-  import { calculateDecayTable, exportDecaySlha } from "$lib/api";
+  import { calculateDecayTable, exportDecaySlha, syncModel, getDecayTable } from "$lib/api";
   import { pipelineGraph, pipelineRunState } from "$lib/stores/pipelineGraphStore";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
-  import type { TheoreticalModel, CalcDecayTable, CalcDecayChannel } from "$lib/types/spire";
+  import type {
+    TheoreticalModel,
+    CalcDecayTable,
+    PdgDecayTable,
+    PdgDecayChannel,
+    PdgDecayProduct,
+    PdgExtractionPolicy,
+  } from "$lib/types/spire";
   import type { Chart as ChartType } from "chart.js";
   import { ensureChartCtor } from "$lib/utils/chartLoader";
+  import { particleDropzone, type PdgDragPayload } from "$lib/utils/dnd";
+  import { pdgPull } from "$lib/core/physics/pdgValue";
+  import { recordPdgQuery } from "$lib/stores/pdgIntegrationStore";
 
   const logDecay = (message: string): void => {
     appendLog(message, { category: "Decay" });
@@ -54,10 +64,125 @@
   let computing = false;
   let errorMsg = "";
   let decayTable: CalcDecayTable | null = null;
+  let pdgDecayTable: PdgDecayTable | null = null;
+  let pdgPolicy: PdgExtractionPolicy = "Catalog";
+  let decayMode: "analytical" | "pdg" | "side_by_side" = "analytical";
 
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: ChartType | null = null;
   let interopUnsub: (() => void) | null = null;
+  let dropNotice: { tone: "warn" | "error"; message: string } | null = null;
+
+  const PDG_TO_MODEL_IDS: Record<string, string[]> = {
+    11: ["e-", "electron"],
+    "-11": ["e+", "positron"],
+    13: ["mu-", "muon"],
+    "-13": ["mu+", "antimuon"],
+    15: ["tau-", "tau"],
+    "-15": ["tau+", "antitau"],
+    12: ["nu_e", "electronneutrino"],
+    "-12": ["nu_e_bar", "electronantineutrino"],
+    14: ["nu_mu", "muonneutrino"],
+    "-14": ["nu_mu_bar", "muonantineutrino"],
+    16: ["nu_tau", "tauneutrino"],
+    "-16": ["nu_tau_bar", "tauantineutrino"],
+    22: ["photon", "gamma"],
+    23: ["Z0", "z", "zboson"],
+    24: ["W+", "w+", "wplus"],
+    "-24": ["W-", "w-", "wminus"],
+    25: ["H", "higgs", "higgsboson"],
+    21: ["g", "gluon"],
+  };
+
+  const MODEL_TO_PDG: Record<string, number> = {
+    "e-": 11,
+    "e+": -11,
+    "mu-": 13,
+    "mu+": -13,
+    "tau-": 15,
+    "tau+": -15,
+    nu_e: 12,
+    nu_mu: 14,
+    nu_tau: 16,
+    photon: 22,
+    gamma: 22,
+    z0: 23,
+    z: 23,
+    "w+": 24,
+    "w-": -24,
+    h: 25,
+    higgs: 25,
+    u: 2,
+    d: 1,
+    s: 3,
+    c: 4,
+    b: 5,
+    t: 6,
+    g: 21,
+  };
+
+  function inferPdgCode(id: string, name: string): number | null {
+    const byId = MODEL_TO_PDG[id.trim().toLowerCase()];
+    if (Number.isInteger(byId)) return byId;
+    const byName = MODEL_TO_PDG[name.trim().toLowerCase()];
+    if (Number.isInteger(byName)) return byName;
+    return null;
+  }
+
+  function normaliseToken(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9+\-]/g, "");
+  }
+
+  function resolveModelFieldByPdg(payload: PdgDragPayload): string | null {
+    const candidates = new Set<string>([
+      ...(PDG_TO_MODEL_IDS[String(payload.pdgId)] ?? []),
+      payload.label ?? "",
+      String(payload.pdgId),
+    ].map((item) => normaliseToken(item)).filter((item) => item.length > 0));
+
+    for (const p of massiveParticles) {
+      const idToken = normaliseToken(p.id);
+      const nameToken = normaliseToken(p.name);
+      if (candidates.has(idToken) || candidates.has(nameToken)) return p.id;
+      for (const candidate of candidates) {
+        if (idToken.includes(candidate) || nameToken.includes(candidate)) {
+          return p.id;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  async function handleParticleDrop(payload: PdgDragPayload): Promise<void> {
+    if (!model) {
+      dropNotice = { tone: "warn", message: "Load a model before dropping particles." };
+      return;
+    }
+
+    try {
+      const synced = await syncModel(model);
+      theoreticalModel.set(synced);
+      buildParticleList(synced);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      dropNotice = { tone: "error", message: `PDG sync failed: ${message}` };
+      return;
+    }
+
+    const matchId = resolveModelFieldByPdg(payload);
+    if (!matchId) {
+      dropNotice = { tone: "warn", message: `No decay parent mapping for PDG ${payload.pdgId}.` };
+      return;
+    }
+
+    const idx = massiveParticles.findIndex((item) => item.id === matchId);
+    if (idx >= 0) {
+      selectedIdx = idx;
+      dropNotice = null;
+      logDecay(`[DecayCalc] Atlas drop selected parent ${matchId} from PDG ${payload.pdgId}.`);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // Model subscription
@@ -115,7 +240,7 @@
           id: f.id,
           name: f.name || f.id,
           mass: f.mass,
-          pdgCode: i + 1,      // placeholder
+          pdgCode: inferPdgCode(f.id, f.name || f.id) ?? i + 1,
         });
       }
     }
@@ -171,6 +296,7 @@
     computing = true;
     errorMsg = "";
     decayTable = null;
+    pdgDecayTable = null;
 
     try {
       logDecay(`[DecayCalc] Computing decay table for ${target.name} (${target.id})…`);
@@ -184,6 +310,18 @@
       // Render chart after DOM update.
       await tick();
       void renderChart(table);
+
+      if (decayMode !== "analytical") {
+        const startedAt = performance.now();
+        try {
+          const pdgTable = await getDecayTable(target.pdgCode, pdgPolicy);
+          recordPdgQuery(performance.now() - startedAt, true);
+          pdgDecayTable = pdgTable;
+        } catch (pdgError: unknown) {
+          recordPdgQuery(performance.now() - startedAt, false);
+          throw pdgError;
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errorMsg = msg;
@@ -317,6 +455,56 @@
     return (br * 100).toFixed(4) + "%";
   }
 
+  function formatPdgValuePercent(value: import("$lib/types/spire").PdgValue | undefined): string {
+    if (!value) return "-";
+    if (value.kind === "exact") return `${(value.value * 100).toFixed(4)}%`;
+    if (value.kind === "symmetric") {
+      return `${(value.value * 100).toFixed(4)} ± ${(value.error * 100).toFixed(4)}%`;
+    }
+    return `${(value.value * 100).toFixed(4)} (-${(value.error.minus * 100).toFixed(4)}, +${(value.error.plus * 100).toFixed(4)})%`;
+  }
+
+  function productLabel(product: PdgDecayProduct): string {
+    if (product.kind === "generic") return `[Inclusive] ${product.description}`;
+    return `MCID ${product.mcid}`;
+  }
+
+  function pdgChannelLabel(channel: PdgDecayChannel): string {
+    if (channel.description?.trim()) return channel.description;
+    return channel.products
+      .map(([product, multiplicity]) => `${multiplicity > 1 ? `${multiplicity}×` : ""}${productLabel(product)}`)
+      .join(" + ");
+  }
+
+  function normalizeToken(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function findPdgMatch(channelLabel: string): PdgDecayChannel | null {
+    if (!pdgDecayTable) return null;
+    const needle = normalizeToken(channelLabel);
+    return (
+      pdgDecayTable.channels.find((channel) => normalizeToken(pdgChannelLabel(channel)).includes(needle))
+      ?? null
+    );
+  }
+
+  $: sideBySideRows = (() => {
+    if (!decayTable) return [];
+    return decayTable.channels.map((channel) => {
+      const label = channel.final_state_names.join(" + ");
+      const pdgMatch = findPdgMatch(label);
+      const pull = pdgMatch?.branching_ratio ? pdgPull(channel.branching_ratio, pdgMatch.branching_ratio) : null;
+      return {
+        label,
+        theoryBr: channel.branching_ratio,
+        pdgBr: pdgMatch?.branching_ratio,
+        residual: pull,
+        inclusive: Boolean(pdgMatch?.is_generic),
+      };
+    });
+  })();
+
   function fmtLifetime(t: number): string {
     if (t <= 0) return "stable";
     if (t < 1e-20) return t.toExponential(3) + " s";
@@ -408,6 +596,12 @@
     <HoverDef term="decay_table">Decay Calculator</HoverDef>
   </h3>
 
+  <div class="mode-switch" role="group" aria-label="Decay mode">
+    <button class:active={decayMode === "analytical"} on:click={() => (decayMode = "analytical")}>Analytical (SPIRE QFT)</button>
+    <button class:active={decayMode === "pdg"} on:click={() => (decayMode = "pdg")}>PDG Experimental</button>
+    <button class:active={decayMode === "side_by_side"} on:click={() => (decayMode = "side_by_side")}>Side-by-Side</button>
+  </div>
+
   <!-- Configuration -->
   <div class="config-panel">
     <div class="config-top-row">
@@ -428,6 +622,15 @@
           <option value="name">Name</option>
         </select>
       </div>
+        {#if decayMode !== "analytical"}
+          <div class="field compact">
+            <label for="decay-pdg-policy">PDG policy</label>
+            <select id="decay-pdg-policy" bind:value={pdgPolicy}>
+              <option value="Catalog">Catalog</option>
+              <option value="StrictPhysical">StrictPhysical</option>
+            </select>
+          </div>
+        {/if}
     </div>
 
     <div class="field">
@@ -456,6 +659,16 @@
       </div>
     {/if}
 
+    <div
+      class="atlas-dropzone"
+      use:particleDropzone={{
+        onDrop: handleParticleDrop,
+        disabled: computing || massiveParticles.length === 0,
+      }}
+    >
+      Drop particle from Atlas → parent selector
+    </div>
+
     <button class="run-btn" on:click={computeDecay} disabled={computing || massiveParticles.length === 0}>
       {#if computing}
         <span class="spinner"></span> Computing…
@@ -466,6 +679,13 @@
 
     {#if errorMsg}
       <div class="error-msg">{errorMsg}</div>
+    {/if}
+
+    {#if dropNotice}
+      <div class="drop-notice" class:drop-notice-error={dropNotice.tone === "error"}>
+        <span>{dropNotice.message}</span>
+        <button on:click={() => (dropNotice = null)} aria-label="Dismiss drop notice">dismiss</button>
+      </div>
     {/if}
   </div>
 
@@ -486,68 +706,94 @@
       </div>
 
       <!-- Doughnut Chart -->
-      {#if decayTable.channels.length > 0}
+      {#if decayTable.channels.length > 0 && decayMode !== "pdg"}
         <div class="chart-container">
           <canvas bind:this={chartCanvas}></canvas>
         </div>
       {/if}
 
-      <!-- Data Table -->
-      <div class="data-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="left"
-                use:tooltip={{ text: "Final-state particles of this decay channel" }}>
-                Channel
-              </th>
-              <th use:tooltip={{ text: "Partial decay width Γ_i for this channel [GeV]; Γ_total = Σ Γ_i" }}>
-                Γ<sub>partial</sub> (GeV)
-              </th>
-              <th use:tooltip={{ text: "Branching ratio BR_i = Γ_i / Γ_total (dimensionless fraction)" }}>
-                <HoverDef term="branching_ratio">BR</HoverDef>
-              </th>
-              <th use:tooltip={{ text: "Interaction vertex identifier from the loaded model" }}>
-                Vertex
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each decayTable.channels as ch, i}
-              <tr on:contextmenu|preventDefault|stopPropagation={(e) => {
-                  showContextMenu(e.clientX, e.clientY, [
-                    { type: "action", id: "copy-channel", label: `Copy channel: ${ch.final_state_names.join(" + ")}`, icon: "CP",
-                      action: () => navigator.clipboard.writeText(ch.final_state_names.join(" + ")) },
-                    { type: "action", id: "copy-br", label: `Copy BR: ${fmtBR(ch.branching_ratio)}`, icon: "BR",
-                      action: () => navigator.clipboard.writeText(fmtBR(ch.branching_ratio)) },
-                    { type: "action", id: "copy-width", label: `Copy Γ: ${fmtWidth(ch.partial_width)} GeV`, icon: "Γ",
-                      action: () => navigator.clipboard.writeText(`${fmtWidth(ch.partial_width)} GeV`) },
-                    { type: "separator", id: "sep-1" },
-                    { type: "action", id: "send-scanner", label: "Send BR to Parameter Scanner", icon: "→",
-                      action: () => {
-                        const val = (ch.branching_ratio * 100).toFixed(4);
-                        navigator.clipboard.writeText(val);
-                        logDecay(`[DecayCalc] Copied BR ${val}% for ${ch.final_state_names.join("+")} to clipboard.`);
-                      }},
-                    { type: "action", id: "copy-slha-line", label: "Copy as SLHA line", icon: "SL",
-                      action: () => {
-                        const line = `   ${ch.branching_ratio.toExponential(6)}   ${ch.final_state_names.length}   ${ch.final_state_names.join("   ")}   # ${ch.vertex_id}`;
-                        navigator.clipboard.writeText(line);
-                      }},
-                  ]);
-                }}>
-                <td class="left">
-                  <span class="colour-dot" style="background:{PALETTE[i % PALETTE.length]}"></span>
-                  {ch.final_state_names.join(" + ")}
-                </td>
-                <td>{fmtWidth(ch.partial_width)}</td>
-                <td>{fmtBR(ch.branching_ratio)}</td>
-                <td class="mono">{ch.vertex_id}</td>
+      {#if decayMode === "analytical"}
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="left">Channel</th>
+                <th>Γ<sub>partial</sub> (GeV)</th>
+                <th><HoverDef term="branching_ratio">BR</HoverDef></th>
+                <th>Vertex</th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {#each decayTable.channels as ch, i}
+                <tr on:contextmenu|preventDefault|stopPropagation={(e) => {
+                    showContextMenu(e.clientX, e.clientY, [
+                      { type: "action", id: "copy-channel", label: `Copy channel: ${ch.final_state_names.join(" + ")}`, icon: "CP",
+                        action: () => navigator.clipboard.writeText(ch.final_state_names.join(" + ")) },
+                      { type: "action", id: "copy-br", label: `Copy BR: ${fmtBR(ch.branching_ratio)}`, icon: "BR",
+                        action: () => navigator.clipboard.writeText(fmtBR(ch.branching_ratio)) },
+                    ]);
+                  }}>
+                  <td class="left">
+                    <span class="colour-dot" style="background:{PALETTE[i % PALETTE.length]}"></span>
+                    {ch.final_state_names.join(" + ")}
+                  </td>
+                  <td>{fmtWidth(ch.partial_width)}</td>
+                  <td>{fmtBR(ch.branching_ratio)}</td>
+                  <td class="mono">{ch.vertex_id}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else if decayMode === "pdg"}
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="left">PDG channel</th>
+                <th>BR (PDG)</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#if pdgDecayTable}
+                {#each pdgDecayTable.channels as channel}
+                  <tr class:inclusive-row={channel.is_generic}>
+                    <td class="left">{pdgChannelLabel(channel)}</td>
+                    <td>{formatPdgValuePercent(channel.branching_ratio)}</td>
+                    <td>{channel.is_generic ? "Inclusive (non-simulable)" : "Concrete"}</td>
+                  </tr>
+                {/each}
+              {:else}
+                <tr><td class="left" colspan="3">Compute decays to load PDG channels.</td></tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+      {:else}
+        <div class="data-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="left">Channel</th>
+                <th>Theory BR</th>
+                <th>PDG BR</th>
+                <th>Residual pull</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each sideBySideRows as row}
+                <tr class:inclusive-row={row.inclusive}>
+                  <td class="left">{row.label}</td>
+                  <td>{fmtBR(row.theoryBr)}</td>
+                  <td>{formatPdgValuePercent(row.pdgBr)}</td>
+                  <td>{row.residual == null ? "-" : row.residual.toFixed(3)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
 
       <!-- SLHA Export -->
       <div class="export-row">
@@ -588,6 +834,35 @@
     color: var(--color-text-primary);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 0.35rem;
+  }
+
+  .mode-switch {
+    display: inline-flex;
+    gap: 0.25rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0.2rem;
+    background: var(--color-bg-inset);
+    width: fit-content;
+  }
+
+  .mode-switch button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.45rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+
+  .mode-switch button.active {
+    color: var(--color-text-primary);
+    border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
+    background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg-surface));
   }
 
   .config-panel {
@@ -765,6 +1040,50 @@
     border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
   }
 
+  .atlas-dropzone {
+    border: 1px dashed var(--color-border);
+    background: var(--color-bg-inset);
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.3rem 0.4rem;
+  }
+
+  :global(.atlas-dropzone.drop-hover) {
+    border-color: var(--color-accent);
+    color: var(--color-text-primary);
+    background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-inset));
+  }
+
+  .drop-notice {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--hl-value);
+    color: var(--hl-value);
+    background: color-mix(in srgb, var(--hl-value) 10%, var(--color-bg-inset));
+    font-size: 0.72rem;
+    padding: 0.28rem 0.4rem;
+  }
+
+  .drop-notice.drop-notice-error {
+    border-color: var(--color-error);
+    color: var(--color-error);
+    background: color-mix(in srgb, var(--color-error) 10%, var(--color-bg-inset));
+  }
+
+  .drop-notice button {
+    border: 1px solid currentColor;
+    background: transparent;
+    color: inherit;
+    font-size: 0.66rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    padding: 0.05rem 0.24rem;
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
@@ -815,6 +1134,11 @@
 
   tr:hover td {
     background: rgba(var(--color-accent-rgb), 0.05);
+  }
+
+  tr.inclusive-row td {
+    color: color-mix(in srgb, var(--color-text-muted) 85%, var(--color-warning));
+    font-style: italic;
   }
 
   /* ── Export ─────────────────────────────────────────────────────── */

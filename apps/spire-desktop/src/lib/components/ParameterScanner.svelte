@@ -11,14 +11,17 @@
   import { onMount, onDestroy } from "svelte";
   import { get } from "svelte/store";
   import { theoreticalModel, activeReaction, appendLog } from "$lib/stores/physicsStore";
-  import { runParameterScan1D } from "$lib/api";
+  import { runParameterScan1D, getParticleProperties } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
   import SpireNumberInput from "$lib/components/ui/SpireNumberInput.svelte";
+  import AsymmetricBoundInput from "$lib/components/ui/AsymmetricBoundInput.svelte";
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { tooltip } from "$lib/actions/tooltip";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
+  import { pdgBounds } from "$lib/core/physics/pdgValue";
+  import { recordPdgQuery, addPdgMeasurementCitation } from "$lib/stores/pdgIntegrationStore";
   import type { ScanScale, ScanResult1D, TheoreticalModel } from "$lib/types/spire";
   import type { Chart as ChartType } from "chart.js";
   import { ensureChartCtor } from "$lib/utils/chartLoader";
@@ -106,6 +109,14 @@
   let scanning = false;
   let scanError = "";
   let result: ScanResult1D | null = null;
+  let pdgBoundError = "";
+
+  let pdgSigmaMultiplier = 1;
+  let pdgBoundCentral: number | null = null;
+  let pdgBoundMinus = 0;
+  let pdgBoundPlus = 0;
+  let pdgBoundMin: number | null = null;
+  let pdgBoundMax: number | null = null;
 
   let suggestedThresholdEnergy: number | null = null;
   let suggestedTotalWidth: number | null = null;
@@ -114,6 +125,89 @@
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: ChartType | null = null;
   let interopUnsub: (() => void) | null = null;
+
+  const MODEL_ID_TO_PDG: Record<string, number> = {
+    "e-": 11,
+    "e+": -11,
+    "mu-": 13,
+    "mu+": -13,
+    "tau-": 15,
+    "tau+": -15,
+    "nu_e": 12,
+    "nu_mu": 14,
+    "nu_tau": 16,
+    photon: 22,
+    gamma: 22,
+    z: 23,
+    z0: 23,
+    "w+": 24,
+    "w-": -24,
+    higgs: 25,
+    h: 25,
+    u: 2,
+    d: 1,
+    s: 3,
+    c: 4,
+    b: 5,
+    t: 6,
+  };
+
+  function inferPdgCode(fieldId: string): number | null {
+    const key = fieldId.trim().toLowerCase();
+    return MODEL_ID_TO_PDG[key] ?? null;
+  }
+
+  function parseFieldTarget(target: string): { fieldId: string; property: "mass" | "width" } | null {
+    const match = /^field\.([^.]+)\.(mass|width)$/i.exec(target.trim());
+    if (!match) return null;
+    return {
+      fieldId: match[1],
+      property: match[2].toLowerCase() as "mass" | "width",
+    };
+  }
+
+  async function snapToPdgBounds(): Promise<void> {
+    pdgBoundError = "";
+    const target = useCustomTarget ? customTarget : presets[selectedPresetIdx]?.target ?? "";
+    const parsed = parseFieldTarget(target);
+    if (!parsed) {
+      pdgBoundError = "PDG bounds are available for field mass/width targets only.";
+      return;
+    }
+
+    const pdgCode = inferPdgCode(parsed.fieldId);
+    if (pdgCode == null) {
+      pdgBoundError = `No PDG mapping for field '${parsed.fieldId}'.`;
+      return;
+    }
+
+    const startedAt = performance.now();
+    try {
+      const record = await getParticleProperties(pdgCode);
+      const latency = performance.now() - startedAt;
+      recordPdgQuery(latency, true);
+      addPdgMeasurementCitation(record);
+
+      const value = parsed.property === "mass" ? record.mass : record.width;
+      const bounds = pdgBounds(value, pdgSigmaMultiplier);
+      if (!bounds) {
+        pdgBoundError = `PDG ${parsed.property} measurement unavailable for MCID ${pdgCode}.`;
+        return;
+      }
+
+      scanMin = Math.max(0, +bounds.min.toPrecision(6));
+      scanMax = +bounds.max.toPrecision(6);
+      pdgBoundCentral = bounds.central;
+      pdgBoundMinus = bounds.minus;
+      pdgBoundPlus = bounds.plus;
+      pdgBoundMin = bounds.min;
+      pdgBoundMax = bounds.max;
+    } catch (err: unknown) {
+      const latency = performance.now() - startedAt;
+      recordPdgQuery(latency, false);
+      pdgBoundError = err instanceof Error ? err.message : String(err);
+    }
+  }
 
   function applyThresholdWindow(spanMultiplier = 0.2): void {
     if (!Number.isFinite(suggestedThresholdEnergy ?? NaN) || !suggestedThresholdEnergy) return;
@@ -251,6 +345,19 @@
     const upperBand = result.y_values.map((y, i) => y + result!.y_errors[i]);
     const lowerBand = result.y_values.map((y, i) => Math.max(0, y - result!.y_errors[i]));
 
+    const bandTop = Math.max(...upperBand, ...result.y_values, 0);
+    const hasPdgBand = (
+      pdgBoundMin != null
+      && pdgBoundMax != null
+      && result.variable.target === (useCustomTarget ? customTarget : (presets[selectedPresetIdx]?.target ?? ""))
+    );
+    const pdgUpper = hasPdgBand
+      ? result.x_values.map((x) => (x >= (pdgBoundMin as number) && x <= (pdgBoundMax as number) ? bandTop : null))
+      : [];
+    const pdgLower = hasPdgBand
+      ? result.x_values.map((x) => (x >= (pdgBoundMin as number) && x <= (pdgBoundMax as number) ? 0 : null))
+      : [];
+
     chartInstance = new ChartCtor(chartCanvas, {
       type: "line",
       data: {
@@ -286,6 +393,27 @@
             pointRadius: 0,
             fill: false,
           },
+          ...(hasPdgBand
+            ? [
+                {
+                  label: `PDG ${pdgSigmaMultiplier}σ upper`,
+                  data: pdgUpper,
+                  borderColor: "rgba(241, 196, 15, 0)",
+                  pointRadius: 0,
+                  borderWidth: 0,
+                  fill: false,
+                },
+                {
+                  label: `PDG ${pdgSigmaMultiplier}σ band`,
+                  data: pdgLower,
+                  borderColor: "rgba(241, 196, 15, 0)",
+                  pointRadius: 0,
+                  borderWidth: 0,
+                  fill: "-1",
+                  backgroundColor: "rgba(241, 196, 15, 0.16)",
+                },
+              ]
+            : []),
         ],
       },
       options: {
@@ -518,15 +646,21 @@
 
     <!-- Range -->
     <div class="row-2col">
-      <div class="field">
-        <label for="scan-min">Min</label>
-        <SpireNumberInput inputId="scan-min" step={0.1} bind:value={scanMin} ariaLabel="Scan minimum" />
-      </div>
-      <div class="field">
-        <label for="scan-max">Max</label>
-        <SpireNumberInput inputId="scan-max" step={0.1} bind:value={scanMax} ariaLabel="Scan maximum" />
-      </div>
+      <AsymmetricBoundInput
+        bind:minValue={scanMin}
+        bind:maxValue={scanMax}
+        bind:sigmaMultiplier={pdgSigmaMultiplier}
+        centralValue={pdgBoundCentral}
+        minusError={pdgBoundMinus}
+        plusError={pdgBoundPlus}
+        onSnap={snapToPdgBounds}
+        disabled={scanning}
+      />
     </div>
+
+    {#if pdgBoundError}
+      <div class="error-msg">{pdgBoundError}</div>
+    {/if}
 
     <!-- Steps & Scale -->
     <div class="row-2col">
@@ -591,6 +725,10 @@
         on:contextmenu|preventDefault|stopPropagation={openChartContext}>
         <canvas bind:this={chartCanvas}></canvas>
       </div>
+
+      {#if pdgBoundMin != null && pdgBoundMax != null}
+        <p class="hint">PDG overlay: [{pdgBoundMin.toPrecision(5)}, {pdgBoundMax.toPrecision(5)}] ({pdgSigmaMultiplier}σ).</p>
+      {/if}
 
       <!-- Summary Table -->
       <div class="summary-table"

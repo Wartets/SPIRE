@@ -10,7 +10,7 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
   import { theoreticalModel, appendLog, activeFramework } from "$lib/stores/physicsStore";
-  import { loadModel, exportModelUfo } from "$lib/api";
+  import { loadModel, exportModelUfo, getPdgMetadata, syncModelWithOptions } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
@@ -28,7 +28,9 @@
     setWidgetUiSnapshot,
   } from "$lib/stores/workspaceStore";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
-  import type { TheoreticalFramework } from "$lib/types/spire";
+  import type { PdgBootstrapPreset, PdgMergeMode, TheoreticalFramework } from "$lib/types/spire";
+  import EditionLockBadge from "$lib/components/ui/EditionLockBadge.svelte";
+  import { pdgIntegrationState, updatePdgIntegration } from "$lib/stores/pdgIntegrationStore";
 
   const logModel = (message: string): void => {
     appendLog(message, { category: "Model" });
@@ -55,6 +57,11 @@
   let rootScroller: HTMLDivElement | null = null;
 
   let modelLoaderUiKey = "model-loader";
+  let usePdgBootstrap = false;
+  let pdgMergeMode: PdgMergeMode = "Overlay";
+  let pdgBootstrapPreset: PdgBootstrapPreset = "SeedCoreSM";
+  let pdgEditionLock: string | null = null;
+  let showFullCatalogConfirm = false;
 
   function persistModelLoaderUi(patch: Record<string, unknown>): void {
     setWidgetUiSnapshot(modelLoaderUiKey, patch);
@@ -104,13 +111,28 @@
         modelLoaderUiKey = `model-loader:${canvasWidgetId}`;
       }
 
-      const snapshot = getWidgetUiSnapshot<{ showEditors?: boolean; scrollTop?: number }>(
+      const snapshot = getWidgetUiSnapshot<{
+        showEditors?: boolean;
+        scrollTop?: number;
+        usePdgBootstrap?: boolean;
+        pdgMergeMode?: PdgMergeMode;
+        pdgBootstrapPreset?: PdgBootstrapPreset;
+      }>(
         modelLoaderUiKey,
       );
       if (!snapshot) return;
 
       if (typeof snapshot.showEditors === "boolean") {
         showEditors = snapshot.showEditors;
+      }
+      if (typeof snapshot.usePdgBootstrap === "boolean") {
+        usePdgBootstrap = snapshot.usePdgBootstrap;
+      }
+      if (snapshot.pdgMergeMode) {
+        pdgMergeMode = snapshot.pdgMergeMode;
+      }
+      if (snapshot.pdgBootstrapPreset) {
+        pdgBootstrapPreset = snapshot.pdgBootstrapPreset;
       }
 
       await tick();
@@ -120,6 +142,16 @@
     };
 
     void restoreUi();
+
+    void (async () => {
+      try {
+        const metadata = await getPdgMetadata();
+        pdgEditionLock = metadata.edition;
+        updatePdgIntegration({ editionLock: metadata.edition });
+      } catch {
+        pdgEditionLock = null;
+      }
+    })();
   });
 
   onDestroy(() => {
@@ -218,11 +250,18 @@
     errorDetails = [];
     try {
       const model = await loadModel($particlesTomlInput, $verticesTomlInput, $modelNameInput);
-      theoreticalModel.set(model);
+      const modelWithPdg = usePdgBootstrap
+        ? await syncModelWithOptions(model, {
+            merge_mode: pdgMergeMode,
+            bootstrap_preset: pdgBootstrapPreset,
+            edition_lock: pdgEditionLock,
+          })
+        : model;
+      theoreticalModel.set(modelWithPdg);
       fieldCount = model.fields.length;
       vertexCount = model.vertex_factors.length;
-      unstableFieldCount = model.fields.filter((field) => Number.isFinite(field.width) && field.width > 0).length;
-      const masses = model.fields
+      unstableFieldCount = modelWithPdg.fields.filter((field) => Number.isFinite(field.width) && field.width > 0).length;
+      const masses = modelWithPdg.fields
         .map((field) => field.mass)
         .filter((mass) => Number.isFinite(mass) && mass > 0)
         .sort((a, b) => a - b);
@@ -231,13 +270,23 @@
         : "No massive fields";
       lastLoadedAt = new Date().toLocaleString();
       modelFingerprint = [
-        model.name,
-        `${model.fields.length}f`,
-        `${model.vertex_factors.length}v`,
-        `${model.terms.length}t`,
+        modelWithPdg.name,
+        `${modelWithPdg.fields.length}f`,
+        `${modelWithPdg.vertex_factors.length}v`,
+        `${modelWithPdg.terms.length}t`,
       ].join(" • ");
+      if (usePdgBootstrap) {
+        updatePdgIntegration({
+          mergeMode: pdgMergeMode,
+          bootstrapPreset: pdgBootstrapPreset,
+          editionLock: pdgEditionLock,
+          lastSyncAt: new Date().toISOString(),
+          sourceArbitration: "mixed",
+          authoritativeSource: "PDG",
+        });
+      }
       addCitations(["pdg2024", "weinberg1967", "glashow1961"]);
-      logModel(`Model "${model.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
+      logModel(`Model "${modelWithPdg.name}" loaded - ${fieldCount} fields, ${vertexCount} vertices`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       errorMsg = msg;
@@ -286,7 +335,21 @@
     return gauge.label || `${gauge.groups.length} gauge groups`;
   })();
 
-  $: persistModelLoaderUi({ showEditors });
+  $: persistModelLoaderUi({ showEditors, usePdgBootstrap, pdgMergeMode, pdgBootstrapPreset });
+
+  function handleBootstrapPresetChange(event: Event): void {
+    const next = (event.target as HTMLSelectElement).value as PdgBootstrapPreset;
+    if (next === "FullCatalogImport") {
+      showFullCatalogConfirm = true;
+      return;
+    }
+    pdgBootstrapPreset = next;
+  }
+
+  function confirmFullCatalogImport(): void {
+    pdgBootstrapPreset = "FullCatalogImport";
+    showFullCatalogConfirm = false;
+  }
 
   let scrollPersistRaf: number | null = null;
 
@@ -412,6 +475,35 @@
     <input type="text" bind:value={$modelNameInput} placeholder="Standard Model" />
   </label>
 
+  <div class="pdg-bootstrap-panel">
+    <label class="checkbox-row">
+      <input type="checkbox" bind:checked={usePdgBootstrap} />
+      Enable PDG bootstrap
+    </label>
+    {#if usePdgBootstrap}
+      <div class="pdg-bootstrap-grid">
+        <label class="field-label">
+          Merge mode
+          <select bind:value={pdgMergeMode}>
+            <option value="Replace">Replace</option>
+            <option value="Patch">Patch</option>
+            <option value="Overlay">Overlay</option>
+          </select>
+        </label>
+        <label class="field-label">
+          Bootstrap preset
+          <select on:change={handleBootstrapPresetChange} value={pdgBootstrapPreset}>
+            <option value="SeedCoreSM">Seed Core SM</option>
+            <option value="SeedQuarkSector">Seed Quark Sector</option>
+            <option value="SeedLeptonSector">Seed Lepton Sector</option>
+            <option value="FullCatalogImport">Full Catalog Import</option>
+          </select>
+        </label>
+      </div>
+      <EditionLockBadge edition={pdgEditionLock} stale={$pdgIntegrationState.stale} mismatch={$pdgIntegrationState.mismatch} />
+    {/if}
+  </div>
+
   <!-- Custom mode: LocalStorage controls -->
   {#if isCustom}
     <div class="custom-controls">
@@ -528,6 +620,19 @@
       </div>
     </div>
   {/if}
+
+  {#if showFullCatalogConfirm}
+    <div class="confirm-overlay" role="presentation">
+      <div class="confirm-modal" role="dialog" aria-modal="true">
+        <h4>Confirm full catalog import</h4>
+        <p>This may inject a large PDG record set into the active model and can alter downstream scans.</p>
+        <div class="confirm-actions">
+          <button type="button" class="clear-btn" on:click={() => (showFullCatalogConfirm = false)}>Cancel</button>
+          <button type="button" class="save-btn" on:click={confirmFullCatalogImport}>Proceed</button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -571,6 +676,28 @@
     color: var(--fg-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+  .pdg-bootstrap-panel {
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    padding: 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .checkbox-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--fg-primary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .pdg-bootstrap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.4rem;
   }
   select,
   input[type="text"] {
@@ -780,6 +907,40 @@
   }
   .copy-ufo-btn:hover {
     border-color: var(--border-focus);
+  }
+  .confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+  }
+  .confirm-modal {
+    width: min(420px, 90vw);
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    padding: 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  .confirm-modal h4 {
+    margin: 0;
+    color: var(--fg-accent);
+    font-size: 0.9rem;
+  }
+  .confirm-modal p {
+    margin: 0;
+    color: var(--fg-secondary);
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+  .confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
   }
   @keyframes fadeIn {
     from { opacity: 0; }
