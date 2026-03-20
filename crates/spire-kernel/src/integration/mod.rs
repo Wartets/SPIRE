@@ -89,9 +89,7 @@ fn integration_chunk_size(num_events: usize) -> usize {
 
     let threads = rayon::current_num_threads().max(1);
     let target = num_events / (threads * 8);
-    target
-        .max(MIN_INTEGRATION_CHUNK_SIZE)
-        .min(MAX_INTEGRATION_CHUNK_SIZE)
+    target.clamp(MIN_INTEGRATION_CHUNK_SIZE, MAX_INTEGRATION_CHUNK_SIZE)
 }
 
 // ===========================================================================

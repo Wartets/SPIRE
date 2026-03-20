@@ -1175,17 +1175,17 @@ where
                 } else {
                     let threads = rayon::current_num_threads().max(1);
                     let target = events.len() / (threads * 8);
-                    target.max(64).min(2048)
+                    target.clamp(64, 2048)
                 }
             } else {
                 let threads = rayon::current_num_threads().max(1);
                 let target = events.len() / (threads * 8);
-                target.max(64).min(2048)
+                target.clamp(64, 2048)
             }
         } else {
             let threads = rayon::current_num_threads().max(1);
             let target = events.len() / (threads * 8);
-            target.max(64).min(2048)
+            target.clamp(64, 2048)
         }
     };
 
