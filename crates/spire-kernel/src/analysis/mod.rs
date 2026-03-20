@@ -33,8 +33,8 @@
 //! - No string operations in the filling path.
 //! - Branch-free bin index computation for in-range values.
 
-pub mod likelihood;
 pub mod global_fit;
+pub mod likelihood;
 
 use serde::{Deserialize, Serialize};
 

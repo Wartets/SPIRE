@@ -107,7 +107,11 @@ pub fn parse_numeric_table(text: &str) -> SpireResult<ParsedNumericTable> {
 }
 
 /// Validate overlap between experimental x-range and theoretical histogram support.
-pub fn validate_axis_overlap(theory_edges: &[f64], x_values: &[f64], observable: &str) -> SpireResult<()> {
+pub fn validate_axis_overlap(
+    theory_edges: &[f64],
+    x_values: &[f64],
+    observable: &str,
+) -> SpireResult<()> {
     if theory_edges.len() < 2 || x_values.is_empty() {
         return Err(SpireError::DataMismatch(format!(
             "Cannot validate axis overlap for observable '{}' with empty inputs",

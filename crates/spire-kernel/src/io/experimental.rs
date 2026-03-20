@@ -23,8 +23,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{SpireError, SpireResult};
 use crate::io::csv::{parse_numeric_table, validate_axis_overlap};
+use crate::{SpireError, SpireResult};
 
 /// A single experimental data point with asymmetric errors.
 ///
@@ -176,14 +176,7 @@ impl ExperimentalDataSet {
 
             // Parse errors with graceful defaults
             let point = match row.len() {
-                6.. => ExperimentalDataPoint::from_asymmetric(
-                    x,
-                    y,
-                    row[2],
-                    row[3],
-                    row[4],
-                    row[5],
-                ),
+                6.. => ExperimentalDataPoint::from_asymmetric(x, y, row[2], row[3], row[4], row[5]),
                 3 => ExperimentalDataPoint::new(x, y, row[2], 0.0),
                 _ => ExperimentalDataPoint::new(x, y, 0.0, 0.0),
             };
@@ -316,11 +309,7 @@ pub fn compute_chi_square(
         // Convention (Phase 69ter):
         //  - theory > data   => use positive experimental uncertainty (+dy)
         //  - theory <= data  => use negative experimental uncertainty (-dy)
-        let error = if diff > 0.0 {
-            error_up
-        } else {
-            error_down
-        };
+        let error = if diff > 0.0 { error_up } else { error_down };
 
         // Protect against zero (or near-zero) errors to avoid division by zero
         let variance_floor = (1e-24_f64).max((exp_point.y.abs() * 1e-12).powi(2));

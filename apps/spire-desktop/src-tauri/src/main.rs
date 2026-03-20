@@ -28,8 +28,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
-use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::analysis::global_fit::{GlobalFitResult, ObservableFitInput};
+use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
 use spire_kernel::cosmology::relic as relic_engine;
 use spire_kernel::data_loader;
 use spire_kernel::decay;

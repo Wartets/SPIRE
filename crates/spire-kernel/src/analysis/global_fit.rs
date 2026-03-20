@@ -2,9 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::io::experimental::{
-    compute_chi_square, ExperimentalDataSet, GoodnessOfFitResult,
-};
+use crate::io::experimental::{compute_chi_square, ExperimentalDataSet, GoodnessOfFitResult};
 use crate::{SpireError, SpireResult};
 
 /// One observable payload for global-fit aggregation.

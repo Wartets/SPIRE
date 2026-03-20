@@ -223,7 +223,8 @@ mod tests {
     #[test]
     fn quadrature_combines_components() {
         let central = vec![10.0];
-        let (up, down) = combine_uncertainties_quadrature(&central, &[3.0], &[4.0], &[12.0]).unwrap();
+        let (up, down) =
+            combine_uncertainties_quadrature(&central, &[3.0], &[4.0], &[12.0]).unwrap();
         // sqrt(9 + 16 + 144) = 13
         assert!((up[0] - 23.0).abs() < 1e-12);
         assert!((down[0] - 0.0).abs() < 1e-12);

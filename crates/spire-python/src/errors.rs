@@ -30,6 +30,10 @@ pub fn to_py_err(e: SpireError) -> PyErr {
         SpireError::GroupTheoryError(msg) => {
             PyValueError::new_err(format!("Group theory error: {msg}"))
         }
+        SpireError::DataParseError(msg) => {
+            PyValueError::new_err(format!("Data parse error: {msg}"))
+        }
+        SpireError::DataMismatch(msg) => PyValueError::new_err(format!("Data mismatch: {msg}")),
         SpireError::AlgebraError(msg) => PyRuntimeError::new_err(format!("Algebra error: {msg}")),
         SpireError::InternalError(msg) => PyRuntimeError::new_err(format!("Internal error: {msg}")),
     }
