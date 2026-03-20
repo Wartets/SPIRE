@@ -1569,4 +1569,75 @@ This is a mock proof document for ${processLabel}.
   async stopMcmcFit(): Promise<void> {
     await simulateLatency();
   }
+
+  // ────────────────────────────────────────────────────────────────────
+  // PDG Integration (Phase 73)
+  // ────────────────────────────────────────────────────────────────────
+
+  async pdgGetMetadata(): Promise<import("$lib/types/spire").PdgMetadata> {
+    await simulateLatency();
+    return {
+      edition: "PDG 2025",
+      version: "0.2.2 (Mock)",
+      timestamp: "2025-03-20T00:00:00Z",
+      source_files: ["mock-database.sqlite"],
+    };
+  }
+
+  async pdgLookupParticleByMcid(mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    await simulateLatency();
+    if (mcid === 11) {
+      return {
+        pdg_id: 11,
+        label: "e-",
+        mass: { kind: "exact", value: 0.000510999 },
+        width: undefined,
+        lifetime: undefined,
+        branching_fractions: [],
+        quantum_numbers: { charge: -1, spin_j: "1/2", parity: "Odd" },
+        provenance: {
+          edition: "PDG 2025",
+          source_id: "mock",
+          origin: undefined,
+          fingerprint: "mock-v1",
+        },
+      };
+    }
+    throw new Error(`Mock: particle MCID ${mcid} not in mock database`);
+  }
+
+  async pdgLookupParticleByPdgid(pdgid: string): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    if (pdgid.toLowerCase().includes("electron") || pdgid === "e-") {
+      return this.pdgLookupParticleByMcid(11);
+    }
+    throw new Error(`Mock: particle "${pdgid}" not in mock database`);
+  }
+
+  async pdgGetParticleProperties(mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    return this.pdgLookupParticleByMcid(mcid);
+  }
+
+  async pdgGetDecayTable(
+    mcid: number,
+    _policy: import("$lib/types/spire").PdgExtractionPolicy,
+  ): Promise<import("$lib/types/spire").PdgDecayTable> {
+    await simulateLatency();
+    if (mcid === 11) {
+      return { parent_pdg_id: 11, channels: [], edition: "PDG 2025" };
+    }
+    throw new Error(`Mock: no decay table for MCID ${mcid}`);
+  }
+
+  async pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel> {
+    await simulateLatency();
+    return model;
+  }
+
+  async pdgSearchIdentifiers(query: string): Promise<import("$lib/types/spire").PdgParticleRecord[]> {
+    await simulateLatency();
+    if (query.toLowerCase().includes("electron") || query === "e-") {
+      return [await this.pdgLookupParticleByMcid(11)];
+    }
+    return [];
+  }
 }

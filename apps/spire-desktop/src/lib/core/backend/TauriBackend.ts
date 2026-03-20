@@ -64,6 +64,10 @@ import type {
   GoodnessOfFitResult,
   ObservableFitInput,
   GlobalObservableFitResult,
+  PdgMetadata,
+  PdgParticleRecord,
+  PdgDecayTable,
+  PdgExtractionPolicy,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -94,6 +98,9 @@ import {
   McmcFitStatusSchema,
   GoodnessOfFitResultSchema,
   GlobalObservableFitResultSchema,
+  PdgMetadataSchema,
+  PdgParticleRecordSchema,
+  PdgDecayTableSchema,
   validateResponse,
 } from "$lib/core/domain/schemas";
 
@@ -591,5 +598,44 @@ export class TauriBackend implements SpireBackend {
 
   async stopMcmcFit(): Promise<void> {
     return tauriInvoke("stop_mcmc_fit", {});
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+  // PDG Integration (Phase 73)
+  // ────────────────────────────────────────────────────────────────────
+
+  async pdgGetMetadata(): Promise<PdgMetadata> {
+    return tauriInvokeValidated("pdg_get_metadata", PdgMetadataSchema, {});
+  }
+
+  async pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord> {
+    return tauriInvokeValidated("pdg_lookup_particle_by_mcid", PdgParticleRecordSchema, {
+      mcid,
+    });
+  }
+
+  async pdgLookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord> {
+    return tauriInvokeValidated("pdg_lookup_particle_by_pdgid", PdgParticleRecordSchema, {
+      pdgid,
+    });
+  }
+
+  async pdgGetParticleProperties(mcid: number): Promise<PdgParticleRecord> {
+    return tauriInvokeValidated("pdg_get_particle_properties", PdgParticleRecordSchema, {
+      mcid,
+    });
+  }
+
+  async pdgGetDecayTable(mcid: number, policy: PdgExtractionPolicy): Promise<PdgDecayTable> {
+    return tauriInvokeValidated("pdg_get_decay_table", PdgDecayTableSchema, { mcid, policy });
+  }
+
+  async pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel> {
+    return tauriInvokeValidated("pdg_sync_model", TheoreticalModelSchema, { model });
+  }
+
+  async pdgSearchIdentifiers(query: string): Promise<PdgParticleRecord[]> {
+    const response = await tauriInvoke("pdg_search_identifiers", { query });
+    return z.array(PdgParticleRecordSchema).parse(response);
   }
 }

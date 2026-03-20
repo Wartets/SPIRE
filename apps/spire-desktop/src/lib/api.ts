@@ -796,3 +796,96 @@ export async function getMcmcStatus(
 export async function stopMcmcFit(): Promise<void> {
   return getBackend().stopMcmcFit();
 }
+// ---------------------------------------------------------------------------
+// Particle Data Group (PDG) Integration (Phase 73)
+// ---------------------------------------------------------------------------
+
+import type {
+  PdgMetadata,
+  PdgParticleRecord,
+  PdgDecayTable,
+  PdgExtractionPolicy,
+} from "./types/spire";
+
+/**
+ * Get metadata about the PDG database (edition, version, timestamp).
+ *
+ * @returns PDG metadata with edition, version, timestamp, and source file paths.
+ */
+export async function getPdgMetadata(): Promise<PdgMetadata> {
+  return getBackend().pdgGetMetadata();
+}
+
+/**
+ * Look up a particle by its PDG Monte Carlo ID (MCID).
+ *
+ * @param mcid - The Monte Carlo ID (e.g., 11 for electron).
+ * @returns The `PdgParticleRecord` with mass, width, lifetime, and quantum numbers.
+ */
+export async function lookupParticleByMcid(mcid: number): Promise<PdgParticleRecord> {
+  return getBackend().pdgLookupParticleByMcid(mcid);
+}
+
+/**
+ * Look up a particle by its PDG ID or name.
+ *
+ * @param pdgid - The PDG identifier or name (e.g., "e-", "electron", "11").
+ * @returns The `PdgParticleRecord` with mass, width, lifetime, and quantum numbers.
+ */
+export async function lookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord> {
+  return getBackend().pdgLookupParticleByPdgid(pdgid);
+}
+
+/**
+ * Get full particle properties from the PDG database.
+ *
+ * Equivalent to `lookupParticleByMcid` but uses the standard canonical API.
+ *
+ * @param mcid - The Monte Carlo ID.
+ * @returns The `PdgParticleRecord`.
+ */
+export async function getParticleProperties(mcid: number): Promise<PdgParticleRecord> {
+  return getBackend().pdgGetParticleProperties(mcid);
+}
+
+/**
+ * Get the decay table for a particle with optional policy filtering.
+ *
+ * `StrictPhysical` returns only concrete, Monte-Carlo-samplable channels.
+ * `Catalog` returns all channels including generic placeholders.
+ *
+ * @param mcid - The parent particle's Monte Carlo ID.
+ * @param policy - The extraction policy ("StrictPhysical" or "Catalog").
+ * @returns The `PdgDecayTable` with decay channels and branching ratios.
+ */
+export async function getDecayTable(
+  mcid: number,
+  policy: PdgExtractionPolicy = "Catalog",
+): Promise<PdgDecayTable> {
+  return getBackend().pdgGetDecayTable(mcid, policy);
+}
+
+/**
+ * Synchronize a theoretical model with PDG database values.
+ *
+ * Takes an entire `TheoreticalModel`, looks up particles in the PDG database,
+ * and returns the model with updated mass/width values.
+ *
+ * Adheres to stateless isomorphism: no shared mutable state across IPC boundary.
+ *
+ * @param model - The model to synchronize.
+ * @returns The updated model with PDG values.
+ */
+export async function syncModel(model: TheoreticalModel): Promise<TheoreticalModel> {
+  return getBackend().pdgSyncModel(model);
+}
+
+/**
+ * Search for particles by name, label, or identifier fragment.
+ *
+ * @param query - The search query (e.g., "electron", "e-", "photon").
+ * @returns Array of matching `PdgParticleRecord` objects.
+ */
+export async function searchParticles(query: string): Promise<PdgParticleRecord[]> {
+  return getBackend().pdgSearchIdentifiers(query);
+}

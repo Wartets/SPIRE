@@ -46,6 +46,10 @@ use spire_kernel::s_matrix::{self, Reaction, ReconstructedFinalState};
 use spire_kernel::scanner;
 use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
+use spire_kernel::theory::pdg::{
+    adapter::PdgAdapter, contracts::{PdgParticleRecord, PdgDecayTable, PdgMetadata},
+    policy::PdgExtractionPolicy,
+};
 
 // ---------------------------------------------------------------------------
 // KinematicsReport - aggregate return type
@@ -1248,6 +1252,110 @@ fn stop_mcmc_fit(state: tauri::State<'_, McmcFitState>) -> Result<(), String> {
 }
 
 // ---------------------------------------------------------------------------
+// PDG Integration (Phase 73)
+// ---------------------------------------------------------------------------
+
+/// Get PDG database metadata (edition, version, timestamp).
+#[tauri::command]
+fn pdg_get_metadata() -> Result<PdgMetadata, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    adapter.get_metadata().map_err(|e| e.to_string())
+}
+
+/// Look up a particle by its MCID (Monte Carlo ID).
+#[tauri::command]
+fn pdg_lookup_particle_by_mcid(mcid: i32) -> Result<PdgParticleRecord, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    adapter.lookup_particle_by_mcid(mcid).map_err(|e| e.to_string())
+}
+
+/// Look up a particle by its PDG ID (alternate identifier).
+#[tauri::command]
+fn pdg_lookup_particle_by_pdgid(pdgid: String) -> Result<PdgParticleRecord, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    adapter.lookup_particle_by_name(&pdgid).map_err(|e| e.to_string())
+}
+
+/// Get full particle properties (mass, width, lifetime, quantum numbers, branching ratios).
+#[tauri::command]
+fn pdg_get_particle_properties(mcid: i32) -> Result<PdgParticleRecord, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    adapter.get_particle_properties(mcid).map_err(|e| e.to_string())
+}
+
+/// Get decay table for a particle, filtered by extraction policy.
+#[tauri::command]
+fn pdg_get_decay_table(mcid: i32, policy: String) -> Result<PdgDecayTable, String> {
+    let policy_enum = match policy.as_str() {
+        "StrictPhysical" => PdgExtractionPolicy::StrictPhysical,
+        "Catalog" => PdgExtractionPolicy::Catalog,
+        other => {
+            return Err(format!(
+                "Invalid policy '{}': must be 'StrictPhysical' or 'Catalog'",
+                other
+            ))
+        }
+    };
+
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    adapter
+        .get_decay_table(mcid, policy_enum)
+        .map_err(|e| e.to_string())
+}
+
+/// Synchronize a theoretical model with PDG database values.
+///
+/// Takes an entire `TheoreticalModel` as input, updates particle masses and widths
+/// from the PDG database (respecting edition locks), and returns the updated model.
+/// Adheres to strict stateless isomorphism: no shared mutable state across IPC boundary.
+///
+/// For now, this is a placeholder that returns the model unchanged. In a production
+/// system, it would:
+/// 1. Parse each field's name or identifier to derive a PDG MCID.
+/// 2. Look up that MCID in the PDG database.
+/// 3. Update the mass and width fields with PDG values.
+/// 4. Track provenance in model metadata.
+#[tauri::command]
+fn pdg_sync_model(model: TheoreticalModel) -> Result<TheoreticalModel, String> {
+    let _adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+
+    // Placeholder: return model unchanged for now.
+    // Production implementation would iterate over model.fields and look up PDG data.
+    // The adapter API is available for future integration.
+
+    Ok(model)
+}
+
+/// Search for particles by name, label, or identifier fragment.
+///
+/// Returns a list of matching `PdgParticleRecord` objects.
+#[tauri::command]
+fn pdg_search_identifiers(query: String) -> Result<Vec<PdgParticleRecord>, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+
+    // Simple substring search on particle name (case-insensitive)
+    let query_lower = query.to_lowercase();
+
+    // For now, perform a limited search against known particles
+    // In production, this would query a full text search index in the PDG database
+    let mut results = Vec::new();
+
+    // Attempt to match against common particle labels and MCIDs
+    let common_particles = [11, -11, 12, 13, -13, 14, 15, -15, 16, 1, 2, 3, 4, 5, 6, 21, 22, 23, 24, 25];
+    for mcid in &common_particles {
+        if let Ok(record) = adapter.lookup_particle_by_mcid(*mcid) {
+            if let Some(ref label) = record.label {
+                if label.to_lowercase().contains(&query_lower) {
+                    results.push(record);
+                }
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+// ---------------------------------------------------------------------------
 // Plugin System (Phase 54)
 // ---------------------------------------------------------------------------
 
@@ -1445,6 +1553,13 @@ fn main() {
             stop_mcmc_fit,
             compute_chi_square,
             compute_global_fit,
+            pdg_get_metadata,
+            pdg_lookup_particle_by_mcid,
+            pdg_lookup_particle_by_pdgid,
+            pdg_get_particle_properties,
+            pdg_get_decay_table,
+            pdg_sync_model,
+            pdg_search_identifiers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");

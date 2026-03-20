@@ -1702,3 +1702,200 @@ export interface McmcFitStatus {
   flat_samples: number[][] | null;
   param_names: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Particle Data Group (PDG) Integration (Phase 73)
+// ---------------------------------------------------------------------------
+
+/** PDG database metadata (edition, version, timestamp). */
+export interface PdgMetadata {
+  edition: string;
+  version: string;
+  timestamp: string;
+  source_files: string[];
+}
+
+/** Symmetric representation of asymmetric uncertainties. */
+export interface AsymmetricError {
+  minus: number;
+  plus: number;
+}
+
+/** PDG value representation (exact, symmetric, or asymmetric uncertainty). */
+export type PdgValue =
+  | { kind: "exact"; value: number; is_limit?: boolean }
+  | { kind: "symmetric"; value: number; error: number; is_limit?: boolean }
+  | { kind: "asymmetric"; value: number; error: AsymmetricError; is_limit?: boolean };
+
+/** Baseline quantum metadata available in PDG particle rows. */
+export interface PdgQuantumNumbers {
+  charge?: number;
+  spin_j?: string;
+  parity?: string;
+  c_parity?: string;
+}
+
+/** Branching-fraction entry linked to a parent particle. */
+export interface PdgBranchingFraction {
+  pdgid: string;
+  description: string;
+  value: PdgValue;
+}
+
+/** Provenance record carried with PDG model state. */
+export interface PdgProvenance {
+  edition: string;
+  source_id: string;
+  origin?: string;
+  fingerprint: string;
+}
+
+/** PDG particle record (mass, width, lifetime, quantum numbers). */
+export interface PdgParticleRecord {
+  pdg_id: number;
+  label?: string;
+  mass?: PdgValue;
+  width?: PdgValue;
+  lifetime?: PdgValue;
+  branching_fractions?: PdgBranchingFraction[];
+  quantum_numbers: PdgQuantumNumbers;
+  provenance: PdgProvenance;
+}
+
+/** Decay product: either concrete particle or generic placeholder. */
+export type PdgDecayProduct =
+  | { kind: "concrete"; mcid: number }
+  | { kind: "generic"; description: string };
+
+/** Single decay channel of a parent particle. */
+export interface PdgDecayChannel {
+  mode_id: number;
+  products: Array<[PdgDecayProduct, number]>;
+  branching_ratio?: PdgValue;
+  is_generic: boolean;
+  description?: string;
+}
+
+/** Aggregated decay table for a parent particle. */
+export interface PdgDecayTable {
+  parent_pdg_id: number;
+  channels: PdgDecayChannel[];
+  edition: string;
+}
+
+/** PDG extraction policy for filtering decay channels. */
+export type PdgExtractionPolicy = "StrictPhysical" | "Catalog";
+
+// ---------------------------------------------------------------------------
+// Zod Runtime Validation Schemas (Phase 73)
+// ---------------------------------------------------------------------------
+
+import { z } from "zod";
+
+/** Zod schema for PdgMetadata */
+export const PdgMetadataSchema = z.object({
+  edition: z.string(),
+  version: z.string(),
+  timestamp: z.string(),
+  source_files: z.array(z.string()),
+});
+
+/** Zod schema for AsymmetricError */
+export const AsymmetricErrorSchema = z.object({
+  minus: z.number(),
+  plus: z.number(),
+});
+
+/** Zod schema for PdgValue (discriminated union) */
+export const PdgValueSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("exact"),
+    value: z.number(),
+    is_limit: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("symmetric"),
+    value: z.number(),
+    error: z.number(),
+    is_limit: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("asymmetric"),
+    value: z.number(),
+    error: AsymmetricErrorSchema,
+    is_limit: z.boolean().optional(),
+  }),
+]);
+
+/** Zod schema for PdgQuantumNumbers */
+export const PdgQuantumNumbersSchema = z.object({
+  charge: z.number().optional(),
+  spin_j: z.string().optional(),
+  parity: z.string().optional(),
+  c_parity: z.string().optional(),
+});
+
+/** Zod schema for PdgBranchingFraction */
+export const PdgBranchingFractionSchema = z.object({
+  pdgid: z.string(),
+  description: z.string(),
+  value: PdgValueSchema,
+});
+
+/** Zod schema for PdgProvenance */
+export const PdgProvenanceSchema = z.object({
+  edition: z.string(),
+  source_id: z.string(),
+  origin: z.string().optional(),
+  fingerprint: z.string(),
+});
+
+/** Zod schema for PdgParticleRecord */
+export const PdgParticleRecordSchema = z.object({
+  pdg_id: z.number().int(),
+  label: z.string().optional(),
+  mass: PdgValueSchema.optional(),
+  width: PdgValueSchema.optional(),
+  lifetime: PdgValueSchema.optional(),
+  branching_fractions: z.array(PdgBranchingFractionSchema).default([]),
+  quantum_numbers: PdgQuantumNumbersSchema,
+  provenance: PdgProvenanceSchema,
+});
+
+/** Zod schema for PdgDecayProduct (discriminated union) */
+export const PdgDecayProductSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("concrete"), mcid: z.number().int() }),
+  z.object({ kind: z.literal("generic"), description: z.string() }),
+]);
+
+/** Zod schema for PdgDecayChannel */
+export const PdgDecayChannelSchema = z.object({
+  mode_id: z.number().int(),
+  products: z.array(z.tuple([PdgDecayProductSchema, z.number().int()])),
+  branching_ratio: PdgValueSchema.optional(),
+  is_generic: z.boolean(),
+  description: z.string().optional(),
+});
+
+/** Zod schema for PdgDecayTable */
+export const PdgDecayTableSchema = z.object({
+  parent_pdg_id: z.number().int(),
+  channels: z.array(PdgDecayChannelSchema),
+  edition: z.string(),
+});
+
+/** Zod schema for PdgExtractionPolicy */
+export const PdgExtractionPolicySchema = z.enum(["StrictPhysical", "Catalog"]);
+
+// Export inferred types from schemas (for consumers)
+export type PdgMetadataType = z.infer<typeof PdgMetadataSchema>;
+export type AsymmetricErrorType = z.infer<typeof AsymmetricErrorSchema>;
+export type PdgValueType = z.infer<typeof PdgValueSchema>;
+export type PdgQuantumNumbersType = z.infer<typeof PdgQuantumNumbersSchema>;
+export type PdgBranchingFractionType = z.infer<typeof PdgBranchingFractionSchema>;
+export type PdgProvenanceType = z.infer<typeof PdgProvenanceSchema>;
+export type PdgParticleRecordType = z.infer<typeof PdgParticleRecordSchema>;
+export type PdgDecayProductType = z.infer<typeof PdgDecayProductSchema>;
+export type PdgDecayChannelType = z.infer<typeof PdgDecayChannelSchema>;
+export type PdgDecayTableType = z.infer<typeof PdgDecayTableSchema>;
+export type PdgExtractionPolicyType = z.infer<typeof PdgExtractionPolicySchema>;

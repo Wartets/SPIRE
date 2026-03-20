@@ -1062,3 +1062,91 @@ export const McmcFitStatusSchema = z.object({
   flat_samples: z.array(z.array(z.number())).nullable(),
   param_names: z.array(z.string()),
 });
+
+// ===========================================================================
+// Particle Data Group (PDG) Integration (Phase 73)
+// ===========================================================================
+
+export const AsymmetricErrorSchema = z.object({
+  minus: z.number(),
+  plus: z.number(),
+});
+
+export const PdgValueSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("exact"),
+    value: z.number(),
+    is_limit: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("symmetric"),
+    value: z.number(),
+    error: z.number(),
+    is_limit: z.boolean().optional(),
+  }),
+  z.object({
+    kind: z.literal("asymmetric"),
+    value: z.number(),
+    error: AsymmetricErrorSchema,
+    is_limit: z.boolean().optional(),
+  }),
+]);
+
+export const PdgQuantumNumbersSchema = z.object({
+  charge: z.number().optional(),
+  spin_j: z.string().optional(),
+  parity: z.string().optional(),
+  c_parity: z.string().optional(),
+});
+
+export const PdgBranchingFractionSchema = z.object({
+  pdgid: z.string(),
+  description: z.string(),
+  value: PdgValueSchema,
+});
+
+export const PdgProvenanceSchema = z.object({
+  edition: z.string(),
+  source_id: z.string(),
+  origin: z.string().optional(),
+  fingerprint: z.string(),
+});
+
+export const PdgMetadataSchema = z.object({
+  edition: z.string(),
+  version: z.string(),
+  timestamp: z.string(),
+  source_files: z.array(z.string()),
+});
+
+export const PdgParticleRecordSchema = z.object({
+  pdg_id: z.number().int(),
+  label: z.string().optional(),
+  mass: PdgValueSchema.optional(),
+  width: PdgValueSchema.optional(),
+  lifetime: PdgValueSchema.optional(),
+  branching_fractions: z.array(PdgBranchingFractionSchema).default([]),
+  quantum_numbers: PdgQuantumNumbersSchema,
+  provenance: PdgProvenanceSchema,
+});
+
+export const PdgDecayProductSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("concrete"), mcid: z.number().int() }),
+  z.object({ kind: z.literal("generic"), description: z.string() }),
+]);
+
+export const PdgDecayChannelSchema = z.object({
+  mode_id: z.number().int(),
+  products: z.array(z.tuple([PdgDecayProductSchema, z.number().int()])),
+  branching_ratio: PdgValueSchema.optional(),
+  is_generic: z.boolean(),
+  description: z.string().optional(),
+});
+
+export const PdgDecayTableSchema = z.object({
+  parent_pdg_id: z.number().int(),
+  channels: z.array(PdgDecayChannelSchema),
+  edition: z.string(),
+});
+
+export const PdgExtractionPolicySchema = z.enum(["StrictPhysical", "Catalog"]);

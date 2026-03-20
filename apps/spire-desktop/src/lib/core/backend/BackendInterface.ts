@@ -67,6 +67,10 @@ import type {
   GoodnessOfFitResult,
   ObservableFitInput,
   GlobalObservableFitResult,
+  PdgMetadata,
+  PdgParticleRecord,
+  PdgDecayTable,
+  PdgExtractionPolicy,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -362,4 +366,13 @@ export interface SpireBackend {
   startMcmcFit(request: McmcFitRequest): Promise<void>;
   getMcmcStatus(includeSamples: boolean): Promise<McmcFitStatus>;
   stopMcmcFit(): Promise<void>;
+
+  // ── Particle Data Group (PDG) Integration (Phase 73) ───────────────
+  pdgGetMetadata(): Promise<PdgMetadata>;
+  pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord>;
+  pdgLookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord>;
+  pdgGetParticleProperties(mcid: number): Promise<PdgParticleRecord>;
+  pdgGetDecayTable(mcid: number, policy: PdgExtractionPolicy): Promise<PdgDecayTable>;
+  pdgSyncModel(model: TheoreticalModel): Promise<TheoreticalModel>;
+  pdgSearchIdentifiers(query: string): Promise<PdgParticleRecord[]>;
 }
