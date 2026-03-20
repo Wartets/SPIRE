@@ -65,6 +65,9 @@ import type {
   WilsonCoefficients,
   BMixingResult,
   FlavorObservableReport,
+  GoodnessOfFitResult,
+  ObservableFitInput,
+  GlobalObservableFitResult,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -295,6 +298,22 @@ export class WasmBackend implements SpireBackend {
 
   async runAnalysis(config: AnalysisConfig): Promise<AnalysisResult> {
     return this.call<AnalysisResult>("run_analysis", { config });
+  }
+
+  async computeChiSquare(
+    _theoryBinContents: number[],
+    _theoryBinEdges: number[],
+    _expCsv: string,
+    _expLabel: string,
+  ): Promise<GoodnessOfFitResult> {
+    throw new BackendError("unsupported", "wasm", "Chi-square computation is not supported in WASM backend mode");
+  }
+
+  async computeGlobalFit(
+    _observables: ObservableFitInput[],
+    _nParams: number,
+  ): Promise<GlobalObservableFitResult> {
+    throw new BackendError("unsupported", "wasm", "Global fit aggregation is not supported in WASM backend mode");
   }
 
   async validateScript(script: string): Promise<void> {

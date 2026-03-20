@@ -20,6 +20,7 @@
     startMcmcFit,
     getMcmcStatus,
     stopMcmcFit,
+    computeGlobalFit,
   } from "$lib/api";
   import type {
     FitParameter,
@@ -29,6 +30,8 @@
     McmcFitStatus,
     McmcStatus,
     TheoreticalModel,
+    ObservableFitInput,
+    GlobalObservableFitResult,
   } from "$lib/types/spire";
 
   // === Reactive state ===
@@ -62,6 +65,17 @@
   let flatSamples: number[][] | null = null;
   let isRunning = false;
   let errorMsg = "";
+  let globalFitError = "";
+  let globalNParams = 0;
+  let globalFitResult: GlobalObservableFitResult | null = null;
+  let globalObservables: ObservableFitInput[] = [
+    {
+      observable: "pT",
+      theory_bin_contents: [10, 20],
+      theory_bin_edges: [0, 1, 2],
+      exp_csv: "x,y,dy\n0.5,10,1\n1.5,20,1",
+    },
+  ];
 
   // Poll timer
   let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -104,6 +118,31 @@
         property: "Mass" as FitProperty,
       },
     ];
+  }
+
+  function addGlobalObservable() {
+    globalObservables = [
+      ...globalObservables,
+      {
+        observable: `obs_${globalObservables.length + 1}`,
+        theory_bin_contents: [1, 2],
+        theory_bin_edges: [0, 1, 2],
+        exp_csv: "x,y,dy\n0.5,1,1\n1.5,2,1",
+      },
+    ];
+  }
+
+  function removeGlobalObservable(i: number) {
+    globalObservables = globalObservables.filter((_, idx) => idx !== i);
+  }
+
+  async function runGlobalFitSummary() {
+    globalFitError = "";
+    try {
+      globalFitResult = await computeGlobalFit(globalObservables, Math.max(0, Math.floor(globalNParams)));
+    } catch (e: unknown) {
+      globalFitError = e instanceof Error ? e.message : String(e);
+    }
   }
 
   function removeConstraint(i: number) {
@@ -572,6 +611,67 @@
       <p class="sample-count">{flatSamples.length.toLocaleString()} samples</p>
     {:else if !isRunning}
       <p class="placeholder-text">Run a fit to see results</p>
+    {/if}
+  </section>
+
+  <section class="status-section">
+    <h3>Global Fit Summary</h3>
+    {#each globalObservables as obs, i}
+      <div class="settings-row">
+        <label>
+          Observable
+          <input bind:value={obs.observable} class="input-sm" />
+        </label>
+        <label>
+          Theory bins (JSON)
+          <input
+            class="input-sm"
+            value={JSON.stringify(obs.theory_bin_contents)}
+            on:change={(e) => {
+              try {
+                const parsed = JSON.parse((e.currentTarget as HTMLInputElement).value);
+                obs.theory_bin_contents = Array.isArray(parsed) ? parsed.map(Number) : obs.theory_bin_contents;
+                globalObservables = [...globalObservables];
+              } catch {}
+            }}
+          />
+        </label>
+        <label>
+          Theory edges (JSON)
+          <input
+            class="input-sm"
+            value={JSON.stringify(obs.theory_bin_edges)}
+            on:change={(e) => {
+              try {
+                const parsed = JSON.parse((e.currentTarget as HTMLInputElement).value);
+                obs.theory_bin_edges = Array.isArray(parsed) ? parsed.map(Number) : obs.theory_bin_edges;
+                globalObservables = [...globalObservables];
+              } catch {}
+            }}
+          />
+        </label>
+        <button class="btn-remove" on:click={() => removeGlobalObservable(i)}><Icon name="close" size={13} /></button>
+      </div>
+      <textarea class="input-sm" rows="3" bind:value={obs.exp_csv}></textarea>
+    {/each}
+    <div class="action-row">
+      <button class="btn-add" on:click={addGlobalObservable}>+ Add Observable</button>
+      <label>
+        N params
+        <SpireNumberInput bind:value={globalNParams} min={0} step={1} ariaLabel="Global fit parameter count" />
+      </label>
+      <button class="btn-start" on:click={runGlobalFitSummary}><Icon name="play" size={14} /> <span>Compute Global χ²</span></button>
+    </div>
+    {#if globalFitError}
+      <div class="error-msg">{globalFitError}</div>
+    {/if}
+    {#if globalFitResult}
+      <div class="status-grid">
+        <span>χ² global:</span><span>{globalFitResult.chi_square_global.toFixed(4)}</span>
+        <span>Ndf total:</span><span>{globalFitResult.ndf_total}</span>
+        <span>χ²/ndf:</span><span>{globalFitResult.chi_square_reduced.toFixed(4)}</span>
+        <span>p-value:</span><span>{globalFitResult.p_value.toFixed(5)}</span>
+      </div>
     {/if}
   </section>
 </div>

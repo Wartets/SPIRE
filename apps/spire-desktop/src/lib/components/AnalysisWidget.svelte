@@ -11,7 +11,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from "svelte";
   import { appendLog } from "$lib/stores/physicsStore";
-  import { runAnalysis, validateScript } from "$lib/api";
+  import { runAnalysis, validateScript, computeChiSquare } from "$lib/api";
   import { configureNlo, configureShower } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
@@ -20,7 +20,7 @@
   import { tooltip } from "$lib/actions/tooltip";
   import { isolateEvents } from "$lib/actions/widgetEvents";
   import { showContextMenu } from "$lib/stores/contextMenuStore";
-  import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, PlotDefinition2D } from "$lib/types/spire";
+  import type { AnalysisResult, HistogramData, Histogram2DData, DetectorPreset, ParticleKind, GoodnessOfFitResult } from "$lib/types/spire";
   import { extractAndPushProfile } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop, widgetInteropState } from "$lib/stores/widgetInteropStore";
   import { executeWorkerTask } from "$lib/workers/executeWorkerTask";
@@ -271,6 +271,11 @@
   let logScale: boolean = false;
   let result: AnalysisResult | null = null;
   let activeHistogram: HistogramData | null = null;
+  let fitResult: GoodnessOfFitResult | null = null;
+  let experimentalCsvText = "";
+  let experimentalLabel = "Experimental dataset";
+  let experimentalPoints: Array<{ x: number; y: number; errUp: number; errDown: number; }> = [];
+  let expFileInputEl: HTMLInputElement;
 
   let activeHistogram2D: Histogram2DData | null = null;
 
@@ -291,6 +296,67 @@
     if (typeof window === "undefined") return fallback;
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return value || fallback;
+  }
+
+  function parseExperimentalCsv(text: string): Array<{ x: number; y: number; errUp: number; errDown: number; }> {
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.length > 0 && !l.startsWith("#"));
+    if (lines.length === 0) return [];
+
+    const first = lines[0];
+    const delimiter = [",", ";", "\t"].reduce((best, d) => (first.split(d).length > first.split(best).length ? d : best), ",");
+    const rows: Array<{ x: number; y: number; errUp: number; errDown: number; }> = [];
+
+    for (const line of lines) {
+      const parts = line.split(delimiter).map((p) => p.trim());
+      if (parts.some((p) => /[A-Za-z]/.test(p))) continue;
+      if (parts.length < 2) continue;
+
+      const x = Number(parts[0]);
+      const y = Number(parts[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+
+      const statUp = Number(parts[2] ?? "0") || 0;
+      const statDown = Number(parts[3] ?? parts[2] ?? "0") || 0;
+      const systUp = Number(parts[4] ?? "0") || 0;
+      const systDown = Number(parts[5] ?? parts[4] ?? "0") || 0;
+      const errUp = Math.hypot(statUp, systUp);
+      const errDown = Math.hypot(statDown, systDown);
+
+      rows.push({ x, y, errUp, errDown });
+    }
+
+    return rows;
+  }
+
+  async function handleExperimentalCsvUpload(ev: Event): Promise<void> {
+    const input = ev.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    try {
+      experimentalCsvText = await file.text();
+      experimentalLabel = file.name.replace(/\.[^.]+$/, "") || "Experimental dataset";
+      experimentalPoints = parseExperimentalCsv(experimentalCsvText);
+      if (experimentalPoints.length === 0) {
+        throw new Error("No numeric rows found in CSV payload.");
+      }
+      logAnalysis(`Loaded experimental dataset: ${file.name} (${experimentalPoints.length} points)`);
+
+      if (activeHistogram) {
+        fitResult = await computeChiSquare(
+          activeHistogram.bin_contents,
+          activeHistogram.bin_edges,
+          experimentalCsvText,
+          experimentalLabel,
+        );
+        void renderChart(activeHistogram);
+      }
+    } catch (err: unknown) {
+      errorMsg = err instanceof Error ? err.message : String(err);
+      logAnalysis(`Experimental CSV import error: ${errorMsg}`);
+    } finally {
+      input.value = "";
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -364,6 +430,7 @@
     loading = true;
     errorMsg = "";
     result = null;
+    fitResult = null;
     activeHistogram = null;
     activeHistogram2D = null;
     binningData = false;
@@ -526,6 +593,18 @@
         }
 
         if (activeHistogram) {
+          if (experimentalCsvText.trim().length > 0) {
+            try {
+              fitResult = await computeChiSquare(
+                activeHistogram.bin_contents,
+                activeHistogram.bin_edges,
+                experimentalCsvText,
+                experimentalLabel,
+              );
+            } catch (chiErr: unknown) {
+              errorMsg = chiErr instanceof Error ? chiErr.message : String(chiErr);
+            }
+          }
           void renderChart(activeHistogram);
         }
       } else if (analysisMode === '2d' && analysisResult.histograms_2d.length > 0) {
@@ -572,6 +651,22 @@
     const ChartCtor = await ensureChartCtor();
     if (!ChartCtor) return;
 
+    const envelopeUp = data.error_band_up && data.error_band_up.length === data.bin_contents.length
+      ? data.error_band_up
+      : null;
+    const envelopeDown = data.error_band_down && data.error_band_down.length === data.bin_contents.length
+      ? data.error_band_down
+      : null;
+
+    const yCandidates: number[] = [...data.bin_contents];
+    if (envelopeUp) yCandidates.push(...envelopeUp);
+    if (experimentalPoints.length > 0) {
+      for (const p of experimentalPoints) {
+        yCandidates.push(p.y + p.errUp);
+      }
+    }
+    const yMax = Math.max(...yCandidates, 1e-12) * 1.15;
+
     const prepared = await executeWorkerTask<
       { task: "prepareHistogram"; binContents: number[]; binEdges: number[] },
       { labels: string[]; backgroundColor: string[]; borderColor: string[]; maxVal: number }
@@ -594,6 +689,30 @@
       data: {
         labels: prepared.labels,
         datasets: [
+          ...(envelopeUp && envelopeDown
+            ? [
+                {
+                  type: "line",
+                  label: "Theory +Δ",
+                  data: envelopeUp,
+                  borderColor: "rgba(60, 130, 255, 0.75)",
+                  backgroundColor: "rgba(60, 130, 255, 0.16)",
+                  pointRadius: 0,
+                  borderWidth: 1,
+                  fill: false,
+                },
+                {
+                  type: "line",
+                  label: "Theory -Δ",
+                  data: envelopeDown,
+                  borderColor: "rgba(60, 130, 255, 0.75)",
+                  backgroundColor: "rgba(60, 130, 255, 0.16)",
+                  pointRadius: 0,
+                  borderWidth: 1,
+                  fill: "-1",
+                },
+              ]
+            : []),
           {
             label: data.name,
             data: data.bin_contents,
@@ -601,6 +720,24 @@
             borderColor: prepared.borderColor,
             borderWidth: 1,
           },
+          ...(experimentalPoints.length > 0
+            ? [{
+                type: "scatter",
+                label: "Experimental",
+                data: experimentalPoints.map((p) => {
+                  let idx = data.bin_edges.findIndex((edge, i) => i < data.bin_edges.length - 1 && p.x >= edge && p.x < data.bin_edges[i + 1]);
+                  if (idx < 0) idx = data.bin_edges.length - 2;
+                  return { x: prepared.labels[idx] ?? prepared.labels[0], y: p.y };
+                }),
+                parsing: false,
+                pointRadius: 4,
+                pointHoverRadius: 5,
+                pointBackgroundColor: "rgba(231, 76, 60, 0.95)",
+                pointBorderColor: "rgba(255,255,255,0.9)",
+                pointBorderWidth: 1,
+                showLine: false,
+              }]
+            : []),
         ],
       },
       options: {
@@ -625,9 +762,29 @@
                 return `[${lo}, ${hi})`;
               },
               label: (item: { raw: unknown; dataIndex: number }) => {
-                const val = (item.raw as number).toExponential(3);
-                const err = data.bin_errors[item.dataIndex].toExponential(2);
-                return `${val} ± ${err}`;
+                const idx = item.dataIndex;
+                const val = Number(typeof item.raw === "number" ? item.raw : (item.raw as { y?: number }).y ?? 0);
+
+                const maybePoint = experimentalPoints.find(
+                  (p) => p.x >= data.bin_edges[idx] && p.x < data.bin_edges[idx + 1],
+                );
+
+                const lines: string[] = [];
+                if ((item.raw as { x?: number; y?: number }).x !== undefined && maybePoint) {
+                  const pull = fitResult?.pulls[idx] ?? ((val - maybePoint.y) / Math.max(maybePoint.errUp, 1e-12));
+                  lines.push(`Data: ${val.toFixed(3)} ± ${((maybePoint.errUp + maybePoint.errDown) * 0.5).toFixed(3)} pb`);
+                  lines.push(`Local Pull: ${pull.toFixed(2)} σ`);
+                } else {
+                  const thUp = envelopeUp?.[idx] ?? val;
+                  const thDown = envelopeDown?.[idx] ?? val;
+                  lines.push(`Theory: ${val.toFixed(3)} +${(thUp - val).toFixed(3)} / -${(val - thDown).toFixed(3)} pb`);
+                  if (maybePoint) {
+                    const pull = fitResult?.pulls[idx] ?? ((val - maybePoint.y) / Math.max(maybePoint.errUp, 1e-12));
+                    lines.push(`Data: ${maybePoint.y.toFixed(3)} ± ${((maybePoint.errUp + maybePoint.errDown) * 0.5).toFixed(3)} pb`);
+                    lines.push(`Local Pull: ${pull.toFixed(2)} σ`);
+                  }
+                }
+                return lines;
               },
             },
           },
@@ -651,10 +808,81 @@
             },
             ticks: { color: mutedColor },
             grid: { color: gridMajor },
+            suggestedMax: yMax,
           },
         },
       },
     });
+  }
+
+  function exportPlotSvg(): void {
+    if (!activeHistogram) return;
+
+    const h = activeHistogram;
+    const width = 1200;
+    const height = 720;
+    const m = { l: 90, r: 30, t: 40, b: 80 };
+    const plotW = width - m.l - m.r;
+    const plotH = height - m.t - m.b;
+    const xMin = h.bin_edges[0];
+    const xMax = h.bin_edges[h.bin_edges.length - 1];
+
+    const yCandidates = [...h.bin_contents, ...(h.error_band_up ?? [])];
+    for (const p of experimentalPoints) yCandidates.push(p.y + p.errUp);
+    const yMax = Math.max(...yCandidates, 1e-12) * 1.15;
+
+    const sx = (x: number) => m.l + ((x - xMin) / (xMax - xMin || 1)) * plotW;
+    const sy = (y: number) => m.t + (1 - y / (yMax || 1)) * plotH;
+
+    const bars = h.bin_contents
+      .map((v, i) => {
+        const x0 = sx(h.bin_edges[i]);
+        const x1 = sx(h.bin_edges[i + 1]);
+        const y = sy(v);
+        const y0 = sy(0);
+        return `<rect x="${x0.toFixed(2)}" y="${Math.min(y, y0).toFixed(2)}" width="${(x1 - x0).toFixed(2)}" height="${Math.abs(y0 - y).toFixed(2)}" fill="rgba(90,130,255,0.65)" stroke="rgba(120,160,255,0.95)"/>`;
+      })
+      .join("\n");
+
+    const envPolygon = h.error_band_up && h.error_band_down
+      ? (() => {
+          const upPath = h.error_band_up.map((v, i) => `${sx((h.bin_edges[i] + h.bin_edges[i + 1]) * 0.5).toFixed(2)},${sy(v).toFixed(2)}`).join(" ");
+          const dnPath = [...h.error_band_down]
+            .reverse()
+            .map((v, r) => {
+              const i = h.error_band_down!.length - 1 - r;
+              return `${sx((h.bin_edges[i] + h.bin_edges[i + 1]) * 0.5).toFixed(2)},${sy(v).toFixed(2)}`;
+            })
+            .join(" ");
+          return `<polygon points="${upPath} ${dnPath}" fill="rgba(80,140,255,0.22)" stroke="none" />`;
+        })()
+      : "";
+
+    const points = experimentalPoints
+      .map((p) => {
+        const x = sx(p.x);
+        return `<line x1="${x.toFixed(2)}" y1="${sy(p.y - p.errDown).toFixed(2)}" x2="${x.toFixed(2)}" y2="${sy(p.y + p.errUp).toFixed(2)}" stroke="rgba(231,76,60,0.95)" stroke-width="1.5"/>\n<circle cx="${x.toFixed(2)}" cy="${sy(p.y).toFixed(2)}" r="3.8" fill="rgba(231,76,60,0.95)"/>`;
+      })
+      .join("\n");
+
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <rect width="100%" height="100%" fill="#11151b" />
+  <line x1="${m.l}" y1="${m.t + plotH}" x2="${m.l + plotW}" y2="${m.t + plotH}" stroke="#aab2c1"/>
+  <line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t + plotH}" stroke="#aab2c1"/>
+  ${envPolygon}
+  ${bars}
+  ${points}
+  <text x="${width * 0.5}" y="24" text-anchor="middle" fill="#e8e8e8" font-family="JetBrains Mono, monospace" font-size="18">${h.name}</text>
+</svg>`;
+
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${h.name || "plot"}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ---------------------------------------------------------------------------
@@ -1147,12 +1375,29 @@
         <button class="scale-btn" on:click={toggleScale}>
           {logScale ? "Linear" : "Log"} Y
         </button>
+        <button class="scale-btn" on:click={exportPlotSvg}>
+          Export Plot (SVG)
+        </button>
       {/if}
+    </div>
+
+    <div class="field-row">
+      <div class="field compact">
+        <label for="exp-label">Experimental label:</label>
+        <input id="exp-label" type="text" bind:value={experimentalLabel} />
+      </div>
+      <div class="field compact">
+        <label for="exp-file">Experimental CSV:</label>
+        <input id="exp-file" bind:this={expFileInputEl} type="file" accept=".csv,.txt,.tsv" on:change={handleExperimentalCsvUpload} />
+      </div>
     </div>
 
     <!-- Error Display -->
     {#if errorMsg}
-      <div class="error-box">{errorMsg}</div>
+      <div class="error-box">
+        <span>{errorMsg}</span>
+        <button class="dismiss-btn" on:click={() => (errorMsg = "")}>Dismiss</button>
+      </div>
     {/if}
 
     <!-- Summary Statistics -->
@@ -1171,6 +1416,16 @@
             ± {(result.cross_section_error * 0.3894e9).toExponential(2)}
           </span>
         </div>
+        {#if fitResult}
+          <div class="stat">
+            <span class="stat-label">χ² / ndf:</span>
+            <span class="stat-value">{fitResult.chi_square.toFixed(3)} / {fitResult.ndf}</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">p-value:</span>
+            <span class="stat-value">{fitResult.p_value.toFixed(4)}</span>
+          </div>
+        {/if}
         {#if activeHistogram}
           <div class="stat">
             <span class="stat-label">Mean:</span>
@@ -1397,6 +1652,20 @@
     color: var(--color-error);
     font-size: 0.8rem;
     word-break: break-word;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .dismiss-btn {
+    border: 1px solid rgba(var(--color-error-rgb), 0.4);
+    background: rgba(var(--color-error-rgb), 0.18);
+    color: var(--color-text-primary);
+    font-size: 0.72rem;
+    border-radius: var(--radius-sm);
+    padding: 0.15rem 0.45rem;
+    cursor: pointer;
   }
 
   .stats-panel {

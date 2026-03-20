@@ -43,6 +43,9 @@ import type {
   DimensionalCheckReport,
   AnalysisConfig,
   AnalysisResult,
+  GoodnessOfFitResult,
+  ObservableFitInput,
+  GlobalObservableFitResult,
 } from "./types/spire";
 
 // ---------------------------------------------------------------------------
@@ -273,6 +276,28 @@ export async function runAnalysis(
   config: AnalysisConfig,
 ): Promise<AnalysisResult> {
   return getBackend().runAnalysis(config);
+}
+
+/**
+ * Compute χ² between one theory histogram and one experimental dataset.
+ */
+export async function computeChiSquare(
+  theoryBinContents: number[],
+  theoryBinEdges: number[],
+  expCsv: string,
+  expLabel: string,
+): Promise<GoodnessOfFitResult> {
+  return getBackend().computeChiSquare(theoryBinContents, theoryBinEdges, expCsv, expLabel);
+}
+
+/**
+ * Compute global χ² over multiple observables.
+ */
+export async function computeGlobalFit(
+  observables: ObservableFitInput[],
+  nParams: number,
+): Promise<GlobalObservableFitResult> {
+  return getBackend().computeGlobalFit(observables, nParams);
 }
 
 // ---------------------------------------------------------------------------

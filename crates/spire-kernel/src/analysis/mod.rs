@@ -34,6 +34,7 @@
 //! - Branch-free bin index computation for in-range values.
 
 pub mod likelihood;
+pub mod global_fit;
 
 use serde::{Deserialize, Serialize};
 
@@ -302,6 +303,10 @@ impl Histogram1D {
             bin_edges: self.bin_edges(),
             bin_contents: self.bins.clone(),
             bin_errors: self.bin_errors(),
+            error_band_up: None,
+            error_band_down: None,
+            pdf_uncertainty: None,
+            total_uncertainty: None,
             underflow: self.underflow,
             overflow: self.overflow,
             entries: self.entries,
@@ -477,6 +482,18 @@ pub struct HistogramData {
     pub bin_contents: Vec<f64>,
     /// Statistical errors per bin: $\sqrt{\sum w_i^2}$.
     pub bin_errors: Vec<f64>,
+    /// Upper envelope from scale variations (length = n_bins, optional).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_band_up: Option<Vec<f64>>,
+    /// Lower envelope from scale variations (length = n_bins, optional).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_band_down: Option<Vec<f64>>,
+    /// Per-bin PDF uncertainty (1σ), optional.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pdf_uncertainty: Option<Vec<f64>>,
+    /// Per-bin total uncertainty (1σ) after quadrature composition, optional.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total_uncertainty: Option<Vec<f64>>,
     /// Underflow count.
     pub underflow: f64,
     /// Overflow count.
@@ -485,6 +502,54 @@ pub struct HistogramData {
     pub entries: u64,
     /// Distribution mean.
     pub mean: f64,
+}
+
+/// Populate uncertainty envelopes and total uncertainty from independent sources.
+///
+/// This function is observable-agnostic and can be reused by any histogram-like
+/// payload where uncertainty components are independent.
+pub fn attach_combined_uncertainty(
+    data: &mut HistogramData,
+    sigma_scale: Option<&[f64]>,
+    sigma_pdf: Option<&[f64]>,
+    sigma_mc_stats: Option<&[f64]>,
+) -> SpireResult<()> {
+    let n = data.bin_contents.len();
+    let scale = sigma_scale
+        .map(std::borrow::ToOwned::to_owned)
+        .unwrap_or_else(|| vec![0.0; n]);
+    let pdf = sigma_pdf
+        .map(std::borrow::ToOwned::to_owned)
+        .unwrap_or_else(|| vec![0.0; n]);
+    let stats = sigma_mc_stats
+        .map(std::borrow::ToOwned::to_owned)
+        .unwrap_or_else(|| data.bin_errors.clone());
+
+    if scale.len() != n || pdf.len() != n || stats.len() != n {
+        return Err(SpireError::InternalError(
+            "Uncertainty vectors must match histogram bin count".to_string(),
+        ));
+    }
+
+    let (up, down) = crate::pdf::variance::combine_uncertainties_quadrature(
+        &data.bin_contents,
+        &scale,
+        &pdf,
+        &stats,
+    )
+    .map_err(|e| SpireError::InternalError(e.to_string()))?;
+
+    let total_uncertainty: Vec<f64> = up
+        .iter()
+        .zip(data.bin_contents.iter())
+        .map(|(u, c)| (u - c).abs())
+        .collect();
+
+    data.error_band_up = Some(up);
+    data.error_band_down = Some(down);
+    data.pdf_uncertainty = Some(pdf);
+    data.total_uncertainty = Some(total_uncertainty);
+    Ok(())
 }
 
 /// Serializable 2D histogram data for frontend heatmap rendering.
@@ -2001,6 +2066,10 @@ mod tests {
             bin_edges: vec![0.0, 10.0, 20.0, 30.0],
             bin_contents: vec![5.0, 10.0, 3.0],
             bin_errors: vec![2.236, 3.162, 1.732],
+            error_band_up: None,
+            error_band_down: None,
+            pdf_uncertainty: None,
+            total_uncertainty: None,
             underflow: 0.5,
             overflow: 1.2,
             entries: 100,

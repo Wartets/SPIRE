@@ -12,6 +12,11 @@
 //!   between generators (MadGraph, Sherpa) and shower/hadronization
 //!   codes (Pythia, Herwig).
 //!
+//! ## Experimental Data Integration
+//!
+//! - [`experimental`] - Import and compare against published experimental
+//!   measurements (CSV format, HEPData style). Compute χ² goodness-of-fit.
+//!
 //! ## Architecture
 //!
 //! All writers implement the three-phase [`EventWriter`] protocol:
@@ -24,6 +29,8 @@
 //! Writers are parameterised over `std::io::Write`, so they work equally
 //! well with files, in-memory buffers, and network streams.
 
+pub mod experimental;
+pub mod csv;
 pub mod latex;
 pub mod lhe;
 pub mod provenance;

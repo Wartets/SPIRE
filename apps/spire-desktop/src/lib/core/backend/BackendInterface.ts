@@ -64,6 +64,9 @@ import type {
   FlavorObservableReport,
   McmcFitRequest,
   McmcFitStatus,
+  GoodnessOfFitResult,
+  ObservableFitInput,
+  GlobalObservableFitResult,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -213,6 +216,16 @@ export interface SpireBackend {
 
   // ── Analysis Pipeline ──────────────────────────────────────────────────
   runAnalysis(config: AnalysisConfig): Promise<AnalysisResult>;
+  computeChiSquare(
+    theoryBinContents: number[],
+    theoryBinEdges: number[],
+    expCsv: string,
+    expLabel: string,
+  ): Promise<GoodnessOfFitResult>;
+  computeGlobalFit(
+    observables: ObservableFitInput[],
+    nParams: number,
+  ): Promise<GlobalObservableFitResult>;
 
   // ── Scripting ──────────────────────────────────────────────────────────
   validateScript(script: string): Promise<void>;

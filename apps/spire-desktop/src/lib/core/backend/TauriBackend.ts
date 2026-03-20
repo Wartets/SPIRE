@@ -61,6 +61,9 @@ import type {
   FlavorObservableReport,
   McmcFitRequest,
   McmcFitStatus,
+  GoodnessOfFitResult,
+  ObservableFitInput,
+  GlobalObservableFitResult,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -89,6 +92,8 @@ import {
   ScanResult2DSchema,
   CalcDecayTableSchema,
   McmcFitStatusSchema,
+  GoodnessOfFitResultSchema,
+  GlobalObservableFitResultSchema,
   validateResponse,
 } from "$lib/core/domain/schemas";
 
@@ -308,6 +313,30 @@ export class TauriBackend implements SpireBackend {
 
   async runAnalysis(config: AnalysisConfig): Promise<AnalysisResult> {
     return tauriInvokeValidated("run_analysis", AnalysisResultSchema, { config });
+  }
+
+  async computeChiSquare(
+    theoryBinContents: number[],
+    theoryBinEdges: number[],
+    expCsv: string,
+    expLabel: string,
+  ): Promise<GoodnessOfFitResult> {
+    return tauriInvokeValidated("compute_chi_square", GoodnessOfFitResultSchema, {
+      theoryBinContents,
+      theoryBinEdges,
+      expCsv,
+      expLabel,
+    });
+  }
+
+  async computeGlobalFit(
+    observables: ObservableFitInput[],
+    nParams: number,
+  ): Promise<GlobalObservableFitResult> {
+    return tauriInvokeValidated("compute_global_fit", GlobalObservableFitResultSchema, {
+      observables,
+      nParams,
+    });
   }
 
   async validateScript(script: string): Promise<void> {

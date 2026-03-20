@@ -1600,7 +1600,11 @@ impl CasExpr {
                 format!("\\not{{{}}}", latex_momentum(label))
             }
             CasExpr::DotProduct { left, right } => {
-                format!("{} \\!\\cdot\\! {}", latex_momentum(left), latex_momentum(right))
+                format!(
+                    "{} \\!\\cdot\\! {}",
+                    latex_momentum(left),
+                    latex_momentum(right)
+                )
             }
             CasExpr::SpinorU { momentum, .. } => format!("u({})", latex_momentum(momentum)),
             CasExpr::SpinorUBar { momentum, .. } => {
@@ -2194,7 +2198,14 @@ impl RewriteRule for GordonIdentityRule {
         let mut changed = false;
 
         for i in 0..(factors.len() - 2) {
-            let (CasExpr::SpinorUBar { momentum: p_out, .. }, CasExpr::GammaMat { index }, CasExpr::SpinorU { momentum: p_in, .. }) = (&factors[i], &factors[i + 1], &factors[i + 2]) else {
+            let (
+                CasExpr::SpinorUBar {
+                    momentum: p_out, ..
+                },
+                CasExpr::GammaMat { index },
+                CasExpr::SpinorU { momentum: p_in, .. },
+            ) = (&factors[i], &factors[i + 1], &factors[i + 2])
+            else {
                 continue;
             };
             out.splice(
@@ -7153,7 +7164,7 @@ mod tests {
             mu: LorentzIndex::Named("mu".into()),
             nu: LorentzIndex::Named("nu".into()),
         };
-        assert_eq!(expr.to_cas_latex(), "g^{\\mu,\\nu}");
+        assert_eq!(expr.to_cas_latex(), "g^{\\mu\\nu}");
     }
 
     #[test]

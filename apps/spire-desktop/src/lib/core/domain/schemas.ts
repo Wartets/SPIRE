@@ -488,6 +488,10 @@ export const HistogramDataSchema = z.object({
   bin_edges: z.array(z.number()),
   bin_contents: z.array(z.number()),
   bin_errors: z.array(z.number()),
+  error_band_up: z.array(z.number()).nullable().optional(),
+  error_band_down: z.array(z.number()).nullable().optional(),
+  pdf_uncertainty: z.array(z.number()).nullable().optional(),
+  total_uncertainty: z.array(z.number()).nullable().optional(),
   underflow: z.number(),
   overflow: z.number(),
   entries: z.number(),
@@ -513,6 +517,35 @@ export const AnalysisResultSchema = z.object({
   events_generated: z.number(),
   events_passed: z.number(),
   profile: ComputeProfileSchema.optional(),
+});
+
+export const GoodnessOfFitResultSchema = z.object({
+  chi_square: z.number(),
+  ndf: z.number().int(),
+  chi_square_reduced: z.number(),
+  p_value: z.number(),
+  pulls: z.array(z.number()),
+});
+
+export const ObservableFitInputSchema = z.object({
+  observable: z.string(),
+  theory_bin_contents: z.array(z.number()),
+  theory_bin_edges: z.array(z.number()),
+  exp_csv: z.string(),
+});
+
+export const ObservableFitSummarySchema = z.object({
+  observable: z.string(),
+  result: GoodnessOfFitResultSchema,
+});
+
+export const GlobalObservableFitResultSchema = z.object({
+  observables: z.array(ObservableFitSummarySchema),
+  chi_square_global: z.number(),
+  ndf_total: z.number().int(),
+  n_params: z.number().int(),
+  chi_square_reduced: z.number(),
+  p_value: z.number(),
 });
 
 // ===========================================================================

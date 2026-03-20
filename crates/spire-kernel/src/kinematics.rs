@@ -935,8 +935,7 @@ impl PhaseSpaceGenerator for RamboGenerator {
             let xi = rambo_mass_rescale(&p, final_masses, cms_energy)?;
 
             // Apply the rescaling: E_i = sqrt(|p_i|² * ξ² + m_i²), p_i → ξ * p_i_spatial
-            let mut massive_momenta: SmallVec<[SpacetimeVector; 8]> =
-                SmallVec::with_capacity(n);
+            let mut massive_momenta: SmallVec<[SpacetimeVector; 8]> = SmallVec::with_capacity(n);
             for (i, pi) in p.iter().enumerate() {
                 let p_spatial_sq: f64 = pi.components()[1..].iter().map(|c| c * c).sum();
                 let m_i = final_masses[i];

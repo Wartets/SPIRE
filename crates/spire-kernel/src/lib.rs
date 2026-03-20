@@ -122,6 +122,12 @@ pub enum SpireError {
     /// A symbolic algebra operation failed (e.g., index contraction mismatch).
     AlgebraError(String),
 
+    /// An error occurred while parsing experimental or data files.
+    DataParseError(String),
+
+    /// Data schema or axis compatibility mismatch between theory and imported datasets.
+    DataMismatch(String),
+
     /// A generic internal error not covered by the specific variants above.
     InternalError(String),
 }
@@ -140,6 +146,8 @@ impl fmt::Display for SpireError {
             SpireError::ModelParseError(msg) => write!(f, "Model parse error: {}", msg),
             SpireError::GroupTheoryError(msg) => write!(f, "Group theory error: {}", msg),
             SpireError::AlgebraError(msg) => write!(f, "Algebra error: {}", msg),
+            SpireError::DataParseError(msg) => write!(f, "Data parse error: {}", msg),
+            SpireError::DataMismatch(msg) => write!(f, "Data mismatch: {}", msg),
             SpireError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }

@@ -71,6 +71,9 @@ import type {
   WilsonCoefficients,
   BMixingResult,
   FlavorObservableReport,
+  GoodnessOfFitResult,
+  ObservableFitInput,
+  GlobalObservableFitResult,
 } from "$lib/types/spire";
 
 // ---------------------------------------------------------------------------
@@ -1112,6 +1115,46 @@ export class MockBackend implements SpireBackend {
       cross_section_error: 0,
       events_generated: 0,
       events_passed: 0,
+    };
+  }
+
+  async computeChiSquare(
+    _theoryBinContents: number[],
+    _theoryBinEdges: number[],
+    _expCsv: string,
+    _expLabel: string,
+  ): Promise<GoodnessOfFitResult> {
+    await simulateLatency();
+    return {
+      chi_square: 0,
+      ndf: 0,
+      chi_square_reduced: 0,
+      p_value: 1,
+      pulls: [],
+    };
+  }
+
+  async computeGlobalFit(
+    observables: ObservableFitInput[],
+    nParams: number,
+  ): Promise<GlobalObservableFitResult> {
+    await simulateLatency();
+    return {
+      observables: observables.map((o) => ({
+        observable: o.observable,
+        result: {
+          chi_square: 0,
+          ndf: 0,
+          chi_square_reduced: 0,
+          p_value: 1,
+          pulls: [],
+        },
+      })),
+      chi_square_global: 0,
+      ndf_total: 0,
+      n_params: nParams,
+      chi_square_reduced: 0,
+      p_value: 1,
     };
   }
 

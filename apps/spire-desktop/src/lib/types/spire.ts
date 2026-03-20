@@ -893,6 +893,14 @@ export interface HistogramData {
   bin_contents: number[];
   /** Statistical errors per bin. */
   bin_errors: number[];
+  /** Upper total uncertainty envelope per bin (optional). */
+  error_band_up?: number[] | null;
+  /** Lower total uncertainty envelope per bin (optional). */
+  error_band_down?: number[] | null;
+  /** PDF-only uncertainty per bin (optional). */
+  pdf_uncertainty?: number[] | null;
+  /** Total uncertainty (1σ) per bin (optional). */
+  total_uncertainty?: number[] | null;
   /** Underflow count. */
   underflow: number;
   /** Overflow count. */
@@ -919,6 +927,52 @@ export interface AnalysisResult {
   events_passed: number;
   /** Optional performance profile from the analysis pipeline. */
   profile?: ComputeProfile;
+}
+
+/** Per-bin experimental point with asymmetric uncertainties. */
+export interface ExperimentalDataPoint {
+  x: number;
+  y: number;
+  total_error: number;
+  stat_error: number;
+  syst_error: number;
+  stat_error_up: number;
+  stat_error_down: number;
+  syst_error_up: number;
+  syst_error_down: number;
+}
+
+/** χ² summary for one observable comparison. */
+export interface GoodnessOfFitResult {
+  chi_square: number;
+  ndf: number;
+  chi_square_reduced: number;
+  p_value: number;
+  pulls: number[];
+}
+
+/** Input payload for one observable in global-fit aggregation. */
+export interface ObservableFitInput {
+  observable: string;
+  theory_bin_contents: number[];
+  theory_bin_edges: number[];
+  exp_csv: string;
+}
+
+/** Per-observable fit summary in a global fit. */
+export interface ObservableFitSummary {
+  observable: string;
+  result: GoodnessOfFitResult;
+}
+
+/** Aggregated global χ² result across observables. */
+export interface GlobalObservableFitResult {
+  observables: ObservableFitSummary[];
+  chi_square_global: number;
+  ndf_total: number;
+  n_params: number;
+  chi_square_reduced: number;
+  p_value: number;
 }
 
 // ---------------------------------------------------------------------------

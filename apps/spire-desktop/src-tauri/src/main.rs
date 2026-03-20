@@ -29,14 +29,14 @@ use std::sync::{Arc, Mutex};
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
 use spire_kernel::analysis::{AnalysisConfig, AnalysisResult, EventDisplayData};
+use spire_kernel::analysis::global_fit::{GlobalFitResult, ObservableFitInput};
 use spire_kernel::cosmology::relic as relic_engine;
 use spire_kernel::data_loader;
 use spire_kernel::decay;
 use spire_kernel::flavor::eft as flavor_eft;
 use spire_kernel::flavor::lattice as flavor_lattice;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
-use spire_kernel::io::latex as latex_compiler;
-use spire_kernel::io::provenance as provenance_engine;
+use spire_kernel::io::{experimental, latex as latex_compiler, provenance as provenance_engine};
 use spire_kernel::kinematics::{
     self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
 };
@@ -308,8 +308,46 @@ fn verify_dimensions(
 ) -> Result<algebra::DimensionalCheckReport, String> {
     let dim = dim.unwrap_or(algebra::SpacetimeDimension::Fixed(4));
     let observable = observable.unwrap_or(algebra::ObservableKind::Amplitude);
-    let result = algebra::simplify_expression(&diagram, dim, observable).map_err(|e| e.to_string())?;
+    let result =
+        algebra::simplify_expression(&diagram, dim, observable).map_err(|e| e.to_string())?;
     Ok(result.dimension_check)
+}
+
+/// Compute χ² goodness-of-fit between a theory histogram and experimental data.
+///
+/// Parses experimental data from CSV format and compares against theoretical
+/// predictions bin-by-bin using a χ² statistic.
+///
+/// # Arguments
+/// * `theory_bin_contents` - Theoretical histogram bin values
+/// * `theory_bin_edges` - Theoretical histogram bin edges
+/// * `exp_csv` - Experimental data in CSV format (x,y,dy_stat_up,dy_stat_down,dy_syst_up,dy_syst_down)
+/// * `exp_label` - Human-readable label for the experimental dataset
+///
+/// # Returns
+/// `GoodnessOfFitResult` containing χ², reduced χ², ndf, and p-value.
+#[tauri::command]
+fn compute_chi_square(
+    theory_bin_contents: Vec<f64>,
+    theory_bin_edges: Vec<f64>,
+    exp_csv: String,
+    exp_label: String,
+) -> Result<experimental::GoodnessOfFitResult, String> {
+    let exp_dataset = experimental::ExperimentalDataSet::from_csv(&exp_csv, exp_label, None)
+        .map_err(|e| e.to_string())?;
+
+    experimental::compute_chi_square(&theory_bin_contents, &theory_bin_edges, &exp_dataset)
+        .map_err(|e| e.to_string())
+}
+
+/// Compute a multi-observable global χ² summary.
+#[tauri::command]
+fn compute_global_fit(
+    observables: Vec<ObservableFitInput>,
+    n_params: usize,
+) -> Result<GlobalFitResult, String> {
+    spire_kernel::analysis::global_fit::compute_global_fit(&observables, n_params)
+        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -1405,6 +1443,8 @@ fn main() {
             start_mcmc_fit,
             get_mcmc_status,
             stop_mcmc_fit,
+            compute_chi_square,
+            compute_global_fit,
         ])
         .run(tauri::generate_context!())
         .expect("error while running SPIRE desktop application");
