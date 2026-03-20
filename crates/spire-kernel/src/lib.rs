@@ -128,6 +128,9 @@ pub enum SpireError {
     /// Data schema or axis compatibility mismatch between theory and imported datasets.
     DataMismatch(String),
 
+    /// Database operation failed (query, connection, or schema mismatch).
+    DatabaseError(String),
+
     /// PDG provenance edition mismatch while model lock is active.
     EditionMismatch {
         /// Edition already locked on the model.
@@ -158,6 +161,7 @@ impl fmt::Display for SpireError {
             SpireError::AlgebraError(msg) => write!(f, "Algebra error: {}", msg),
             SpireError::DataParseError(msg) => write!(f, "Data parse error: {}", msg),
             SpireError::DataMismatch(msg) => write!(f, "Data mismatch: {}", msg),
+            SpireError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
             SpireError::EditionMismatch {
                 locked_edition,
                 incoming_edition,

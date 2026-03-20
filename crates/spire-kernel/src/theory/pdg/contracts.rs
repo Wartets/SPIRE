@@ -29,6 +29,9 @@ pub enum PdgValue {
     Exact {
         /// Central value.
         value: f64,
+        /// True when this value is reported as an upper/lower limit.
+        #[serde(default)]
+        is_limit: bool,
     },
     /// Value with symmetric uncertainty.
     Symmetric {
@@ -36,6 +39,9 @@ pub enum PdgValue {
         value: f64,
         /// One-sigma uncertainty.
         error: f64,
+        /// True when this value is reported as an upper/lower limit.
+        #[serde(default)]
+        is_limit: bool,
     },
     /// Value with asymmetric uncertainty.
     Asymmetric {
@@ -43,6 +49,9 @@ pub enum PdgValue {
         value: f64,
         /// Asymmetric one-sigma uncertainty.
         error: AsymmetricError,
+        /// True when this value is reported as an upper/lower limit.
+        #[serde(default)]
+        is_limit: bool,
     },
 }
 
@@ -50,11 +59,46 @@ impl PdgValue {
     /// Returns the central numeric value.
     pub fn central(&self) -> f64 {
         match self {
-            Self::Exact { value } | Self::Symmetric { value, .. } | Self::Asymmetric { value, .. } => {
+            Self::Exact { value, .. }
+            | Self::Symmetric { value, .. }
+            | Self::Asymmetric { value, .. } => {
                 *value
             }
         }
     }
+
+    /// Returns whether this value is a limit measurement.
+    pub fn is_limit(&self) -> bool {
+        match self {
+            Self::Exact { is_limit, .. }
+            | Self::Symmetric { is_limit, .. }
+            | Self::Asymmetric { is_limit, .. } => *is_limit,
+        }
+    }
+}
+
+/// Baseline quantum metadata available in PDG particle rows.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct PdgQuantumNumbers {
+    /// Electric charge in units of $e$.
+    pub charge: Option<f64>,
+    /// Total spin $J$ representation text (e.g. `1/2`, `1`).
+    pub spin_j: Option<String>,
+    /// Intrinsic parity quantum number.
+    pub parity: Option<String>,
+    /// Charge-conjugation quantum number.
+    pub c_parity: Option<String>,
+}
+
+/// Branching-fraction-like entry linked to a parent particle.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PdgBranchingFraction {
+    /// Child PDG quantity identifier.
+    pub pdgid: String,
+    /// Human-readable decay/ratio descriptor.
+    pub description: String,
+    /// Extracted value for this branch entry.
+    pub value: PdgValue,
 }
 
 /// Provenance record carried with model state.
@@ -81,6 +125,14 @@ pub struct PdgParticleRecord {
     pub mass: Option<PdgValue>,
     /// Decay width value and uncertainty representation.
     pub width: Option<PdgValue>,
+    /// Lifetime value and uncertainty representation.
+    pub lifetime: Option<PdgValue>,
+    /// Branching-fraction observables linked to this particle.
+    #[serde(default)]
+    pub branching_fractions: Vec<PdgBranchingFraction>,
+    /// Baseline particle quantum metadata.
+    #[serde(default)]
+    pub quantum_numbers: PdgQuantumNumbers,
     /// Record provenance.
     pub provenance: PdgProvenance,
 }

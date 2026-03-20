@@ -1,6 +1,8 @@
 use spire_kernel::lagrangian::TheoreticalModel;
 use spire_kernel::theory::pdg::arbiter::{arbitrate_particle_record, PdgDataSource, SourcePriority};
-use spire_kernel::theory::pdg::contracts::{AsymmetricError, PdgParticleRecord, PdgProvenance, PdgValue};
+use spire_kernel::theory::pdg::contracts::{
+    AsymmetricError, PdgParticleRecord, PdgProvenance, PdgQuantumNumbers, PdgValue,
+};
 use spire_kernel::theory::pdg::guards::EditionMismatchPolicy;
 use spire_kernel::SpireError;
 
@@ -39,6 +41,7 @@ fn asymmetric_value_serde_roundtrip() {
     let value = PdgValue::Asymmetric {
         value: 91.1876,
         error: AsymmetricError::new(0.0021, 0.0023),
+        is_limit: false,
     };
 
     let json = serde_json::to_string(&value).expect("serialize asymmetric pdg value");
@@ -56,8 +59,14 @@ fn arbiter_prefers_higher_precedence_source() {
         record: Some(PdgParticleRecord {
             pdg_id: 23,
             label: Some("Z0".to_string()),
-            mass: Some(PdgValue::Exact { value: 91.1876 }),
+            mass: Some(PdgValue::Exact {
+                value: 91.1876,
+                is_limit: false,
+            }),
             width: None,
+            lifetime: None,
+            branching_fractions: vec![],
+            quantum_numbers: PdgQuantumNumbers::default(),
             provenance: provenance("2025-v0.2.2", "local_sqlite"),
         }),
     };
@@ -68,8 +77,14 @@ fn arbiter_prefers_higher_precedence_source() {
         record: Some(PdgParticleRecord {
             pdg_id: 23,
             label: Some("Z0".to_string()),
-            mass: Some(PdgValue::Exact { value: 91.2 }),
+            mass: Some(PdgValue::Exact {
+                value: 91.2,
+                is_limit: false,
+            }),
             width: None,
+            lifetime: None,
+            branching_fractions: vec![],
+            quantum_numbers: PdgQuantumNumbers::default(),
             provenance: provenance("2025-v0.2.2", "pdg_rest"),
         }),
     };
