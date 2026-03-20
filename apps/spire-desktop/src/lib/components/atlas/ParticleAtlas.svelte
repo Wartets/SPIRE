@@ -28,12 +28,13 @@
     type CompositeQuarkContent,
   } from "$lib/core/physics/composites";
   import { listAtlasReferenceParticles } from "$lib/core/physics/atlasReferenceParticles";
+  import PdgCatalog from "$lib/components/atlas/PdgCatalog.svelte";
 
   const logAtlas = (message: string): void => {
     appendLog(message, { category: "Atlas" });
   };
 
-  type AtlasMode = "taxonomy" | "periodic";
+  type AtlasMode = "taxonomy" | "periodic" | "pdg";
 
   let mode: AtlasMode = "taxonomy";
   let customOpen = false;
@@ -322,6 +323,7 @@
     <div class="controls">
       <button class:active={mode === "taxonomy"} on:click={() => (mode = "taxonomy")}>Taxonomy</button>
       <button class:active={mode === "periodic"} on:click={() => (mode = "periodic")}>Periodic</button>
+      <button class:active={mode === "pdg"} on:click={() => (mode = "pdg")}>PDG Catalog</button>
       <button class="accent" on:click={() => (customOpen = true)}>+ Custom Particle</button>
     </div>
   </header>
@@ -438,6 +440,8 @@
         </section>
       </aside>
     </div>
+  {:else if mode === "pdg"}
+    <PdgCatalog />
   {:else}
     <section class="taxonomy-control-band">
       <div class="taxonomy-controls-copy">

@@ -561,4 +561,32 @@ export class WasmBackend implements SpireBackend {
   async stopMcmcFit(): Promise<void> {
     throw new Error("MCMC fits are not supported in WASM backend mode");
   }
+
+  async pdgGetMetadata(): Promise<import("$lib/types/spire").PdgMetadata> {
+    throw new Error("PDG metadata lookup is not supported in WASM backend mode");
+  }
+
+  async pdgLookupParticleByMcid(_mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    throw new Error("PDG particle lookup is not supported in WASM backend mode");
+  }
+
+  async pdgLookupParticleByPdgid(_pdgid: string): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    throw new Error("PDG particle lookup is not supported in WASM backend mode");
+  }
+
+  async pdgGetParticleProperties(_mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
+    throw new Error("PDG property retrieval is not supported in WASM backend mode");
+  }
+
+  async pdgGetDecayTable(_mcid: number, _policy: import("$lib/types/spire").PdgExtractionPolicy): Promise<import("$lib/types/spire").PdgDecayTable> {
+    throw new Error("PDG decay table lookup is not supported in WASM backend mode");
+  }
+
+  async pdgSyncModel(_model: import("$lib/types/spire").TheoreticalModel): Promise<import("$lib/types/spire").TheoreticalModel> {
+    throw new Error("PDG model sync is not supported in WASM backend mode");
+  }
+
+  async pdgSearchIdentifiers(_query: string): Promise<import("$lib/types/spire").PdgParticleRecord[]> {
+    throw new Error("PDG identifier search is not supported in WASM backend mode");
+  }
 }
