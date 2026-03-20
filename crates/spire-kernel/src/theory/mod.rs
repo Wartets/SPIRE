@@ -37,9 +37,13 @@
 //!   field renormalization ($\phi \to \sqrt{Z}\phi$) and coupling shifts
 //!   ($g \to g + \delta g$) to Lagrangian AST expressions, extracts
 //!   linear-in-$\delta$ counterterms, and derives counterterm vertex rules.
+//!
+//! - [`pdg`] - Canonical PDG contracts, source arbitration, and edition-lock
+//!   guards used to enforce reproducible model enrichment.
 
 pub mod ast;
 pub mod derivation;
+pub mod pdg;
 pub mod renormalization;
 pub mod rge;
 pub mod slha;

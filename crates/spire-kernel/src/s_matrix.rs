@@ -910,6 +910,7 @@ mod tests {
             gauge_symmetry: None,
             spacetime: crate::algebra::SpacetimeConfig::default(),
             constants: crate::ontology::PhysicalConstants::default(),
+            pdg_provenance: None,
         }
     }
 

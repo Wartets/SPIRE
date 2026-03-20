@@ -818,6 +818,7 @@ DECAY  1000022  0.00000000E+00  # Gamma(~chi_10) -- stable LSP
             gauge_symmetry: None,
             spacetime: Default::default(),
             constants: Default::default(),
+            pdg_provenance: None,
         };
 
         let mut pdg_map = HashMap::new();
@@ -847,6 +848,7 @@ DECAY  1000022  0.00000000E+00  # Gamma(~chi_10) -- stable LSP
             gauge_symmetry: None,
             spacetime: Default::default(),
             constants: Default::default(),
+            pdg_provenance: None,
         };
 
         let pdg_map = HashMap::new();
@@ -883,6 +885,7 @@ DECAY  1000022  0.00000000E+00  # Gamma(~chi_10) -- stable LSP
             gauge_symmetry: None,
             spacetime: Default::default(),
             constants: Default::default(),
+            pdg_provenance: None,
         };
 
         let result = importer.import_from_str(slha_str, &model).unwrap();

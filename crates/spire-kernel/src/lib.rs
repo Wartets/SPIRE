@@ -128,6 +128,16 @@ pub enum SpireError {
     /// Data schema or axis compatibility mismatch between theory and imported datasets.
     DataMismatch(String),
 
+    /// PDG provenance edition mismatch while model lock is active.
+    EditionMismatch {
+        /// Edition already locked on the model.
+        locked_edition: String,
+        /// Incoming edition from the requested PDG source.
+        incoming_edition: String,
+        /// Source that provided the incoming data.
+        source_id: String,
+    },
+
     /// A generic internal error not covered by the specific variants above.
     InternalError(String),
 }
@@ -148,6 +158,15 @@ impl fmt::Display for SpireError {
             SpireError::AlgebraError(msg) => write!(f, "Algebra error: {}", msg),
             SpireError::DataParseError(msg) => write!(f, "Data parse error: {}", msg),
             SpireError::DataMismatch(msg) => write!(f, "Data mismatch: {}", msg),
+            SpireError::EditionMismatch {
+                locked_edition,
+                incoming_edition,
+                source_id,
+            } => write!(
+                f,
+                "Edition mismatch: model locked to '{}', incoming '{}' from source '{}'",
+                locked_edition, incoming_edition, source_id
+            ),
             SpireError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }
     }

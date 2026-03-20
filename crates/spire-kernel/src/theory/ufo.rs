@@ -962,6 +962,7 @@ pub fn ufo_to_theoretical_model(ufo: &UfoModel, model_name: &str) -> SpireResult
         gauge_symmetry: None,
         spacetime: Default::default(),
         constants: Default::default(),
+        pdg_provenance: None,
     })
 }
 

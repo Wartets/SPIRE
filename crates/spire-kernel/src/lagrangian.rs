@@ -180,6 +180,12 @@ pub struct TheoreticalModel {
     /// Defaults to natural units ($c = \hbar = 1$).
     #[serde(default)]
     pub constants: crate::ontology::PhysicalConstants,
+    /// Optional PDG provenance lock for edition-safe enrichment.
+    ///
+    /// When set, PDG augmentation should not silently mix different
+    /// dataset editions without an explicit override policy.
+    #[serde(default)]
+    pub pdg_provenance: Option<crate::theory::pdg::contracts::PdgProvenance>,
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +421,20 @@ pub fn lookup_propagator(model: &TheoreticalModel, field_id: &str) -> SpireResul
 // ---------------------------------------------------------------------------
 
 impl TheoreticalModel {
+    /// Return the locked PDG edition, if any.
+    pub fn pdg_edition(&self) -> Option<&str> {
+        self.pdg_provenance.as_ref().map(|p| p.edition.as_str())
+    }
+
+    /// Apply PDG provenance using the configured edition mismatch policy.
+    pub fn apply_pdg_provenance(
+        &mut self,
+        incoming: crate::theory::pdg::contracts::PdgProvenance,
+        policy: crate::theory::pdg::guards::EditionMismatchPolicy,
+    ) -> SpireResult<()> {
+        crate::theory::pdg::guards::enforce_model_edition_lock(self, incoming, policy)
+    }
+
     /// Generate a simplified **UFO `particles.py`** file from this model.
     ///
     /// Each field is emitted as a `Particle(...)` constructor call following
@@ -883,6 +903,7 @@ mod tests {
             gauge_symmetry: None,
             spacetime: crate::algebra::SpacetimeConfig::default(),
             constants: crate::ontology::PhysicalConstants::default(),
+            pdg_provenance: None,
         }
     }
 
@@ -1118,6 +1139,7 @@ mod tests {
             gauge_symmetry: None,
             spacetime: crate::algebra::SpacetimeConfig::default(),
             constants: crate::ontology::PhysicalConstants::default(),
+            pdg_provenance: None,
         };
         let rules = derive_vertex_rules(&model).unwrap();
         assert_eq!(

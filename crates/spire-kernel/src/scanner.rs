@@ -500,6 +500,7 @@ mod tests {
             gauge_symmetry: None,
             spacetime: Default::default(),
             constants: Default::default(),
+            pdg_provenance: None,
         }
     }
 

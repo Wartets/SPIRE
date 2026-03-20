@@ -6430,6 +6430,7 @@ mod tests {
             gauge_symmetry: None,
             spacetime: SpacetimeConfig::default(),
             constants: crate::ontology::PhysicalConstants::default(),
+            pdg_provenance: None,
         };
 
         let initial_states = vec![
