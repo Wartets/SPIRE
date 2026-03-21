@@ -47,7 +47,8 @@ use spire_kernel::scanner;
 use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 use spire_kernel::theory::pdg::{
-    adapter::PdgAdapter, contracts::{PdgParticleRecord, PdgDecayTable, PdgMetadata},
+    adapter::PdgAdapter,
+    contracts::{PdgDecayTable, PdgMetadata, PdgParticleRecord},
     policy::PdgExtractionPolicy,
 };
 
@@ -1329,21 +1330,27 @@ fn pdg_get_metadata() -> Result<PdgMetadata, String> {
 #[tauri::command]
 fn pdg_lookup_particle_by_mcid(mcid: i32) -> Result<PdgParticleRecord, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter.lookup_particle_by_mcid(mcid).map_err(|e| e.to_string())
+    adapter
+        .lookup_particle_by_mcid(mcid)
+        .map_err(|e| e.to_string())
 }
 
 /// Look up a particle by its PDG ID (alternate identifier).
 #[tauri::command]
 fn pdg_lookup_particle_by_pdgid(pdgid: String) -> Result<PdgParticleRecord, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter.lookup_particle_by_name(&pdgid).map_err(|e| e.to_string())
+    adapter
+        .lookup_particle_by_name(&pdgid)
+        .map_err(|e| e.to_string())
 }
 
 /// Get full particle properties (mass, width, lifetime, quantum numbers, branching ratios).
 #[tauri::command]
 fn pdg_get_particle_properties(mcid: i32) -> Result<PdgParticleRecord, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter.get_particle_properties(mcid).map_err(|e| e.to_string())
+    adapter
+        .get_particle_properties(mcid)
+        .map_err(|e| e.to_string())
 }
 
 /// Get decay table for a particle, filtered by extraction policy.
@@ -1408,7 +1415,9 @@ fn pdg_search_identifiers(query: String) -> Result<Vec<PdgParticleRecord>, Strin
     let mut results = Vec::new();
 
     // Attempt to match against common particle labels and MCIDs
-    let common_particles = [11, -11, 12, 13, -13, 14, 15, -15, 16, 1, 2, 3, 4, 5, 6, 21, 22, 23, 24, 25];
+    let common_particles = [
+        11, -11, 12, 13, -13, 14, 15, -15, 16, 1, 2, 3, 4, 5, 6, 21, 22, 23, 24, 25,
+    ];
     for mcid in &common_particles {
         if let Ok(record) = adapter.lookup_particle_by_mcid(*mcid) {
             if let Some(ref label) = record.label {

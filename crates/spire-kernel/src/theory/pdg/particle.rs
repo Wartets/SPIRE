@@ -43,29 +43,35 @@ impl ExtendedQuantumNumbers {
 ///
 /// # Returns
 /// Synthesized quantum numbers, or None if the MCID cannot be decoded.
-pub fn synthesize_quantum_numbers(mcid: i32, pdg_record: &PdgParticleRecord) -> Option<ExtendedQuantumNumbers> {
+pub fn synthesize_quantum_numbers(
+    mcid: i32,
+    pdg_record: &PdgParticleRecord,
+) -> Option<ExtendedQuantumNumbers> {
     let abs_mcid = mcid.abs();
-    
+
     // Leptons: MCID 11-18
     if (11..=18).contains(&abs_mcid) {
         return synthesize_lepton_quantum_numbers(mcid, pdg_record);
     }
-    
+
     // Quarks: MCID 1-6
     if (1..=6).contains(&abs_mcid) {
         return synthesize_quark_quantum_numbers(mcid, pdg_record);
     }
-    
+
     // Gauge bosons and hadrons: use PDG charge directly
     // For now, infer T₃ and Y from charge if possible
     return synthesize_generic_quantum_numbers(mcid, pdg_record);
 }
 
 /// Synthesize quantum numbers for leptons (MCID 11-18).
-fn synthesize_lepton_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord) -> Option<ExtendedQuantumNumbers> {
+fn synthesize_lepton_quantum_numbers(
+    mcid: i32,
+    _pdg_record: &PdgParticleRecord,
+) -> Option<ExtendedQuantumNumbers> {
     let abs_mcid = mcid.abs();
     let is_antiparticle = mcid < 0;
-    
+
     let (lepton_e, lepton_mu, lepton_tau) = match abs_mcid {
         11 | 12 => {
             // Electron and electron neutrino
@@ -84,7 +90,7 @@ fn synthesize_lepton_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord)
         }
         _ => return None,
     };
-    
+
     // For leptons: T₃ = ±1/2 for charged leptons, 0 for neutrinos
     // and Y = -1 for leptons, 0 for neutrinos (after conjugation)
     let (t3, hypercharge) = match abs_mcid {
@@ -119,7 +125,7 @@ fn synthesize_lepton_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord)
         }
         _ => return None,
     };
-    
+
     Some(ExtendedQuantumNumbers {
         baryon_number: 0.0,
         lepton_e,
@@ -131,10 +137,13 @@ fn synthesize_lepton_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord)
 }
 
 /// Synthesize quantum numbers for quarks (MCID 1-6).
-fn synthesize_quark_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord) -> Option<ExtendedQuantumNumbers> {
+fn synthesize_quark_quantum_numbers(
+    mcid: i32,
+    _pdg_record: &PdgParticleRecord,
+) -> Option<ExtendedQuantumNumbers> {
     let abs_mcid = mcid.abs();
     let is_antiparticle = mcid < 0;
-    
+
     // Quark baryon number and electric charge
     let (baryon_num, t3_base, hypercharge_base) = match abs_mcid {
         1 => {
@@ -169,14 +178,14 @@ fn synthesize_quark_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord) 
         }
         _ => return None,
     };
-    
+
     // Apply CPT conjugation for antiquarks
     let (baryon_number, t3, hypercharge) = if is_antiparticle {
         (-baryon_num, -t3_base, -hypercharge_base)
     } else {
         (baryon_num, t3_base, hypercharge_base)
     };
-    
+
     Some(ExtendedQuantumNumbers {
         baryon_number,
         lepton_e: 0,
@@ -188,10 +197,13 @@ fn synthesize_quark_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord) 
 }
 
 /// Synthesize quantum numbers for generic particles (gauge bosons, hadrons, etc.).
-fn synthesize_generic_quantum_numbers(mcid: i32, _pdg_record: &PdgParticleRecord) -> Option<ExtendedQuantumNumbers> {
+fn synthesize_generic_quantum_numbers(
+    mcid: i32,
+    _pdg_record: &PdgParticleRecord,
+) -> Option<ExtendedQuantumNumbers> {
     let abs_mcid = mcid.abs();
     let is_antiparticle = mcid < 0;
-    
+
     // Special cases for well-known particles
     match abs_mcid {
         // Gauge bosons
@@ -317,14 +329,14 @@ mod tests {
     fn test_electron_quantum_numbers() {
         let record = sample_record(-1.0);
         let qn = synthesize_quantum_numbers(11, &record).expect("electron QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 0.0);
         assert_eq!(qn.lepton_e, 1);
         assert_eq!(qn.lepton_mu, 0);
         assert_eq!(qn.lepton_tau, 0);
         assert_eq!(qn.t3, -0.5);
         assert_eq!(qn.hypercharge, -1.0);
-        
+
         assert!(qn.validate_gell_mann_nishijima(-1.0, 1e-6));
     }
 
@@ -332,14 +344,14 @@ mod tests {
     fn test_positron_quantum_numbers() {
         let record = sample_record(1.0);
         let qn = synthesize_quantum_numbers(-11, &record).expect("positron QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 0.0);
         assert_eq!(qn.lepton_e, -1);
         assert_eq!(qn.lepton_mu, 0);
         assert_eq!(qn.lepton_tau, 0);
         assert_eq!(qn.t3, -0.5);
         assert_eq!(qn.hypercharge, 3.0);
-        
+
         assert!(qn.validate_gell_mann_nishijima(1.0, 1e-6));
     }
 
@@ -347,23 +359,24 @@ mod tests {
     fn test_down_quark_quantum_numbers() {
         let record = sample_record(-1.0 / 3.0);
         let qn = synthesize_quantum_numbers(1, &record).expect("down quark QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 1.0 / 3.0);
         assert_eq!(qn.t3, -0.5);
         assert_eq!(qn.hypercharge, 1.0 / 3.0);
-        
+
         assert!(qn.validate_gell_mann_nishijima(-1.0 / 3.0, 1e-6));
     }
 
     #[test]
     fn test_antidown_quark_quantum_numbers() {
         let record = sample_record(1.0 / 3.0);
-        let qn = synthesize_quantum_numbers(-1, &record).expect("antidown quark QN synthesis failed");
-        
+        let qn =
+            synthesize_quantum_numbers(-1, &record).expect("antidown quark QN synthesis failed");
+
         assert_eq!(qn.baryon_number, -1.0 / 3.0);
         assert_eq!(qn.t3, 0.5);
         assert_eq!(qn.hypercharge, -1.0 / 3.0);
-        
+
         assert!(qn.validate_gell_mann_nishijima(1.0 / 3.0, 1e-6));
     }
 
@@ -371,7 +384,7 @@ mod tests {
     fn test_photon_quantum_numbers() {
         let record = sample_record(0.0);
         let qn = synthesize_quantum_numbers(22, &record).expect("photon QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 0.0);
         assert_eq!(qn.lepton_e, 0);
         assert_eq!(qn.t3, 0.0);
@@ -382,7 +395,7 @@ mod tests {
     fn test_w_plus_quantum_numbers() {
         let record = sample_record(1.0);
         let qn = synthesize_quantum_numbers(24, &record).expect("W+ QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 0.0);
         assert_eq!(qn.t3, 1.0);
         assert_eq!(qn.hypercharge, 0.0);
@@ -392,7 +405,7 @@ mod tests {
     fn test_w_minus_quantum_numbers() {
         let record = sample_record(-1.0);
         let qn = synthesize_quantum_numbers(-24, &record).expect("W- QN synthesis failed");
-        
+
         assert_eq!(qn.baryon_number, 0.0);
         assert_eq!(qn.t3, -1.0);
         assert_eq!(qn.hypercharge, 0.0);
@@ -408,9 +421,9 @@ mod tests {
             t3: -0.5,
             hypercharge: 1.0 / 3.0,
         };
-        
+
         let conjugated = conjugate_quantum_numbers(qn.clone());
-        
+
         assert_eq!(conjugated.baryon_number, -1.0 / 3.0);
         assert_eq!(conjugated.lepton_e, -1);
         assert_eq!(conjugated.t3, 0.5);

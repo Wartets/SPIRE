@@ -1,4 +1,4 @@
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{params, OptionalExtension};
 
 use crate::theory::pdg::contracts::{AsymmetricError, PdgBranchingFraction, PdgValue};
 use crate::theory::pdg::database::PdgDatabase;
@@ -54,7 +54,8 @@ impl PdgDatabase {
                 ))
             })?;
 
-        row.map(|r| quantity_row_to_value(&r, data_type)).transpose()
+        row.map(|r| quantity_row_to_value(&r, data_type))
+            .transpose()
     }
 
     /// Extract branching-fraction rows from the resolved root `pdgid.id`.
@@ -108,19 +109,38 @@ impl PdgDatabase {
 }
 
 fn quantity_row_to_value(row: &QuantityRow, data_type: &str) -> SpireResult<PdgValue> {
-    let value = normalize_value(row.value, row.unit_text.as_deref(), data_type, row.display_in_percent)?;
+    let value = normalize_value(
+        row.value,
+        row.unit_text.as_deref(),
+        data_type,
+        row.display_in_percent,
+    )?;
 
     let err_plus = row
         .error_positive
-        .map(|v| normalize_value(v, row.unit_text.as_deref(), data_type, row.display_in_percent))
+        .map(|v| {
+            normalize_value(
+                v,
+                row.unit_text.as_deref(),
+                data_type,
+                row.display_in_percent,
+            )
+        })
         .transpose()?;
     let err_minus = row
         .error_negative
-        .map(|v| normalize_value(v, row.unit_text.as_deref(), data_type, row.display_in_percent))
+        .map(|v| {
+            normalize_value(
+                v,
+                row.unit_text.as_deref(),
+                data_type,
+                row.display_in_percent,
+            )
+        })
         .transpose()?;
 
-    let is_limit = row.limit_type.is_some()
-        || matches!(row.value_type.as_deref(), Some("L") | Some("U"));
+    let is_limit =
+        row.limit_type.is_some() || matches!(row.value_type.as_deref(), Some("L") | Some("U"));
 
     let result = match (err_plus, err_minus) {
         (None, None) => PdgValue::Exact { value, is_limit },

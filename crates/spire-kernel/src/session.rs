@@ -27,17 +27,15 @@
 //! buffer, which is returned to the frontend as the cell's text output.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
-use std::path::PathBuf;
 
 use rhai::{Dynamic, Engine, Scope};
 use serde::{Deserialize, Serialize};
 
 use crate::data_loader;
-use crate::io::provenance::{
-    compute_file_sha256, resolve_pdg_sqlite_path, SessionPdgProvenance,
-};
+use crate::io::provenance::{compute_file_sha256, resolve_pdg_sqlite_path, SessionPdgProvenance};
 use crate::lagrangian::TheoreticalModel;
 use crate::s_matrix::Reaction;
 use crate::scripting::SpireScriptEngine;
@@ -667,7 +665,9 @@ pub struct LocalPdgEnvironment {
 }
 
 /// Probe local PDG environment used for session restore integrity checks.
-pub fn probe_local_pdg_environment(preferred_edition: Option<&str>) -> SpireResult<LocalPdgEnvironment> {
+pub fn probe_local_pdg_environment(
+    preferred_edition: Option<&str>,
+) -> SpireResult<LocalPdgEnvironment> {
     let roots = vec![PathBuf::from("data/pdg"), PathBuf::from("data")];
     let path = resolve_pdg_sqlite_path(&roots, preferred_edition);
 

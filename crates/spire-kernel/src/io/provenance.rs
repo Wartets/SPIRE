@@ -281,7 +281,10 @@ pub fn format_provenance_block(record: &ProvenanceRecord, prefix: &str, suffix: 
 
     if let Ok(state) = serde_json::from_str::<ComputationalState>(&record.payload) {
         if let Some(pdg) = state.pdg_provenance {
-            out.push_str(&format!("{} PDG EDITION: {}{}\n", prefix, pdg.edition, suffix));
+            out.push_str(&format!(
+                "{} PDG EDITION: {}{}\n",
+                prefix, pdg.edition, suffix
+            ));
             out.push_str(&format!(
                 "{} PDG SOURCE ID: {}{}\n",
                 prefix, pdg.source_id, suffix
@@ -289,7 +292,8 @@ pub fn format_provenance_block(record: &ProvenanceRecord, prefix: &str, suffix: 
             out.push_str(&format!(
                 "{} PDG EXTRACTION POLICY: {}{}\n",
                 prefix,
-                pdg.extraction_policy.unwrap_or_else(|| "unspecified".to_string()),
+                pdg.extraction_policy
+                    .unwrap_or_else(|| "unspecified".to_string()),
                 suffix
             ));
             out.push_str(&format!(
@@ -319,7 +323,10 @@ pub fn format_provenance_block(record: &ProvenanceRecord, prefix: &str, suffix: 
 #[allow(missing_docs)]
 pub fn compute_file_sha256(path: &Path) -> SpireResult<String> {
     let bytes = fs::read(path).map_err(|e| {
-        SpireError::InternalError(format!("Failed to read PDG source '{}': {e}", path.display()))
+        SpireError::InternalError(format!(
+            "Failed to read PDG source '{}': {e}",
+            path.display()
+        ))
     })?;
     Ok(hex::encode(Sha256::digest(&bytes)))
 }

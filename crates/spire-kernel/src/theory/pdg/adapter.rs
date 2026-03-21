@@ -1,12 +1,12 @@
 use std::path::Path;
 
 use crate::theory::pdg::contracts::{
-    PdgParticleRecord, PdgProvenance, PdgQuantumNumbers, PdgDecayTable, PdgMetadata,
+    PdgDecayTable, PdgMetadata, PdgParticleRecord, PdgProvenance, PdgQuantumNumbers,
 };
 use crate::theory::pdg::database::PdgDatabase;
-use crate::theory::pdg::resolution::ResolvedParticle;
 use crate::theory::pdg::decay_query::extract_decay_channels;
-use crate::theory::pdg::policy::{PdgExtractionPolicy, apply_policy};
+use crate::theory::pdg::policy::{apply_policy, PdgExtractionPolicy};
+use crate::theory::pdg::resolution::ResolvedParticle;
 use crate::SpireResult;
 
 /// High-level kernel adapter for PDG SQLite lookups.
@@ -95,9 +95,15 @@ impl PdgAdapter {
     }
 
     fn build_particle_record(&self, resolved: ResolvedParticle) -> SpireResult<PdgParticleRecord> {
-        let mass = self.database.extract_core_quantity(resolved.root_pdgid_id, "M")?;
-        let width = self.database.extract_core_quantity(resolved.root_pdgid_id, "G")?;
-        let lifetime = self.database.extract_core_quantity(resolved.root_pdgid_id, "T")?;
+        let mass = self
+            .database
+            .extract_core_quantity(resolved.root_pdgid_id, "M")?;
+        let width = self
+            .database
+            .extract_core_quantity(resolved.root_pdgid_id, "G")?;
+        let lifetime = self
+            .database
+            .extract_core_quantity(resolved.root_pdgid_id, "T")?;
         let branching_fractions = self
             .database
             .extract_branching_fractions(resolved.root_pdgid_id)?;

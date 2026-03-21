@@ -50,7 +50,10 @@ impl PdgDatabase {
             })
             .optional()
             .map_err(|err| {
-                SpireError::DatabaseError(format!("MCID resolution query failed for {}: {}", mcid, err))
+                SpireError::DatabaseError(format!(
+                    "MCID resolution query failed for {}: {}",
+                    mcid, err
+                ))
             })?;
 
         if let Some(found) = direct {
@@ -142,10 +145,7 @@ impl PdgDatabase {
             ))
         })?
         .ok_or_else(|| {
-            SpireError::UnknownParticle(format!(
-                "No PDG particle entry found for name '{}'",
-                name
-            ))
+            SpireError::UnknownParticle(format!("No PDG particle entry found for name '{}'", name))
         })
     }
 }

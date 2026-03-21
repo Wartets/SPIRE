@@ -1,5 +1,7 @@
 use spire_kernel::lagrangian::TheoreticalModel;
-use spire_kernel::theory::pdg::arbiter::{arbitrate_particle_record, PdgDataSource, SourcePriority};
+use spire_kernel::theory::pdg::arbiter::{
+    arbitrate_particle_record, PdgDataSource, SourcePriority,
+};
 use spire_kernel::theory::pdg::contracts::{
     AsymmetricError, PdgParticleRecord, PdgProvenance, PdgQuantumNumbers, PdgValue,
 };

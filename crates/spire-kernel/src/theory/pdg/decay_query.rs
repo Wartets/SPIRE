@@ -4,9 +4,9 @@
 //! decay products from concrete MCIDs or generic placeholders, and reconstructing
 //! flat product lists from tree structures.
 
-use rusqlite::{Connection, OptionalExtension, Row};
-use crate::SpireError;
 use crate::theory::pdg::contracts::{PdgDecayChannel, PdgDecayProduct};
+use crate::SpireError;
+use rusqlite::{Connection, OptionalExtension, Row};
 
 /// Low-level query abstraction for decay channel extraction.
 pub trait DecayQueryBuilder {
@@ -74,23 +74,28 @@ impl<'conn> StandardDecayQueryBuilder<'conn> {
 
 impl<'conn> DecayQueryBuilder for StandardDecayQueryBuilder<'conn> {
     fn get_decay_modes(&self, parent_mcid: i32) -> Result<Vec<DecayModeRow>, SpireError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, pdgid, mode_number, description \
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, pdgid, mode_number, description \
              FROM pdgid \
              WHERE EXISTS (
                SELECT 1 FROM pdgparticle p WHERE p.pdgid_id = pdgid.id AND p.mcid = ?
              ) \
-             ORDER BY mode_number ASC, sort ASC, id ASC"
-        ).map_err(|e| SpireError::DatabaseError(e.to_string()))?;
+             ORDER BY mode_number ASC, sort ASC, id ASC",
+            )
+            .map_err(|e| SpireError::DatabaseError(e.to_string()))?;
 
-        let modes = stmt.query_map([parent_mcid], |row: &Row| {
-            Ok(DecayModeRow {
-                pdgid_id: row.get(0)?,
-                pdgid: row.get(1)?,
-                mode_number: row.get(2)?,
-                description: row.get(3)?,
+        let modes = stmt
+            .query_map([parent_mcid], |row: &Row| {
+                Ok(DecayModeRow {
+                    pdgid_id: row.get(0)?,
+                    pdgid: row.get(1)?,
+                    mode_number: row.get(2)?,
+                    description: row.get(3)?,
+                })
             })
-        }).map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?
+            .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?;
 
@@ -98,23 +103,28 @@ impl<'conn> DecayQueryBuilder for StandardDecayQueryBuilder<'conn> {
     }
 
     fn get_decay_products(&self, pdgid_id: i32) -> Result<Vec<DecayProductRow>, SpireError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, pdgitem_id, name, multiplier, subdecay_id, sort \
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, pdgitem_id, name, multiplier, subdecay_id, sort \
              FROM pdgdecay \
              WHERE pdgid_id = ? \
-             ORDER BY sort ASC, id ASC"
-        ).map_err(|e| SpireError::DatabaseError(e.to_string()))?;
+             ORDER BY sort ASC, id ASC",
+            )
+            .map_err(|e| SpireError::DatabaseError(e.to_string()))?;
 
-        let products = stmt.query_map([pdgid_id], |row: &Row| {
-            Ok(DecayProductRow {
-                product_id: row.get(0)?,
-                pdgitem_id: row.get(1)?,
-                name: row.get(2)?,
-                multiplier: row.get(3)?,
-                subdecay_id: row.get(4)?,
-                sort: row.get(5)?,
+        let products = stmt
+            .query_map([pdgid_id], |row: &Row| {
+                Ok(DecayProductRow {
+                    product_id: row.get(0)?,
+                    pdgitem_id: row.get(1)?,
+                    name: row.get(2)?,
+                    multiplier: row.get(3)?,
+                    subdecay_id: row.get(4)?,
+                    sort: row.get(5)?,
+                })
             })
-        }).map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?
+            .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?;
 
@@ -128,14 +138,18 @@ impl<'conn> DecayQueryBuilder for StandardDecayQueryBuilder<'conn> {
     ) -> Result<Option<i32>, SpireError> {
         // Try direct pdgitem → pdgparticle mapping
         if let Some(item_id) = pdgitem_id {
-            let mut stmt = self.conn.prepare(
-                "SELECT p.mcid FROM pdgparticle p \
+            let mut stmt = self
+                .conn
+                .prepare(
+                    "SELECT p.mcid FROM pdgparticle p \
                  WHERE p.pdgitem_id = ? \
                  ORDER BY ABS(p.mcid) ASC, p.mcid ASC \
-                 LIMIT 1"
-            ).map_err(|e| SpireError::DatabaseError(e.to_string()))?;
+                 LIMIT 1",
+                )
+                .map_err(|e| SpireError::DatabaseError(e.to_string()))?;
 
-            let mcid: Option<i32> = stmt.query_row([item_id], |row: &Row| row.get(0))
+            let mcid: Option<i32> = stmt
+                .query_row([item_id], |row: &Row| row.get(0))
                 .optional()
                 .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?;
 
@@ -145,15 +159,19 @@ impl<'conn> DecayQueryBuilder for StandardDecayQueryBuilder<'conn> {
         }
 
         // Try alias-based fallback via pdgitem name matching
-        let mut stmt = self.conn.prepare(
-            "SELECT p.mcid FROM pdgparticle p \
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT p.mcid FROM pdgparticle p \
              JOIN pdgitem i ON p.pdgitem_id = i.id \
              WHERE i.name = ? \
              ORDER BY i.item_type DESC, ABS(p.mcid) ASC, p.mcid ASC \
-             LIMIT 1"
-        ).map_err(|e| SpireError::DatabaseError(e.to_string()))?;
+             LIMIT 1",
+            )
+            .map_err(|e| SpireError::DatabaseError(e.to_string()))?;
 
-        let mcid: Option<i32> = stmt.query_row([product_name], |row: &Row| row.get(0))
+        let mcid: Option<i32> = stmt
+            .query_row([product_name], |row: &Row| row.get(0))
             .optional()
             .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?;
 
@@ -162,11 +180,13 @@ impl<'conn> DecayQueryBuilder for StandardDecayQueryBuilder<'conn> {
 
     fn is_product_generic(&self, pdgitem_id: Option<i32>) -> Result<bool, SpireError> {
         if let Some(item_id) = pdgitem_id {
-            let mut stmt = self.conn.prepare(
-                "SELECT item_type FROM pdgitem WHERE id = ?"
-            ).map_err(|e| SpireError::DatabaseError(e.to_string()))?;
+            let mut stmt = self
+                .conn
+                .prepare("SELECT item_type FROM pdgitem WHERE id = ?")
+                .map_err(|e| SpireError::DatabaseError(e.to_string()))?;
 
-            let item_type: String = stmt.query_row([item_id], |row: &Row| row.get(0))
+            let item_type: String = stmt
+                .query_row([item_id], |row: &Row| row.get(0))
                 .optional()
                 .map_err(|e: rusqlite::Error| SpireError::DatabaseError(e.to_string()))?
                 .unwrap_or_else(|| "P".to_string());
@@ -210,11 +230,21 @@ pub fn extract_decay_channels(
                 products.push((PdgDecayProduct::Concrete { mcid }, multiplier));
             } else if qb.is_product_generic(prod.pdgitem_id)? {
                 // Mark as generic if we can't resolve and it looks generic
-                products.push((PdgDecayProduct::Generic { description: prod.name.clone() }, multiplier));
+                products.push((
+                    PdgDecayProduct::Generic {
+                        description: prod.name.clone(),
+                    },
+                    multiplier,
+                ));
                 is_generic = true;
             } else {
                 // Unknown product: mark as generic to be safe
-                products.push((PdgDecayProduct::Generic { description: prod.name.clone() }, multiplier));
+                products.push((
+                    PdgDecayProduct::Generic {
+                        description: prod.name.clone(),
+                    },
+                    multiplier,
+                ));
                 // Only set is_generic if it's truly a placeholder (e.g., "X", "hadrons")
                 if is_likely_generic_placeholder(&prod.name) {
                     is_generic = true;
@@ -229,7 +259,12 @@ pub fn extract_decay_channels(
                     if let Some(mcid) = qb.resolve_product_mcid(sprod.pdgitem_id, &sprod.name)? {
                         products.push((PdgDecayProduct::Concrete { mcid }, mult));
                     } else {
-                        products.push((PdgDecayProduct::Generic { description: sprod.name.clone() }, mult));
+                        products.push((
+                            PdgDecayProduct::Generic {
+                                description: sprod.name.clone(),
+                            },
+                            mult,
+                        ));
                         is_generic = true;
                     }
                 }

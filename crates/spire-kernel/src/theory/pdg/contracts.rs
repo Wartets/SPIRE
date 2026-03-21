@@ -76,9 +76,7 @@ impl PdgValue {
         match self {
             Self::Exact { value, .. }
             | Self::Symmetric { value, .. }
-            | Self::Asymmetric { value, .. } => {
-                *value
-            }
+            | Self::Asymmetric { value, .. } => *value,
         }
     }
 
@@ -261,4 +259,3 @@ impl PdgDecayTable {
         self.channels.iter().filter(|ch| ch.is_generic).collect()
     }
 }
-

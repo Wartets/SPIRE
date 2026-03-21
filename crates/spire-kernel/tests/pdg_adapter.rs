@@ -32,7 +32,8 @@ fn central(value: &PdgValue) -> f64 {
 
 #[test]
 fn electron_mass_lookup_from_mcid() {
-    let adapter = PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
+    let adapter =
+        PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
     let record = adapter
         .get_particle_properties(11)
         .expect("lookup electron by mcid");
@@ -43,7 +44,8 @@ fn electron_mass_lookup_from_mcid() {
 
 #[test]
 fn z_mass_and_width_lookup_from_mcid() {
-    let adapter = PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
+    let adapter =
+        PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
     let record = adapter
         .get_particle_properties(23)
         .expect("lookup Z by mcid");
@@ -57,7 +59,8 @@ fn z_mass_and_width_lookup_from_mcid() {
 
 #[test]
 fn positron_and_electron_mass_agree() {
-    let adapter = PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
+    let adapter =
+        PdgAdapter::open(&pdg_database_path(), test_provenance()).expect("open pdg adapter");
 
     let electron = adapter
         .get_particle_properties(11)
@@ -66,8 +69,16 @@ fn positron_and_electron_mass_agree() {
         .get_particle_properties(-11)
         .expect("lookup positron by mcid");
 
-    let me = electron.mass.as_ref().expect("electron mass present").central();
-    let mp = positron.mass.as_ref().expect("positron mass present").central();
+    let me = electron
+        .mass
+        .as_ref()
+        .expect("electron mass present")
+        .central();
+    let mp = positron
+        .mass
+        .as_ref()
+        .expect("positron mass present")
+        .central();
 
     assert!((me - mp).abs() < 1.0e-15);
 }

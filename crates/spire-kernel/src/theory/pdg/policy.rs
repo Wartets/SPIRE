@@ -40,10 +40,7 @@ pub fn apply_policy(
 ) -> Vec<PdgDecayChannel> {
     match policy {
         PdgExtractionPolicy::StrictPhysical => {
-            channels
-                .into_iter()
-                .filter(|ch| !ch.is_generic)
-                .collect()
+            channels.into_iter().filter(|ch| !ch.is_generic).collect()
         }
         PdgExtractionPolicy::Catalog => channels,
     }
@@ -90,23 +87,23 @@ pub fn effective_branching_fractions(
                         is_limit: *is_limit,
                     }
                 }
-                crate::theory::pdg::contracts::PdgValue::Symmetric { error, is_limit, .. } => {
-                    crate::theory::pdg::contracts::PdgValue::Symmetric {
-                        value: scaled_br,
-                        error: *error / total_br,
-                        is_limit: *is_limit,
-                    }
-                }
-                crate::theory::pdg::contracts::PdgValue::Asymmetric { error, is_limit, .. } => {
-                    crate::theory::pdg::contracts::PdgValue::Asymmetric {
-                        value: scaled_br,
-                        error: crate::theory::pdg::contracts::AsymmetricError {
-                            minus: error.minus / total_br,
-                            plus: error.plus / total_br,
-                        },
-                        is_limit: *is_limit,
-                    }
-                }
+                crate::theory::pdg::contracts::PdgValue::Symmetric {
+                    error, is_limit, ..
+                } => crate::theory::pdg::contracts::PdgValue::Symmetric {
+                    value: scaled_br,
+                    error: *error / total_br,
+                    is_limit: *is_limit,
+                },
+                crate::theory::pdg::contracts::PdgValue::Asymmetric {
+                    error, is_limit, ..
+                } => crate::theory::pdg::contracts::PdgValue::Asymmetric {
+                    value: scaled_br,
+                    error: crate::theory::pdg::contracts::AsymmetricError {
+                        minus: error.minus / total_br,
+                        plus: error.plus / total_br,
+                    },
+                    is_limit: *is_limit,
+                },
             };
         }
     }
@@ -135,7 +132,12 @@ mod tests {
     fn sample_generic_channel() -> PdgDecayChannel {
         PdgDecayChannel {
             mode_id: 2,
-            products: vec![(PdgDecayProduct::Generic { description: "X".to_string() }, 1)],
+            products: vec![(
+                PdgDecayProduct::Generic {
+                    description: "X".to_string(),
+                },
+                1,
+            )],
             branching_ratio: Some(PdgValue::Exact {
                 value: 0.5,
                 is_limit: false,
@@ -174,10 +176,7 @@ mod tests {
 
     #[test]
     fn test_renormalization() {
-        let mut channels = vec![
-            sample_concrete_channel(11),
-            sample_concrete_channel(13),
-        ];
+        let mut channels = vec![sample_concrete_channel(11), sample_concrete_channel(13)];
 
         // Set branching fractions that don't sum to 1.0
         channels[0].branching_ratio = Some(PdgValue::Exact {

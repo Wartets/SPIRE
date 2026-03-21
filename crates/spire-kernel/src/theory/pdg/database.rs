@@ -204,7 +204,9 @@ impl PdgDatabase {
         let mut stmt = self
             .connection
             .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?1 LIMIT 1")
-            .map_err(|err| SpireError::DatabaseError(format!("Failed to prepare schema probe: {}", err)))?;
+            .map_err(|err| {
+                SpireError::DatabaseError(format!("Failed to prepare schema probe: {}", err))
+            })?;
 
         for table in self.query_builder.required_tables() {
             let found = stmt
