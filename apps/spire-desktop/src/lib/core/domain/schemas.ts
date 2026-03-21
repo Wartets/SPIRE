@@ -1107,8 +1107,13 @@ export const PdgBranchingFractionSchema = z.object({
 
 export const PdgProvenanceSchema = z.object({
   edition: z.string(),
+  release_timestamp: z.string().optional(),
   source_id: z.string(),
   origin: z.string().optional(),
+  source_path: z.string().optional(),
+  extraction_policy: z.string().optional(),
+  source_arbitration_outcome: z.string().optional(),
+  local_file_fingerprint: z.string().optional(),
   fingerprint: z.string(),
 });
 

@@ -1745,8 +1745,13 @@ export interface PdgBranchingFraction {
 /** Provenance record carried with PDG model state. */
 export interface PdgProvenance {
   edition: string;
+  release_timestamp?: string;
   source_id: string;
   origin?: string;
+  source_path?: string;
+  extraction_policy?: string;
+  source_arbitration_outcome?: string;
+  local_file_fingerprint?: string;
   fingerprint: string;
 }
 
@@ -1802,6 +1807,23 @@ export interface PdgSyncOptions {
   bootstrap_preset?: PdgBootstrapPreset | null;
   edition_lock?: string | null;
 }
+
+/** Structured result for restore-time session integrity validation. */
+export type SessionIntegrityValidationResult =
+  | {
+      ok: true;
+      state: Record<string, unknown>;
+    }
+  | {
+      ok: false;
+      error_kind: "provenance_mismatch";
+      saved_edition: string;
+      local_edition: string;
+      saved_fingerprint?: string;
+      local_fingerprint?: string;
+      remediation_options: string[];
+      reason: string;
+    };
 
 // ---------------------------------------------------------------------------
 // Zod Runtime Validation Schemas (Phase 73)
@@ -1862,8 +1884,13 @@ export const PdgBranchingFractionSchema = z.object({
 /** Zod schema for PdgProvenance */
 export const PdgProvenanceSchema = z.object({
   edition: z.string(),
+  release_timestamp: z.string().optional(),
   source_id: z.string(),
   origin: z.string().optional(),
+  source_path: z.string().optional(),
+  extraction_policy: z.string().optional(),
+  source_arbitration_outcome: z.string().optional(),
+  local_file_fingerprint: z.string().optional(),
   fingerprint: z.string(),
 });
 
@@ -1903,6 +1930,24 @@ export const PdgDecayTableSchema = z.object({
 
 /** Zod schema for PdgExtractionPolicy */
 export const PdgExtractionPolicySchema = z.enum(["StrictPhysical", "Catalog"]);
+
+/** Zod schema for structured session integrity validation result. */
+export const SessionIntegrityValidationResultSchema = z.discriminatedUnion("ok", [
+  z.object({
+    ok: z.literal(true),
+    state: z.record(z.string(), z.unknown()),
+  }),
+  z.object({
+    ok: z.literal(false),
+    error_kind: z.literal("provenance_mismatch"),
+    saved_edition: z.string(),
+    local_edition: z.string(),
+    saved_fingerprint: z.string().optional(),
+    local_fingerprint: z.string().optional(),
+    remediation_options: z.array(z.string()),
+    reason: z.string(),
+  }),
+]);
 
 // Export inferred types from schemas (for consumers)
 export type PdgMetadataType = z.infer<typeof PdgMetadataSchema>;

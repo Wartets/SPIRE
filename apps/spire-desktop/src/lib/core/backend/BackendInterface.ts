@@ -319,6 +319,10 @@ export interface SpireBackend {
     payload: string,
   ): Promise<Record<string, unknown>>;
 
+  validateSessionIntegrity(
+    payload: string,
+  ): Promise<import("$lib/types/spire").SessionIntegrityValidationResult>;
+
   // ── Cosmological Relic Density ────────────────────────────────────────
   calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport>;
 

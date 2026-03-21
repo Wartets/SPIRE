@@ -627,6 +627,16 @@ export async function loadProvenanceState(
   return getBackend().loadProvenanceState(payload);
 }
 
+/**
+ * Validate saved provenance against local PDG environment.
+ * Returns structured mismatch metadata when restore should be blocked.
+ */
+export async function validateSessionIntegrity(
+  payload: string,
+): Promise<import("$lib/types/spire").SessionIntegrityValidationResult> {
+  return getBackend().validateSessionIntegrity(payload);
+}
+
 // ---------------------------------------------------------------------------
 // Cosmological Relic Density
 // ---------------------------------------------------------------------------

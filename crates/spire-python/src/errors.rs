@@ -44,6 +44,20 @@ pub fn to_py_err(e: SpireError) -> PyErr {
                 "Edition mismatch: expected {locked_edition}, found {incoming_edition}"
             ))
         }
+        SpireError::ProvenanceMismatch {
+            saved_edition,
+            local_edition,
+            saved_fingerprint,
+            local_fingerprint,
+            remediation_options,
+            reason,
+        } => PyValueError::new_err(format!(
+            "Provenance mismatch: saved edition '{saved_edition}', local edition '{local_edition}', saved fingerprint {:?}, local fingerprint {:?}. {}. Options: {}",
+            saved_fingerprint,
+            local_fingerprint,
+            reason,
+            remediation_options.join(", ")
+        )),
         SpireError::AlgebraError(msg) => PyRuntimeError::new_err(format!("Algebra error: {msg}")),
         SpireError::InternalError(msg) => PyRuntimeError::new_err(format!("Internal error: {msg}")),
     }

@@ -877,6 +877,42 @@ fn load_provenance_state(payload: String) -> Result<provenance_engine::Provenanc
     provenance_engine::load_provenance(&record).map_err(|e| e.to_string())
 }
 
+/// Validate saved provenance against the local PDG environment and return a structured result.
+#[tauri::command]
+fn validate_session_integrity(payload: String) -> Result<serde_json::Value, String> {
+    let record: provenance_engine::ProvenanceRecord = serde_json::from_str(&payload).map_err(|e| {
+        format!(
+            "Failed to parse provenance record: {}. Expected JSON with 'sha256' and 'payload' fields.",
+            e
+        )
+    })?;
+
+    match provenance_engine::load_provenance(&record) {
+        Ok(state) => Ok(serde_json::json!({
+            "ok": true,
+            "state": state
+        })),
+        Err(spire_kernel::SpireError::ProvenanceMismatch {
+            saved_edition,
+            local_edition,
+            saved_fingerprint,
+            local_fingerprint,
+            remediation_options,
+            reason,
+        }) => Ok(serde_json::json!({
+            "ok": false,
+            "error_kind": "provenance_mismatch",
+            "saved_edition": saved_edition,
+            "local_edition": local_edition,
+            "saved_fingerprint": saved_fingerprint,
+            "local_fingerprint": local_fingerprint,
+            "remediation_options": remediation_options,
+            "reason": reason
+        })),
+        Err(err) => Err(err.to_string()),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Cosmological Relic Density
 // ---------------------------------------------------------------------------
@@ -1572,6 +1608,7 @@ fn main() {
             generate_mathematical_proof,
             compute_provenance_hash,
             load_provenance_state,
+            validate_session_integrity,
             calculate_relic_density,
             calculate_b_mixing,
             calculate_b_to_k_ll,

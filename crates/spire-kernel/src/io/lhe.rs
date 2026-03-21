@@ -139,6 +139,11 @@ impl<W: Write + Send> EventWriter for LheWriter<W> {
         writeln!(buf, "<header>")?;
         writeln!(buf, "<!-- Generator: {} -->", config.generator)?;
         if let Some(ref prov) = self.provenance {
+            writeln!(
+                buf,
+                "<spire_provenance algorithm=\"sha256\" state_hash=\"{}\" />",
+                prov.sha256
+            )?;
             let block = format_provenance_block(prov, "<!--", " -->");
             write!(buf, "{}", block)?;
         }
@@ -697,6 +702,7 @@ mod tests {
         }
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("SPIRE PROVENANCE HASH:"));
+        assert!(output.contains("<spire_provenance algorithm=\"sha256\""));
         assert!(output.contains(&record.sha256));
         assert!(output.contains("BEGIN PROVENANCE PAYLOAD"));
         assert!(output.contains("END PROVENANCE PAYLOAD"));

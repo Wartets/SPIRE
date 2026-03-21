@@ -69,6 +69,7 @@ import type {
   PdgDecayTable,
   PdgExtractionPolicy,
   PdgSyncOptions,
+  SessionIntegrityValidationResult,
 } from "$lib/types/spire";
 
 import { z } from "zod";
@@ -527,6 +528,12 @@ export class TauriBackend implements SpireBackend {
     payload: string,
   ): Promise<Record<string, unknown>> {
     return tauriInvoke("load_provenance_state", { payload });
+  }
+
+  async validateSessionIntegrity(
+    payload: string,
+  ): Promise<SessionIntegrityValidationResult> {
+    return tauriInvoke("validate_session_integrity", { payload }) as Promise<SessionIntegrityValidationResult>;
   }
 
   async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {

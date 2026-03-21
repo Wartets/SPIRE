@@ -482,6 +482,13 @@ export class WasmBackend implements SpireBackend {
     return this.call<Record<string, unknown>>("load_provenance_state", { payload });
   }
 
+  async validateSessionIntegrity(
+    payload: string,
+  ): Promise<import("$lib/types/spire").SessionIntegrityValidationResult> {
+    const state = await this.loadProvenanceState(payload);
+    return { ok: true, state };
+  }
+
   async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
     return this.call<RelicDensityReport>("calculate_relic_density", { config });
   }

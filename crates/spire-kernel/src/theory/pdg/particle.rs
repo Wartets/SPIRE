@@ -301,8 +301,13 @@ mod tests {
             branching_fractions: vec![],
             provenance: crate::theory::pdg::contracts::PdgProvenance {
                 edition: "2025-v0".to_string(),
+                release_timestamp: None,
                 source_id: "test".to_string(),
                 origin: None,
+                source_path: None,
+                extraction_policy: None,
+                source_arbitration_outcome: None,
+                local_file_fingerprint: None,
                 fingerprint: "test".to_string(),
             },
         }

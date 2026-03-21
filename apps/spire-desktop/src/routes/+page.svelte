@@ -77,7 +77,11 @@
   import {
     executeAllCells,
   } from "$lib/stores/notebookDocumentStore";
-  import { generateMathematicalProof, loadProvenanceState } from "$lib/api";
+  import {
+    generateMathematicalProof,
+    loadProvenanceState,
+    validateSessionIntegrity,
+  } from "$lib/api";
   import LayoutRenderer from "$lib/components/layout/LayoutRenderer.svelte";
   import InfiniteCanvas from "$lib/components/layout/InfiniteCanvas.svelte";
   import WorkspaceControls from "$lib/components/workbench/WorkspaceControls.svelte";
@@ -881,6 +885,45 @@
     }
     if (!json.trim()) return;
     try {
+      const integrity = await validateSessionIntegrity(json);
+      if (!integrity.ok) {
+        const choice = await openPopup({
+          title: "Session Integrity Mismatch",
+          tone: "danger",
+          message:
+            "The saved provenance lock does not match your local PDG environment. Choose a deterministic remediation path.",
+          meta: [
+            { label: "Saved edition", value: integrity.saved_edition },
+            { label: "Local edition", value: integrity.local_edition },
+            { label: "Saved fingerprint", value: integrity.saved_fingerprint ?? "missing" },
+            { label: "Local fingerprint", value: integrity.local_fingerprint ?? "missing" },
+            { label: "Reason", value: integrity.reason },
+          ],
+          actions: [
+            { id: "override_local_pdg", label: "Override with local PDG", variant: "danger" },
+            { id: "fallback_analytical", label: "Fallback to analytical mode", variant: "ghost" },
+            { id: "abort_restore", label: "Abort restore", variant: "ghost", autofocus: true },
+          ],
+          closeActionId: "abort_restore",
+        });
+
+        if (choice === "abort_restore" || !choice) {
+          return;
+        }
+
+        if (choice === "fallback_analytical") {
+          await openPopup({
+            title: "Analytical Fallback Selected",
+            tone: "warn",
+            message:
+              "Restore aborted. Continue in analytical mode and re-import PDG data when ready.",
+            actions: [{ id: "ok", label: "OK", variant: "primary", autofocus: true }],
+            closeActionId: "ok",
+          });
+          return;
+        }
+      }
+
       const state = await loadProvenanceState(json);
       console.log("[SPIRE] Provenance state restored:", state);
       // The returned state contains model, reaction, kinematics, seed.

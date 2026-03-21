@@ -121,10 +121,25 @@ pub struct PdgBranchingFraction {
 pub struct PdgProvenance {
     /// Dataset edition identifier (e.g. `2025-v0.2.2`).
     pub edition: PdgEdition,
+    /// Dataset release timestamp in ISO 8601 format.
+    #[serde(default)]
+    pub release_timestamp: Option<String>,
     /// Logical source id selected by arbitration (`local_sqlite`, `pdg_rest`, ...).
     pub source_id: String,
     /// Optional concrete local origin (file path, URL, etc.).
     pub origin: Option<String>,
+    /// Normalized local source path used for fingerprinting.
+    #[serde(default)]
+    pub source_path: Option<String>,
+    /// Active extraction policy used for channel/value resolution.
+    #[serde(default)]
+    pub extraction_policy: Option<String>,
+    /// Arbitration outcome for source selection (`local`, `api`, `mixed`, ...).
+    #[serde(default)]
+    pub source_arbitration_outcome: Option<String>,
+    /// Hash of the concrete local PDG file bytes.
+    #[serde(default)]
+    pub local_file_fingerprint: Option<String>,
     /// Stable hash/fingerprint for reproducibility.
     pub fingerprint: String,
 }

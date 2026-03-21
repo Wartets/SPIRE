@@ -141,6 +141,22 @@ pub enum SpireError {
         source_id: String,
     },
 
+    /// Session restore provenance mismatch between saved lock and local environment.
+    ProvenanceMismatch {
+        /// Saved provenance edition in the workspace/session artifact.
+        saved_edition: String,
+        /// Local PDG edition discovered at restore time.
+        local_edition: String,
+        /// Saved local-file fingerprint from the artifact payload.
+        saved_fingerprint: Option<String>,
+        /// Local fingerprint computed from the local PDG source.
+        local_fingerprint: Option<String>,
+        /// Deterministic remediation options offered to caller/UI.
+        remediation_options: Vec<String>,
+        /// Human-readable diagnostic reason.
+        reason: String,
+    },
+
     /// A generic internal error not covered by the specific variants above.
     InternalError(String),
 }
@@ -170,6 +186,23 @@ impl fmt::Display for SpireError {
                 f,
                 "Edition mismatch: model locked to '{}', incoming '{}' from source '{}'",
                 locked_edition, incoming_edition, source_id
+            ),
+            SpireError::ProvenanceMismatch {
+                saved_edition,
+                local_edition,
+                saved_fingerprint,
+                local_fingerprint,
+                remediation_options,
+                reason,
+            } => write!(
+                f,
+                "Provenance mismatch: saved edition '{}' / local edition '{}', saved fingerprint {:?} / local fingerprint {:?}. {}. Remediation options: {}",
+                saved_edition,
+                local_edition,
+                saved_fingerprint,
+                local_fingerprint,
+                reason,
+                remediation_options.join(", ")
             ),
             SpireError::InternalError(msg) => write!(f, "Internal error: {}", msg),
         }

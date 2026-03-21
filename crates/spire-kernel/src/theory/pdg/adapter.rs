@@ -82,8 +82,13 @@ impl PdgAdapter {
         let path = std::path::Path::new("data/pdg-2025-v0.2.2.sqlite");
         let provenance = PdgProvenance {
             edition: "PDG 2025".to_string(),
+            release_timestamp: Some("2025-03-20T00:00:00Z".to_string()),
             source_id: "local_sqlite".to_string(),
             origin: Some(path.to_string_lossy().to_string()),
+            source_path: Some(path.to_string_lossy().to_string()),
+            extraction_policy: Some("Catalog".to_string()),
+            source_arbitration_outcome: Some("local".to_string()),
+            local_file_fingerprint: None,
             fingerprint: "v0.2.2".to_string(),
         };
         Self::open(path, provenance)

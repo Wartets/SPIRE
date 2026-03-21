@@ -528,6 +528,18 @@ impl DecayTable {
 
         out
     }
+
+    /// Format this decay table as an SLHA `DECAY` block with provenance comments.
+    pub fn to_slha_string_with_provenance(
+        &self,
+        pdg_code: i32,
+        provenance: &crate::io::provenance::ProvenanceRecord,
+    ) -> String {
+        let mut out = crate::io::provenance::format_provenance_block(provenance, "#", "");
+        out.push('\n');
+        out.push_str(&self.to_slha_string(pdg_code));
+        out
+    }
 }
 
 // ===========================================================================
@@ -647,6 +659,17 @@ mod tests {
         assert!(slha.starts_with("DECAY"), "SLHA should start with DECAY");
         assert!(slha.contains("23"), "SLHA should contain PDG code");
         assert!(slha.contains("# BR("), "SLHA should have BR comments");
+    }
+
+    #[test]
+    fn test_slha_output_with_provenance() {
+        let model = load_sm_model();
+        let table = calculate_decay_table(&model, "Z0").unwrap();
+        let state = crate::io::provenance::ProvenanceState::new(model, None, None, 42);
+        let record = crate::io::provenance::compute_provenance(&state);
+        let slha = table.to_slha_string_with_provenance(23, &record);
+        assert!(slha.contains("SPIRE PROVENANCE HASH"));
+        assert!(slha.contains("DECAY  23"));
     }
 
     #[test]

@@ -1436,6 +1436,13 @@ This is a mock proof document for ${processLabel}.
     return JSON.parse(payload);
   }
 
+  async validateSessionIntegrity(
+    payload: string,
+  ): Promise<import("$lib/types/spire").SessionIntegrityValidationResult> {
+    await simulateLatency();
+    return { ok: true, state: JSON.parse(payload) };
+  }
+
   async calculateRelicDensity(config: RelicConfig): Promise<RelicDensityReport> {
     await simulateLatency();
     const evolution = [];

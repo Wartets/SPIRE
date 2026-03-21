@@ -29,14 +29,19 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Instant;
+use std::path::PathBuf;
 
 use rhai::{Dynamic, Engine, Scope};
 use serde::{Deserialize, Serialize};
 
 use crate::data_loader;
+use crate::io::provenance::{
+    compute_file_sha256, resolve_pdg_sqlite_path, SessionPdgProvenance,
+};
 use crate::lagrangian::TheoreticalModel;
 use crate::s_matrix::Reaction;
 use crate::scripting::SpireScriptEngine;
+use crate::{SpireError, SpireResult};
 
 // ---------------------------------------------------------------------------
 // Execution Result
@@ -648,6 +653,88 @@ fn dynamic_to_json(value: &Dynamic) -> Option<serde_json::Value> {
     }
     // Fallback: use Rhai's debug format
     Some(serde_json::json!(format!("{:?}", value)))
+}
+
+/// Local PDG environment fingerprint discovered at restore time.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct LocalPdgEnvironment {
+    /// Local edition inferred from filename or fallback context.
+    pub edition: String,
+    /// Path to local SQLite source if available.
+    pub source_path: Option<String>,
+    /// Local SHA-256 fingerprint of source bytes if available.
+    pub local_file_fingerprint: Option<String>,
+}
+
+/// Probe local PDG environment used for session restore integrity checks.
+pub fn probe_local_pdg_environment(preferred_edition: Option<&str>) -> SpireResult<LocalPdgEnvironment> {
+    let roots = vec![PathBuf::from("data/pdg"), PathBuf::from("data")];
+    let path = resolve_pdg_sqlite_path(&roots, preferred_edition);
+
+    let Some(path) = path else {
+        return Ok(LocalPdgEnvironment {
+            edition: preferred_edition.unwrap_or("unknown").to_string(),
+            source_path: None,
+            local_file_fingerprint: None,
+        });
+    };
+
+    let fingerprint = compute_file_sha256(&path)?;
+    let path_string = path.to_string_lossy().to_string();
+    let inferred = infer_edition_from_path(&path_string)
+        .or_else(|| preferred_edition.map(ToString::to_string))
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Ok(LocalPdgEnvironment {
+        edition: inferred,
+        source_path: Some(path_string),
+        local_file_fingerprint: Some(fingerprint),
+    })
+}
+
+/// Validate saved session provenance against local PDG environment.
+pub fn validate_session_provenance(
+    saved: &SessionPdgProvenance,
+    local: &LocalPdgEnvironment,
+) -> SpireResult<()> {
+    let same_edition = saved.edition == local.edition;
+    let same_fingerprint = match (&saved.local_file_fingerprint, &local.local_file_fingerprint) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    };
+
+    if same_edition && (same_fingerprint || saved.local_file_fingerprint.is_none()) {
+        return Ok(());
+    }
+
+    let reason = if !same_edition {
+        "Saved PDG edition differs from local environment".to_string()
+    } else {
+        "Saved PDG fingerprint differs from local source bytes".to_string()
+    };
+
+    Err(SpireError::ProvenanceMismatch {
+        saved_edition: saved.edition.clone(),
+        local_edition: local.edition.clone(),
+        saved_fingerprint: saved.local_file_fingerprint.clone(),
+        local_fingerprint: local.local_file_fingerprint.clone(),
+        remediation_options: vec![
+            "override_local_pdg".to_string(),
+            "fallback_analytical".to_string(),
+            "abort_restore".to_string(),
+        ],
+        reason,
+    })
+}
+
+fn infer_edition_from_path(path: &str) -> Option<String> {
+    let lower = path.to_lowercase();
+    for token in ["2025-v0.2.2", "2024-v0.1.4", "2025", "2024"] {
+        if lower.contains(token) {
+            return Some(token.to_string());
+        }
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
