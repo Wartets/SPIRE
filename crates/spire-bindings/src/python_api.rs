@@ -103,6 +103,33 @@ fn to_py_err(e: SpireError) -> PyErr {
             PyValueError::new_err(format!("Data parse error: {}", msg))
         }
         SpireError::DataMismatch(msg) => PyValueError::new_err(format!("Data mismatch: {}", msg)),
+        SpireError::DatabaseError(msg) => {
+            PyRuntimeError::new_err(format!("Database error: {}", msg))
+        }
+        SpireError::EditionMismatch {
+            locked_edition,
+            incoming_edition,
+            ..
+        } => PyValueError::new_err(format!(
+            "Edition mismatch: expected {}, found {}",
+            locked_edition, incoming_edition
+        )),
+        SpireError::ProvenanceMismatch {
+            saved_edition,
+            local_edition,
+            saved_fingerprint,
+            local_fingerprint,
+            remediation_options,
+            reason,
+        } => PyValueError::new_err(format!(
+            "Provenance mismatch: saved edition '{}', local edition '{}', saved fingerprint {:?}, local fingerprint {:?}. {}. Options: {}",
+            saved_edition,
+            local_edition,
+            saved_fingerprint,
+            local_fingerprint,
+            reason,
+            remediation_options.join(", ")
+        )),
         SpireError::AlgebraError(msg) => PyRuntimeError::new_err(format!("Algebra error: {}", msg)),
         SpireError::InternalError(msg) => {
             PyRuntimeError::new_err(format!("Internal error: {}", msg))
