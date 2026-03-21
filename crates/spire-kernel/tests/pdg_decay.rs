@@ -19,8 +19,13 @@ fn get_adapter() -> PdgAdapter {
     
     let provenance = PdgProvenance {
         edition: "2025-v0.2.2".to_string(),
+        release_timestamp: None,
         source_id: "local_sqlite".to_string(),
         origin: Some(pdg_path.to_string_lossy().to_string()),
+        source_path: Some(pdg_path.to_string_lossy().to_string()),
+        extraction_policy: None,
+        source_arbitration_outcome: None,
+        local_file_fingerprint: None,
         fingerprint: "test".to_string(),
     };
 

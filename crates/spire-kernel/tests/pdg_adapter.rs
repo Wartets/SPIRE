@@ -15,8 +15,13 @@ fn pdg_database_path() -> PathBuf {
 fn test_provenance() -> PdgProvenance {
     PdgProvenance {
         edition: "2025-v0.2.2".to_string(),
+        release_timestamp: None,
         source_id: "local_sqlite".to_string(),
         origin: Some(pdg_database_path().display().to_string()),
+        source_path: Some(pdg_database_path().display().to_string()),
+        extraction_policy: None,
+        source_arbitration_outcome: None,
+        local_file_fingerprint: None,
         fingerprint: "phase71-test-local".to_string(),
     }
 }

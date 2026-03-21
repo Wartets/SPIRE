@@ -30,8 +30,13 @@ impl PdgDataSource for MockSource {
 fn provenance(edition: &str, source_id: &str) -> PdgProvenance {
     PdgProvenance {
         edition: edition.to_string(),
+        release_timestamp: None,
         source_id: source_id.to_string(),
         origin: Some(format!("{source_id}.sqlite")),
+        source_path: Some(format!("{source_id}.sqlite")),
+        extraction_policy: None,
+        source_arbitration_outcome: None,
+        local_file_fingerprint: None,
         fingerprint: format!("{edition}-{source_id}"),
     }
 }
