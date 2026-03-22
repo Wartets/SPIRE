@@ -2,6 +2,8 @@ use rusqlite::{Connection, OpenFlags};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 use crate::{SpireError, SpireResult};
 
@@ -225,6 +227,8 @@ const REQUIRED_INDICES: [RequiredIndex; 3] = [
     },
 ];
 
+static PDG_CACHE_COPY_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 impl PdgDatabase {
     /// Open a PDG SQLite database and validate required schema/index contracts.
     pub fn open(path: &Path) -> SpireResult<Self> {
@@ -356,6 +360,15 @@ impl PdgDatabase {
     }
 
     fn apply_startup_pragmas(connection: &Connection, write_mode: bool) -> SpireResult<()> {
+        connection
+            .busy_timeout(Duration::from_secs(5))
+            .map_err(|err| {
+                SpireError::DatabaseError(format!(
+                    "Failed to configure SQLite busy timeout for PDG database: {}",
+                    err
+                ))
+            })?;
+
         if write_mode {
             connection
                 .execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")
@@ -427,34 +440,56 @@ impl PdgDatabase {
             ))
         })?;
 
-        let file_name = source_path.file_name().ok_or_else(|| {
+        source_path.file_name().ok_or_else(|| {
             SpireError::DatabaseError(format!(
                 "Cannot derive SQLite file name from PDG source path '{}'",
                 source_path.display()
             ))
         })?;
 
-        let cached_path = cache_root.join(file_name);
-
-        let needs_copy = if !cached_path.exists() {
-            true
-        } else {
-            let source_meta = fs::metadata(source_path).ok();
-            let cached_meta = fs::metadata(&cached_path).ok();
-            match (source_meta, cached_meta) {
-                (Some(src), Some(dst)) => match (src.modified(), dst.modified()) {
-                    (Ok(src_mtime), Ok(dst_mtime)) => src_mtime > dst_mtime,
-                    _ => false,
-                },
-                _ => false,
-            }
+        let unique_copy_name = {
+            let stem = source_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("pdg-cache");
+            let ext = source_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("sqlite");
+            let counter = PDG_CACHE_COPY_COUNTER.fetch_add(1, Ordering::Relaxed);
+            format!(
+                "{}-pid{}-copy{}.{}",
+                stem,
+                std::process::id(),
+                counter,
+                ext
+            )
         };
 
-        if needs_copy {
-            fs::copy(source_path, &cached_path).map_err(|err| {
+        let cached_path = cache_root.join(unique_copy_name);
+
+        fs::copy(source_path, &cached_path).map_err(|err| {
+            SpireError::DatabaseError(format!(
+                "Failed to copy PDG SQLite source '{}' to cache '{}': {}",
+                source_path.display(),
+                cached_path.display(),
+                err
+            ))
+        })?;
+
+        let metadata = fs::metadata(&cached_path).map_err(|err| {
+            SpireError::DatabaseError(format!(
+                "Failed to inspect copied PDG cache file '{}': {}",
+                cached_path.display(),
+                err
+            ))
+        })?;
+        let mut permissions = metadata.permissions();
+        if permissions.readonly() {
+            permissions.set_readonly(false);
+            fs::set_permissions(&cached_path, permissions).map_err(|err| {
                 SpireError::DatabaseError(format!(
-                    "Failed to copy PDG SQLite source '{}' to cache '{}': {}",
-                    source_path.display(),
+                    "Failed to make PDG cache copy writable '{}': {}",
                     cached_path.display(),
                     err
                 ))
