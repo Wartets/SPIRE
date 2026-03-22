@@ -89,6 +89,7 @@ function sanitizeLabel(s: string): string {
 
   // Escape only problematic text-mode chars, then map common physics unicode to LaTeX math.
   return s
+    .replace(/\\/g, "\\textbackslash{}")
     .replace(/#/g, "\\#")
     .replace(/%/g, "\\%")
     .replace(/&/g, "\\&")
