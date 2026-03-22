@@ -263,8 +263,8 @@ impl PdgDatabase {
 
         let optimized_path = Self::prepare_optimized_copy(path)?;
         let optimized_flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE;
-        let optimized_connection = Connection::open_with_flags(&optimized_path, optimized_flags)
-            .map_err(|err| {
+        let mut optimized_connection =
+            Connection::open_with_flags(&optimized_path, optimized_flags).map_err(|err| {
                 SpireError::DatabaseError(format!(
                     "Failed to open optimized PDG cache copy '{}' (read-write): {}",
                     optimized_path.display(),
@@ -273,8 +273,33 @@ impl PdgDatabase {
             })?;
 
         Self::apply_startup_pragmas(&optimized_connection, true)?;
+        if let Err(schema_err) = Self::verify_schema_with(&optimized_connection, query_builder.as_ref()) {
+            drop(optimized_connection);
+
+            let _ = fs::remove_file(&optimized_path);
+            fs::copy(path, &optimized_path).map_err(|err| {
+                SpireError::DatabaseError(format!(
+                    "Failed to refresh invalid PDG cache copy '{}' from source '{}': {}",
+                    optimized_path.display(),
+                    path.display(),
+                    err
+                ))
+            })?;
+
+            optimized_connection = Connection::open_with_flags(&optimized_path, optimized_flags)
+                .map_err(|err| {
+                    SpireError::DatabaseError(format!(
+                        "Failed to reopen refreshed PDG cache copy '{}' (read-write): {}",
+                        optimized_path.display(),
+                        err
+                    ))
+                })?;
+
+            Self::apply_startup_pragmas(&optimized_connection, true)?;
+            Self::verify_schema_with(&optimized_connection, query_builder.as_ref()).map_err(|_| schema_err)?;
+        }
+
         Self::ensure_required_indices(&optimized_connection)?;
-        Self::verify_schema_with(&optimized_connection, query_builder.as_ref())?;
 
         Ok(Self {
             connection: optimized_connection,
