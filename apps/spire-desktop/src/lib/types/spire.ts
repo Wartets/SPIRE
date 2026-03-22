@@ -1739,6 +1739,30 @@ export interface PdgCacheDiagnostics {
   db_last_latency_us: number;
 }
 
+/** Runtime settings for optional PDG live REST enrichment. */
+export interface PdgLiveApiSettings {
+  enabled: boolean;
+  base_url?: string;
+  requests_per_second?: number;
+  burst_capacity?: number;
+  max_retries?: number;
+  request_timeout_ms?: number;
+}
+
+/** Throttled PDG network diagnostics exposed to telemetry panels. */
+export interface PdgNetworkDiagnostics {
+  total_requests: number;
+  throttled_requests: number;
+  responses_429: number;
+  responses_503: number;
+  retries: number;
+  queue_depth: number;
+  queue_depth_peak: number;
+  last_status_code?: number;
+  last_backoff_ms?: number;
+  last_error?: string;
+}
+
 /** Symmetric representation of asymmetric uncertainties. */
 export interface AsymmetricError {
   minus: number;
@@ -1898,6 +1922,30 @@ export const PdgCacheDiagnosticsSchema = z.object({
   db_last_latency_us: z.number(),
 });
 
+/** Zod schema for PdgLiveApiSettings */
+export const PdgLiveApiSettingsSchema = z.object({
+  enabled: z.boolean(),
+  base_url: z.string().optional(),
+  requests_per_second: z.number().int().optional(),
+  burst_capacity: z.number().int().optional(),
+  max_retries: z.number().int().optional(),
+  request_timeout_ms: z.number().int().optional(),
+});
+
+/** Zod schema for PdgNetworkDiagnostics */
+export const PdgNetworkDiagnosticsSchema = z.object({
+  total_requests: z.number(),
+  throttled_requests: z.number(),
+  responses_429: z.number(),
+  responses_503: z.number(),
+  retries: z.number(),
+  queue_depth: z.number().int(),
+  queue_depth_peak: z.number().int(),
+  last_status_code: z.number().int().optional(),
+  last_backoff_ms: z.number().int().optional(),
+  last_error: z.string().optional(),
+});
+
 /** Zod schema for AsymmetricError */
 export const AsymmetricErrorSchema = z.object({
   minus: z.number(),
@@ -2023,6 +2071,8 @@ export const SessionIntegrityValidationResultSchema = z.discriminatedUnion("ok",
 export type PdgMetadataType = z.infer<typeof PdgMetadataSchema>;
 export type PdgCacheBucketDiagnosticsType = z.infer<typeof PdgCacheBucketDiagnosticsSchema>;
 export type PdgCacheDiagnosticsType = z.infer<typeof PdgCacheDiagnosticsSchema>;
+export type PdgLiveApiSettingsType = z.infer<typeof PdgLiveApiSettingsSchema>;
+export type PdgNetworkDiagnosticsType = z.infer<typeof PdgNetworkDiagnosticsSchema>;
 export type AsymmetricErrorType = z.infer<typeof AsymmetricErrorSchema>;
 export type PdgValueType = z.infer<typeof PdgValueSchema>;
 export type PdgQuantumNumbersType = z.infer<typeof PdgQuantumNumbersSchema>;

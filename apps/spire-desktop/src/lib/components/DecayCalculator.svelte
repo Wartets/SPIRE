@@ -31,7 +31,7 @@
   import { ensureChartCtor } from "$lib/utils/chartLoader";
   import { particleDropzone, type PdgDragPayload } from "$lib/utils/dnd";
   import { pdgPull } from "$lib/core/physics/pdgValue";
-  import { recordPdgQuery } from "$lib/stores/pdgIntegrationStore";
+  import { pdgIntegrationState, recordPdgQuery } from "$lib/stores/pdgIntegrationStore";
 
   const logDecay = (message: string): void => {
     appendLog(message, { category: "Decay" });
@@ -67,6 +67,8 @@
   let pdgDecayTable: PdgDecayTable | null = null;
   let pdgPolicy: PdgExtractionPolicy = "Catalog";
   let decayMode: "analytical" | "pdg" | "side_by_side" = "analytical";
+  let pdgLiveFetchActive = false;
+  let pdgFallbackNotice: string | null = null;
 
   let chartCanvas: HTMLCanvasElement;
   let chartInstance: ChartType | null = null;
@@ -312,14 +314,21 @@
       void renderChart(table);
 
       if (decayMode !== "analytical") {
+        pdgLiveFetchActive = $pdgIntegrationState.liveApiEnabled;
+        pdgFallbackNotice = null;
         const startedAt = performance.now();
         try {
           const pdgTable = await getDecayTable(target.pdgCode, pdgPolicy);
           recordPdgQuery(performance.now() - startedAt, true);
           pdgDecayTable = pdgTable;
+          if ($pdgIntegrationState.liveApiEnabled && $pdgIntegrationState.network.lastError) {
+            pdgFallbackNotice = "Live API unavailable; using local PDG dataset.";
+          }
         } catch (pdgError: unknown) {
           recordPdgQuery(performance.now() - startedAt, false);
           throw pdgError;
+        } finally {
+          pdgLiveFetchActive = false;
         }
       }
     } catch (err: unknown) {
@@ -601,6 +610,20 @@
     <button class:active={decayMode === "pdg"} on:click={() => (decayMode = "pdg")}>PDG Experimental</button>
     <button class:active={decayMode === "side_by_side"} on:click={() => (decayMode = "side_by_side")}>Side-by-Side</button>
   </div>
+
+  {#if decayMode !== "analytical" && $pdgIntegrationState.liveApiEnabled}
+    <div class="pdg-live-banner" role="status">
+      {#if pdgLiveFetchActive}
+        <span>Live PDG API request in progress…</span>
+      {:else}
+        <span>Live PDG API enabled (with local fallback).</span>
+      {/if}
+    </div>
+  {/if}
+
+  {#if pdgFallbackNotice}
+    <div class="pdg-fallback-banner" role="status">{pdgFallbackNotice}</div>
+  {/if}
 
   <!-- Configuration -->
   <div class="config-panel">
@@ -1048,6 +1071,26 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
     padding: 0.3rem 0.4rem;
+  }
+
+  .pdg-live-banner,
+  .pdg-fallback-banner {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-inset);
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .pdg-live-banner {
+    border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+    color: var(--color-text-primary);
+  }
+
+  .pdg-fallback-banner {
+    border-color: var(--hl-value);
+    color: var(--hl-value);
+    background: color-mix(in srgb, var(--hl-value) 10%, var(--color-bg-inset));
   }
 
   :global(.atlas-dropzone.drop-hover) {

@@ -469,6 +469,8 @@
       <span>Bootstrap:</span><span>{$pdgIntegrationState.bootstrapPreset ?? "none"}</span>
       <span>Source arbitration:</span><span>{$pdgIntegrationState.sourceArbitration}</span>
       <span>Authority:</span><span>{$pdgIntegrationState.authoritativeSource ?? "unknown"}</span>
+      <span>Live API:</span><span>{$pdgIntegrationState.liveApiEnabled ? "enabled" : "disabled"}</span>
+      <span>Fallback signal:</span><span>{$pdgIntegrationState.network.lastError ?? "none"}</span>
       <span>Last sync:</span><span>{$pdgIntegrationState.lastSyncAt ?? "-"}</span>
     </div>
   </section>

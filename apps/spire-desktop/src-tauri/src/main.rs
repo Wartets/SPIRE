@@ -48,11 +48,14 @@ use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 use spire_kernel::theory::pdg::{
     adapter::PdgAdapter,
+    arbiter::{arbitrate_particle_record_with_mode, ArbitrationMode, PdgDataSource},
     contracts::{
         PdgCacheDiagnostics, PdgCatalogChunk, PdgDecayTable, PdgMetadata, PdgParticleRecord,
     },
     policy::PdgExtractionPolicy,
+    rest::{PdgRestConfig, PdgRestDataSource},
 };
+use spire_kernel::io::network::{NetworkDiagnostics, NetworkThrottleConfig};
 
 // ---------------------------------------------------------------------------
 // KinematicsReport - aggregate return type
@@ -1327,6 +1330,129 @@ struct PdgCatalogStreamState {
     cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
+/// Serializable PDG live-API settings shared with the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PdgLiveApiSettings {
+    enabled: bool,
+    base_url: Option<String>,
+    requests_per_second: Option<u32>,
+    burst_capacity: Option<u32>,
+    max_retries: Option<u32>,
+    request_timeout_ms: Option<u64>,
+}
+
+/// Managed state for optional live PDG REST arbitration.
+struct PdgRestState {
+    source: Mutex<PdgRestDataSource>,
+}
+
+struct LocalAdapterSource {
+    adapter: PdgAdapter,
+}
+
+impl PdgDataSource for LocalAdapterSource {
+    fn source_id(&self) -> &str {
+        "local_sqlite"
+    }
+
+    fn priority(&self) -> u16 {
+        1
+    }
+
+    fn particle_record(&self, pdg_id: i32) -> Option<PdgParticleRecord> {
+        self.adapter.lookup_particle_by_mcid(pdg_id).ok()
+    }
+}
+
+fn read_live_settings(state: &tauri::State<'_, PdgRestState>) -> Result<PdgLiveApiSettings, String> {
+    let guard = state
+        .source
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG REST state: {}", e))?;
+    let cfg = guard.config();
+    Ok(PdgLiveApiSettings {
+        enabled: cfg.enabled,
+        base_url: Some(cfg.base_url.clone()),
+        requests_per_second: Some(cfg.throttle.requests_per_second),
+        burst_capacity: Some(cfg.throttle.burst_capacity),
+        max_retries: Some(cfg.throttle.max_retries),
+        request_timeout_ms: Some(cfg.throttle.request_timeout_ms),
+    })
+}
+
+fn apply_live_settings(
+    state: &tauri::State<'_, PdgRestState>,
+    settings: PdgLiveApiSettings,
+) -> Result<(), String> {
+    let mut guard = state
+        .source
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG REST state: {}", e))?;
+    let mut cfg = guard.config().clone();
+    cfg.enabled = settings.enabled;
+
+    if let Some(base_url) = settings.base_url {
+        cfg.base_url = base_url;
+    }
+    if let Some(rps) = settings.requests_per_second {
+        cfg.throttle.requests_per_second = rps;
+    }
+    if let Some(burst) = settings.burst_capacity {
+        cfg.throttle.burst_capacity = burst;
+    }
+    if let Some(max_retries) = settings.max_retries {
+        cfg.throttle.max_retries = max_retries;
+    }
+    if let Some(timeout_ms) = settings.request_timeout_ms {
+        cfg.throttle.request_timeout_ms = timeout_ms;
+    }
+
+    guard.reconfigure(cfg);
+    Ok(())
+}
+
+fn pdg_lookup_with_arbitration(
+    mcid: i32,
+    rest_state: &tauri::State<'_, PdgRestState>,
+) -> Result<PdgParticleRecord, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    let local_source = LocalAdapterSource { adapter };
+
+    let rest_guard = rest_state
+        .source
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG REST state: {}", e))?;
+
+    let live_enabled = rest_guard.config().enabled;
+    let mode = if live_enabled {
+        ArbitrationMode::PreferApi
+    } else {
+        ArbitrationMode::PreferLocal
+    };
+
+    let rest_source_ref: &dyn PdgDataSource = &*rest_guard;
+    let local_source_ref: &dyn PdgDataSource = &local_source;
+
+    let source_refs: Vec<&dyn PdgDataSource> = if live_enabled {
+        vec![rest_source_ref, local_source_ref]
+    } else {
+        vec![local_source_ref]
+    };
+
+    let outcome = arbitrate_particle_record_with_mode(&source_refs, mcid, mode);
+    if let Some(mut selected) = outcome.selected {
+        if outcome.candidates.iter().any(|candidate| candidate == "pdg_rest")
+            && selected.provenance.source_id == "local_sqlite"
+            && live_enabled
+        {
+            selected.provenance.source_arbitration_outcome = Some("local_fallback".to_string());
+        }
+        return Ok(selected);
+    }
+
+    Err(format!("No PDG record found for MCID {}", mcid))
+}
+
 /// Get PDG database metadata (edition, version, timestamp).
 #[tauri::command]
 fn pdg_get_metadata() -> Result<PdgMetadata, String> {
@@ -1336,29 +1462,61 @@ fn pdg_get_metadata() -> Result<PdgMetadata, String> {
 
 /// Look up a particle by its MCID (Monte Carlo ID).
 #[tauri::command]
-fn pdg_lookup_particle_by_mcid(mcid: i32) -> Result<PdgParticleRecord, String> {
-    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter
-        .lookup_particle_by_mcid(mcid)
-        .map_err(|e| e.to_string())
+fn pdg_lookup_particle_by_mcid(
+    mcid: i32,
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<PdgParticleRecord, String> {
+    pdg_lookup_with_arbitration(mcid, &rest_state)
 }
 
 /// Look up a particle by its PDG ID (alternate identifier).
 #[tauri::command]
-fn pdg_lookup_particle_by_pdgid(pdgid: String) -> Result<PdgParticleRecord, String> {
+fn pdg_lookup_particle_by_pdgid(
+    pdgid: String,
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<PdgParticleRecord, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter
-        .lookup_particle_by_name(&pdgid)
-        .map_err(|e| e.to_string())
+    let local = adapter.lookup_particle_by_name(&pdgid).map_err(|e| e.to_string())?;
+    pdg_lookup_with_arbitration(local.pdg_id, &rest_state)
 }
 
 /// Get full particle properties (mass, width, lifetime, quantum numbers, branching ratios).
 #[tauri::command]
-fn pdg_get_particle_properties(mcid: i32) -> Result<PdgParticleRecord, String> {
-    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    adapter
-        .get_particle_properties(mcid)
-        .map_err(|e| e.to_string())
+fn pdg_get_particle_properties(
+    mcid: i32,
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<PdgParticleRecord, String> {
+    pdg_lookup_with_arbitration(mcid, &rest_state)
+}
+
+/// Update live PDG API settings (opt-in toggle + throttle controls).
+#[tauri::command]
+fn pdg_set_live_api_settings(
+    settings: PdgLiveApiSettings,
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<PdgLiveApiSettings, String> {
+    apply_live_settings(&rest_state, settings)?;
+    read_live_settings(&rest_state)
+}
+
+/// Read current live PDG API settings.
+#[tauri::command]
+fn pdg_get_live_api_settings(
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<PdgLiveApiSettings, String> {
+    read_live_settings(&rest_state)
+}
+
+/// Read throttled network diagnostics for PDG REST usage.
+#[tauri::command]
+fn pdg_get_network_diagnostics(
+    rest_state: tauri::State<'_, PdgRestState>,
+) -> Result<NetworkDiagnostics, String> {
+    let guard = rest_state
+        .source
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG REST state: {}", e))?;
+    Ok(guard.diagnostics())
 }
 
 /// Get decay table for a particle, filtered by extraction policy.
@@ -1681,10 +1839,21 @@ fn main() {
         cancel_flags: Mutex::new(HashMap::new()),
     };
 
+    let pdg_rest_state = PdgRestState {
+        source: Mutex::new(PdgRestDataSource::new(PdgRestConfig {
+            enabled: false,
+            base_url: "https://pdgapi.lbl.gov".to_string(),
+            source_id: "pdg_rest".to_string(),
+            priority: 10,
+            throttle: NetworkThrottleConfig::default(),
+        })),
+    };
+
     tauri::Builder::default()
         .manage(plugin_state)
         .manage(mcmc_state)
         .manage(pdg_stream_state)
+        .manage(pdg_rest_state)
         .invoke_handler(tauri::generate_handler![
             load_theoretical_model,
             validate_and_reconstruct_reaction,
@@ -1741,6 +1910,9 @@ fn main() {
             pdg_lookup_particle_by_mcid,
             pdg_lookup_particle_by_pdgid,
             pdg_get_particle_properties,
+            pdg_set_live_api_settings,
+            pdg_get_live_api_settings,
+            pdg_get_network_diagnostics,
             pdg_get_decay_table,
             pdg_sync_model,
             pdg_begin_catalog_stream,

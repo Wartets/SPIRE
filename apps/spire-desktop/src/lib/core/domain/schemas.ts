@@ -1146,6 +1146,28 @@ export const PdgCacheDiagnosticsSchema = z.object({
   db_last_latency_us: z.number(),
 });
 
+export const PdgLiveApiSettingsSchema = z.object({
+  enabled: z.boolean(),
+  base_url: z.string().optional(),
+  requests_per_second: z.number().int().optional(),
+  burst_capacity: z.number().int().optional(),
+  max_retries: z.number().int().optional(),
+  request_timeout_ms: z.number().int().optional(),
+});
+
+export const PdgNetworkDiagnosticsSchema = z.object({
+  total_requests: z.number(),
+  throttled_requests: z.number(),
+  responses_429: z.number(),
+  responses_503: z.number(),
+  retries: z.number(),
+  queue_depth: z.number().int(),
+  queue_depth_peak: z.number().int(),
+  last_status_code: z.number().int().optional(),
+  last_backoff_ms: z.number().int().optional(),
+  last_error: z.string().optional(),
+});
+
 export const PdgParticleRecordSchema = z.object({
   pdg_id: z.number().int(),
   label: z.string().optional(),

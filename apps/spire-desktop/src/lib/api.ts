@@ -813,6 +813,8 @@ export async function stopMcmcFit(): Promise<void> {
 import type {
   PdgMetadata,
   PdgCacheDiagnostics,
+  PdgLiveApiSettings,
+  PdgNetworkDiagnostics,
   PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
@@ -833,6 +835,21 @@ export async function getPdgMetadata(): Promise<PdgMetadata> {
  */
 export async function getPdgCacheDiagnostics(): Promise<PdgCacheDiagnostics> {
   return getBackend().pdgGetCacheDiagnostics();
+}
+
+/** Read optional live PDG API settings. */
+export async function getPdgLiveApiSettings(): Promise<PdgLiveApiSettings> {
+  return getBackend().pdgGetLiveApiSettings();
+}
+
+/** Update optional live PDG API settings. */
+export async function setPdgLiveApiSettings(settings: PdgLiveApiSettings): Promise<PdgLiveApiSettings> {
+  return getBackend().pdgSetLiveApiSettings(settings);
+}
+
+/** Read throttled network diagnostics for PDG REST usage. */
+export async function getPdgNetworkDiagnostics(): Promise<PdgNetworkDiagnostics> {
+  return getBackend().pdgGetNetworkDiagnostics();
 }
 
 /**

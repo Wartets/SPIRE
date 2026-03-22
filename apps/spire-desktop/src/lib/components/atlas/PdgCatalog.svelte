@@ -15,6 +15,7 @@
         pdgOnlyWithMeasurements,
         pdgAvailableEditions,
         pdgCatalogHistory,
+        pdgLiveFetchState,
         type PdgSortMode,
     } from '$lib/stores/pdgStore';
     import PdgSearch from './PdgSearch.svelte';
@@ -392,7 +393,13 @@
                     </div>
                 {/if}
 
-                <PdgDetails particle={$selectedPdgParticle} history={selectedHistory} />
+                <PdgDetails
+                    particle={$selectedPdgParticle}
+                    history={selectedHistory}
+                    liveFetchActive={$pdgLiveFetchState.active && $pdgLiveFetchState.pdgId === $selectedPdgParticle.pdg_id}
+                    liveSourceId={$pdgLiveFetchState.sourceId}
+                    offlineFallback={$pdgLiveFetchState.offlineFallback}
+                />
             </main>
         {/if}
     </div>

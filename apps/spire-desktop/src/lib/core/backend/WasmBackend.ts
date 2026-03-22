@@ -577,6 +577,20 @@ export class WasmBackend implements SpireBackend {
     throw new Error("PDG cache diagnostics are not supported in WASM backend mode");
   }
 
+  async pdgGetLiveApiSettings(): Promise<import("$lib/types/spire").PdgLiveApiSettings> {
+    throw new Error("PDG live API settings are not supported in WASM backend mode");
+  }
+
+  async pdgSetLiveApiSettings(
+    _settings: import("$lib/types/spire").PdgLiveApiSettings,
+  ): Promise<import("$lib/types/spire").PdgLiveApiSettings> {
+    throw new Error("PDG live API settings are not supported in WASM backend mode");
+  }
+
+  async pdgGetNetworkDiagnostics(): Promise<import("$lib/types/spire").PdgNetworkDiagnostics> {
+    throw new Error("PDG network diagnostics are not supported in WASM backend mode");
+  }
+
   async pdgLookupParticleByMcid(_mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
     throw new Error("PDG particle lookup is not supported in WASM backend mode");
   }

@@ -33,6 +33,8 @@ pub mod csv;
 pub mod experimental;
 pub mod latex;
 pub mod lhe;
+/// Throttled outbound networking primitives used by optional PDG REST access.
+pub mod network;
 pub mod provenance;
 
 use crate::SpireResult;

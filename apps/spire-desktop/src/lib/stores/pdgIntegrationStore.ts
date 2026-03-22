@@ -1,7 +1,12 @@
 import { writable } from "svelte/store";
 import { getWidgetUiSnapshot, setWidgetUiSnapshot } from "$lib/stores/workspaceStore";
 import { activeWorkspaceId } from "$lib/stores/layoutStore";
-import { getPdgCacheDiagnostics } from "$lib/api";
+import {
+  getPdgCacheDiagnostics,
+  getPdgLiveApiSettings,
+  getPdgNetworkDiagnostics,
+  setPdgLiveApiSettings,
+} from "$lib/api";
 import type { PdgParticleRecord } from "$lib/types/spire";
 
 export type PdgMergeMode = "Replace" | "Patch" | "Overlay";
@@ -34,6 +39,15 @@ export interface PdgIntegrationState {
   mismatch: boolean;
   queryStats: PdgQueryStats;
   citations: PdgCitationEntry[];
+  liveApiEnabled: boolean;
+  network: {
+    queueDepth: number;
+    queueDepthPeak: number;
+    responses429: number;
+    responses503: number;
+    retries: number;
+    lastError: string | null;
+  };
 }
 
 const DEFAULT_STATE: PdgIntegrationState = {
@@ -53,6 +67,15 @@ const DEFAULT_STATE: PdgIntegrationState = {
     lastLatencyMs: 0,
   },
   citations: [],
+  liveApiEnabled: false,
+  network: {
+    queueDepth: 0,
+    queueDepthPeak: 0,
+    responses429: 0,
+    responses503: 0,
+    retries: 0,
+    lastError: null,
+  },
 };
 
 const SNAPSHOT_KEY = "pdg-integration-state";
@@ -71,6 +94,10 @@ function hydrateFromWorkspace(): void {
     queryStats: {
       ...DEFAULT_STATE.queryStats,
       ...(snapshot.queryStats ?? {}),
+    },
+    network: {
+      ...DEFAULT_STATE.network,
+      ...(snapshot.network ?? {}),
     },
     citations: Array.isArray(snapshot.citations) ? snapshot.citations : [],
   });
@@ -110,7 +137,10 @@ export function recordPdgQuery(latencyMs: number, cacheHit: boolean): void {
  */
 export async function refreshPdgDiagnosticsFromBackend(): Promise<void> {
   try {
-    const diagnostics = await getPdgCacheDiagnostics();
+    const [diagnostics, networkDiagnostics] = await Promise.all([
+      getPdgCacheDiagnostics(),
+      getPdgNetworkDiagnostics(),
+    ]);
     pdgIntegrationState.update((state) => ({
       ...state,
       queryStats: {
@@ -120,9 +150,44 @@ export async function refreshPdgDiagnosticsFromBackend(): Promise<void> {
         averageLatencyMs: diagnostics.db_average_latency_us / 1_000,
         lastLatencyMs: diagnostics.db_last_latency_us / 1_000,
       },
+      network: {
+        queueDepth: networkDiagnostics.queue_depth,
+        queueDepthPeak: networkDiagnostics.queue_depth_peak,
+        responses429: networkDiagnostics.responses_429,
+        responses503: networkDiagnostics.responses_503,
+        retries: networkDiagnostics.retries,
+        lastError: networkDiagnostics.last_error ?? null,
+      },
     }));
   } catch {
     // Best-effort telemetry refresh: keep previous values if backend is unavailable.
+  }
+}
+
+export async function refreshPdgLiveApiSettings(): Promise<void> {
+  try {
+    const settings = await getPdgLiveApiSettings();
+    pdgIntegrationState.update((state) => ({
+      ...state,
+      liveApiEnabled: settings.enabled,
+      sourceArbitration: settings.enabled ? "mixed" : "local",
+    }));
+  } catch {
+    // Ignore capability gaps in non-tauri environments.
+  }
+}
+
+export async function setPdgLiveApiEnabled(enabled: boolean): Promise<void> {
+  try {
+    const settings = await setPdgLiveApiSettings({ enabled });
+    pdgIntegrationState.update((state) => ({
+      ...state,
+      liveApiEnabled: settings.enabled,
+      sourceArbitration: settings.enabled ? "mixed" : "local",
+      authoritativeSource: settings.enabled ? "local+api" : "local_sqlite",
+    }));
+  } catch {
+    // Ignore capability gaps in non-tauri environments.
   }
 }
 

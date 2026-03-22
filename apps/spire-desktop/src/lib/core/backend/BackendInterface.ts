@@ -69,6 +69,8 @@ import type {
   GlobalObservableFitResult,
   PdgMetadata,
   PdgCacheDiagnostics,
+  PdgLiveApiSettings,
+  PdgNetworkDiagnostics,
   PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
@@ -377,6 +379,9 @@ export interface SpireBackend {
   // ── Particle Data Group (PDG) Integration (Phase 73) ───────────────
   pdgGetMetadata(): Promise<PdgMetadata>;
   pdgGetCacheDiagnostics(): Promise<PdgCacheDiagnostics>;
+  pdgGetLiveApiSettings(): Promise<PdgLiveApiSettings>;
+  pdgSetLiveApiSettings(settings: PdgLiveApiSettings): Promise<PdgLiveApiSettings>;
+  pdgGetNetworkDiagnostics(): Promise<PdgNetworkDiagnostics>;
   pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord>;
   pdgLookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord>;
   pdgGetParticleProperties(mcid: number): Promise<PdgParticleRecord>;

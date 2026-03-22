@@ -1607,6 +1607,45 @@ This is a mock proof document for ${processLabel}.
     };
   }
 
+  async pdgGetLiveApiSettings(): Promise<import("$lib/types/spire").PdgLiveApiSettings> {
+    await simulateLatency();
+    return {
+      enabled: false,
+      base_url: "https://pdgapi.lbl.gov",
+      requests_per_second: 5,
+      burst_capacity: 2,
+      max_retries: 3,
+      request_timeout_ms: 2500,
+    };
+  }
+
+  async pdgSetLiveApiSettings(
+    settings: import("$lib/types/spire").PdgLiveApiSettings,
+  ): Promise<import("$lib/types/spire").PdgLiveApiSettings> {
+    await simulateLatency();
+    return {
+      enabled: settings.enabled,
+      base_url: settings.base_url ?? "https://pdgapi.lbl.gov",
+      requests_per_second: settings.requests_per_second ?? 5,
+      burst_capacity: settings.burst_capacity ?? 2,
+      max_retries: settings.max_retries ?? 3,
+      request_timeout_ms: settings.request_timeout_ms ?? 2500,
+    };
+  }
+
+  async pdgGetNetworkDiagnostics(): Promise<import("$lib/types/spire").PdgNetworkDiagnostics> {
+    await simulateLatency();
+    return {
+      total_requests: 0,
+      throttled_requests: 0,
+      responses_429: 0,
+      responses_503: 0,
+      retries: 0,
+      queue_depth: 0,
+      queue_depth_peak: 0,
+    };
+  }
+
   async pdgLookupParticleByMcid(mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
     await simulateLatency();
     if (mcid === 11) {

@@ -22,3 +22,5 @@ pub mod particle;
 pub mod policy;
 /// Deterministic MCID/name resolution across particle and alias tables.
 pub mod resolution;
+/// Optional throttled REST source for incremental PDG enrichment.
+pub mod rest;

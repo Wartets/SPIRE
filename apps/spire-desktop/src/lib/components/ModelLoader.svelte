@@ -10,7 +10,13 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
   import { theoreticalModel, appendLog, activeFramework } from "$lib/stores/physicsStore";
-  import { loadModel, exportModelUfo, getPdgMetadata, syncModelWithOptions } from "$lib/api";
+  import {
+    loadModel,
+    exportModelUfo,
+    getPdgMetadata,
+    syncModelWithOptions,
+    getPdgLiveApiSettings,
+  } from "$lib/api";
   import { registerCommand, unregisterCommand } from "$lib/core/services/CommandRegistry";
   import { addCitations } from "$lib/core/services/CitationRegistry";
   import HoverDef from "$lib/components/ui/HoverDef.svelte";
@@ -30,7 +36,12 @@
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { PdgBootstrapPreset, PdgMergeMode, TheoreticalFramework } from "$lib/types/spire";
   import EditionLockBadge from "$lib/components/ui/EditionLockBadge.svelte";
-  import { pdgIntegrationState, updatePdgIntegration } from "$lib/stores/pdgIntegrationStore";
+  import {
+    pdgIntegrationState,
+    refreshPdgLiveApiSettings,
+    setPdgLiveApiEnabled,
+    updatePdgIntegration,
+  } from "$lib/stores/pdgIntegrationStore";
 
   const logModel = (message: string): void => {
     appendLog(message, { category: "Model" });
@@ -115,6 +126,7 @@
         showEditors?: boolean;
         scrollTop?: number;
         usePdgBootstrap?: boolean;
+        liveApiEnabled?: boolean;
         pdgMergeMode?: PdgMergeMode;
         pdgBootstrapPreset?: PdgBootstrapPreset;
       }>(
@@ -127,6 +139,9 @@
       }
       if (typeof snapshot.usePdgBootstrap === "boolean") {
         usePdgBootstrap = snapshot.usePdgBootstrap;
+      }
+      if (typeof snapshot.liveApiEnabled === "boolean") {
+        void setPdgLiveApiEnabled(snapshot.liveApiEnabled);
       }
       if (snapshot.pdgMergeMode) {
         pdgMergeMode = snapshot.pdgMergeMode;
@@ -151,6 +166,16 @@
       } catch {
         pdgEditionLock = null;
       }
+    })();
+
+    void (async () => {
+      try {
+        const settings = await getPdgLiveApiSettings();
+        updatePdgIntegration({ liveApiEnabled: settings.enabled });
+      } catch {
+        // Ignore in non-tauri environments.
+      }
+      await refreshPdgLiveApiSettings();
     })();
   });
 
@@ -335,7 +360,13 @@
     return gauge.label || `${gauge.groups.length} gauge groups`;
   })();
 
-  $: persistModelLoaderUi({ showEditors, usePdgBootstrap, pdgMergeMode, pdgBootstrapPreset });
+  $: persistModelLoaderUi({
+    showEditors,
+    usePdgBootstrap,
+    liveApiEnabled: $pdgIntegrationState.liveApiEnabled,
+    pdgMergeMode,
+    pdgBootstrapPreset,
+  });
 
   function handleBootstrapPresetChange(event: Event): void {
     const next = (event.target as HTMLSelectElement).value as PdgBootstrapPreset;
@@ -502,6 +533,15 @@
       </div>
       <EditionLockBadge edition={pdgEditionLock} stale={$pdgIntegrationState.stale} mismatch={$pdgIntegrationState.mismatch} />
     {/if}
+
+    <label class="checkbox-row">
+      <input
+        type="checkbox"
+        checked={$pdgIntegrationState.liveApiEnabled}
+        on:change={(event) => setPdgLiveApiEnabled((event.target as HTMLInputElement).checked)}
+      />
+      Enable Live PDG API (throttled)
+    </label>
   </div>
 
   <!-- Custom mode: LocalStorage controls -->

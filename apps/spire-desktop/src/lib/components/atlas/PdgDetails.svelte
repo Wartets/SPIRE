@@ -8,6 +8,9 @@
 
   export let particle: PdgParticleRecord | null = null;
   export let history: PdgParticleRecord[] = [];
+  export let liveFetchActive = false;
+  export let liveSourceId: string | null = null;
+  export let offlineFallback: string | null = null;
 
   let activeTab: 'overview' | 'decays' = 'overview';
   let decayPolicy: 'Catalog' | 'StrictPhysical' = 'Catalog';
@@ -142,7 +145,14 @@
     <header class="detail-header">
       <div class="header-main">
         <h2 class="particle-name">{particle.label ?? 'Unknown particle'}</h2>
-        <span class="particle-id">PDG:{particle.pdg_id}</span>
+        <div class="particle-meta">
+          <span class="particle-id">PDG:{particle.pdg_id}</span>
+          {#if liveFetchActive}
+            <span class="live-badge">Live API…</span>
+          {:else if liveSourceId}
+            <span class="source-badge">{liveSourceId}</span>
+          {/if}
+        </div>
       </div>
       <button
         class="drag-chip"
@@ -158,6 +168,10 @@
         Drag
       </button>
     </header>
+
+    {#if offlineFallback}
+      <div class="fallback-banner" role="status">{offlineFallback}</div>
+    {/if}
 
     <div class="tab-bar" role="tablist" aria-label="Particle detail tabs">
       <button class:active={activeTab === 'overview'} on:click={() => (activeTab = 'overview')}>Overview</button>
@@ -365,6 +379,36 @@
     font-size: var(--text-xs);
     color: var(--hl-symbol);
     font-variant-numeric: tabular-nums;
+  }
+
+  .particle-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .live-badge,
+  .source-badge {
+    border: 1px solid var(--border);
+    padding: 0.04rem 0.25rem;
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fg-secondary);
+    background: var(--bg-inset);
+  }
+
+  .live-badge {
+    border-color: var(--hl-symbol);
+    color: var(--hl-symbol);
+  }
+
+  .fallback-banner {
+    border: 1px solid var(--hl-value);
+    background: color-mix(in srgb, var(--hl-value) 10%, var(--bg-inset));
+    color: var(--hl-value);
+    font-size: var(--text-xs);
+    padding: 0.25rem 0.35rem;
   }
 
   .drag-chip {

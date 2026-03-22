@@ -1,4 +1,4 @@
-import { writable, derived, type Readable, type Writable } from 'svelte/store';
+import { writable, derived, get, type Readable, type Writable } from 'svelte/store';
 import type {
   PdgMetadata,
   PdgParticleRecord,
@@ -6,11 +6,13 @@ import type {
 } from '$lib/types/spire';
 import {
   getPdgMetadata,
+  lookupParticleByMcid,
   beginPdgCatalogStream,
   cancelPdgCatalogStream,
   searchParticles,
   searchParticlesChunked,
 } from '$lib/api';
+import { pdgIntegrationState } from '$lib/stores/pdgIntegrationStore';
 
 /**
  * Catalog mode for PDG particle browser
@@ -42,6 +44,18 @@ export const pdgCatalogLoadProgress: Writable<{
   total: 0,
   cancelled: false,
   requestId: null,
+});
+
+export const pdgLiveFetchState: Writable<{
+  active: boolean;
+  pdgId: number | null;
+  sourceId: string | null;
+  offlineFallback: string | null;
+}> = writable({
+  active: false,
+  pdgId: null,
+  sourceId: null,
+  offlineFallback: null,
 });
 
 function editionRank(edition: string): number {
@@ -659,9 +673,92 @@ export const pdgSearchResults: Readable<PdgParticleRecord[]> = derived(
 export const selectedPdgParticle: Writable<PdgParticleRecord | null> = writable(null);
 
 let lastSelectedPdgId: number | null = null;
+let enrichmentRequestId = 0;
+const seenEnrichmentKeys = new Map<number, string>();
 
 selectedPdgParticle.subscribe((value) => {
   lastSelectedPdgId = value?.pdg_id ?? null;
+
+  if (!value) {
+    pdgLiveFetchState.set({
+      active: false,
+      pdgId: null,
+      sourceId: null,
+      offlineFallback: null,
+    });
+    return;
+  }
+
+  const integration = get(pdgIntegrationState);
+  if (!integration.liveApiEnabled) {
+    pdgLiveFetchState.set({
+      active: false,
+      pdgId: value.pdg_id,
+      sourceId: value.provenance.source_id ?? null,
+      offlineFallback: null,
+    });
+    return;
+  }
+
+  const currentKey = `${value.provenance.source_id}:${value.provenance.fingerprint}`;
+  const previousKey = seenEnrichmentKeys.get(value.pdg_id);
+  if (previousKey === currentKey) {
+    return;
+  }
+
+  const requestId = ++enrichmentRequestId;
+  pdgLiveFetchState.set({
+    active: true,
+    pdgId: value.pdg_id,
+    sourceId: value.provenance.source_id ?? null,
+    offlineFallback: null,
+  });
+
+  void lookupParticleByMcid(value.pdg_id)
+    .then((record) => {
+      if (requestId !== enrichmentRequestId) return;
+      const recordKey = `${record.provenance.source_id}:${record.provenance.fingerprint}`;
+      seenEnrichmentKeys.set(record.pdg_id, recordKey);
+
+      selectedPdgParticle.update((current) => {
+        if (!current || current.pdg_id !== record.pdg_id) {
+          return current;
+        }
+        return record;
+      });
+
+      pdgCatalogHistory.update((history) => {
+        const revisions = history[record.pdg_id] ?? [];
+        const deduped = [record, ...revisions.filter((item) => item.provenance.fingerprint !== record.provenance.fingerprint)];
+        return {
+          ...history,
+          [record.pdg_id]: rankHistory(deduped),
+        };
+      });
+
+      const offlineFallback = record.provenance.source_arbitration_outcome === 'local_fallback'
+        ? 'Live API unavailable; showing local catalog values.'
+        : null;
+
+      pdgLiveFetchState.set({
+        active: false,
+        pdgId: record.pdg_id,
+        sourceId: record.provenance.source_id ?? null,
+        offlineFallback,
+      });
+    })
+    .catch((error) => {
+      if (requestId !== enrichmentRequestId) return;
+      const message = error instanceof Error ? error.message : String(error);
+      pdgLiveFetchState.set({
+        active: false,
+        pdgId: value.pdg_id,
+        sourceId: value.provenance.source_id ?? null,
+        offlineFallback: message.includes('timeout')
+          ? 'API timeout; using local PDG cache.'
+          : 'Live API unavailable; using local PDG cache.',
+      });
+    });
 });
 
 pdgSearchResults.subscribe((results) => {

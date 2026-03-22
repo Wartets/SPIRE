@@ -66,6 +66,8 @@ import type {
   GlobalObservableFitResult,
   PdgMetadata,
   PdgCacheDiagnostics,
+  PdgLiveApiSettings,
+  PdgNetworkDiagnostics,
   PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
@@ -104,6 +106,8 @@ import {
   GlobalObservableFitResultSchema,
   PdgMetadataSchema,
   PdgCacheDiagnosticsSchema,
+  PdgLiveApiSettingsSchema,
+  PdgNetworkDiagnosticsSchema,
   PdgCatalogChunkSchema,
   PdgParticleRecordSchema,
   PdgDecayTableSchema,
@@ -622,6 +626,20 @@ export class TauriBackend implements SpireBackend {
 
   async pdgGetCacheDiagnostics(): Promise<PdgCacheDiagnostics> {
     return tauriInvokeValidated("pdg_get_cache_diagnostics", PdgCacheDiagnosticsSchema, {});
+  }
+
+  async pdgGetLiveApiSettings(): Promise<PdgLiveApiSettings> {
+    return tauriInvokeValidated("pdg_get_live_api_settings", PdgLiveApiSettingsSchema, {});
+  }
+
+  async pdgSetLiveApiSettings(settings: PdgLiveApiSettings): Promise<PdgLiveApiSettings> {
+    return tauriInvokeValidated("pdg_set_live_api_settings", PdgLiveApiSettingsSchema, {
+      settings,
+    });
+  }
+
+  async pdgGetNetworkDiagnostics(): Promise<PdgNetworkDiagnostics> {
+    return tauriInvokeValidated("pdg_get_network_diagnostics", PdgNetworkDiagnosticsSchema, {});
   }
 
   async pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord> {

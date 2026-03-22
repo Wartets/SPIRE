@@ -213,6 +213,16 @@
         <span class:ok={pdgHitRate >= 85} class:warn={pdgHitRate < 85 && pdgHitRate >= 60} class:bad={pdgHitRate < 60}>
           {pdgHitRate.toFixed(1)}%
         </span>
+        <span>Live API</span>
+        <span>{$pdgIntegrationState.liveApiEnabled ? "enabled" : "disabled"}</span>
+        <span>Queue depth</span>
+        <span>{$pdgIntegrationState.network.queueDepth} (peak {$pdgIntegrationState.network.queueDepthPeak})</span>
+        <span>429 / 503</span>
+        <span>{$pdgIntegrationState.network.responses429} / {$pdgIntegrationState.network.responses503}</span>
+        <span>Retries</span>
+        <span>{$pdgIntegrationState.network.retries}</span>
+        <span>Fallback</span>
+        <span class:warn={Boolean($pdgIntegrationState.network.lastError)}>{$pdgIntegrationState.network.lastError ?? "none"}</span>
       </div>
     </div>
 
