@@ -170,6 +170,16 @@ The `math::ode` module provides reusable numerical solvers for ordinary differen
 - **Dormand-Prince 4(5)**: Adaptive step-size control with embedded error estimation, configurable absolute/relative tolerances, and safety-factor step scaling.
 - **Convenience API**: `solve_ode_rk4()` and `solve_ode_adaptive()` one-liner functions for quick integration.
 
+### 17. Particle Data Group (PDG) Integration
+SPIRE includes a first-class PDG integration path that combines deterministic local data access with optional live enrichment:
+
+- **Local-first SQLite source**: The `data/pdg/` bundle is the authoritative offline source for particle properties and decay catalog traversal.
+- **Strict semantic extraction**: Physical quantities are resolved by `pdgid.id` joins and `pdgid.data_type` classification (`M`, `G`, `T`, `BR`) to avoid ambiguous interpretation of value-format metadata.
+- **Analytical vs empirical workflows**: Existing widgets can switch between SPIRE analytical predictions and PDG-backed empirical values without leaving the same workflow surface.
+- **Catalog and strict-physical modes**: Decay browsing supports complete catalog visibility (including generic channels) and strict physically samplable filtering.
+- **Edition lock and provenance**: PDG edition/source fingerprints are tracked in model/session provenance to guarantee reproducibility and detect mixed-edition state.
+- **Optional REST enrichment**: Live PDG API mode is available with strict throttling, queue diagnostics, and explicit local fallback behavior.
+
 ---
 
 ## System Architecture
@@ -626,6 +636,15 @@ Contributions are welcome. Please refer to the project's issue tracker for areas
 - Compile without warnings under `cargo clippy --workspace`
 - Pass `cargo fmt --all -- --check` formatting checks
 - Pass `npm run check` with zero errors in the frontend
+
+## References and Credits
+
+SPIRE relies on and explicitly credits the Particle Data Group for curated particle property and decay data standards.
+
+- R.L. Workman et al. (Particle Data Group), *Review of Particle Physics*, Prog. Theor. Exp. Phys. **2022**, 083C01 (2022).
+- Particle Data Group annual updates and online resources: https://pdg.lbl.gov
+
+When publishing results derived from PDG-backed SPIRE workflows, cite the relevant PDG review/update corresponding to the locked dataset edition used in the run provenance.
 
 ---
 
