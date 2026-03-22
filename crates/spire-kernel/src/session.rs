@@ -714,16 +714,17 @@ pub fn validate_session_provenance(
     };
 
     Err(SpireError::ProvenanceMismatch {
-        saved_edition: saved.edition.clone(),
-        local_edition: local.edition.clone(),
+        saved_edition: saved.edition.clone().into_boxed_str(),
+        local_edition: local.edition.clone().into_boxed_str(),
         saved_fingerprint: saved.local_file_fingerprint.clone(),
         local_fingerprint: local.local_file_fingerprint.clone(),
         remediation_options: vec![
             "override_local_pdg".to_string(),
             "fallback_analytical".to_string(),
             "abort_restore".to_string(),
-        ],
-        reason,
+        ]
+        .into_boxed_slice(),
+        reason: reason.into_boxed_str(),
     })
 }
 

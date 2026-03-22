@@ -144,17 +144,17 @@ pub enum SpireError {
     /// Session restore provenance mismatch between saved lock and local environment.
     ProvenanceMismatch {
         /// Saved provenance edition in the workspace/session artifact.
-        saved_edition: String,
+        saved_edition: Box<str>,
         /// Local PDG edition discovered at restore time.
-        local_edition: String,
+        local_edition: Box<str>,
         /// Saved local-file fingerprint from the artifact payload.
         saved_fingerprint: Option<String>,
         /// Local fingerprint computed from the local PDG source.
         local_fingerprint: Option<String>,
         /// Deterministic remediation options offered to caller/UI.
-        remediation_options: Vec<String>,
+        remediation_options: Box<[String]>,
         /// Human-readable diagnostic reason.
-        reason: String,
+        reason: Box<str>,
     },
 
     /// A generic internal error not covered by the specific variants above.

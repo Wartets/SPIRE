@@ -483,7 +483,19 @@ impl PdgDatabase {
         })?;
         let mut permissions = metadata.permissions();
         if permissions.readonly() {
-            permissions.set_readonly(false);
+            #[cfg(windows)]
+            {
+                #[allow(clippy::permissions_set_readonly_false)]
+                permissions.set_readonly(false);
+            }
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let current_mode = permissions.mode();
+                permissions.set_mode(current_mode | 0o200);
+            }
+
             fs::set_permissions(&cached_path, permissions).map_err(|err| {
                 SpireError::DatabaseError(format!(
                     "Failed to make PDG cache copy writable '{}': {}",

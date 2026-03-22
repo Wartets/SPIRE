@@ -61,7 +61,7 @@ pub fn synthesize_quantum_numbers(
 
     // Gauge bosons and hadrons: use PDG charge directly
     // For now, infer T₃ and Y from charge if possible
-    return synthesize_generic_quantum_numbers(mcid, pdg_record);
+    synthesize_generic_quantum_numbers(mcid, pdg_record)
 }
 
 /// Synthesize quantum numbers for leptons (MCID 11-18).
@@ -209,71 +209,71 @@ fn synthesize_generic_quantum_numbers(
         // Gauge bosons
         22 => {
             // Photon: B = 0, L = 0, Q = 0, T₃ = 0, Y = 0
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3: 0.0,
                 hypercharge: 0.0,
-            });
+            })
         }
         23 => {
             // Z boson: B = 0, L = 0, Q = 0, T₃ = 0, Y = 0
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3: 0.0,
                 hypercharge: 0.0,
-            });
+            })
         }
         24 => {
             // W boson: B = 0, L = 0, Q = ±1, T₃ = ±1, Y = 0
             let t3 = if is_antiparticle { -1.0 } else { 1.0 };
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3,
                 hypercharge: 0.0,
-            });
+            })
         }
         25 => {
             // Higgs boson: B = 0, L = 0, Q = 0, T₃ = 0, Y = 0
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3: 0.0,
                 hypercharge: 0.0,
-            });
+            })
         }
         21 => {
             // Gluon: B = 0, L = 0, Q = 0, T₃ = 0, Y = 0
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3: 0.0,
                 hypercharge: 0.0,
-            });
+            })
         }
         _ => {
             // For unknown particles, use charge to infer T₃ and Y
             // Assume neutral particles have T₃ = 0, Y = 0 for now
-            return Some(ExtendedQuantumNumbers {
+            Some(ExtendedQuantumNumbers {
                 baryon_number: 0.0,
                 lepton_e: 0,
                 lepton_mu: 0,
                 lepton_tau: 0,
                 t3: 0.0,
                 hypercharge: 0.0,
-            });
+            })
         }
     }
 }

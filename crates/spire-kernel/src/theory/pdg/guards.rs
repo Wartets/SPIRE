@@ -22,14 +22,12 @@ pub fn enforce_model_edition_lock(
     policy: EditionMismatchPolicy,
 ) -> SpireResult<()> {
     if let Some(existing) = &model.pdg_provenance {
-        if existing.edition != incoming.edition {
-            if policy == EditionMismatchPolicy::Strict {
-                return Err(SpireError::EditionMismatch {
-                    locked_edition: existing.edition.clone(),
-                    incoming_edition: incoming.edition,
-                    source_id: incoming.source_id,
-                });
-            }
+        if existing.edition != incoming.edition && policy == EditionMismatchPolicy::Strict {
+            return Err(SpireError::EditionMismatch {
+                locked_edition: existing.edition.clone(),
+                incoming_edition: incoming.edition,
+                source_id: incoming.source_id,
+            });
         }
     }
 
