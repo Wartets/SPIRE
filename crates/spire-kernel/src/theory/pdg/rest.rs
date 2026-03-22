@@ -1,6 +1,8 @@
 use serde::Deserialize;
 
-use crate::io::network::{NetworkDiagnostics, NetworkThrottleConfig, ResponseMode, ThrottledHttpClient};
+use crate::io::network::{
+    NetworkDiagnostics, NetworkThrottleConfig, ResponseMode, ThrottledHttpClient,
+};
 use crate::theory::pdg::arbiter::{PdgDataSource, SourcePriority};
 use crate::theory::pdg::contracts::{PdgParticleRecord, PdgProvenance};
 

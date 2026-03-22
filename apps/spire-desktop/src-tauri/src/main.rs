@@ -36,6 +36,7 @@ use spire_kernel::decay;
 use spire_kernel::flavor::eft as flavor_eft;
 use spire_kernel::flavor::lattice as flavor_lattice;
 use spire_kernel::graph::{self, FeynmanGraph, LoopOrder, TopologySet};
+use spire_kernel::io::network::{NetworkDiagnostics, NetworkThrottleConfig};
 use spire_kernel::io::{experimental, latex as latex_compiler, provenance as provenance_engine};
 use spire_kernel::kinematics::{
     self, DalitzPlotData, MandelstamBoundaries, PhaseSpace, ThresholdResult,
@@ -55,7 +56,6 @@ use spire_kernel::theory::pdg::{
     policy::PdgExtractionPolicy,
     rest::{PdgRestConfig, PdgRestDataSource},
 };
-use spire_kernel::io::network::{NetworkDiagnostics, NetworkThrottleConfig};
 
 // ---------------------------------------------------------------------------
 // KinematicsReport - aggregate return type
@@ -1364,7 +1364,9 @@ impl PdgDataSource for LocalAdapterSource {
     }
 }
 
-fn read_live_settings(state: &tauri::State<'_, PdgRestState>) -> Result<PdgLiveApiSettings, String> {
+fn read_live_settings(
+    state: &tauri::State<'_, PdgRestState>,
+) -> Result<PdgLiveApiSettings, String> {
     let guard = state
         .source
         .lock()
@@ -1441,7 +1443,10 @@ fn pdg_lookup_with_arbitration(
 
     let outcome = arbitrate_particle_record_with_mode(&source_refs, mcid, mode);
     if let Some(mut selected) = outcome.selected {
-        if outcome.candidates.iter().any(|candidate| candidate == "pdg_rest")
+        if outcome
+            .candidates
+            .iter()
+            .any(|candidate| candidate == "pdg_rest")
             && selected.provenance.source_id == "local_sqlite"
             && live_enabled
         {
@@ -1476,7 +1481,9 @@ fn pdg_lookup_particle_by_pdgid(
     rest_state: tauri::State<'_, PdgRestState>,
 ) -> Result<PdgParticleRecord, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
-    let local = adapter.lookup_particle_by_name(&pdgid).map_err(|e| e.to_string())?;
+    let local = adapter
+        .lookup_particle_by_name(&pdgid)
+        .map_err(|e| e.to_string())?;
     pdg_lookup_with_arbitration(local.pdg_id, &rest_state)
 }
 
@@ -1568,7 +1575,9 @@ fn pdg_sync_model(
 
 /// Begin a progressive PDG catalog request and return its cancellation token.
 #[tauri::command]
-fn pdg_begin_catalog_stream(state: tauri::State<'_, PdgCatalogStreamState>) -> Result<String, String> {
+fn pdg_begin_catalog_stream(
+    state: tauri::State<'_, PdgCatalogStreamState>,
+) -> Result<String, String> {
     let request_id = format!(
         "pdg-stream-{}",
         state.request_counter.fetch_add(1, Ordering::Relaxed)

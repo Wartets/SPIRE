@@ -84,7 +84,8 @@ impl PdgAdapter {
             self.build_particle_record(resolved)
         })?;
 
-        self.caches.put_particle_record(record.pdg_id, record.clone());
+        self.caches
+            .put_particle_record(record.pdg_id, record.clone());
         self.caches.put_id_resolution(&normalized, record.pdg_id);
         if let Some(label) = &record.label {
             self.caches.put_id_resolution(label, record.pdg_id);
@@ -171,7 +172,8 @@ impl PdgAdapter {
             }
 
             let record = self.timed_db_query(|| self.build_particle_record(resolved.clone()))?;
-            self.caches.put_particle_record(record.pdg_id, record.clone());
+            self.caches
+                .put_particle_record(record.pdg_id, record.clone());
             if let Some(label) = &record.label {
                 self.caches.put_id_resolution(label, record.pdg_id);
             }

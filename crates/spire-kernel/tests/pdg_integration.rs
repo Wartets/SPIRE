@@ -24,7 +24,8 @@ struct MockPdgDataSource {
 
 impl MockPdgDataSource {
     fn with_alias(mut self, alias: &str, candidates: Vec<i32>) -> Self {
-        self.alias_map.insert(alias.to_ascii_lowercase(), candidates);
+        self.alias_map
+            .insert(alias.to_ascii_lowercase(), candidates);
         self
     }
 }
@@ -264,7 +265,14 @@ fn create_schema_join_fixture(path: &Path) -> rusqlite::Result<()> {
     conn.execute(
         "INSERT INTO pdgid (id, pdgid, parent_pdgid, data_type, description, sort)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![1_i64, "XROOT", Option::<String>::None, Option::<String>::None, "root", 0_i64],
+        params![
+            1_i64,
+            "XROOT",
+            Option::<String>::None,
+            Option::<String>::None,
+            "root",
+            0_i64
+        ],
     )?;
 
     conn.execute(
@@ -409,8 +417,7 @@ fn generic_decay_aliases_are_tagged_and_filtered_by_policy() {
     assert!(
         has_generic_alias,
         "expected at least one generic decay product carrying alias hint '{}'; parent MCID {}",
-        alias_hint,
-        parent_mcid
+        alias_hint, parent_mcid
     );
 
     let strict = adapter
@@ -506,11 +513,17 @@ fn edition_lock_rejects_cross_edition_injection_in_strict_mode() {
     let mut model = TheoreticalModel::default();
 
     model
-        .apply_pdg_provenance(test_provenance("2024-v0.1.4"), EditionMismatchPolicy::Strict)
+        .apply_pdg_provenance(
+            test_provenance("2024-v0.1.4"),
+            EditionMismatchPolicy::Strict,
+        )
         .expect("initial lock should succeed");
 
     let err = model
-        .apply_pdg_provenance(test_provenance("2025-v0.2.2"), EditionMismatchPolicy::Strict)
+        .apply_pdg_provenance(
+            test_provenance("2025-v0.2.2"),
+            EditionMismatchPolicy::Strict,
+        )
         .expect_err("strict lock should reject mixed editions");
 
     match err {

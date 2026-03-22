@@ -277,7 +277,9 @@ impl PdgDatabase {
             })?;
 
         Self::apply_startup_pragmas(&optimized_connection, true)?;
-        if let Err(schema_err) = Self::verify_schema_with(&optimized_connection, query_builder.as_ref()) {
+        if let Err(schema_err) =
+            Self::verify_schema_with(&optimized_connection, query_builder.as_ref())
+        {
             drop(optimized_connection);
 
             let _ = fs::remove_file(&optimized_path);
@@ -300,7 +302,8 @@ impl PdgDatabase {
                 })?;
 
             Self::apply_startup_pragmas(&optimized_connection, true)?;
-            Self::verify_schema_with(&optimized_connection, query_builder.as_ref()).map_err(|_| schema_err)?;
+            Self::verify_schema_with(&optimized_connection, query_builder.as_ref())
+                .map_err(|_| schema_err)?;
         }
 
         Self::ensure_required_indices(&optimized_connection)?;
@@ -457,13 +460,7 @@ impl PdgDatabase {
                 .and_then(|e| e.to_str())
                 .unwrap_or("sqlite");
             let counter = PDG_CACHE_COPY_COUNTER.fetch_add(1, Ordering::Relaxed);
-            format!(
-                "{}-pid{}-copy{}.{}",
-                stem,
-                std::process::id(),
-                counter,
-                ext
-            )
+            format!("{}-pid{}-copy{}.{}", stem, std::process::id(), counter, ext)
         };
 
         let cached_path = cache_root.join(unique_copy_name);

@@ -120,11 +120,7 @@ impl NetworkDiagnosticsState {
     fn snapshot(&self) -> NetworkDiagnostics {
         let last_status_code = self.last_status_code.lock().ok().and_then(|guard| *guard);
         let last_backoff_ms = self.last_backoff_ms.lock().ok().and_then(|guard| *guard);
-        let last_error = self
-            .last_error
-            .lock()
-            .ok()
-            .and_then(|guard| guard.clone());
+        let last_error = self.last_error.lock().ok().and_then(|guard| guard.clone());
 
         NetworkDiagnostics {
             total_requests: self.total_requests.load(Ordering::Relaxed),
@@ -282,12 +278,17 @@ impl ThrottledHttpClient {
                     }
 
                     if code == 429 {
-                        self.diagnostics.responses_429.fetch_add(1, Ordering::Relaxed);
+                        self.diagnostics
+                            .responses_429
+                            .fetch_add(1, Ordering::Relaxed);
                     } else if code == 503 {
-                        self.diagnostics.responses_503.fetch_add(1, Ordering::Relaxed);
+                        self.diagnostics
+                            .responses_503
+                            .fetch_add(1, Ordering::Relaxed);
                     }
 
-                    let should_retry = (code == 429 || code == 503) && attempt < self.cfg.max_retries;
+                    let should_retry =
+                        (code == 429 || code == 503) && attempt < self.cfg.max_retries;
                     if should_retry {
                         let backoff = self.compute_backoff(attempt);
                         self.diagnostics.retries.fetch_add(1, Ordering::Relaxed);
@@ -300,10 +301,8 @@ impl ThrottledHttpClient {
                     }
 
                     let status_text = response.status_text().to_string();
-                    let message = format!(
-                        "PDG REST request failed with HTTP {} {}",
-                        code, status_text
-                    );
+                    let message =
+                        format!("PDG REST request failed with HTTP {} {}", code, status_text);
                     self.diagnostics.set_last_error(message.clone());
                     return Err(SpireError::DatabaseError(message));
                 }
