@@ -95,10 +95,21 @@ async function dispatch(command: string, args: Record<string, unknown>): Promise
   // Convert command name (snake_case) to camelCase for wasm-bindgen.
   const fnName = command.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
+  // Ensure we only dispatch to own exports of the WASM module and not to
+  // inherited properties on the prototype chain.
+  const hasOwnExport =
+    Object.prototype.hasOwnProperty.call(wasmModule, fnName);
+
+  if (!hasOwnExport) {
+    throw new Error(
+      `WASM module does not export function "${fnName}" (command: "${command}").`,
+    );
+  }
+
   const fn = wasmModule[fnName];
   if (typeof fn !== "function") {
     throw new Error(
-      `WASM module does not export function "${fnName}" (command: "${command}").`,
+      `WASM export "${fnName}" is not callable (command: "${command}").`,
     );
   }
 
