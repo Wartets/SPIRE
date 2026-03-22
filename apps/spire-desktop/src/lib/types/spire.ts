@@ -1715,6 +1715,30 @@ export interface PdgMetadata {
   source_files: string[];
 }
 
+/** Cache diagnostics for one PDG cache bucket. */
+export interface PdgCacheBucketDiagnostics {
+  hits: number;
+  misses: number;
+  evictions: number;
+  size: number;
+  capacity: number;
+  hit_rate: number;
+}
+
+/** Aggregate diagnostics for PDG caches and DB latency. */
+export interface PdgCacheDiagnostics {
+  particle_records: PdgCacheBucketDiagnostics;
+  decay_tables: PdgCacheBucketDiagnostics;
+  id_resolution: PdgCacheBucketDiagnostics;
+  total_hits: number;
+  total_misses: number;
+  total_evictions: number;
+  total_entries: number;
+  db_queries: number;
+  db_average_latency_us: number;
+  db_last_latency_us: number;
+}
+
 /** Symmetric representation of asymmetric uncertainties. */
 export interface AsymmetricError {
   minus: number;
@@ -1788,6 +1812,17 @@ export interface PdgDecayTable {
   edition: string;
 }
 
+/** Progressive chunk for PDG catalog loading. */
+export interface PdgCatalogChunk {
+  request_id?: string | null;
+  offset: number;
+  limit: number;
+  total: number;
+  done: boolean;
+  cancelled: boolean;
+  records: PdgParticleRecord[];
+}
+
 /** PDG extraction policy for filtering decay channels. */
 export type PdgExtractionPolicy = "StrictPhysical" | "Catalog";
 
@@ -1837,6 +1872,30 @@ export const PdgMetadataSchema = z.object({
   version: z.string(),
   timestamp: z.string(),
   source_files: z.array(z.string()),
+});
+
+/** Zod schema for PdgCacheBucketDiagnostics */
+export const PdgCacheBucketDiagnosticsSchema = z.object({
+  hits: z.number(),
+  misses: z.number(),
+  evictions: z.number(),
+  size: z.number().int(),
+  capacity: z.number().int(),
+  hit_rate: z.number(),
+});
+
+/** Zod schema for PdgCacheDiagnostics */
+export const PdgCacheDiagnosticsSchema = z.object({
+  particle_records: PdgCacheBucketDiagnosticsSchema,
+  decay_tables: PdgCacheBucketDiagnosticsSchema,
+  id_resolution: PdgCacheBucketDiagnosticsSchema,
+  total_hits: z.number(),
+  total_misses: z.number(),
+  total_evictions: z.number(),
+  total_entries: z.number().int(),
+  db_queries: z.number(),
+  db_average_latency_us: z.number(),
+  db_last_latency_us: z.number(),
 });
 
 /** Zod schema for AsymmetricError */
@@ -1928,6 +1987,17 @@ export const PdgDecayTableSchema = z.object({
   edition: z.string(),
 });
 
+/** Zod schema for PdgCatalogChunk */
+export const PdgCatalogChunkSchema = z.object({
+  request_id: z.string().nullable().optional(),
+  offset: z.number().int(),
+  limit: z.number().int(),
+  total: z.number().int(),
+  done: z.boolean(),
+  cancelled: z.boolean(),
+  records: z.array(PdgParticleRecordSchema),
+});
+
 /** Zod schema for PdgExtractionPolicy */
 export const PdgExtractionPolicySchema = z.enum(["StrictPhysical", "Catalog"]);
 
@@ -1951,6 +2021,8 @@ export const SessionIntegrityValidationResultSchema = z.discriminatedUnion("ok",
 
 // Export inferred types from schemas (for consumers)
 export type PdgMetadataType = z.infer<typeof PdgMetadataSchema>;
+export type PdgCacheBucketDiagnosticsType = z.infer<typeof PdgCacheBucketDiagnosticsSchema>;
+export type PdgCacheDiagnosticsType = z.infer<typeof PdgCacheDiagnosticsSchema>;
 export type AsymmetricErrorType = z.infer<typeof AsymmetricErrorSchema>;
 export type PdgValueType = z.infer<typeof PdgValueSchema>;
 export type PdgQuantumNumbersType = z.infer<typeof PdgQuantumNumbersSchema>;
@@ -1960,4 +2032,5 @@ export type PdgParticleRecordType = z.infer<typeof PdgParticleRecordSchema>;
 export type PdgDecayProductType = z.infer<typeof PdgDecayProductSchema>;
 export type PdgDecayChannelType = z.infer<typeof PdgDecayChannelSchema>;
 export type PdgDecayTableType = z.infer<typeof PdgDecayTableSchema>;
+export type PdgCatalogChunkType = z.infer<typeof PdgCatalogChunkSchema>;
 export type PdgExtractionPolicyType = z.infer<typeof PdgExtractionPolicySchema>;

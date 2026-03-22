@@ -47,3 +47,7 @@ harness = false
 [[bench]]
 name = "throughput_bench"
 harness = false
+
+[[bench]]
+name = "pdg_lookup_bench"
+harness = false

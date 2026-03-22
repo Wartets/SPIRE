@@ -20,6 +20,48 @@ pub struct PdgMetadata {
     pub source_files: Vec<String>,
 }
 
+/// Diagnostics for a single bounded cache bucket.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PdgCacheBucketDiagnostics {
+    /// Number of cache hits.
+    pub hits: u64,
+    /// Number of cache misses.
+    pub misses: u64,
+    /// Number of evictions triggered by capacity pressure.
+    pub evictions: u64,
+    /// Current number of entries.
+    pub size: usize,
+    /// Maximum configured capacity.
+    pub capacity: usize,
+    /// Hit-rate ratio in `[0, 1]`.
+    pub hit_rate: f64,
+}
+
+/// Aggregate diagnostics for all PDG caches and database timing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PdgCacheDiagnostics {
+    /// Particle-record cache diagnostics.
+    pub particle_records: PdgCacheBucketDiagnostics,
+    /// Decay-table cache diagnostics.
+    pub decay_tables: PdgCacheBucketDiagnostics,
+    /// Identifier-resolution cache diagnostics.
+    pub id_resolution: PdgCacheBucketDiagnostics,
+    /// Aggregate cache hits across all buckets.
+    pub total_hits: u64,
+    /// Aggregate cache misses across all buckets.
+    pub total_misses: u64,
+    /// Aggregate evictions across all buckets.
+    pub total_evictions: u64,
+    /// Aggregate active entries across all buckets.
+    pub total_entries: usize,
+    /// Number of timed PDG database query calls.
+    pub db_queries: u64,
+    /// Mean database query latency in microseconds.
+    pub db_average_latency_us: f64,
+    /// Most recent database query latency in microseconds.
+    pub db_last_latency_us: f64,
+}
+
 /// Symmetric representation of asymmetric uncertainties.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsymmetricError {
@@ -238,6 +280,25 @@ pub struct PdgDecayTable {
     pub channels: Vec<PdgDecayChannel>,
     /// Edition of the PDG data.
     pub edition: PdgEdition,
+}
+
+/// Progressive catalog chunk returned by paged PDG traversal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PdgCatalogChunk {
+    /// Optional fetch request identifier used for cancellation tracking.
+    pub request_id: Option<String>,
+    /// Zero-based offset used for this page.
+    pub offset: usize,
+    /// Requested page size.
+    pub limit: usize,
+    /// Total number of matching rows.
+    pub total: usize,
+    /// True when this request reached the final chunk.
+    pub done: bool,
+    /// True when the request was cancelled before DB traversal.
+    pub cancelled: bool,
+    /// Record payload for this chunk.
+    pub records: Vec<PdgParticleRecord>,
 }
 
 impl PdgDecayTable {

@@ -812,6 +812,8 @@ export async function stopMcmcFit(): Promise<void> {
 
 import type {
   PdgMetadata,
+  PdgCacheDiagnostics,
+  PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
   PdgExtractionPolicy,
@@ -824,6 +826,13 @@ import type {
  */
 export async function getPdgMetadata(): Promise<PdgMetadata> {
   return getBackend().pdgGetMetadata();
+}
+
+/**
+ * Read backend-side PDG cache diagnostics and query latency metrics.
+ */
+export async function getPdgCacheDiagnostics(): Promise<PdgCacheDiagnostics> {
+  return getBackend().pdgGetCacheDiagnostics();
 }
 
 /**
@@ -899,6 +908,32 @@ export async function syncModelWithOptions(
   options: import("$lib/types/spire").PdgSyncOptions,
 ): Promise<TheoreticalModel> {
   return getBackend().pdgSyncModel(model, options);
+}
+
+/**
+ * Begin a progressive PDG catalog fetch and return a cancellable request id.
+ */
+export async function beginPdgCatalogStream(): Promise<string> {
+  return getBackend().pdgBeginCatalogStream();
+}
+
+/**
+ * Cancel an in-flight progressive PDG catalog fetch.
+ */
+export async function cancelPdgCatalogStream(requestId: string): Promise<void> {
+  return getBackend().pdgCancelCatalogStream(requestId);
+}
+
+/**
+ * Fetch one chunk of PDG particle records for progressive UI loading.
+ */
+export async function searchParticlesChunked(
+  query: string,
+  offset: number,
+  limit: number,
+  requestId?: string | null,
+): Promise<PdgCatalogChunk> {
+  return getBackend().pdgSearchIdentifiersChunked(query, offset, limit, requestId);
 }
 
 /**

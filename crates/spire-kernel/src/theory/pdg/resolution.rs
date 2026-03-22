@@ -148,4 +148,79 @@ impl PdgDatabase {
             SpireError::UnknownParticle(format!("No PDG particle entry found for name '{}'", name))
         })
     }
+
+    /// Count particles matching a case-insensitive name/identifier query.
+    pub fn count_particles_matching(&self, query: &str) -> SpireResult<usize> {
+        let normalized = query.trim().to_ascii_lowercase();
+        let pattern = format!("%{}%", normalized);
+        let sql = self.query_builder().count_particle_rows_sql();
+
+        self.connection()
+            .query_row(sql, rusqlite::params![normalized, pattern], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map(|count| count.max(0) as usize)
+            .map_err(|err| {
+                SpireError::DatabaseError(format!(
+                    "Failed to count PDG particles matching '{}': {}",
+                    query, err
+                ))
+            })
+    }
+
+    /// Resolve a paginated set of particles matching a query string.
+    pub fn resolve_particle_page(
+        &self,
+        query: &str,
+        offset: usize,
+        limit: usize,
+    ) -> SpireResult<Vec<ResolvedParticle>> {
+        let normalized = query.trim().to_ascii_lowercase();
+        let pattern = format!("%{}%", normalized);
+        let sql = self.query_builder().search_particle_rows_sql();
+        let mut stmt = self.connection().prepare(sql).map_err(|err| {
+            SpireError::DatabaseError(format!(
+                "Failed to prepare paginated PDG particle query for '{}': {}",
+                query, err
+            ))
+        })?;
+
+        let limit_i64 = limit as i64;
+        let offset_i64 = offset as i64;
+        let rows = stmt
+            .query_map(
+                rusqlite::params![normalized, pattern, limit_i64, offset_i64],
+                |row| {
+                    Ok(ResolvedParticle {
+                        root_pdgid_id: row.get(0)?,
+                        root_pdgid: row.get(1)?,
+                        mcid: row.get(2)?,
+                        name: row.get(3)?,
+                        cc_type: row.get(4)?,
+                        charge: row.get(5)?,
+                        quantum_j: row.get(6)?,
+                        quantum_p: row.get(7)?,
+                        quantum_c: row.get(8)?,
+                    })
+                },
+            )
+            .map_err(|err| {
+                SpireError::DatabaseError(format!(
+                    "Failed to execute paginated PDG particle query for '{}': {}",
+                    query, err
+                ))
+            })?;
+
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|err| {
+                SpireError::DatabaseError(format!(
+                    "Failed to decode paginated PDG particle row: {}",
+                    err
+                ))
+            })?);
+        }
+
+        Ok(out)
+    }
 }

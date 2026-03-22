@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 import { getWidgetUiSnapshot, setWidgetUiSnapshot } from "$lib/stores/workspaceStore";
 import { activeWorkspaceId } from "$lib/stores/layoutStore";
+import { getPdgCacheDiagnostics } from "$lib/api";
 import type { PdgParticleRecord } from "$lib/types/spire";
 
 export type PdgMergeMode = "Replace" | "Patch" | "Overlay";
@@ -102,6 +103,27 @@ export function recordPdgQuery(latencyMs: number, cacheHit: boolean): void {
       },
     };
   });
+}
+
+/**
+ * Refresh PDG data-plane diagnostics from backend caches/DB timings.
+ */
+export async function refreshPdgDiagnosticsFromBackend(): Promise<void> {
+  try {
+    const diagnostics = await getPdgCacheDiagnostics();
+    pdgIntegrationState.update((state) => ({
+      ...state,
+      queryStats: {
+        queryCount: diagnostics.db_queries,
+        cacheHits: diagnostics.total_hits,
+        cacheMisses: diagnostics.total_misses,
+        averageLatencyMs: diagnostics.db_average_latency_us / 1_000,
+        lastLatencyMs: diagnostics.db_last_latency_us / 1_000,
+      },
+    }));
+  } catch {
+    // Best-effort telemetry refresh: keep previous values if backend is unavailable.
+  }
 }
 
 export function addPdgCitation(entry: PdgCitationEntry): void {

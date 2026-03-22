@@ -65,6 +65,8 @@ import type {
   ObservableFitInput,
   GlobalObservableFitResult,
   PdgMetadata,
+  PdgCacheDiagnostics,
+  PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
   PdgExtractionPolicy,
@@ -101,6 +103,8 @@ import {
   GoodnessOfFitResultSchema,
   GlobalObservableFitResultSchema,
   PdgMetadataSchema,
+  PdgCacheDiagnosticsSchema,
+  PdgCatalogChunkSchema,
   PdgParticleRecordSchema,
   PdgDecayTableSchema,
   validateResponse,
@@ -616,6 +620,10 @@ export class TauriBackend implements SpireBackend {
     return tauriInvokeValidated("pdg_get_metadata", PdgMetadataSchema, {});
   }
 
+  async pdgGetCacheDiagnostics(): Promise<PdgCacheDiagnostics> {
+    return tauriInvokeValidated("pdg_get_cache_diagnostics", PdgCacheDiagnosticsSchema, {});
+  }
+
   async pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord> {
     return tauriInvokeValidated("pdg_lookup_particle_by_mcid", PdgParticleRecordSchema, {
       mcid,
@@ -642,6 +650,28 @@ export class TauriBackend implements SpireBackend {
     return tauriInvokeValidated("pdg_sync_model", TheoreticalModelSchema, {
       model,
       options: options ?? null,
+    });
+  }
+
+  async pdgBeginCatalogStream(): Promise<string> {
+    return tauriInvoke<string>("pdg_begin_catalog_stream", {});
+  }
+
+  async pdgCancelCatalogStream(requestId: string): Promise<void> {
+    return tauriInvoke("pdg_cancel_catalog_stream", { requestId });
+  }
+
+  async pdgSearchIdentifiersChunked(
+    query: string,
+    offset: number,
+    limit: number,
+    requestId?: string | null,
+  ): Promise<PdgCatalogChunk> {
+    return tauriInvokeValidated("pdg_search_identifiers_chunked", PdgCatalogChunkSchema, {
+      query,
+      offset,
+      limit,
+      requestId: requestId ?? null,
     });
   }
 

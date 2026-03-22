@@ -4,6 +4,8 @@
 pub mod adapter;
 /// Source abstraction and precedence arbitration for PDG-backed records.
 pub mod arbiter;
+/// Bounded cache primitives and diagnostics for PDG access hot paths.
+pub mod cache;
 /// Canonical PDG value/provenance contracts shared across transports.
 pub mod contracts;
 /// Database connection and query strategy layer for PDG SQLite datasets.

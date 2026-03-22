@@ -24,7 +24,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use spire_kernel::algebra::{self, AmplitudeExpression};
@@ -48,7 +48,9 @@ use spire_kernel::session::{self, ExecutionResult as SessionResult};
 use spire_kernel::theory;
 use spire_kernel::theory::pdg::{
     adapter::PdgAdapter,
-    contracts::{PdgDecayTable, PdgMetadata, PdgParticleRecord},
+    contracts::{
+        PdgCacheDiagnostics, PdgCatalogChunk, PdgDecayTable, PdgMetadata, PdgParticleRecord,
+    },
     policy::PdgExtractionPolicy,
 };
 
@@ -1319,6 +1321,12 @@ struct PdgSyncOptions {
     edition_lock: Option<String>,
 }
 
+/// Shared cancellation registry for progressive PDG catalog fetches.
+struct PdgCatalogStreamState {
+    request_counter: AtomicU64,
+    cancel_flags: Mutex<HashMap<String, Arc<AtomicBool>>>,
+}
+
 /// Get PDG database metadata (edition, version, timestamp).
 #[tauri::command]
 fn pdg_get_metadata() -> Result<PdgMetadata, String> {
@@ -1400,6 +1408,99 @@ fn pdg_sync_model(
     Ok(model)
 }
 
+/// Begin a progressive PDG catalog request and return its cancellation token.
+#[tauri::command]
+fn pdg_begin_catalog_stream(state: tauri::State<'_, PdgCatalogStreamState>) -> Result<String, String> {
+    let request_id = format!(
+        "pdg-stream-{}",
+        state.request_counter.fetch_add(1, Ordering::Relaxed)
+    );
+    let mut guard = state
+        .cancel_flags
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG stream state: {}", e))?;
+    guard.insert(request_id.clone(), Arc::new(AtomicBool::new(false)));
+    Ok(request_id)
+}
+
+/// Cancel an in-flight progressive PDG catalog request.
+#[tauri::command]
+fn pdg_cancel_catalog_stream(
+    request_id: String,
+    state: tauri::State<'_, PdgCatalogStreamState>,
+) -> Result<(), String> {
+    let guard = state
+        .cancel_flags
+        .lock()
+        .map_err(|e| format!("Failed to lock PDG stream state: {}", e))?;
+    if let Some(flag) = guard.get(&request_id) {
+        flag.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+/// Fetch one chunk of PDG particle records for progressive catalog rendering.
+#[tauri::command]
+fn pdg_search_identifiers_chunked(
+    query: String,
+    offset: usize,
+    limit: usize,
+    request_id: Option<String>,
+    state: tauri::State<'_, PdgCatalogStreamState>,
+) -> Result<PdgCatalogChunk, String> {
+    if let Some(active_request_id) = &request_id {
+        let guard = state
+            .cancel_flags
+            .lock()
+            .map_err(|e| format!("Failed to lock PDG stream state: {}", e))?;
+        if let Some(flag) = guard.get(active_request_id) {
+            if flag.load(Ordering::Relaxed) {
+                return Ok(PdgCatalogChunk {
+                    request_id: request_id.clone(),
+                    offset,
+                    limit,
+                    total: 0,
+                    done: true,
+                    cancelled: true,
+                    records: Vec::new(),
+                });
+            }
+        }
+    }
+
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    let (records, total) = adapter
+        .search_particle_records_chunk(&query, offset, limit)
+        .map_err(|e| e.to_string())?;
+
+    let done = offset.saturating_add(records.len()) >= total;
+
+    if done {
+        if let Some(active_request_id) = &request_id {
+            if let Ok(mut guard) = state.cancel_flags.lock() {
+                guard.remove(active_request_id);
+            }
+        }
+    }
+
+    Ok(PdgCatalogChunk {
+        request_id,
+        offset,
+        limit,
+        total,
+        done,
+        cancelled: false,
+        records,
+    })
+}
+
+/// Read bounded-cache diagnostics from the PDG adapter.
+#[tauri::command]
+fn pdg_get_cache_diagnostics() -> Result<PdgCacheDiagnostics, String> {
+    let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
+    Ok(adapter.get_cache_diagnostics())
+}
+
 /// Search for particles by name, label, or identifier fragment.
 ///
 /// Returns a list of matching `PdgParticleRecord` objects.
@@ -1407,28 +1508,28 @@ fn pdg_sync_model(
 fn pdg_search_identifiers(query: String) -> Result<Vec<PdgParticleRecord>, String> {
     let adapter = PdgAdapter::with_default_path().map_err(|e| e.to_string())?;
 
-    // Simple substring search on particle name (case-insensitive)
-    let query_lower = query.to_lowercase();
+    let mut offset = 0usize;
+    let limit = 256usize;
+    let mut records = Vec::new();
 
-    // For now, perform a limited search against known particles
-    // In production, this would query a full text search index in the PDG database
-    let mut results = Vec::new();
+    loop {
+        let (chunk, total) = adapter
+            .search_particle_records_chunk(&query, offset, limit)
+            .map_err(|e| e.to_string())?;
 
-    // Attempt to match against common particle labels and MCIDs
-    let common_particles = [
-        11, -11, 12, 13, -13, 14, 15, -15, 16, 1, 2, 3, 4, 5, 6, 21, 22, 23, 24, 25,
-    ];
-    for mcid in &common_particles {
-        if let Ok(record) = adapter.lookup_particle_by_mcid(*mcid) {
-            if let Some(ref label) = record.label {
-                if label.to_lowercase().contains(&query_lower) {
-                    results.push(record);
-                }
-            }
+        if chunk.is_empty() {
+            break;
+        }
+
+        offset = offset.saturating_add(chunk.len());
+        records.extend(chunk);
+
+        if offset >= total {
+            break;
         }
     }
 
-    Ok(results)
+    Ok(records)
 }
 
 // ---------------------------------------------------------------------------
@@ -1575,9 +1676,15 @@ fn main() {
         burn_in: Mutex::new(0),
     };
 
+    let pdg_stream_state = PdgCatalogStreamState {
+        request_counter: AtomicU64::new(1),
+        cancel_flags: Mutex::new(HashMap::new()),
+    };
+
     tauri::Builder::default()
         .manage(plugin_state)
         .manage(mcmc_state)
+        .manage(pdg_stream_state)
         .invoke_handler(tauri::generate_handler![
             load_theoretical_model,
             validate_and_reconstruct_reaction,
@@ -1636,6 +1743,10 @@ fn main() {
             pdg_get_particle_properties,
             pdg_get_decay_table,
             pdg_sync_model,
+            pdg_begin_catalog_stream,
+            pdg_cancel_catalog_stream,
+            pdg_search_identifiers_chunked,
+            pdg_get_cache_diagnostics,
             pdg_search_identifiers,
         ])
         .run(tauri::generate_context!())

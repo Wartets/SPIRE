@@ -1124,6 +1124,28 @@ export const PdgMetadataSchema = z.object({
   source_files: z.array(z.string()),
 });
 
+export const PdgCacheBucketDiagnosticsSchema = z.object({
+  hits: z.number(),
+  misses: z.number(),
+  evictions: z.number(),
+  size: z.number().int(),
+  capacity: z.number().int(),
+  hit_rate: z.number(),
+});
+
+export const PdgCacheDiagnosticsSchema = z.object({
+  particle_records: PdgCacheBucketDiagnosticsSchema,
+  decay_tables: PdgCacheBucketDiagnosticsSchema,
+  id_resolution: PdgCacheBucketDiagnosticsSchema,
+  total_hits: z.number(),
+  total_misses: z.number(),
+  total_evictions: z.number(),
+  total_entries: z.number().int(),
+  db_queries: z.number(),
+  db_average_latency_us: z.number(),
+  db_last_latency_us: z.number(),
+});
+
 export const PdgParticleRecordSchema = z.object({
   pdg_id: z.number().int(),
   label: z.string().optional(),
@@ -1152,6 +1174,16 @@ export const PdgDecayTableSchema = z.object({
   parent_pdg_id: z.number().int(),
   channels: z.array(PdgDecayChannelSchema),
   edition: z.string(),
+});
+
+export const PdgCatalogChunkSchema = z.object({
+  request_id: z.string().nullable().optional(),
+  offset: z.number().int(),
+  limit: z.number().int(),
+  total: z.number().int(),
+  done: z.boolean(),
+  cancelled: z.boolean(),
+  records: z.array(PdgParticleRecordSchema),
 });
 
 export const PdgExtractionPolicySchema = z.enum(["StrictPhysical", "Catalog"]);

@@ -15,6 +15,7 @@
   4. **History** - scrollable list of the last 20 profiled runs.
 -->
 <script lang="ts">
+  import { onMount } from "svelte";
   import { tooltip } from "$lib/actions/tooltip";
   import {
     latestProfile,
@@ -28,7 +29,10 @@
   } from "$lib/core/services/TelemetryService";
   import { publishWidgetInterop } from "$lib/stores/widgetInteropStore";
   import type { ProfileEntry } from "$lib/core/services/TelemetryService";
-  import { pdgIntegrationState } from "$lib/stores/pdgIntegrationStore";
+  import {
+    pdgIntegrationState,
+    refreshPdgDiagnosticsFromBackend,
+  } from "$lib/stores/pdgIntegrationStore";
   import EditionLockBadge from "$lib/components/ui/EditionLockBadge.svelte";
 
   // ── Formatting Helpers ──────────────────────────────────
@@ -134,6 +138,24 @@
 
   $: barMax = $stageTimings.length > 0 ? $stageTimings[0][1] : 1;
 
+  $: pdgTotalQueries =
+    $pdgIntegrationState.queryStats.cacheHits + $pdgIntegrationState.queryStats.cacheMisses;
+  $: pdgHitRate =
+    pdgTotalQueries > 0
+      ? ($pdgIntegrationState.queryStats.cacheHits / pdgTotalQueries) * 100
+      : 0;
+
+  onMount(() => {
+    void refreshPdgDiagnosticsFromBackend();
+    const timer = setInterval(() => {
+      void refreshPdgDiagnosticsFromBackend();
+    }, 1500);
+
+    return () => {
+      clearInterval(timer);
+    };
+  });
+
   $: publishWidgetInterop("telemetry", {
     profileCount: $profileCount,
     label: $latestLabel || null,
@@ -187,6 +209,10 @@
         <span>{fmtMs($pdgIntegrationState.queryStats.averageLatencyMs)}</span>
         <span>Last latency</span>
         <span>{fmtMs($pdgIntegrationState.queryStats.lastLatencyMs)}</span>
+        <span>Hit rate</span>
+        <span class:ok={pdgHitRate >= 85} class:warn={pdgHitRate < 85 && pdgHitRate >= 60} class:bad={pdgHitRate < 60}>
+          {pdgHitRate.toFixed(1)}%
+        </span>
       </div>
     </div>
 
@@ -453,6 +479,18 @@
     gap: 0.18rem 0.6rem;
     font-size: 0.68rem;
     color: var(--fg-secondary);
+  }
+
+  .status-grid .ok {
+    color: var(--hl-success, #66d17a);
+  }
+
+  .status-grid .warn {
+    color: var(--hl-warning, #e4c36a);
+  }
+
+  .status-grid .bad {
+    color: var(--hl-error, #e17575);
   }
 
   /* ── Bar Chart ─────────────────────────────────── */

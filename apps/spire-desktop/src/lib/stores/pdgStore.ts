@@ -6,7 +6,10 @@ import type {
 } from '$lib/types/spire';
 import {
   getPdgMetadata,
+  beginPdgCatalogStream,
+  cancelPdgCatalogStream,
   searchParticles,
+  searchParticlesChunked,
 } from '$lib/api';
 
 /**
@@ -27,6 +30,19 @@ export const pdgEditionFilter: Writable<'latest' | string> = writable('latest');
 export const pdgOnlyWithMeasurements: Writable<boolean> = writable(false);
 export const pdgAvailableEditions: Writable<string[]> = writable([]);
 export const pdgCatalogHistory: Writable<Record<number, PdgParticleRecord[]>> = writable({});
+export const pdgCatalogLoadProgress: Writable<{
+  active: boolean;
+  loaded: number;
+  total: number;
+  cancelled: boolean;
+  requestId: string | null;
+}> = writable({
+  active: false,
+  loaded: 0,
+  total: 0,
+  cancelled: false,
+  requestId: null,
+});
 
 function editionRank(edition: string): number {
   const yearMatch = edition.match(/(19|20)\d{2}/);
@@ -306,6 +322,7 @@ export const pdgCatalog: Readable<PdgParticleRecord[]> = derived(
   (mode, set) => {
     const requestId = ++activeCatalogRequestId;
     let disposed = false;
+    const signal = { cancelled: false, requestId: null as string | null };
 
     if (mode === 'core_sm') {
       const history = CORE_SM_PARTICLES.reduce<Record<number, PdgParticleRecord[]>>((acc, particle) => {
@@ -314,9 +331,16 @@ export const pdgCatalog: Readable<PdgParticleRecord[]> = derived(
       }, {});
       pdgCatalogHistory.set(history);
       pdgAvailableEditions.set(['PDG2024']);
+      pdgCatalogLoadProgress.set({
+        active: false,
+        loaded: CORE_SM_PARTICLES.length,
+        total: CORE_SM_PARTICLES.length,
+        cancelled: false,
+        requestId: null,
+      });
       set(CORE_SM_PARTICLES);
     } else {
-      loadFullCatalog()
+      loadFullCatalogProgressive(signal)
         .then(({ particles, historyByPdgId, editions }) => {
           if (disposed || requestId !== activeCatalogRequestId) return;
           pdgCatalogHistory.set(historyByPdgId);
@@ -334,56 +358,155 @@ export const pdgCatalog: Readable<PdgParticleRecord[]> = derived(
 
     return () => {
       disposed = true;
+      signal.cancelled = true;
+      if (signal.requestId) {
+        void cancelPdgCatalogStream(signal.requestId);
+      }
     };
   },
   CORE_SM_PARTICLES
 );
 
+function buildCatalogFromRecords(fetched: PdgParticleRecord[]): {
+  particles: PdgParticleRecord[];
+  historyByPdgId: Record<number, PdgParticleRecord[]>;
+  editions: string[];
+} {
+  if (!Array.isArray(fetched) || fetched.length === 0) {
+    return {
+      particles: [...CORE_SM_PARTICLES],
+      historyByPdgId: CORE_SM_PARTICLES.reduce<Record<number, PdgParticleRecord[]>>((acc, particle) => {
+        acc[particle.pdg_id] = [particle];
+        return acc;
+      }, {}),
+      editions: ['PDG2024'],
+    };
+  }
+
+  const historyByPdgId = new Map<number, PdgParticleRecord[]>();
+  const editions = new Set<string>();
+
+  for (const particle of [...CORE_SM_PARTICLES, ...fetched]) {
+    editions.add(particle.provenance.edition);
+    const current = historyByPdgId.get(particle.pdg_id) ?? [];
+    current.push(particle);
+    historyByPdgId.set(particle.pdg_id, current);
+  }
+
+  const reducedHistory: Record<number, PdgParticleRecord[]> = {};
+  const latestCatalog = Array.from(historyByPdgId.entries()).map(([pdgId, history]) => {
+    const ranked = rankHistory(history);
+    reducedHistory[pdgId] = ranked;
+    return ranked[0];
+  });
+
+  return {
+    particles: latestCatalog.sort((a, b) => a.pdg_id - b.pdg_id),
+    historyByPdgId: reducedHistory,
+    editions: [...editions].sort((a, b) => editionRank(b) - editionRank(a)),
+  };
+}
+
 /**
- * Async function to load full PDG catalog from backend
+ * Async function to load full PDG catalog progressively from backend.
  */
-async function loadFullCatalog(): Promise<{
+async function loadFullCatalogProgressive(signal: { cancelled: boolean; requestId: string | null }): Promise<{
   particles: PdgParticleRecord[];
   historyByPdgId: Record<number, PdgParticleRecord[]>;
   editions: string[];
 }> {
+  const chunkSize = 128;
+  let requestId: string | null = null;
+
   try {
-    const fetched = await searchParticles('');
-    if (!Array.isArray(fetched) || fetched.length === 0) {
-      return {
-        particles: [...CORE_SM_PARTICLES],
-        historyByPdgId: CORE_SM_PARTICLES.reduce<Record<number, PdgParticleRecord[]>>((acc, particle) => {
-          acc[particle.pdg_id] = [particle];
-          return acc;
-        }, {}),
-        editions: ['PDG2024'],
-      };
-    }
-
-    const historyByPdgId = new Map<number, PdgParticleRecord[]>();
-    const editions = new Set<string>();
-
-    for (const particle of [...CORE_SM_PARTICLES, ...fetched]) {
-      editions.add(particle.provenance.edition);
-      const current = historyByPdgId.get(particle.pdg_id) ?? [];
-      current.push(particle);
-      historyByPdgId.set(particle.pdg_id, current);
-    }
-
-    const reducedHistory: Record<number, PdgParticleRecord[]> = {};
-    const latestCatalog = Array.from(historyByPdgId.entries()).map(([pdgId, history]) => {
-      const ranked = rankHistory(history);
-      reducedHistory[pdgId] = ranked;
-      return ranked[0];
+    requestId = await beginPdgCatalogStream();
+    signal.requestId = requestId;
+    pdgCatalogLoadProgress.set({
+      active: true,
+      loaded: 0,
+      total: 0,
+      cancelled: false,
+      requestId,
     });
 
-    return {
-      particles: latestCatalog.sort((a, b) => a.pdg_id - b.pdg_id),
-      historyByPdgId: reducedHistory,
-      editions: [...editions].sort((a, b) => editionRank(b) - editionRank(a)),
-    };
+    const fetched: PdgParticleRecord[] = [];
+    let offset = 0;
+    let total = 0;
+
+    while (!signal.cancelled) {
+      const chunk = await searchParticlesChunked('', offset, chunkSize, requestId);
+      if (chunk.cancelled) {
+        pdgCatalogLoadProgress.set({
+          active: false,
+          loaded: fetched.length,
+          total: total || chunk.total,
+          cancelled: true,
+          requestId,
+        });
+        throw new Error('PDG catalog load cancelled');
+      }
+
+      fetched.push(...chunk.records);
+      offset += chunk.records.length;
+      total = chunk.total;
+
+      pdgCatalogLoadProgress.set({
+        active: !chunk.done,
+        loaded: fetched.length,
+        total,
+        cancelled: false,
+        requestId,
+      });
+
+      if (chunk.done || chunk.records.length === 0) {
+        break;
+      }
+
+      await Promise.resolve();
+    }
+
+    if (signal.cancelled) {
+      if (requestId) {
+        await cancelPdgCatalogStream(requestId);
+      }
+      pdgCatalogLoadProgress.set({
+        active: false,
+        loaded: 0,
+        total: 0,
+        cancelled: true,
+        requestId,
+      });
+      throw new Error('PDG catalog load cancelled');
+    }
+
+    const catalog = buildCatalogFromRecords(fetched);
+    pdgCatalogLoadProgress.set({
+      active: false,
+      loaded: catalog.particles.length,
+      total: total || catalog.particles.length,
+      cancelled: false,
+      requestId,
+    });
+    return catalog;
   } catch (err) {
-    console.error('loadFullCatalog error:', err);
+    if (!signal.cancelled) {
+      try {
+        const fallback = await searchParticles('');
+        const catalog = buildCatalogFromRecords(fallback);
+        pdgCatalogLoadProgress.set({
+          active: false,
+          loaded: catalog.particles.length,
+          total: catalog.particles.length,
+          cancelled: false,
+          requestId,
+        });
+        return catalog;
+      } catch (fallbackErr) {
+        console.error('loadFullCatalogProgressive fallback error:', fallbackErr);
+      }
+    }
+
+    console.error('loadFullCatalogProgressive error:', err);
     throw err;
   }
 }

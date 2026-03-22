@@ -68,6 +68,8 @@ import type {
   ObservableFitInput,
   GlobalObservableFitResult,
   PdgMetadata,
+  PdgCacheDiagnostics,
+  PdgCatalogChunk,
   PdgParticleRecord,
   PdgDecayTable,
   PdgExtractionPolicy,
@@ -374,10 +376,14 @@ export interface SpireBackend {
 
   // ── Particle Data Group (PDG) Integration (Phase 73) ───────────────
   pdgGetMetadata(): Promise<PdgMetadata>;
+  pdgGetCacheDiagnostics(): Promise<PdgCacheDiagnostics>;
   pdgLookupParticleByMcid(mcid: number): Promise<PdgParticleRecord>;
   pdgLookupParticleByPdgid(pdgid: string): Promise<PdgParticleRecord>;
   pdgGetParticleProperties(mcid: number): Promise<PdgParticleRecord>;
   pdgGetDecayTable(mcid: number, policy: PdgExtractionPolicy): Promise<PdgDecayTable>;
   pdgSyncModel(model: TheoreticalModel, options?: PdgSyncOptions): Promise<TheoreticalModel>;
+  pdgBeginCatalogStream(): Promise<string>;
+  pdgCancelCatalogStream(requestId: string): Promise<void>;
+  pdgSearchIdentifiersChunked(query: string, offset: number, limit: number, requestId?: string | null): Promise<PdgCatalogChunk>;
   pdgSearchIdentifiers(query: string): Promise<PdgParticleRecord[]>;
 }

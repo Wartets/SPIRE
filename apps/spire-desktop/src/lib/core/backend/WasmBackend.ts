@@ -573,6 +573,10 @@ export class WasmBackend implements SpireBackend {
     throw new Error("PDG metadata lookup is not supported in WASM backend mode");
   }
 
+  async pdgGetCacheDiagnostics(): Promise<import("$lib/types/spire").PdgCacheDiagnostics> {
+    throw new Error("PDG cache diagnostics are not supported in WASM backend mode");
+  }
+
   async pdgLookupParticleByMcid(_mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
     throw new Error("PDG particle lookup is not supported in WASM backend mode");
   }
@@ -594,6 +598,23 @@ export class WasmBackend implements SpireBackend {
     _options?: import("$lib/types/spire").PdgSyncOptions,
   ): Promise<import("$lib/types/spire").TheoreticalModel> {
     throw new Error("PDG model sync is not supported in WASM backend mode");
+  }
+
+  async pdgBeginCatalogStream(): Promise<string> {
+    throw new Error("PDG progressive catalog is not supported in WASM backend mode");
+  }
+
+  async pdgCancelCatalogStream(_requestId: string): Promise<void> {
+    throw new Error("PDG progressive catalog is not supported in WASM backend mode");
+  }
+
+  async pdgSearchIdentifiersChunked(
+    _query: string,
+    _offset: number,
+    _limit: number,
+    _requestId?: string | null,
+  ): Promise<import("$lib/types/spire").PdgCatalogChunk> {
+    throw new Error("PDG progressive catalog is not supported in WASM backend mode");
   }
 
   async pdgSearchIdentifiers(_query: string): Promise<import("$lib/types/spire").PdgParticleRecord[]> {

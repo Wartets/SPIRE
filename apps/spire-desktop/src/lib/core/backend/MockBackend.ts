@@ -1591,6 +1591,22 @@ This is a mock proof document for ${processLabel}.
     };
   }
 
+  async pdgGetCacheDiagnostics(): Promise<import("$lib/types/spire").PdgCacheDiagnostics> {
+    await simulateLatency();
+    return {
+      particle_records: { hits: 0, misses: 0, evictions: 0, size: 0, capacity: 500, hit_rate: 0 },
+      decay_tables: { hits: 0, misses: 0, evictions: 0, size: 0, capacity: 200, hit_rate: 0 },
+      id_resolution: { hits: 0, misses: 0, evictions: 0, size: 0, capacity: 2000, hit_rate: 0 },
+      total_hits: 0,
+      total_misses: 0,
+      total_evictions: 0,
+      total_entries: 0,
+      db_queries: 0,
+      db_average_latency_us: 0,
+      db_last_latency_us: 0,
+    };
+  }
+
   async pdgLookupParticleByMcid(mcid: number): Promise<import("$lib/types/spire").PdgParticleRecord> {
     await simulateLatency();
     if (mcid === 11) {
@@ -1641,6 +1657,34 @@ This is a mock proof document for ${processLabel}.
   ): Promise<TheoreticalModel> {
     await simulateLatency();
     return model;
+  }
+
+  async pdgBeginCatalogStream(): Promise<string> {
+    await simulateLatency();
+    return `mock-stream-${Date.now()}`;
+  }
+
+  async pdgCancelCatalogStream(_requestId: string): Promise<void> {
+    await simulateLatency();
+  }
+
+  async pdgSearchIdentifiersChunked(
+    query: string,
+    offset: number,
+    limit: number,
+    requestId?: string | null,
+  ): Promise<import("$lib/types/spire").PdgCatalogChunk> {
+    const all = await this.pdgSearchIdentifiers(query);
+    const records = all.slice(offset, offset + limit);
+    return {
+      request_id: requestId ?? null,
+      offset,
+      limit,
+      total: all.length,
+      done: offset + records.length >= all.length,
+      cancelled: false,
+      records,
+    };
   }
 
   async pdgSearchIdentifiers(query: string): Promise<import("$lib/types/spire").PdgParticleRecord[]> {
