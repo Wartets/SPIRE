@@ -78,6 +78,19 @@ function sanitizeId(id: number): string {
   return `v${id}`;
 }
 
+const LATEX_TEXT_ESCAPE_MAP: Record<string, string> = {
+  "\\": "\\textbackslash{}",
+  "#": "\\#",
+  "%": "\\%",
+  "&": "\\&",
+  "{": "\\{",
+  "}": "\\}",
+};
+
+function escapeLatexText(input: string): string {
+  return input.replace(/[\\#%&{}]/g, (token: string) => LATEX_TEXT_ESCAPE_MAP[token] ?? token);
+}
+
 function sanitizeLabel(s: string): string {
   // If label already contains LaTeX commands, preserve them and only normalize unicode superscripts.
   if (/\\[a-zA-Z]+/.test(s)) {
@@ -88,13 +101,7 @@ function sanitizeLabel(s: string): string {
   }
 
   // Escape only problematic text-mode chars, then map common physics unicode to LaTeX math.
-  return s
-    .replace(/\\/g, "\\textbackslash{}")
-    .replace(/#/g, "\\#")
-    .replace(/%/g, "\\%")
-    .replace(/&/g, "\\&")
-    .replace(/\{/g, "\\{")
-    .replace(/\}/g, "\\}")
+  return escapeLatexText(s)
     .replace(/γ/g, "\\gamma")
     .replace(/μ/g, "\\mu")
     .replace(/τ/g, "\\tau")
