@@ -244,7 +244,6 @@ function sanitizeMomentum(mom: string): string {
     .replace(/\\/g, "")
     .replace(/([pkqℓl])(\d+)/g, "$1_{$2}")
     .replace(/([pkqℓl])_(\d+)/g, "$1_{$2}")
-    .replace(/\bq\b/g, "q")
     .replace(/\bell\b/gi, "\\ell")
     .replace(/ℓ/g, "\\ell")
     .replace(/→/g, "\\to ");
