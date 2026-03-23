@@ -171,6 +171,7 @@ async function ensureWasmLoaded(): Promise<void> {
  * Each function takes a single JSON-string argument and returns a
  * JSON string.
  */
+<<<<<<< HEAD
 async function callWasmExport(
   command: WasmCommand,
   exportName: string,
@@ -180,6 +181,35 @@ async function callWasmExport(
   if (typeof fn !== "function") {
     throw new Error(
       `WASM module does not export function "${exportName}" (command: "${command}").`,
+=======
+async function dispatch(command: string, args: Record<string, unknown>): Promise<unknown> {
+  await ensureWasmLoaded();
+
+  if (!wasmModule) {
+    throw new Error(
+      wasmLoadError ?? "WASM module is not available.",
+    );
+  }
+
+  // Convert command name (snake_case) to camelCase for wasm-bindgen.
+  const fnName = command.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+  // Ensure we only dispatch to own exports of the WASM module and not to
+  // inherited properties on the prototype chain.
+  const hasOwnExport =
+    Object.prototype.hasOwnProperty.call(wasmModule, fnName);
+
+  if (!hasOwnExport) {
+    throw new Error(
+      `WASM module does not export function "${fnName}" (command: "${command}").`,
+    );
+  }
+
+  const fn = wasmModule[fnName];
+  if (typeof fn !== "function") {
+    throw new Error(
+      `WASM export "${fnName}" is not callable (command: "${command}").`,
+>>>>>>> 391c836fd31c90dfa95f4d1466b50587bf193df9
     );
   }
 
